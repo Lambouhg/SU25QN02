@@ -75,14 +75,21 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Quick Start Section */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+          {/* Quick Start Section */}          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
             <h3 className="text-lg font-semibold mb-4">Quick Start</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <Link href="/practice/mock-interview" 
                 className="flex flex-col items-center p-4 rounded-xl border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all group">
                 <Brain className="w-8 h-8 text-purple-500 mb-2" />
                 <span className="text-sm font-medium text-gray-900">AI Interview</span>
+              </Link>
+              <Link href="/avatar-interview" 
+                className="flex flex-col items-center p-4 rounded-xl border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all group">
+                <svg className="w-8 h-8 text-purple-500 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="8" r="5" />
+                  <path d="M20 21v-2a7 7 0 00-14 0v2" />
+                </svg>
+                <span className="text-sm font-medium text-gray-900">Avatar Interview</span>
               </Link>
               <Link href="/practice/quiz" 
                 className="flex flex-col items-center p-4 rounded-xl border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all group">

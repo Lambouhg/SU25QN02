@@ -12,14 +12,19 @@
     "@clerk/nextjs": "^6.20.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@heygen/streaming-avatar": "^2.0.16",
     "@mui/icons-material": "^7.1.1",
+    "@mui/material": "^7.1.1",
+    "ahooks": "^3.8.5",
+    "livekit-client": "^2.13.3",
     "lucide-react": "^0.511.0",
     "microsoft-cognitiveservices-speech-sdk": "^1.44.1",
     "mongoose": "^8.15.1",
     "next": "15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "svix": "^1.66.0"
+    "svix": "^1.66.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -27,6 +32,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4",
