@@ -1,11 +1,16 @@
 // src/services/openaiService.ts
 
-const AZURE_OPENAI_KEY = process.env.NEXT_PUBLIC_AZURE_OPENAI_KEY;
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+const AZURE_OPENAI_KEY= process.env.NEXT_PUBLIC_AZURE_OPENAI_KEY;
 const AZURE_OPENAI_ENDPOINT = process.env.NEXT_PUBLIC_AZURE_OPENAI_ENDPOINT;
 const AZURE_OPENAI_DEPLOYMENT = process.env.NEXT_PUBLIC_AZURE_OPENAI_DEPLOYMENT || "gpt-4.0";
 const AZURE_OPENAI_API_VERSION = "2024-04-01-preview";
 
-export async function callOpenAI(messages: any[]) {
+export async function callOpenAI(messages: ChatMessage[]) {
   if (!AZURE_OPENAI_KEY || !AZURE_OPENAI_ENDPOINT) {
     throw new Error("Azure OpenAI key or endpoint is missing");
   }

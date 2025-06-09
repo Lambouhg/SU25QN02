@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, KeyboardEvent, ChangeEvent } from 'react';
 import { Typography, Box, Divider, TextField, IconButton, Button, Switch, FormControlLabel, Tooltip, Avatar } from '@mui/material';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
@@ -9,6 +9,33 @@ import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import AndroidIcon from '@mui/icons-material/Android';
 import { MessageList, MessageItem, MessageContent, StyledPaper } from './styles';
+
+interface ChatMessage {
+  id: string | number;
+  sender: 'user' | 'ai';
+  text: string;
+  isError?: boolean;
+}
+
+interface InterviewChatProps {
+  position: string;
+  isSpeechEnabled: boolean;
+  voiceLanguage: 'vi-VN' | 'en-US';
+  isListening: boolean;
+  isSpeakerOn: boolean;
+  isAiSpeaking: boolean;
+  conversation: ChatMessage[];
+  message: string;
+  isAiThinking: boolean;
+  onToggleLanguage: () => void;
+  onToggleSpeechRecognition: () => void;
+  onToggleSpeaker: () => void;
+  onSpeechToggle: (event: ChangeEvent<HTMLInputElement>) => void;
+  onMessageChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onSendMessage: () => void;
+  messageListRef: React.RefObject<HTMLDivElement>;
+  handleKeyPress: (event: KeyboardEvent<HTMLDivElement>) => void;
+}
 
 const InterviewChat = ({
   position,
@@ -28,7 +55,7 @@ const InterviewChat = ({
   onSendMessage,
   messageListRef,
   handleKeyPress
-}: any) => {
+}: InterviewChatProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (scrollRef.current) {
@@ -82,9 +109,8 @@ const InterviewChat = ({
           )}
         </Box>
       </Box>
-      <StyledPaper elevation={3}>
-        <MessageList ref={messageListRef}>
-          {conversation.map((msg: { id: string|number; sender: string; text: string; isError?: boolean }) => (
+      <StyledPaper elevation={3}>        <MessageList ref={messageListRef}>
+          {conversation.map((msg: ChatMessage) => (
             <MessageItem key={msg.id} sender={msg.sender}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, width: '100%', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                 {msg.sender === 'ai' && (

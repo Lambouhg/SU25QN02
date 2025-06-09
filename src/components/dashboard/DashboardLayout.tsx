@@ -14,11 +14,11 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   const menuItems = [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Brain, label: 'Practice Modes', href: '/practice', subItems: [
       { label: 'Mock Interview (AI)', href: '/practice/mock-interview' },
+      { label: 'Avatar Interview', href: '/avatar-interview' },
       { label: 'Quiz Mode', href: '/practice/quiz' },
       { label: 'Test Mode', href: '/practice/test' },
       { label: 'EQ Test Mode', href: '/practice/eq-test' },

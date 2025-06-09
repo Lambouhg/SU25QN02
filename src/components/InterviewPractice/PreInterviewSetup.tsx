@@ -1,5 +1,26 @@
 import React from 'react';
-import { Typography, FormControl, InputLabel, Select, MenuItem, Box, Button, Switch, FormControlLabel } from '@mui/material';
+import { Typography, FormControl, InputLabel, Select, MenuItem, Box, Button, Switch, FormControlLabel, SelectChangeEvent } from '@mui/material';
+
+interface Language {
+  key: string;
+  value: string;
+  label: string;
+}
+
+interface PreInterviewSetupProps {
+  position: string;
+  isSpeechEnabled: boolean;
+  onPositionChange: (event: SelectChangeEvent<string>) => void;
+  onSpeechToggle: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onStartInterview: () => void;
+  positionOptions: string[];
+  level: string;
+  setLevel: (level: string) => void;
+  levelOptions: string[];
+  language: string;
+  setLanguage: (language: string) => void;
+  LANGUAGES: Language[];
+}
 
 const PreInterviewSetup = ({ 
   position, 
@@ -14,7 +35,7 @@ const PreInterviewSetup = ({
   language,
   setLanguage,
   LANGUAGES 
-}: any) => {
+}: PreInterviewSetupProps) => {
   return (
     <Box sx={{ p: 3, bgcolor: 'white', borderRadius: 2, boxShadow: 1, mb: 3 }}>
       <Typography variant="h6" gutterBottom>
@@ -33,17 +54,15 @@ const PreInterviewSetup = ({
         </Select>
       </FormControl>
       <FormControl fullWidth sx={{ mb: 3 }}>
-        <InputLabel>Cấp độ (Level)</InputLabel>
-        <Select value={level} label="Cấp độ (Level)" onChange={(e) => setLevel(e.target.value)}>
+        <InputLabel>Cấp độ (Level)</InputLabel>        <Select value={level} label="Cấp độ (Level)" onChange={(e: SelectChangeEvent) => setLevel(e.target.value)}>
           {levelOptions && levelOptions.map((lv: string) => (
             <MenuItem key={lv} value={lv}>{lv}</MenuItem>
           ))}
         </Select>
       </FormControl>
       <FormControl fullWidth sx={{ mb: 3 }}>
-        <InputLabel>Ngôn ngữ phỏng vấn</InputLabel>
-        <Select value={language} label="Ngôn ngữ phỏng vấn" onChange={(e) => setLanguage(e.target.value)}>
-          {LANGUAGES && LANGUAGES.map((lang: any) => (
+        <InputLabel>Ngôn ngữ phỏng vấn</InputLabel>        <Select value={language} label="Ngôn ngữ phỏng vấn" onChange={(e: SelectChangeEvent) => setLanguage(e.target.value)}>
+          {LANGUAGES && LANGUAGES.map((lang: Language) => (
             <MenuItem key={lang.key} value={lang.value}>{lang.label}</MenuItem>
           ))}
         </Select>
