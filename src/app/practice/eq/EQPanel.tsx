@@ -8,10 +8,32 @@ import InterviewGuidelines from '@/components/InterviewPractice/InterviewGuideli
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
 import { startSpeechRecognition, stopSpeechRecognition, textToSpeech } from '@/utils/speech/azureSpeechUtils';
 
-const positionOptions = [
-  'Team Leader', 'Project Manager', 'HR Manager', 'Customer Service',
-  'Sales Representative', 'Teacher', 'Counselor', 'Healthcare Professional'
+const CATEGORY_ROLE_OPTIONS = [
+  {
+    category: "Quản lý & Lãnh đạo",
+    roles: [
+      "Team Leader",
+      "Project Manager",
+      "HR Manager"
+    ]
+  },
+  {
+    category: "Dịch vụ & Hỗ trợ",
+    roles: [
+      "Customer Service",
+      "Sales Representative",
+      "Counselor",
+      "Healthcare Professional"
+    ]
+  },
+  {
+    category: "Giáo dục",
+    roles: [
+      "Teacher"
+    ]
+  }
 ];
+
 const levelOptions = ['Entry Level', 'Mid-level', 'Senior', 'Executive'];
 const LANGUAGES = [
   { key: 'vi', value: 'vi-VN', label: 'Tiếng Việt' },
@@ -41,16 +63,28 @@ const addMessageToConversation = (
   }
 };
 
+// Define type for conversation message
+interface ConversationMessage {
+  id: string | number;
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp?: string;
+  isError?: boolean;
+}
+
 export default function EQPanel() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
-  const [conversation, setConversation] = useState<any[]>([]);
+  const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [interviewing, setInterviewing] = useState(false);
-  const [position, setPosition] = useState('Team Leader');
+  // Add state for selected category and dynamic position options
+  const [category, setCategory] = useState(CATEGORY_ROLE_OPTIONS[0].category);
+  const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
+  const [position, setPosition] = useState(positionOptions[0]);
   const [level, setLevel] = useState('Entry Level');
   const [language, setLanguage] = useState('vi-VN');
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const messageListRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
 
   // Speech states
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
@@ -144,7 +178,7 @@ export default function EQPanel() {
       questions: [],
       currentQuestionIndex: 0
     });
-    const initialMessage = {
+    const initialMessage: ConversationMessage = {
       id: Date.now(),
       sender: 'ai',
       text: `Xin chào! Tôi là AI EQ Interviewer. Hôm nay chúng ta sẽ tiến hành đánh giá EQ cho vị trí ${position} (${level}). Trước tiên, bạn có thể chia sẻ về một tình huống khó khăn trong công việc mà bạn đã gặp phải và cách bạn đã xử lý nó không?`,
@@ -218,7 +252,7 @@ export default function EQPanel() {
     return skillsMap[pos] || 'giao tiếp, thấu hiểu, giải quyết vấn đề, làm việc nhóm';
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -444,10 +478,17 @@ export default function EQPanel() {
         </Typography>
         {!interviewing ? (
           <PreInterviewSetup
+            category={category}
+            onCategoryChange={(e: any) => {
+              setCategory(e.target.value);
+              const newRoles = CATEGORY_ROLE_OPTIONS.find(c => c.category === e.target.value)?.roles || [];
+              setPosition(newRoles[0] || '');
+            }}
+            categoryOptions={CATEGORY_ROLE_OPTIONS.map(c => c.category)}
             position={position}
             isSpeechEnabled={isSpeechEnabled}
             onPositionChange={(e: any) => setPosition(e.target.value)}
-            onSpeechToggle={() => setIsSpeechEnabled(prev => !prev)}
+            onSpeechToggle={(e: React.ChangeEvent<HTMLInputElement>) => setIsSpeechEnabled(e.target.checked)}
             onStartInterview={startInterview}
             positionOptions={positionOptions}
             level={level}
@@ -460,10 +501,8 @@ export default function EQPanel() {
         ) : (
           <InterviewChat
             position={position}
-            level={level}
             isSpeechEnabled={isSpeechEnabled}
-            voiceLanguage={voiceLanguage}
-            language={language}
+            voiceLanguage={voiceLanguage as 'vi-VN' | 'en-US'}
             isListening={isListening}
             isSpeakerOn={isSpeakerOn}
             isAiSpeaking={isAiSpeaking}
@@ -473,8 +512,8 @@ export default function EQPanel() {
             onToggleLanguage={() => setVoiceLanguage(prev => prev === 'vi-VN' ? 'en-US' : 'vi-VN')}
             onToggleSpeechRecognition={toggleSpeechRecognition}
             onToggleSpeaker={toggleSpeaker}
-            onSpeechToggle={() => setIsSpeechEnabled(prev => !prev)}
-            onMessageChange={(e: any) => setMessage(e.target.value)}
+            onSpeechToggle={(e: React.ChangeEvent<HTMLInputElement>) => setIsSpeechEnabled(e.target.checked)}
+            onMessageChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setMessage(e.target.value)}
             onSendMessage={handleSendMessage}
             messageListRef={messageListRef}
             handleKeyPress={handleKeyPress}

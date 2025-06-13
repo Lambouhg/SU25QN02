@@ -101,7 +101,7 @@ export default function DashboardPage() {
                 <TestTube className="w-8 h-8 text-purple-500 mb-2" />
                 <span className="text-sm font-medium text-gray-900">EQ Test</span>
               </Link>
-              <Link href="/jd-questions" 
+              <Link href="/dashboard/jd" 
                 className="flex flex-col items-center p-4 rounded-xl border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all group">
                 <FileQuestion className="w-8 h-8 text-purple-500 mb-2" />
                 <span className="text-sm font-medium text-gray-900">Upload JD</span>

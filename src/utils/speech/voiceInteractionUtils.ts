@@ -122,16 +122,7 @@ export const startVoiceRecognition = async (
   }
 };
 
-// Helper function to check if recognizer is disposed
-const isRecognizerDisposed = (recognizer: sdk.SpeechRecognizer): boolean => {
-  try {
-    // Attempting to access any property will throw if disposed
-    void recognizer.recognizing;
-    return false;
-  } catch {
-    return true;
-  }
-};
+
 
 export const stopVoiceRecognition = async (recognizer: sdk.SpeechRecognizer): Promise<void> => {
   if (!recognizer) {
@@ -140,52 +131,47 @@ export const stopVoiceRecognition = async (recognizer: sdk.SpeechRecognizer): Pr
   }
 
   return new Promise<void>((resolve) => {
-    const cleanup = async () => {
-      try {
-        if (!isRecognizerDisposed(recognizer)) {
-          // Remove all event handlers by setting them to no-op functions
-          recognizer.recognized = () => {};
-          recognizer.recognizing = () => {};
-          recognizer.canceled = () => {};
-          recognizer.sessionStarted = () => {};
-          recognizer.sessionStopped = () => {};
+    try {
+      // Remove all event handlers immediately
+      recognizer.recognized = () => {};
+      recognizer.recognizing = () => {};
+      recognizer.canceled = () => {};
+      recognizer.sessionStarted = () => {};
+      recognizer.sessionStopped = () => {};
 
-          await new Promise<void>((resolveStop) => {
-            recognizer.stopContinuousRecognitionAsync(
-              () => {
-                try {
-                  recognizer.close();
-                } catch (closeErr) {
-                  console.debug("Recognizer close error (expected):", closeErr);
-                }
-                resolveStop();
-              },
-              (stopErr) => {
-                console.debug("Stop recognition error (expected):", stopErr);
-                try {
-                  recognizer.close();
-                } catch (closeErr) {
-                  console.debug("Recognizer close error (expected):", closeErr);
-                }
-                resolveStop();
-              }
-            );
-          });
+      // Stop recognition
+      recognizer.stopContinuousRecognitionAsync(
+        () => {
+          try {
+            recognizer.close();
+          } catch (closeErr) {
+            console.debug("Recognizer close error (expected):", closeErr);
+          }
+          resolve();
+        },
+        (stopErr) => {
+          console.debug("Stop recognition error (expected):", stopErr);
+          try {
+            recognizer.close();
+          } catch (closeErr) {
+            console.debug("Recognizer close error (expected):", closeErr);
+          }
+          resolve();
         }
-      } catch (err) {
-        console.debug("Cleanup error (expected):", err);
-      } finally {
+      );
+
+      // Force cleanup after 500ms if stop operation hangs
+      setTimeout(() => {
+        try {
+          recognizer.close();
+        } catch (err) {
+          console.debug("Force cleanup error (expected):", err);
+        }
         resolve();
-      }
-    };
-
-    // Set a timeout to ensure cleanup happens even if the stop operation hangs
-    const timeoutId = setTimeout(() => {
-      cleanup().catch(console.error);
-    }, 2000);
-
-    cleanup().catch(console.error).finally(() => {
-      clearTimeout(timeoutId);
-    });
+      }, 500);
+    } catch (err) {
+      console.debug("Stop recognition error:", err);
+      resolve();
+    }
   });
 };

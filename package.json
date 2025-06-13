@@ -21,6 +21,8 @@
     "microsoft-cognitiveservices-speech-sdk": "^1.44.1",
     "mongoose": "^8.15.1",
     "next": "15.3.2",
+    "openai": "^5.2.0",
+    "pdfjs-dist": "^5.3.31",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "svix": "^1.66.0",

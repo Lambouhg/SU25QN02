@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
   Star, Users, Settings, Menu, X, Search, Bell 
@@ -14,21 +15,33 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const menuItems = [
+  const pathname = usePathname();
+  
+  // Function to check if a route is active
+  const isActiveRoute = (href: string) => {
+    if (href === '/dashboard' && pathname === '/dashboard') return true;
+    if (href !== '/dashboard' && pathname.startsWith(href)) return true;
+    return false;
+  };
+
+  // Function to check if any subroute is active
+  const hasActiveSubItem = (subItems: { href: string }[]) => {
+    return subItems.some(subItem => pathname.startsWith(subItem.href));
+  };  const menuItems = [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Brain, label: 'Practice Modes', href: '/practice', subItems: [
-      { label: 'Mock Interview (AI)', href: '/practice/mock-interview' },
+      { label: 'Mock Interview (AI)', href: '/interview' },
       { label: 'Avatar Interview', href: '/avatar-interview' },
       { label: 'Quiz Mode', href: '/practice/quiz' },
       { label: 'Test Mode', href: '/practice/test' },
-      { label: 'EQ Test Mode', href: '/practice/eq-test' },
+      { label: 'EQ Test Mode', href: '/practice/eq' },
     ]},
-    { icon: FileQuestion, label: 'JD to Questions', href: '/jd-questions' },
+    { icon: FileQuestion, label: 'JD to Questions', href: '/jd' },
     { icon: LineChart, label: 'Progress & Analytics', href: '/analytics' },
     { icon: History, label: 'Practice History', href: '/history' },
     { icon: Star, label: 'Saved Questions', href: '/saved' },
     { icon: Users, label: 'Community', href: '/community' },
-    { icon: Settings, label: 'Settings', href: '/settings' },
+    { icon: Settings, label: 'Settings', href: '/dashboard/profile' },
   ];
 
   return (
@@ -78,34 +91,59 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside className={`fixed top-[61px] left-0 z-40 w-64 h-screen transition-transform ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0`}>
-        <div className="h-full px-3 py-4 overflow-y-auto bg-white border-r border-gray-200">
+      } lg:translate-x-0`}>        <div className="h-full px-3 py-4 overflow-y-auto bg-white border-r border-gray-200">
           <ul className="space-y-2">
-            {menuItems.map((item, index) => (
-              <li key={index}>
-                <Link
-                  href={item.href}
-                  className="flex items-center p-3 text-gray-700 rounded-lg hover:bg-gray-100 group"
-                >
-                  <item.icon className="w-5 h-5 text-gray-500 transition-colors group-hover:text-purple-600" />
-                  <span className="ml-3 text-sm font-medium">{item.label}</span>
-                </Link>
-                {item.subItems && (
-                  <ul className="pl-11 mt-2 space-y-2">
-                    {item.subItems.map((subItem, subIndex) => (
-                      <li key={subIndex}>
-                        <Link
-                          href={subItem.href}
-                          className="flex items-center p-2 text-sm text-gray-700 rounded-lg hover:bg-gray-100"
-                        >
-                          {subItem.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
+            {menuItems.map((item, index) => {
+              const isActive = isActiveRoute(item.href);
+              const hasActiveSub = item.subItems ? hasActiveSubItem(item.subItems) : false;
+              const shouldHighlight = isActive || hasActiveSub;
+              
+              return (
+                <li key={index}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center p-3 rounded-lg group transition-colors ${
+                      shouldHighlight 
+                        ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-600' 
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <item.icon className={`w-5 h-5 transition-colors ${
+                      shouldHighlight 
+                        ? 'text-purple-600' 
+                        : 'text-gray-500 group-hover:text-purple-600'
+                    }`} />
+                    <span className={`ml-3 text-sm font-medium ${
+                      shouldHighlight ? 'font-semibold' : ''
+                    }`}>
+                      {item.label}
+                    </span>
+                  </Link>
+                  {item.subItems && (
+                    <ul className="pl-11 mt-2 space-y-2">
+                      {item.subItems.map((subItem, subIndex) => {
+                        const isSubActive = pathname.startsWith(subItem.href);
+                        
+                        return (
+                          <li key={subIndex}>
+                            <Link
+                              href={subItem.href}
+                              className={`flex items-center p-2 text-sm rounded-lg transition-colors ${
+                                isSubActive 
+                                  ? 'bg-purple-100 text-purple-700 font-medium' 
+                                  : 'text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {subItem.label}
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       </aside>

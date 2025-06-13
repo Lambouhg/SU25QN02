@@ -1,14 +1,15 @@
 import React, { useRef, useEffect } from 'react';
-import { Box, TextField, IconButton, Typography } from '@mui/material';
+import { Box, TextField, IconButton, Typography, CircularProgress } from '@mui/material';
 import { Send as SendIcon } from '@mui/icons-material';
 import { SessionState } from './HeygenConfig';
 
 interface Message {
-  id: number;
+  id: string;
   sender: string;
   text: string;
   timestamp: string;
   isError?: boolean;
+  isThinking?: boolean;
 }
 
 interface ChatControlsProps {
@@ -16,9 +17,9 @@ interface ChatControlsProps {
   inputText: string;
   setInputText: (text: string) => void;
   isAvatarTalking: boolean;
-  SessionState: typeof SessionState;
   conversation: Message[];
   onSendMessage: () => Promise<void>;
+  isThinking?: boolean;
 }
 
 const ChatControls: React.FC<ChatControlsProps> = ({
@@ -26,9 +27,9 @@ const ChatControls: React.FC<ChatControlsProps> = ({
   inputText,
   setInputText,
   isAvatarTalking,
-  SessionState,
   conversation,
-  onSendMessage
+  onSendMessage,
+  isThinking = false
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -75,13 +76,31 @@ const ChatControls: React.FC<ChatControlsProps> = ({
                 maxWidth: '70%',
                 backgroundColor: msg.sender === 'user' ? '#4A5568' : '#2D3748',
                 color: 'white',
-                borderRadius: 1
+                borderRadius: 1,
+                ...(msg.isError && {
+                  backgroundColor: '#E53E3E',
+                })
               }}
             >
               {msg.text}
             </Typography>
           </Box>
         ))}
+        {isThinking && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              p: 2
+            }}
+          >
+            <CircularProgress size={20} sx={{ color: 'primary.main' }} />
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              AI đang suy nghĩ...
+            </Typography>
+          </Box>
+        )}
         <div ref={messagesEndRef} />
       </Box>
 
@@ -94,8 +113,8 @@ const ChatControls: React.FC<ChatControlsProps> = ({
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type your message..."
-          disabled={sessionState !== SessionState.CONNECTED || isAvatarTalking}
+          placeholder="Nhập tin nhắn của bạn..."
+          disabled={sessionState !== SessionState.CONNECTED || isAvatarTalking || isThinking}
           sx={{
             '& .MuiOutlinedInput-root': {
               color: 'white',
@@ -108,8 +127,13 @@ const ChatControls: React.FC<ChatControlsProps> = ({
         />
         <IconButton
           onClick={onSendMessage}
-          disabled={!inputText.trim() || sessionState !== SessionState.CONNECTED || isAvatarTalking}
-          sx={{ color: 'white' }}
+          disabled={!inputText.trim() || sessionState !== SessionState.CONNECTED || isAvatarTalking || isThinking}
+          sx={{
+            color: 'white',
+            '&.Mui-disabled': {
+              color: 'rgba(255,255,255,0.3)',
+            }
+          }}
         >
           <SendIcon />
         </IconButton>
