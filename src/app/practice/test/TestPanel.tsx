@@ -175,6 +175,11 @@ export default function TestPanel() {
 
   // NEW: Track if initial AI message has been sent
   const [hasSentInitialMessage, setHasSentInitialMessage] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+
+  const addHistoryStage = (stage: any) => {
+    setHistory(prev => [...prev, stage]);
+  };
 
   useEffect(() => {
     setLoading(false);
@@ -269,9 +274,7 @@ export default function TestPanel() {
       questions: [],
       currentQuestionIndex: 0
     });
-    setHasSentInitialMessage(false); // Reset for next interview
-    // Do NOT setConversation here
-    // Do NOT speakAiResponse here
+    setHasSentInitialMessage(false);
   };
 
   const handleSendMessage = async () => {
@@ -320,6 +323,14 @@ export default function TestPanel() {
       setIsAiThinking(false);
       setIsAnalyzing(false);
     }
+  };
+
+  // Hàm tóm tắt history cho AI
+  const getHistorySummary = () => {
+    if (history.length === 0) return '';
+    return history.map((stage, idx) =>
+      `Câu hỏi ${idx + 1}: ${stage.question}\nTrả lời: ${stage.answer}`
+    ).join('\n\n');
   };
 
   const getSkillsForPosition = (pos: string) => {
@@ -387,7 +398,7 @@ export default function TestPanel() {
       questions,
       currentQuestionIndex: 0
     });
-    // CẢI TIẾN: Cảm ơn sau phần giới thiệu
+    // Cảm ơn sau phần giới thiệu
     const thankMessage = createMessage(
       'ai',
       `Cảm ơn bạn đã giới thiệu rất chi tiết về bản thân và kinh nghiệm làm việc! Bây giờ chúng ta sẽ bắt đầu với các câu hỏi chuyên môn.\n\n${questions[0]}`
@@ -405,7 +416,9 @@ export default function TestPanel() {
     isSpeechEnabled: boolean,
     isSpeakerOn: boolean
   ) => {
-    const currentQuestion = interviewState.questions[interviewState.currentQuestionIndex];
+    // FIX: Always evaluate answer against the last question sent
+    const lastQuestionIndex = interviewState.currentQuestionIndex;
+    const currentQuestion = interviewState.questions[lastQuestionIndex];
     if (!currentQuestion) {
       const errorMessage = createMessage(
         'ai',
@@ -413,10 +426,18 @@ export default function TestPanel() {
         true
       );
       addMessageToConversation(setConversation, errorMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
-      await handleTopicTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
       return;
     }
-    const evaluation = await evaluateAnswer(currentQuestion, message);
+    const evaluation = await evaluateAnswer(currentQuestion, message, getHistorySummary());
+    // Lưu vào history
+    addHistoryStage({
+      question: currentQuestion,
+      answer: message,
+      evaluation,
+      topic: interviewState.topics[interviewState.currentTopicIndex],
+      timestamp: new Date().toISOString()
+    });
     if (!evaluation || typeof evaluation.isComplete === 'undefined') {
       const errorMessage = createMessage(
         'ai',
@@ -453,6 +474,7 @@ export default function TestPanel() {
     }
   };
 
+  // Fix: increment currentQuestionIndex only AFTER sending the next question
   const handleQuestionTransition = async (
     interviewState: any,
     setInterviewState: React.Dispatch<React.SetStateAction<any>>,
@@ -464,12 +486,12 @@ export default function TestPanel() {
   ) => {
     const nextQuestionIndex = interviewState.currentQuestionIndex + 1;
     if (nextQuestionIndex < interviewState.questions.length) {
+      const nextQuestion = createMessage('ai', interviewState.questions[nextQuestionIndex]);
+      addMessageToConversation(setConversation, nextQuestion, speakAiResponse, isSpeechEnabled, isSpeakerOn);
       setInterviewState((prev: any) => ({
         ...prev,
         currentQuestionIndex: nextQuestionIndex
       }));
-      const nextQuestion = createMessage('ai', interviewState.questions[nextQuestionIndex]);
-      addMessageToConversation(setConversation, nextQuestion, speakAiResponse, isSpeechEnabled, isSpeakerOn);
       return;
     }
     await handleTopicTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
@@ -538,6 +560,12 @@ export default function TestPanel() {
     );
     addMessageToConversation(setConversation, endingMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
     setInterviewing(false);
+  };
+
+  // Hàm lấy câu trả lời user mới nhất
+  const getLatestUserAnswer = () => {
+    if (history.length === 0) return null;
+    return history[history.length - 1].answer;
   };
 
   if (loading) {

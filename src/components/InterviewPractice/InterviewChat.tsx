@@ -35,6 +35,7 @@ interface InterviewChatProps {
   onSendMessage: () => void;
   messageListRef: React.RefObject<HTMLDivElement>;
   handleKeyPress: (event: KeyboardEvent<HTMLDivElement>) => void;
+  selectedQuestionIndex?: number; // NEW: highlight câu hỏi hiện tại
 }
 
 const InterviewChat = ({
@@ -54,7 +55,8 @@ const InterviewChat = ({
   onMessageChange,
   onSendMessage,
   messageListRef,
-  handleKeyPress
+  handleKeyPress,
+  selectedQuestionIndex = 0, // NEW
 }: InterviewChatProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -109,8 +111,9 @@ const InterviewChat = ({
           )}
         </Box>
       </Box>
-      <StyledPaper elevation={3}>        <MessageList ref={messageListRef}>
-          {conversation.map((msg: ChatMessage) => (
+      <StyledPaper elevation={3}>
+        <MessageList ref={messageListRef}>
+          {conversation.map((msg: ChatMessage, idx: number) => (
             <MessageItem key={msg.id} sender={msg.sender}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, width: '100%', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                 {msg.sender === 'ai' && (
@@ -127,8 +130,23 @@ const InterviewChat = ({
                   </Avatar>
                 )}
               </Box>
-              <MessageContent sender={msg.sender} sx={msg.isError ? { backgroundColor: '#ffebee' } : {}}>
-                <Typography variant="body1">{msg.text}</Typography>
+              <MessageContent
+                sender={msg.sender}
+                sx={
+                  msg.isError
+                    ? { backgroundColor: '#ffebee' }
+                    : idx === selectedQuestionIndex && msg.sender === 'ai'
+                    ? { backgroundColor: '#fffde7', border: '2px solid #fbc02d' }
+                    : {}
+                }
+              >
+                <Typography variant="body1">
+                  {msg.text}
+                  {idx === selectedQuestionIndex && msg.sender === 'ai' && (
+                    <span style={{ color: '#fbc02d', fontWeight: 600, marginLeft: 8 }}>
+                    </span>
+                  )}
+                </Typography>
               </MessageContent>
             </MessageItem>
           ))}
@@ -139,6 +157,14 @@ const InterviewChat = ({
           )}
         </MessageList>
         <Divider sx={{ my: 2 }} />
+        {/* Hiển thị rõ câu hỏi đang trả lời ngay trên ô nhập */}
+        {conversation.filter((msg, idx) => idx === selectedQuestionIndex && msg.sender === 'ai').length > 0 && (
+          <Box sx={{ mb: 1, p: 1, background: '#fffde7', border: '1px solid #fbc02d', borderRadius: 1 }}>
+            <Typography variant="body2" color="primary">
+              Đang trả lời: {conversation[selectedQuestionIndex]?.text}
+            </Typography>
+          </Box>
+        )}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <TextField
             fullWidth
