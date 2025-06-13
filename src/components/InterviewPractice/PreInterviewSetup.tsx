@@ -8,6 +8,9 @@ interface Language {
 }
 
 interface PreInterviewSetupProps {
+  category: string;
+  onCategoryChange: (event: SelectChangeEvent<string>) => void;
+  categoryOptions: string[];
   position: string;
   isSpeechEnabled: boolean;
   onPositionChange: (event: SelectChangeEvent<string>) => void;
@@ -23,6 +26,9 @@ interface PreInterviewSetupProps {
 }
 
 const PreInterviewSetup = ({ 
+  category,
+  onCategoryChange,
+  categoryOptions,
   position, 
   isSpeechEnabled, 
   onPositionChange, 
@@ -43,8 +49,16 @@ const PreInterviewSetup = ({
       </Typography>
       <Typography paragraph>
         Bạn sẽ tham gia một buổi phỏng vấn mô phỏng với AI đóng vai trò là một nhà tuyển dụng.
-        Hãy chọn vị trí công việc, cấp độ (level) và ngôn ngữ phỏng vấn để bắt đầu.
+        Hãy chọn lĩnh vực, vị trí công việc, cấp độ (level) và ngôn ngữ phỏng vấn để bắt đầu.
       </Typography>
+      <FormControl fullWidth sx={{ mb: 3 }}>
+        <InputLabel>Ngành nghề/Lĩnh vực</InputLabel>
+        <Select value={category} label="Ngành nghề/Lĩnh vực" onChange={onCategoryChange}>
+          {categoryOptions.map((cat: string) => (
+            <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+          ))}
+        </Select>
+      </FormControl>
       <FormControl fullWidth sx={{ mb: 3 }}>
         <InputLabel>Vị trí ứng tuyển</InputLabel>
         <Select value={position} label="Vị trí ứng tuyển" onChange={onPositionChange}>
@@ -54,14 +68,16 @@ const PreInterviewSetup = ({
         </Select>
       </FormControl>
       <FormControl fullWidth sx={{ mb: 3 }}>
-        <InputLabel>Cấp độ (Level)</InputLabel>        <Select value={level} label="Cấp độ (Level)" onChange={(e: SelectChangeEvent) => setLevel(e.target.value)}>
+        <InputLabel>Cấp độ (Level)</InputLabel>
+        <Select value={level} label="Cấp độ (Level)" onChange={(e: SelectChangeEvent) => setLevel(e.target.value)}>
           {levelOptions && levelOptions.map((lv: string) => (
             <MenuItem key={lv} value={lv}>{lv}</MenuItem>
           ))}
         </Select>
       </FormControl>
       <FormControl fullWidth sx={{ mb: 3 }}>
-        <InputLabel>Ngôn ngữ phỏng vấn</InputLabel>        <Select value={language} label="Ngôn ngữ phỏng vấn" onChange={(e: SelectChangeEvent) => setLanguage(e.target.value)}>
+        <InputLabel>Ngôn ngữ phỏng vấn</InputLabel>
+        <Select value={language} label="Ngôn ngữ phỏng vấn" onChange={(e: SelectChangeEvent) => setLanguage(e.target.value)}>
           {LANGUAGES && LANGUAGES.map((lang: Language) => (
             <MenuItem key={lang.key} value={lang.value}>{lang.label}</MenuItem>
           ))}

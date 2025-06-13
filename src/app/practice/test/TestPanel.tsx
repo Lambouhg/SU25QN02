@@ -8,24 +8,127 @@ import InterviewGuidelines from '@/components/InterviewPractice/InterviewGuideli
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
 import { startSpeechRecognition, stopSpeechRecognition, textToSpeech } from '@/utils/speech/azureSpeechUtils';
 
-const positionOptions = [
-  'Frontend Developer', 'Backend Developer', 'Full Stack Developer', 'UX/UI Designer',
-  'Product Manager', 'Data Analyst', 'DevOps Engineer', 'Mobile Developer', 'QA Engineer'
+const CATEGORY_ROLE_OPTIONS = [
+  {
+    category: "Phát triển phần mềm",
+    roles: [
+      "Frontend Developer",
+      "Backend Developer",
+      "Fullstack Developer",
+      "Mobile Developer",
+      "Game Developer",
+      "Embedded Systems Developer",
+      "Desktop Application Developer"
+    ]
+  },
+  {
+    category: "Web Development",
+    roles: [
+      "Web Developer",
+      "WordPress Developer",
+      "Web Designer",
+      "Web Performance Engineer"
+    ]
+  },
+  {
+    category: "Kiểm thử phần mềm (QA)",
+    roles: [
+      "Manual Tester",
+      "Automation Tester",
+      "QA Engineer",
+      "Test Lead"
+    ]
+  },
+  {
+    category: "DevOps & Hạ tầng",
+    roles: [
+      "DevOps Engineer",
+      "Site Reliability Engineer (SRE)",
+      "System Administrator",
+      "Cloud Engineer"
+    ]
+  },
+  {
+    category: "Dữ liệu & AI",
+    roles: [
+      "Data Analyst",
+      "Data Scientist",
+      "Data Engineer",
+      "Machine Learning Engineer",
+      "Business Intelligence Engineer"
+    ]
+  },
+  {
+    category: "Bảo mật thông tin",
+    roles: [
+      "Security Analyst",
+      "Penetration Tester",
+      "SOC Analyst",
+      "Security Engineer",
+      "GRC Specialist"
+    ]
+  },
+  {
+    category: "Trí tuệ nhân tạo & Deep Learning",
+    roles: [
+      "AI Researcher",
+      "Deep Learning Engineer",
+      "NLP Engineer"
+    ]
+  },
+  {
+    category: "Thiết kế & Trải nghiệm người dùng",
+    roles: [
+      "UI/UX Designer",
+      "Product Designer",
+      "Interaction Designer"
+    ]
+  },
+  {
+    category: "Quản lý & Phân tích nghiệp vụ",
+    roles: [
+      "Project Manager",
+      "Product Owner",
+      "Scrum Master",
+      "Business Analyst"
+    ]
+  },
+  {
+    category: "Hỗ trợ & Kỹ thuật",
+    roles: [
+      "IT Support",
+      "Desktop Support Engineer",
+      "Technical Support Specialist"
+    ]
+  },
+  {
+    category: "Mạng & Hệ thống",
+    roles: [
+      "Network Administrator",
+      "Network Engineer",
+      "System Engineer",
+      "Cloud Infrastructure Engineer"
+    ]
+  },
+  {
+    category: "Công nghệ mới",
+    roles: [
+      "Blockchain Developer",
+      "Web3 Developer",
+      "Prompt Engineer",
+      "AR/VR Developer"
+    ]
+  }
 ];
+
 const levelOptions = ['Junior', 'Mid-level', 'Senior', 'Lead'];
 const LANGUAGES = [
   { key: 'vi', value: 'vi-VN', label: 'Tiếng Việt' },
   { key: 'en', value: 'en-US', label: 'English' }
 ];
 
-let messageCounter = 0;
-
 const createMessage = (sender: string, text: string, isError = false) => ({
-  id: `msg_${++messageCounter}`,
-  sender,
-  text,
-  timestamp: new Date().toISOString(),
-  isError
+  id: Date.now(), sender, text, timestamp: new Date().toISOString(), isError
 });
 
 const addMessageToConversation = (
@@ -46,11 +149,12 @@ export default function TestPanel() {
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<any[]>([]);
   const [interviewing, setInterviewing] = useState(false);
+  const [category, setCategory] = useState(CATEGORY_ROLE_OPTIONS[0].category);
   const [position, setPosition] = useState('Frontend Developer');
   const [level, setLevel] = useState('Junior');
   const [language, setLanguage] = useState('vi-VN');
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const messageListRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
 
   // Speech states
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
@@ -69,6 +173,9 @@ export default function TestPanel() {
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+  // NEW: Track if initial AI message has been sent
+  const [hasSentInitialMessage, setHasSentInitialMessage] = useState(false);
+
   useEffect(() => {
     setLoading(false);
   }, []);
@@ -79,9 +186,27 @@ export default function TestPanel() {
     }
   }, [conversation]);
 
+  // NEW: Send initial AI message only on client after interviewing starts
+  useEffect(() => {
+    if (interviewing && !hasSentInitialMessage) {
+      const initialMessage = {
+        id: Date.now(),
+        sender: 'ai',
+        text: `Xin chào! Tôi là AI Interviewer. Hôm nay chúng ta sẽ tiến hành phỏng vấn cho vị trí ${position} (${level}). Trước tiên, bạn có thể giới thiệu ngắn gọn về bản thân và kinh nghiệm làm việc của mình không?`,
+        timestamp: new Date().toISOString()
+      };
+      setConversation([initialMessage]);
+      if (isSpeechEnabled && isSpeakerOn) {
+        speakAiResponse(initialMessage.text);
+      }
+      setHasSentInitialMessage(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interviewing]);
+
   // Speech handlers
   const startSpeechInteraction = () => {
-    if (!isSpeechEnabled || typeof window === 'undefined') return;
+    if (!isSpeechEnabled) return;
     setIsListening(true);
     const recognizer = startSpeechRecognition(
       (text: string) => {
@@ -124,7 +249,7 @@ export default function TestPanel() {
   };
 
   const speakAiResponse = async (text: string) => {
-    if (!isSpeakerOn || !isSpeechEnabled || typeof window === 'undefined') return;
+    if (!isSpeakerOn || !isSpeechEnabled) return;
     try {
       setIsAiSpeaking(true);
       await textToSpeech(text, voiceLanguage);
@@ -144,16 +269,9 @@ export default function TestPanel() {
       questions: [],
       currentQuestionIndex: 0
     });
-    const initialMessage = {
-      id: Date.now(),
-      sender: 'ai',
-      text: `Xin chào! Tôi là AI Interviewer. Hôm nay chúng ta sẽ tiến hành phỏng vấn cho vị trí ${position} (${level}). Trước tiên, bạn có thể giới thiệu ngắn gọn về bản thân và kinh nghiệm làm việc của mình không?`,
-      timestamp: new Date().toISOString()
-    };
-    setConversation([initialMessage]);
-    if (isSpeechEnabled && isSpeakerOn) {
-      speakAiResponse(initialMessage.text);
-    }
+    setHasSentInitialMessage(false); // Reset for next interview
+    // Do NOT setConversation here
+    // Do NOT speakAiResponse here
   };
 
   const handleSendMessage = async () => {
@@ -219,7 +337,7 @@ export default function TestPanel() {
     return skillsMap[pos] || 'giao tiếp, giải quyết vấn đề, làm việc nhóm';
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -429,6 +547,8 @@ export default function TestPanel() {
     );
   }
 
+  const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
+
   return (
     <Container maxWidth="md">
       <Box sx={{ mt: 4, mb: 4 }}>
@@ -437,6 +557,14 @@ export default function TestPanel() {
         </Typography>
         {!interviewing ? (
           <PreInterviewSetup
+            category={category}
+            onCategoryChange={(e: any) => {
+              setCategory(e.target.value);
+              // Reset position to first role in new category
+              const newRoles = CATEGORY_ROLE_OPTIONS.find(c => c.category === e.target.value)?.roles || [];
+              setPosition(newRoles[0] || '');
+            }}
+            categoryOptions={CATEGORY_ROLE_OPTIONS.map(c => c.category)}
             position={position}
             isSpeechEnabled={isSpeechEnabled}
             onPositionChange={(e: any) => setPosition(e.target.value)}
@@ -453,10 +581,8 @@ export default function TestPanel() {
         ) : (
           <InterviewChat
             position={position}
-            level={level}
             isSpeechEnabled={isSpeechEnabled}
-            voiceLanguage={voiceLanguage}
-            language={language}
+            voiceLanguage={voiceLanguage as 'vi-VN' | 'en-US'}
             isListening={isListening}
             isSpeakerOn={isSpeakerOn}
             isAiSpeaking={isAiSpeaking}

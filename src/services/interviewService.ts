@@ -43,12 +43,16 @@ export const extractTopics = async (introduction: string) => {
 };
 
 /**
- * Tạo danh sách câu hỏi cho một chủ đề
+ * Tạo danh sách câu hỏi cho một chủ đề (chỉ lấy danh sách, không hỏi 1 lần 5 câu)
  */
 export const generateQuestionsForTopic = async (topic: string) => {
-  const systemPromptForQuestionGeneration = `Bạn là một chuyên gia phỏng vấn kỹ thuật. Nhiệm vụ của bạn là tạo ra 5 câu hỏi phỏng vấn về chủ đề "${topic}". \n\n  Yêu cầu:\n  1. Câu hỏi đầu tiên nên là câu hỏi cơ bản để đánh giá kiến thức nền tảng\n  2. Câu hỏi thứ hai nên tập trung vào kinh nghiệm thực tế\n  3. Câu hỏi thứ ba nên là tình huống thực tế hoặc case study\n  4. Câu hỏi thứ tư nên đánh giá khả năng giải quyết vấn đề\n  5. Câu hỏi cuối cùng nên là câu hỏi nâng cao về chủ đề\n\n  Trả về JSON object với format:\n  {\n    \"questions\": string[], // Mảng các câu hỏi\n    \"expectedKeywords\": string[], // Các từ khóa quan trọng cần có trong câu trả lời\n    \"difficultyLevel\": \"basic\" | \"intermediate\" | \"advanced\" // Độ khó của chủ đề\n  }`;
+  const systemPrompt = `Bạn là một nhà tuyển dụng kỹ thuật đang phỏng vấn ứng viên về chủ đề "${topic}". Hãy tạo ra 5 câu hỏi phỏng vấn theo thứ tự từ cơ bản đến nâng cao, mỗi câu hỏi nên ngắn gọn, rõ ràng và thực tế. Trả về JSON object:
+{
+  "questions": string[]
+}`;
   const messages: ChatMessage[] = [
-    { role: "system", content: systemPromptForQuestionGeneration },
+    { role: "system", content: systemPrompt },
+    { role: "user", content: `Hãy bắt đầu tạo danh sách câu hỏi.` }
   ];
   try {
     const response = await callOpenAI(messages);
@@ -67,6 +71,38 @@ export const generateQuestionsForTopic = async (topic: string) => {
   } catch (error) {
     console.error('Error generating questions for topic:', error);
     return [`Could not generate questions for ${topic}.`];
+  }
+};
+
+/**
+ * Gửi prompt để AI hỏi từng câu, nhận xét, hỏi sâu hoặc chuyển câu tiếp theo
+ */
+export const getNextInterviewStep = async (context: {
+  currentQuestion: string,
+  previousAnswers: string[],
+  lastUserAnswer?: string,
+  position?: string,
+  phase: 'ask' | 'feedback' | 'summary',
+  allQuestions?: string[]
+}) => {
+  let prompt = '';
+  if (context.phase === 'ask') {
+    prompt = `Bạn đang phỏng vấn ứng viên cho vị trí${context.position ? ' ' + context.position : ''}. Hãy hỏi câu hỏi sau và chờ ứng viên trả lời: "${context.currentQuestion}". Nếu ứng viên trả lời rồi, hãy nhận xét ngắn gọn và hỏi sâu thêm nếu cần, hoặc chuyển sang câu tiếp theo.`;
+  } else if (context.phase === 'feedback') {
+    prompt = `Ứng viên vừa trả lời: "${context.lastUserAnswer}" cho câu hỏi: "${context.currentQuestion}". Hãy nhận xét ngắn gọn (1-2 câu), nếu cần thì hỏi sâu thêm, nếu không thì chuyển sang câu tiếp theo.`;
+  } else if (context.phase === 'summary') {
+    prompt = `Dưới đây là toàn bộ câu trả lời của ứng viên cho các câu hỏi: ${JSON.stringify(context.allQuestions)}\n\nCâu trả lời: ${JSON.stringify(context.previousAnswers)}\n\nHãy tổng kết buổi phỏng vấn, nêu điểm mạnh, điểm yếu, và đề xuất cải thiện.`;
+  }
+  const messages: ChatMessage[] = [
+    { role: "system", content: "Bạn là nhà tuyển dụng kỹ thuật, hãy giao tiếp tự nhiên, thân thiện, hỏi từng câu, nhận xét ngắn gọn, hỏi sâu nếu cần, và tổng kết cuối buổi." },
+    { role: "user", content: prompt }
+  ];
+  try {
+    const response = await callOpenAI(messages);
+    return response.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error in interview step:', error);
+    return 'Xin lỗi, đã có lỗi xảy ra khi phỏng vấn.';
   }
 };
 

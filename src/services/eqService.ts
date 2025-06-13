@@ -1,4 +1,4 @@
-import { getAIResponse, getOpenAIClient } from './openaiService';
+import { callOpenAI } from './openaiService';
 
 // Trích xuất các chủ đề EQ từ đoạn giới thiệu (có thể mở rộng sau)
 export const extractEQTopics = async (introduction: string) => {
@@ -17,13 +17,15 @@ export const extractEQTopics = async (introduction: string) => {
 
 // Sinh câu hỏi EQ cho một chủ đề
 export const generateEQQuestionsForTopic = async (topic: string) => {
-  const prompt = `Bạn là chuyên gia tâm lý. Hãy tạo 3 câu hỏi phỏng vấn EQ về chủ đề "${topic}". Trả về JSON object:
-  { "questions": string[] }`;
+  const prompt = `Bạn là chuyên gia tâm lý. Hãy tạo 3 câu hỏi phỏng vấn EQ về chủ đề "${topic}". Trả về JSON object:\n{ \"questions\": string[] }`;
+  const messages = [
+    { role: 'system' as const, content: 'Bạn là chuyên gia tâm lý, giúp tạo câu hỏi phỏng vấn EQ.' },
+    { role: 'user' as const, content: prompt }
+  ];
   try {
-    const response = await getAIResponse(prompt, [], {
-      instruction: 'Trả về kết quả dưới dạng JSON object với trường questions.'
-    });
-    const result = JSON.parse(response);
+    const response = await callOpenAI(messages);
+    // response.choices[0].message.content chứa kết quả
+    const result = JSON.parse(response.choices[0].message.content);
     return result.questions || [];
   } catch (error) {
     console.error('Error generating EQ questions:', error);
@@ -33,20 +35,14 @@ export const generateEQQuestionsForTopic = async (topic: string) => {
 
 // Đánh giá câu trả lời EQ
 export const evaluateEQAnswer = async (question: string, answer: string) => {
-  const prompt = `Hãy đánh giá câu trả lời sau cho câu hỏi EQ: "${question}"
-${answer}
-Trả về JSON object:
-{
-  "isComplete": boolean,
-  "score": number, // 0-10
-  "feedback": string,
-  "followUpQuestions": string[]
-}`;
+  const prompt = `Hãy đánh giá câu trả lời sau cho câu hỏi EQ: \"${question}\"\n${answer}\nTrả về JSON object:\n{\n  \"isComplete\": boolean,\n  \"score\": number, // 0-10\n  \"feedback\": string,\n  \"followUpQuestions\": string[]\n}`;
+  const messages = [
+    { role: 'system' as const, content: 'Bạn là chuyên gia tâm lý, giúp đánh giá câu trả lời EQ.' },
+    { role: 'user' as const, content: prompt }
+  ];
   try {
-    const response = await getAIResponse(prompt, [], {
-      instruction: 'Trả về kết quả dưới dạng JSON object.'
-    });
-    const evaluation = JSON.parse(response);
+    const response = await callOpenAI(messages);
+    const evaluation = JSON.parse(response.choices[0].message.content);
     return {
       isComplete: evaluation.isComplete || false,
       score: evaluation.score || 0,
