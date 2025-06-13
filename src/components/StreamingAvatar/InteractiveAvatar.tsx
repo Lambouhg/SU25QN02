@@ -14,9 +14,11 @@ import StreamingAvatar, {
   TaskType
 } from '@heygen/streaming-avatar';
 import { useMemoizedFn } from 'ahooks';
+import { ChatMessage } from '@/services/openaiService';
+import { processInterviewResponse, startInterview } from '@/services/azureAiService';
 
 const DEFAULT_CONFIG: StartAvatarRequest = {
-  quality: AvatarQuality.Low,
+  quality: AvatarQuality.High,
   avatarName: AVATARS[0].avatar_id,
   knowledgeId: undefined,
   voice: {
@@ -24,17 +26,23 @@ const DEFAULT_CONFIG: StartAvatarRequest = {
     emotion: VoiceEmotion.EXCITED,
     model: ElevenLabsModel.eleven_flash_v2_5
   },
-  language: "en",
+  language: "vi",
+};
 
+// Unique message ID counter
+let messageCounter = 0;
+
+const generateMessageId = () => {
+  return `${Date.now()}_${++messageCounter}`;
 };
 
 interface Message {
-  id: number;
+  id: string;
   sender: string;
   text: string;
   timestamp: string;
   isError?: boolean;
-  isPartial?: boolean;  // Add this to support partial messages
+  isPartial?: boolean;
 }
 
 interface InteractiveAvatarProps {
@@ -47,22 +55,24 @@ const transformedLanguageList = STT_LANGUAGE_LIST; // Already has {code, name} f
 const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) => {
   const [sessionState, setSessionState] = useState<SessionState>(SessionState.INACTIVE);
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
+  const [interviewField, setInterviewField] = useState<string>('frontend');
+  const [interviewLevel, setInterviewLevel] = useState<string>('junior');
   const [connectionQuality, setConnectionQuality] = useState('UNKNOWN');
   const [isAvatarTalking, setIsAvatarTalking] = useState(false);
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<Message[]>([]);
+  const [aiConversationHistory, setAiConversationHistory] = useState<ChatMessage[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const avatarRef = useRef<StreamingAvatar>(null);
-
-  const addMessage = (text: string, sender: string, isError = false) => {
+  const avatarRef = useRef<StreamingAvatar>(null);  const addMessage = useMemoizedFn((text: string, sender: string, isError = false) => {
     setConversation(prev => [...prev, {
-      id: Date.now(),
+      id: generateMessageId(),
       sender,
       text,
       timestamp: new Date().toISOString(),
       isError
     }]);
-  };
+  });
 
   const fetchAccessToken = async () => {
     try {
@@ -81,8 +91,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
       console.error('Error fetching token:', error);
       throw error;
     }
-  };
-  const handleTranscriptUpdate = useCallback((text: string) => {
+  };  const handleTranscriptUpdate = useCallback((text: string) => {
     if (text) {
       // Find and update or add partial message
       setConversation(prev => {
@@ -91,7 +100,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
           return [...prev.slice(0, -1), { ...lastMsg, text }];
         }
         return [...prev, {
-          id: Date.now(),
+          id: generateMessageId(),
           sender: 'user',
           text,
           timestamp: new Date().toISOString(),
@@ -151,7 +160,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
           setConversation(prev => [
             ...prev.filter(msg => !msg.isPartial),
             {
-              id: Date.now(),
+              id: generateMessageId(),
               sender: 'user',
               text: event.detail.text,
               timestamp: new Date().toISOString()
@@ -182,15 +191,30 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
       console.error('Error initializing avatar:', error);
       throw error;
     }
-  }, [handleTranscriptUpdate]);  const startSession = useMemoizedFn(async () => {
+  }, [handleTranscriptUpdate, addMessage]);
+  
+  const startSession = useMemoizedFn(async () => {
     try {
       setSessionState(SessionState.CONNECTING);
       const token = await fetchAccessToken();
       const avatar = await initAvatar(token);
       
       console.log('Starting avatar with config:', config);
-      await avatar.createStartAvatar(config);
-      addMessage('Connected. You can start typing.', 'system');
+      await avatar.createStartAvatar(config);      // Start interview with AI greeting
+      const initialResponse = await startInterview({
+        field: interviewField,
+        level: interviewLevel,
+        language: config.language === 'vi' ? 'vi-VN' : 'en-US'
+      });
+      
+      // Add AI greeting to conversation
+      addMessage(initialResponse.answer, 'ai');
+      
+      // Make avatar speak the greeting
+      await avatar.speak({
+        text: initialResponse.answer,
+        taskType: TaskType.REPEAT
+      });
 
     } catch (error) {
       console.error('Error starting session:', error);
@@ -222,10 +246,53 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
       console.error('Error ending session:', error);
       addMessage('Failed to end session properly: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
     }
-  }, [onEndSession]);
+  }, [onEndSession, addMessage]);
+  const processMessageWithAI = useCallback(async (text: string) => {
+    try {
+      setIsThinking(true);
+      
+      // Add user message to AI conversation history
+      const userMessage: ChatMessage = { role: 'user', content: text };
+      setAiConversationHistory(prev => [...prev, userMessage]);
 
+      // Process with Azure OpenAI
+      const aiResponse = await processInterviewResponse(
+        text, 
+        aiConversationHistory,
+        config.language === 'vi' ? 'vi-VN' : 'en-US'
+      );
+
+      // Add AI response to conversation history
+      const assistantMessage: ChatMessage = { 
+        role: 'assistant', 
+        content: aiResponse.answer 
+      };
+      setAiConversationHistory(prev => [...prev, assistantMessage]);
+
+      // Make avatar speak the AI response
+      if (avatarRef.current && !isAvatarTalking) {
+        await avatarRef.current.speak({
+          text: aiResponse.answer,
+          taskType: TaskType.REPEAT
+        });
+      }
+
+      // Add the response to the UI conversation
+      addMessage(aiResponse.answer, 'ai');
+
+      // If there is a follow-up question, add it as a system message
+      if (aiResponse.followUpQuestion) {
+        addMessage(aiResponse.followUpQuestion, 'system');
+      }
+    } catch (error) {
+      console.error('Error processing message with AI:', error);
+      addMessage('Xin lỗi, đã xảy ra lỗi khi xử lý tin nhắn. Vui lòng thử lại.', 'system', true);
+    } finally {
+      setIsThinking(false);
+    }
+  }, [aiConversationHistory, isAvatarTalking, addMessage, config.language]);
   const handleSendMessage = useCallback(async () => {
-    if (!message.trim() || !avatarRef.current || isAvatarTalking) return;
+    if (!message.trim() || !avatarRef.current || isAvatarTalking || isThinking) return;
 
     try {
       const textToSpeak = message;
@@ -233,46 +300,39 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
 
       // Add message to conversation
       const newMessage = {
-        id: Date.now(),
+        id: generateMessageId(),
         sender: 'user',
         text: textToSpeak,
         timestamp: new Date().toISOString()
       };
       setConversation(prev => [...prev, newMessage]);
 
-      // Make avatar speak using its built-in voice
-      await avatarRef.current.speak({
-        text: textToSpeak,
-        taskType: TaskType.REPEAT
-      });
+      // Process with AI and get response
+      await processMessageWithAI(textToSpeak);
 
     } catch (error) {
       console.error('Error sending message:', error);
-      addMessage('Failed to send message: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
+      addMessage('Gửi tin nhắn thất bại: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
     }
-  }, [message, isAvatarTalking, addMessage]);
-
+  }, [message, isAvatarTalking, isThinking, addMessage, processMessageWithAI, avatarRef]);
   const handleSpeechResult = useCallback((text: string) => {
     if (!text.trim() || !avatarRef.current || isAvatarTalking) return;
 
     // Add user's speech to conversation
     const newMessage = {
-      id: Date.now(),
+      id: generateMessageId(),
       sender: 'user',
       text: text,
       timestamp: new Date().toISOString()
     };
     setConversation(prev => [...prev, newMessage]);
 
-    // Make avatar speak using its built-in voice
-    avatarRef.current.speak({
-      text: text,
-      taskType: TaskType.REPEAT
-    }).catch(error => {
-      console.error('Error making avatar speak:', error);
-      addMessage('Failed to make avatar speak: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
+    // Process with AI and get response
+    processMessageWithAI(text).catch(error => {
+      console.error('Error processing speech with AI:', error);
+      addMessage('Failed to process speech: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
     });
-  }, [isAvatarTalking, addMessage]);
+  }, [isAvatarTalking, addMessage, processMessageWithAI, avatarRef]);
 
   useEffect(() => {
     return () => {
@@ -281,24 +341,24 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
       }
     };
   }, [endSession]);
-  if (sessionState === SessionState.INACTIVE) {
-    return (
+  if (sessionState === SessionState.INACTIVE) {    return (
       <PreInterviewSetup
         config={config}
-        onConfigChange={(newConfig) => {
-          console.log('Setting new config:', newConfig);
-          setConfig(newConfig);
-        }}
+        onConfigChange={setConfig}
         onStartInterview={startSession}
         sessionState={sessionState}
         AVATARS={AVATARS}
         STT_LANGUAGE_LIST={transformedLanguageList}
+        interviewField={interviewField}
+        interviewLevel={interviewLevel}
+        onFieldChange={setInterviewField}
+        onLevelChange={setInterviewLevel}
       />
     );
   }
 
   return (
-    <Box sx={{ width: '100%', bgcolor: '#18181b', borderRadius: 2, overflow: 'hidden' }}>
+    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
       <VideoPlayer
         videoRef={videoRef}
         connectionQuality={connectionQuality}
@@ -321,9 +381,9 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
         inputText={message}
         setInputText={setMessage}
         isAvatarTalking={isAvatarTalking}
-        SessionState={SessionState}
         conversation={conversation}
         onSendMessage={handleSendMessage}
+        isThinking={isThinking}
       />
     </Box>
   );

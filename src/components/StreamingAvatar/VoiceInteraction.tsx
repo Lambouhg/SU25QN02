@@ -23,37 +23,68 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [isStopping, setIsStopping] = useState(false);
-  const [isAutoMicEnabled, setIsAutoMicEnabled] = useState(true);
   const [recognizer, setRecognizer] = useState<sdk.SpeechRecognizer | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);  const stopRecognizer = useCallback(async () => {
+    if (!recognizer) return;
+    
+    // Ngắt kết nối ngay lập tức
+    recognizer.recognized = () => {};
+    recognizer.recognizing = () => {};
+    recognizer.canceled = () => {};
+    recognizer.sessionStarted = () => {};
+    recognizer.sessionStopped = () => {};
 
-  const stopListening = useCallback(async () => {
-    if (!recognizer || isStopping) return;
-
-    setError(null);
-    setIsStopping(true);
     try {
       await stopVoiceRecognition(recognizer);
+    } catch (err) {
+      console.error('Error stopping recognition:', err);
+      const msg = language === 'vi-VN'
+        ? 'Lỗi khi dừng micro. Vui lòng thử lại.'
+        : 'Error stopping microphone. Please try again.';
+      setError(msg);
     } finally {
       setRecognizer(null);
-      setIsListening(false);
-      setIsStopping(false);
     }
-  }, [recognizer, isStopping]);
+  }, [recognizer, language]);
 
-  const startListening = useCallback(async () => {
-    if (disabled || (isAutoMicEnabled && isAvatarTalking) || isStopping) return;
-
-    // Stop any existing recognition first
-    if (recognizer) {
-      await stopListening();
-    }
-    
-    setIsInitializing(true);
+  const stopListening = useCallback(async () => {
+    console.log('Stopping listening...');
+    // Reset state immediately
+    setIsListening(false);
+    setIsInitializing(false);
     setError(null);
 
+    // Cleanup recognizer after state reset
+    await stopRecognizer();
+  }, [stopRecognizer]);
+  const checkMicrophonePermission = useCallback(async (): Promise<boolean> => {
     try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach(track => track.stop());
+      return true;    } catch (err) {
+      if (err instanceof Error) {
+        const msg = language === 'vi-VN' 
+          ? 'Vui lòng cho phép truy cập microphone trong cài đặt trình duyệt' 
+          : 'Please allow microphone access in browser settings';
+        setError(msg);
+      }
+      return false;
+    }
+  }, [language]);
+  const startListening = useCallback(async () => {
+    if (disabled || isAvatarTalking) return;
+    
+    // Check microphone permission first
+    const hasMicPermission = await checkMicrophonePermission();
+    if (!hasMicPermission) return;
+
+    setIsInitializing(true);
+    setError(null);
+    
+    try {
+      // Make sure any existing recognizer is stopped
+      await stopRecognizer();
+
       const speechRecognizer = await startVoiceRecognition(
         (text) => {
           console.log('Speech recognized:', text);
@@ -61,8 +92,12 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
         },
         (error) => {
           console.error('Speech recognition error:', error);
-          setError(error.message || 'Speech recognition failed');
+          const msg = language === 'vi-VN'
+            ? 'Lỗi nhận dạng giọng nói. Vui lòng thử lại.'
+            : 'Speech recognition failed. Please try again.';
+          setError(msg);
           setIsListening(false);
+          setIsInitializing(false);
           setRecognizer(null);
         },
         language
@@ -72,27 +107,28 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
         setRecognizer(speechRecognizer);
         setIsListening(true);
       } else {
-        throw new Error('Failed to initialize speech recognition');
+        throw new Error(language === 'vi-VN' 
+          ? 'Không thể khởi tạo nhận dạng giọng nói' 
+          : 'Failed to initialize speech recognition');
       }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to start speech recognition');
+    } catch (err) {
+      console.error('Start listening error:', err);
+      const msg = language === 'vi-VN'
+        ? 'Không thể bắt đầu nhận dạng giọng nói. Vui lòng thử lại.'
+        : 'Could not start speech recognition. Please try again.';
+      setError(msg);
       setIsListening(false);
       setRecognizer(null);
     } finally {
       setIsInitializing(false);
     }
-  }, [disabled, isAvatarTalking, isStopping, language, onSpeechResult, recognizer, stopListening, isAutoMicEnabled]);
-
-  const toggleListening = useCallback(() => {
-    setIsAutoMicEnabled(false); // Disable auto mode when manually toggling
+  }, [disabled, isAvatarTalking, language, onSpeechResult, stopRecognizer, checkMicrophonePermission]);  const toggleListening = useCallback(() => {
     if (isListening) {
       stopListening();
     } else {
       startListening();
     }
-  }, [isListening, startListening, stopListening]);
-
-  const toggleSpeaker = useCallback(() => {
+  }, [isListening, startListening, stopListening]);  const toggleSpeaker = useCallback(() => {
     setIsSpeakerOn(prev => !prev);
   }, []);
 
@@ -100,38 +136,32 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
   useEffect(() => {
     return () => {
       if (recognizer) {
-        stopVoiceRecognition(recognizer).catch(console.error);
+        stopListening().catch(console.error);
       }
     };
-  }, [recognizer]);
+  }, [recognizer, stopListening]);
 
-  // Handle avatar talking state changes
+  // Stop listening when avatar starts talking
   useEffect(() => {
-    if (isAutoMicEnabled) {
-      if (isAvatarTalking && isListening) {
-        // Stop listening when avatar starts talking
-        stopListening().catch(console.error);
-      } else if (!isAvatarTalking && !isListening && !disabled) {
-        // Start listening when avatar stops talking
-        startListening().catch(console.error);
-      }
+    if (isAvatarTalking && isListening) {
+      stopListening().catch(console.error);
     }
-  }, [isAvatarTalking, isListening, disabled, stopListening, startListening, isAutoMicEnabled]);
+  }, [isAvatarTalking, isListening, stopListening]);
 
   const getTooltipTitle = () => {
-    if (isInitializing) return 'Initializing speech recognition...';
+    if (isInitializing) return language === 'vi-VN' ? 'Đang khởi tạo...' : 'Initializing...';
     if (error) return error;
     if (isListening) return language === 'vi-VN' ? 'Dừng nghe' : 'Stop listening';
     return language === 'vi-VN' ? 'Bắt đầu nghe' : 'Start listening';
   };
 
   return (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-      <Tooltip title={getTooltipTitle()}>
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>      <Tooltip title={getTooltipTitle()}>
         <Box sx={{ position: 'relative' }}>
           <IconButton
             onClick={toggleListening}
-            disabled={disabled || (isAutoMicEnabled && isAvatarTalking) || isInitializing}
+            // Only disable when trying to turn ON the mic
+            disabled={!isListening && (disabled || isAvatarTalking)}
             color={error ? 'error' : isListening ? 'secondary' : 'default'}
             sx={{ position: 'relative' }}
           >
@@ -141,7 +171,7 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
               isListening ? <MicIcon /> : <MicOffIcon />
             )}
           </IconButton>
-          {isListening && (
+          {(isListening || isInitializing) && (
             <CircularProgress
               size={44}
               color="secondary"
@@ -150,6 +180,7 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
                 top: -2,
                 left: -2,
                 opacity: 0.3,
+                animation: isInitializing ? 'none' : undefined,
               }}
             />
           )}
