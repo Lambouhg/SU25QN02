@@ -387,8 +387,12 @@ export default function TestPanel() {
       questions,
       currentQuestionIndex: 0
     });
-    const firstQuestion = createMessage('ai', questions[0]);
-    addMessageToConversation(setConversation, firstQuestion, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+    // CẢI TIẾN: Cảm ơn sau phần giới thiệu
+    const thankMessage = createMessage(
+      'ai',
+      `Cảm ơn bạn đã giới thiệu rất chi tiết về bản thân và kinh nghiệm làm việc! Bây giờ chúng ta sẽ bắt đầu với các câu hỏi chuyên môn.\n\n${questions[0]}`
+    );
+    addMessageToConversation(setConversation, thankMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
   };
 
   const handleInterviewingPhase = async (
@@ -423,29 +427,28 @@ export default function TestPanel() {
       await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
       return;
     }
-    let responseText = '';
-    if (evaluation.score >= 8) {
-      responseText = `Rất tốt! Câu trả lời của bạn đạt ${evaluation.score}/10 điểm. ${evaluation.feedback}`;
-      if (evaluation.strengths.length > 0) {
-        responseText += `\n\nĐiểm mạnh của bạn:\n${evaluation.strengths.map((s: string) => `- ${s}`).join('\n')}`;
-      }
-    } else if (evaluation.score >= 5) {
-      responseText = `Câu trả lời của bạn đạt ${evaluation.score}/10 điểm. ${evaluation.feedback}`;
-      if (evaluation.missingPoints.length > 0) {
-        responseText += `\n\nBạn có thể bổ sung thêm về:\n${evaluation.missingPoints.map((p: string) => `- ${p}`).join('\n')}`;
-      }
-    } else {
-      responseText = `Câu trả lời của bạn cần cải thiện (${evaluation.score}/10 điểm). ${evaluation.feedback}`;
-      if (evaluation.suggestedImprovements.length > 0) {
-        responseText += `\n\nĐề xuất cải thiện:\n${evaluation.suggestedImprovements.map((i: string) => `- ${i}`).join('\n')}`;
-      }
+    // --- Markdown formatting improvement ---
+    let responseText = `**Đánh giá câu trả lời:**\n`;
+    responseText += `- **Điểm:** \`${evaluation.score}/10\`\n`;
+    responseText += `- **Nhận xét:** ${evaluation.feedback}\n`;
+    if (evaluation.strengths && evaluation.strengths.length > 0) {
+      responseText += `- **Điểm mạnh:**\n`;
+      responseText += evaluation.strengths.map((s: string) => `  - ${s}`).join("\n") + "\n";
     }
-    if (evaluation.followUpQuestions.length > 0) {
-      responseText += `\n\nCâu hỏi tiếp theo: ${evaluation.followUpQuestions[0]}`;
+    if (evaluation.missingPoints && evaluation.missingPoints.length > 0) {
+      responseText += `- **Thiếu sót cần bổ sung:**\n`;
+      responseText += evaluation.missingPoints.map((p: string) => `  - ${p}`).join("\n") + "\n";
+    }
+    if (evaluation.suggestedImprovements && evaluation.suggestedImprovements.length > 0) {
+      responseText += `- **Gợi ý cải thiện:**\n`;
+      responseText += evaluation.suggestedImprovements.map((i: string) => `  - ${i}`).join("\n") + "\n";
+    }
+    if (evaluation.followUpQuestions && evaluation.followUpQuestions.length > 0) {
+      responseText += `\n**Câu hỏi tiếp theo:**\n- ${evaluation.followUpQuestions[0]}`;
     }
     const responseMessage = createMessage('ai', responseText);
     addMessageToConversation(setConversation, responseMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
-    if (evaluation.isComplete && evaluation.followUpQuestions.length === 0) {
+    if (evaluation.isComplete && (!evaluation.followUpQuestions || evaluation.followUpQuestions.length === 0)) {
       await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
     }
   };
