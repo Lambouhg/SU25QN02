@@ -1,15 +1,17 @@
 // components/QuestionsDisplay.tsx
-import { Copy, Download, MessageCircle, ArrowRight } from 'lucide-react';
+import { Copy, Download, MessageCircle, ArrowRight, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type QuestionsDisplayProps = {
   questions: string[];
   copyQuestions: () => void;
   downloadQuestions: () => void;
+  clearSession?: () => void;
+  currentQuestionSetId?: string | null;
   onQuestionClick?: (question: string, index: number) => void;
 };
 
-export default function QuestionsDisplay({ questions, copyQuestions, downloadQuestions, onQuestionClick }: QuestionsDisplayProps) {
+export default function QuestionsDisplay({ questions, copyQuestions, downloadQuestions, clearSession, currentQuestionSetId, onQuestionClick }: QuestionsDisplayProps) {
   const router = useRouter();
   const handleQuestionClick = (question: string, index: number) => {
     if (onQuestionClick) {
@@ -17,7 +19,14 @@ export default function QuestionsDisplay({ questions, copyQuestions, downloadQue
     } else {
       // Default behavior: navigate to interview page with question content
       const cleanQuestion = question.replace(/^(\d+\.\s*)+/, '').trim();
-      router.push(`/interview/${index + 1}?question=${encodeURIComponent(cleanQuestion)}&type=JD-Generated`);
+      const url = `/interview/${index + 1}?question=${encodeURIComponent(cleanQuestion)}&type=JD-Generated`;
+      
+      // Add questionSetId to URL if available so we can return to the same state
+      if (currentQuestionSetId) {
+        router.push(`${url}&questionSetId=${currentQuestionSetId}&returnUrl=${encodeURIComponent('/jd?questionSetId=' + currentQuestionSetId)}`);
+      } else {
+        router.push(`${url}&returnUrl=${encodeURIComponent('/jd')}`);
+      }
     }
   };
 
@@ -43,14 +52,22 @@ export default function QuestionsDisplay({ questions, copyQuestions, downloadQue
             >
               <Copy className="w-4 h-4 mr-2" /> 
               Copy All
-            </button>
-            <button 
+            </button>            <button 
               onClick={downloadQuestions} 
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-blue-600 border-2 border-transparent rounded-xl hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               <Download className="w-4 h-4 mr-2" /> 
               Download
             </button>
+            {clearSession && (
+              <button 
+                onClick={clearSession} 
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-white border-2 border-red-300 rounded-xl hover:bg-red-50 hover:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 shadow-sm"
+              >
+                <Trash2 className="w-4 h-4 mr-2" /> 
+                Clear Session
+              </button>
+            )}
           </div>
         )}
       </div>

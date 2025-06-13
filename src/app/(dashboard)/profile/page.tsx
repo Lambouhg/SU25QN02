@@ -1,6 +1,6 @@
 "use client";
 
-import Header from "@/components/Header";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
  import { useCallback } from "react";
@@ -60,19 +60,18 @@ export default function ProfilePage() {
       console.error("Error updating profile:", error);
     }
   };
-
   if (isLoading) {
     return (
-      <>
-        <Header />
+      <DashboardLayout>
         <div className="max-w-4xl mx-auto p-6">
           <div className="animate-pulse">Loading...</div>
         </div>
-      </>
+      </DashboardLayout>
     );
-  }  return (
-    <>
-      <Header />
+  }
+
+  return (
+    <DashboardLayout>
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
         {/* Decorative background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -82,13 +81,20 @@ export default function ProfilePage() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* Header with floating design */}
-          <div className="text-center mb-12">
-            <div className="relative inline-block">
+          <div className="text-center mb-12">            <div className="relative inline-block">
               <div className="w-32 h-32 mx-auto bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-full p-1 shadow-2xl">
-                <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-                  <span className="text-4xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
-                    {formData.fullName.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
-                  </span>
+                <div className="w-full h-full bg-white rounded-full flex items-center justify-center overflow-hidden">
+                  {user?.imageUrl ? (
+                    <img 
+                      src={user.imageUrl} 
+                      alt={formData.fullName || 'User Avatar'} 
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <span className="text-4xl font-bold bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">
+                      {formData.fullName.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full border-4 border-white shadow-lg flex items-center justify-center">
@@ -309,15 +315,13 @@ export default function ProfilePage() {
                         <div className="text-sm text-gray-500 font-medium">Complete</div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Completion checklist */}
+                  </div>                  {/* Completion checklist */}
                   <div className="space-y-4">
                     {[
-                      { field: 'fullName', label: 'Full Name', icon: '👤' },
-                      { field: 'email', label: 'Email', icon: '📧' },
-                      { field: 'currentPosition', label: 'Position', icon: '💼' },
-                      { field: 'experienceLevel', label: 'Experience', icon: '⭐' }
+                      { field: 'fullName' as keyof typeof formData, label: 'Full Name', icon: '👤' },
+                      { field: 'email' as keyof typeof formData, label: 'Email', icon: '📧' },
+                      { field: 'currentPosition' as keyof typeof formData, label: 'Position', icon: '💼' },
+                      { field: 'experienceLevel' as keyof typeof formData, label: 'Experience', icon: '⭐' }
                     ].map((item) => (
                       <div key={item.field} className={`flex items-center p-4 rounded-2xl transition-all duration-300 ${
                         formData[item.field] ? 'bg-green-50 border-2 border-green-200' : 'bg-gray-50 border-2 border-gray-200'
@@ -373,9 +377,8 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
-    </>
+    </DashboardLayout>
   );
 }

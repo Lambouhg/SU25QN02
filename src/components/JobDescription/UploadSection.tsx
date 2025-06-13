@@ -2,6 +2,7 @@
 import { Cloud, Upload, File, FileText, X } from 'lucide-react';
 import MessageAlert from './MessageAlert';
 import QuestionTypeSelector from './QuestionTypeSelector';
+import LevelSelector from './LevelSelector';
 
 import React from 'react';
 
@@ -22,6 +23,8 @@ type UploadSectionProps = {
   removeFile: () => void;
   questionType: string;
   setQuestionType: (type: string) => void;
+  level: string;
+  setLevel: (level: string) => void;
 };
 
 export default function UploadSection({
@@ -39,7 +42,9 @@ export default function UploadSection({
   messageType,
   removeFile,
   questionType,
-  setQuestionType
+  setQuestionType,
+  level,
+  setLevel
 }: UploadSectionProps) {
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -99,9 +104,9 @@ export default function UploadSection({
             accept=".pdf,.doc,.docx,.txt"
             className="hidden"
           />
-        </div>
+        </div>        <QuestionTypeSelector questionType={questionType} setQuestionType={setQuestionType} />
 
-        <QuestionTypeSelector questionType={questionType} setQuestionType={setQuestionType} />
+        <LevelSelector level={level} setLevel={setLevel} />
 
         {file && (
           <div className="mt-6 flex justify-center">

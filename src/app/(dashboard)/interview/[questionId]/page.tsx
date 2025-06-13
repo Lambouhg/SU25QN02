@@ -78,8 +78,14 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
   const handleSubmit = () => {
     analyzeAnswer();
   };
-  
-  const handleQuit = () => {
+    const handleQuit = () => {
+    // Check if there's a returnUrl parameter
+    const returnUrl = searchParams.get('returnUrl');
+    if (returnUrl) {
+      router.push(decodeURIComponent(returnUrl));
+      return;
+    }
+    
     // Navigate back to JD page if question came from JD, otherwise use router.back()
     const questionType = searchParams.get('type');
     if (questionType === 'JD-Generated') {
@@ -179,13 +185,19 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
                       ) : (
                         <>Submit Answer ⚡</>
                       )}
-                    </button>
-                  ) : (
+                    </button>                  ) : (
                     <button
-                      onClick={() => router.push('/dashboard/interview')}
+                      onClick={() => {
+                        const returnUrl = searchParams.get('returnUrl');
+                        if (returnUrl) {
+                          router.push(decodeURIComponent(returnUrl));
+                        } else {
+                          router.push('/dashboard/interview');
+                        }
+                      }}
                       className="flex items-center gap-2 px-8 py-3 bg-green-500 hover:bg-green-600 rounded-xl transition-colors font-semibold text-white text-lg shadow-lg"
                     >
-                      Next Question →
+                      Back to Questions
                     </button>
                   )}
                 </div>
