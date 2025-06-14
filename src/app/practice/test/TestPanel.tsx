@@ -3,10 +3,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Container, Typography, Box, CircularProgress } from '@mui/material';
 import PreInterviewSetup from '@/components/InterviewPractice/PreInterviewSetup';
-import InterviewChat from '@/components/InterviewPractice/InterviewChat';
+import { InterviewChat } from '@/components/ui/test-mode/InterviewChat';
 import InterviewGuidelines from '@/components/InterviewPractice/InterviewGuidelines';
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
 import { startSpeechRecognition, stopSpeechRecognition, textToSpeech } from '@/utils/speech/azureSpeechUtils';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { CheckCircle, Briefcase, MessageSquare, Brain, Award } from 'lucide-react';
+import { ResultsSummary } from '@/components/ui/test-mode/ResultsSummary';
 
 const CATEGORY_ROLE_OPTIONS = [
   {
@@ -153,6 +165,7 @@ export default function TestPanel() {
   const [position, setPosition] = useState('Frontend Developer');
   const [level, setLevel] = useState('Junior');
   const [language, setLanguage] = useState('vi-VN');
+  const [duration, setDuration] = useState(15);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null) as React.RefObject<HTMLDivElement>;
 
@@ -176,6 +189,8 @@ export default function TestPanel() {
   // NEW: Track if initial AI message has been sent
   const [hasSentInitialMessage, setHasSentInitialMessage] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+
+  const [showResult, setShowResult] = useState(false);
 
   const addHistoryStage = (stage: any) => {
     setHistory(prev => [...prev, stage]);
@@ -568,46 +583,237 @@ export default function TestPanel() {
     return history[history.length - 1].answer;
   };
 
+  // Hàm kết thúc phỏng vấn sớm
+  const handleEndInterview = () => {
+    setShowResult(true);
+  };
+
+  // Hàm luyện tập lại
+  const handleReset = () => {
+    setShowResult(false);
+    setInterviewing(false);
+    setConversation([]);
+    setMessage('');
+    setInterviewState({
+      phase: 'introduction',
+      topics: [],
+      currentTopicIndex: 0,
+      questions: [],
+      currentQuestionIndex: 0
+    });
+  };
+
   if (loading) {
     return (
-      <Container>
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <CircularProgress />
-        </Box>
-      </Container>
+      <div className="flex justify-center items-center h-96">
+        <Progress value={100} className="w-1/2" />
+      </div>
     );
   }
 
   const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
 
   return (
-    <Container maxWidth="md">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Test Mode (AI Interview)
-        </Typography>
+    <div className="max-w-7xl mx-auto p-6">
         {!interviewing ? (
-          <PreInterviewSetup
-            category={category}
-            onCategoryChange={(e: any) => {
-              setCategory(e.target.value);
-              // Reset position to first role in new category
-              const newRoles = CATEGORY_ROLE_OPTIONS.find(c => c.category === e.target.value)?.roles || [];
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Cột trái: Form chọn thông tin phỏng vấn */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Chọn lĩnh vực phỏng vấn</CardTitle>
+                <CardDescription>
+                  Chọn lĩnh vực bạn muốn luyện tập và cấp độ phù hợp với kinh nghiệm của bạn
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Ngành nghề/Lĩnh vực</Label>
+                    <Select value={category} onValueChange={(value) => {
+                      setCategory(value);
+                      const newRoles = CATEGORY_ROLE_OPTIONS.find(c => c.category === value)?.roles || [];
               setPosition(newRoles[0] || '');
+                    }}>
+                      <SelectTrigger id="category" className="w-full">
+                        <SelectValue placeholder="Chọn lĩnh vực" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORY_ROLE_OPTIONS.map((option) => (
+                          <SelectItem key={option.category} value={option.category}>{option.category}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="position">Vị trí ứng tuyển</Label>
+                    <Select value={position} onValueChange={setPosition}>
+                      <SelectTrigger id="position" className="w-full">
+                        <SelectValue placeholder="Chọn vị trí" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {positionOptions.map((role) => (
+                          <SelectItem key={role} value={role}>{role}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {/* Cấp độ phỏng vấn */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                  <h3 className="font-medium text-blue-800 mb-2 flex items-center">
+                    <Briefcase className="w-5 h-5 mr-2" />
+                    Chọn cấp độ phỏng vấn:
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {levelOptions.map((lv) => (
+                      <div
+                        key={lv}
+                        className={`border rounded-lg p-3 cursor-pointer ${level === lv ? 'bg-amber-50 border-amber-300 shadow-sm' : 'hover:border-gray-300 hover:bg-gray-50'}`}
+                        onClick={() => setLevel(lv)}
+                      >
+                        <div className="font-medium mb-1">{lv}</div>
+                        <div className="text-xs text-gray-600">
+                          {lv === 'Junior' ? '0-2 năm kinh nghiệm' : lv === 'Mid-level' ? '2-5 năm kinh nghiệm' : lv === 'Senior' ? '5+ năm kinh nghiệm' : ''}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Ngôn ngữ phỏng vấn */}
+                <div className="space-y-2">
+                  <Label htmlFor="language">Ngôn ngữ phỏng vấn</Label>
+                  <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger id="language">
+                      <SelectValue placeholder="Chọn ngôn ngữ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGES.map((lang) => (
+                        <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Thời gian phỏng vấn */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="duration">Thời gian phỏng vấn: {duration} phút</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {[5, 10, 15, 20, 30].map((t) => (
+                      <Button
+                        key={t}
+                        variant={t === duration ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setDuration(t)}
+                      >
+                        {t} phút
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                {/* Tương tác giọng nói */}
+                <div className="flex items-center justify-between pt-2">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="voice">Tương tác giọng nói</Label>
+                    <p className="text-sm text-muted-foreground">Bật nhận diện giọng nói và đọc văn bản</p>
+                  </div>
+                  <Switch id="voice" checked={isSpeechEnabled} onCheckedChange={setIsSpeechEnabled} />
+                </div>
+                {/* Thông tin phỏng vấn */}
+                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <h3 className="font-medium mb-2">Thông tin phỏng vấn:</h3>
+                  <ul className="space-y-2 text-gray-700">
+                    <li className="flex items-start"><CheckCircle className="w-4 h-4 mr-2 mt-0.5 text-green-500 flex-shrink-0" /><span><strong>Câu hỏi phỏng vấn thực tế</strong> cho vị trí {position}</span></li>
+                    <li className="flex items-start"><CheckCircle className="w-4 h-4 mr-2 mt-0.5 text-green-500 flex-shrink-0" /><span><strong>Giới hạn thời gian</strong> cho mỗi câu hỏi</span></li>
+                    <li className="flex items-start"><CheckCircle className="w-4 h-4 mr-2 mt-0.5 text-green-500 flex-shrink-0" /><span><strong>Phân tích chi tiết</strong> từ AI về câu trả lời của bạn</span></li>
+                    <li className="flex items-start"><CheckCircle className="w-4 h-4 mr-2 mt-0.5 text-green-500 flex-shrink-0" /><span><strong>Đề xuất cải thiện</strong> cụ thể cho từng câu trả lời</span></li>
+                  </ul>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button onClick={startInterview} className="w-full text-lg font-semibold">Bắt đầu phỏng vấn</Button>
+              </CardFooter>
+            </Card>
+          </div>
+          {/* Cột phải: Các card phụ */}
+          <div className="space-y-6">
+            {/* Tiêu chí đánh giá */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Tiêu chí đánh giá</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                  <MessageSquare className="h-8 w-8 text-blue-500" />
+                  <div>
+                    <h4 className="font-medium">Giao tiếp rõ ràng</h4>
+                    <p className="text-sm text-gray-600">Đánh giá khả năng diễn đạt ý tưởng</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3 p-3 bg-purple-50 rounded-lg border border-purple-100">
+                  <Brain className="h-8 w-8 text-purple-500" />
+                  <div>
+                    <h4 className="font-medium">Tư duy logic</h4>
+                    <p className="text-sm text-gray-600">Đánh giá cách tiếp cận vấn đề</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                  <Award className="h-8 w-8 text-green-500" />
+                  <div>
+                    <h4 className="font-medium">Trình độ ngôn ngữ</h4>
+                    <p className="text-sm text-gray-600">Đánh giá từ vựng và ngữ pháp</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            {/* Tại sao nên luyện tập phỏng vấn? */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Tại sao nên luyện tập phỏng vấn?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start space-x-3"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">1</div><div><h4 className="font-medium">Xây dựng sự tự tin</h4><p className="text-sm text-gray-600">Luyện tập trước giúp bạn tự tin hơn khi tham gia phỏng vấn thực tế.</p></div></div>
+                <div className="flex items-start space-x-3"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">2</div><div><h4 className="font-medium">Cải thiện kỹ năng trả lời</h4><p className="text-sm text-gray-600">Nhận phản hồi chi tiết giúp bạn cải thiện cách trả lời câu hỏi phỏng vấn.</p></div></div>
+                <div className="flex items-start space-x-3"><div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0">3</div><div><h4 className="font-medium">Chuẩn bị kỹ lưỡng</h4><p className="text-sm text-gray-600">Làm quen với các câu hỏi phổ biến trong lĩnh vực của bạn.</p></div></div>
+              </CardContent>
+            </Card>
+            {/* Vị trí đã chọn */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>Vị trí đã chọn</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col space-y-2">
+                  <div className="flex justify-between items-center"><span className="text-sm font-medium">Lĩnh vực:</span><Badge variant="outline">{category}</Badge></div>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between items-center"><span className="text-sm font-medium">Vị trí:</span><Badge variant="outline">{position}</Badge></div>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between items-center"><span className="text-sm font-medium">Cấp độ:</span><Badge variant="outline">{level}</Badge></div>
+                  <Separator className="my-1" />
+                  <div className="flex justify-between items-center"><span className="text-sm font-medium">Thời gian:</span><Badge variant="outline">{duration} phút</Badge></div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+        ) : showResult ? (
+          <ResultsSummary
+            results={{
+              duration,
+              position,
+              level,
+              scores: {
+                communicationClarity: 70,
+                logicalReasoning: 80,
+                languageFluency: 75,
+                overall: 75,
+              },
+              messages: conversation,
+              timestamp: new Date().toISOString(),
             }}
-            categoryOptions={CATEGORY_ROLE_OPTIONS.map(c => c.category)}
-            position={position}
-            isSpeechEnabled={isSpeechEnabled}
-            onPositionChange={(e: any) => setPosition(e.target.value)}
-            onSpeechToggle={() => setIsSpeechEnabled(prev => !prev)}
-            onStartInterview={startInterview}
-            positionOptions={positionOptions}
-            level={level}
-            setLevel={setLevel}
-            levelOptions={levelOptions}
-            language={language}
-            setLanguage={setLanguage}
-            LANGUAGES={LANGUAGES}
+            settings={{ position, level, duration, language }}
+            onReset={handleReset}
           />
         ) : (
           <InterviewChat
@@ -624,14 +830,19 @@ export default function TestPanel() {
             onToggleSpeechRecognition={toggleSpeechRecognition}
             onToggleSpeaker={toggleSpeaker}
             onSpeechToggle={() => setIsSpeechEnabled(prev => !prev)}
-            onMessageChange={(e: any) => setMessage(e.target.value)}
+            onMessageChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
             onSendMessage={handleSendMessage}
             messageListRef={messageListRef}
-            handleKeyPress={handleKeyPress}
+            handleKeyPress={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+            duration={duration}
+            onEndInterview={handleEndInterview}
           />
         )}
-        <InterviewGuidelines />
-      </Box>
-    </Container>
+    </div>
   );
 }
