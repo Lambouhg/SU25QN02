@@ -33,7 +33,7 @@ export default function DashboardLayout({
       { label: 'Mock Interview (AI)', href: '/interview' },
       { label: 'Avatar Interview', href: '/avatar-interview' },
       { label: 'Quiz Mode', href: '/practice/quiz' },
-      { label: 'Test Mode', href: '/practice/test' },
+      { label: 'Test Mode', href: '/test' },
       { label: 'EQ Test Mode', href: '/practice/eq' },
     ]},
     { icon: FileQuestion, label: 'JD to Questions', href: '/jd' },

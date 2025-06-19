@@ -21,7 +21,7 @@ export const ImplementationSummary: React.FC = () => {
     {
       icon: <Save className="w-6 h-6 text-green-600" />,
       title: "Session State Management",
-      description: "User's current questions are preserved in localStorage when navigating between pages",
+      description: "User&apos;s current questions are preserved in localStorage when navigating between pages",
       status: "Completed"
     },
     {
@@ -42,7 +42,7 @@ export const ImplementationSummary: React.FC = () => {
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Implementation Summary</h2>
-        <p className="text-gray-600">Here's what has been successfully implemented to solve the question persistence issue:</p>
+        <p className="text-gray-600">Here&apos;s what has been successfully implemented to solve the question persistence issue:</p>
       </div>
 
       <div className="space-y-4 mb-6">

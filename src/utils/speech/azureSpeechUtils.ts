@@ -28,7 +28,7 @@ const createSpeechConfig = (language?: string) => {
     
     return config;
   } catch (error) {
-    throw new Error(`Failed to create speech config: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Failed to create speech config: ${String(error)}`);
   }
 };
 
@@ -50,7 +50,6 @@ export const startSpeechRecognition = async (
 
     recognizer.canceled = (_, e) => {
       const error: SpeechError = new Error('Speech recognition canceled');
-      error.code = e.errorCode?.toString();
       error.details = e.errorDetails;
       
       console.log('Speech recognition canceled:', {
@@ -60,21 +59,6 @@ export const startSpeechRecognition = async (
       });
       
       if (e.reason === sdk.CancellationReason.Error) {
-        onError(error);
-      }
-    };
-
-    // Set up connection status handlers
-    recognizer.connected = () => {
-      console.log('Speech recognition connected successfully');
-    };
-
-    recognizer.disconnected = (_, e) => {
-      console.log('Speech recognition disconnected:', e);
-      if (e.reason === sdk.ResultReason.Error) {
-        const error: SpeechError = new Error('Speech recognition disconnected');
-        error.code = e.errorCode?.toString();
-        error.details = e.errorDetails;
         onError(error);
       }
     };
@@ -89,7 +73,7 @@ export const startSpeechRecognition = async (
         (error) => {
           console.error("Error starting speech recognition:", error);
           const speechError: SpeechError = new Error('Failed to start speech recognition');
-          speechError.details = error.message || String(error);
+          speechError.details = String(error);
           onError(speechError);
           reject(error);
         }
@@ -99,7 +83,7 @@ export const startSpeechRecognition = async (
   } catch (error) {
     console.error("Error in startSpeechRecognition:", error);
     const speechError: SpeechError = new Error('Failed to initialize speech recognition');
-    speechError.details = error instanceof Error ? error.message : String(error);
+    speechError.details = String(error);
     onError(speechError);
     return null;
   }
@@ -127,8 +111,7 @@ export const stopSpeechRecognition = async (recognizer: sdk.SpeechRecognizer): P
         (error) => {
           console.error("Error stopping speech recognition:", {
             error,
-            errorMessage: error?.message,
-            errorCode: error?.code
+            errorMessage: String(error),
           });
           try {
             recognizer.close();
@@ -163,13 +146,13 @@ export const textToSpeech = async (
       const audioConfig = sdk.AudioConfig.fromDefaultSpeakerOutput();
       const synthesizer = new sdk.SpeechSynthesizer(sessionConfig, audioConfig);
 
-      synthesizer.SynthesisCanceled = (_: any, e: any) => {
+      synthesizer.SynthesisCanceled = (_: unknown, e: sdk.SpeechSynthesisEventArgs) => {
         console.error('Speech synthesis canceled:', e);
-        reject(new Error(`Speech synthesis canceled: ${e.errorDetails || 'Unknown error'}`));
+        reject(new Error(`Speech synthesis canceled: ${e?.result?.errorDetails || 'Unknown error'}`));
       };
       synthesizer.speakTextAsync(
         text,
-        (result: any) => {
+        (result: sdk.SpeechSynthesisResult) => {
           if (result.reason === sdk.ResultReason.SynthesizingAudioCompleted) {
             console.log('Speech synthesis successful');
             synthesizer.close();
@@ -177,13 +160,13 @@ export const textToSpeech = async (
           } else {
             console.error('Speech synthesis failed:', result);
             synthesizer.close();
-            reject(new Error(`Speech synthesis failed: ${result.errorDetails || 'Unknown error'}`));
+            reject(new Error(`Speech synthesis failed: ${result?.errorDetails || 'Unknown error'}`));
           }
         },
-        (error: any) => {
+        (error: string) => {
           console.error('Speech synthesis error:', error);
           synthesizer.close();
-          reject(error);
+          reject(new Error(error));
         }
       );
     } catch (error) {

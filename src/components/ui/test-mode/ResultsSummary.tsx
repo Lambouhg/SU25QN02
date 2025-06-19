@@ -1,7 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, Brain, Award, RotateCcw } from 'lucide-react';
+import { BookOpen, Brain, Award, RotateCcw } from 'lucide-react';
+import {
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+} from 'recharts';
 
 interface ResultsSummaryProps {
   results: {
@@ -9,91 +13,106 @@ interface ResultsSummaryProps {
     position: string;
     level: string;
     scores: {
-      communicationClarity: number;
+      fundamentalKnowledge: number;
       logicalReasoning: number;
       languageFluency: number;
       overall: number;
     };
-    messages: any[];
+    messages: unknown[];
     timestamp: string;
   };
-  settings: any;
+  realTimeScores?: {
+    fundamental: number;
+    logic: number;
+    language: number;
+    suggestions: {
+      fundamental: string;
+      logic: string;
+      language: string;
+    };
+  };
   onReset: () => void;
 }
 
-export function ResultsSummary({ results, settings, onReset }: ResultsSummaryProps) {
-  // Generate feedback based on scores
-  const getFeedback = () => {
-    const { communicationClarity, logicalReasoning, languageFluency } = results.scores;
-    const feedback = [];
-    if (communicationClarity < 50) {
-      feedback.push('Work on expressing your ideas more clearly and concisely.');
-    } else if (communicationClarity < 80) {
-      feedback.push('Your communication is good, but could benefit from more structured responses.');
-    } else {
-      feedback.push('Excellent communication skills! You express ideas clearly and effectively.');
-    }
-    if (logicalReasoning < 50) {
-      feedback.push('Focus on improving your problem-solving approach and logical structure.');
-    } else if (logicalReasoning < 80) {
-      feedback.push('Your logical reasoning is solid, but try to provide more comprehensive analysis.');
-    } else {
-      feedback.push('Strong logical reasoning skills demonstrated throughout the interview.');
-    }
-    if (languageFluency < 50) {
-      feedback.push('Consider expanding your technical vocabulary and working on sentence structure.');
-    } else if (languageFluency < 80) {
-      feedback.push('Good language fluency, with room for improvement in technical terminology.');
-    } else {
-      feedback.push('Excellent language fluency with appropriate technical terminology.');
-    }
-    return feedback;
-  };
-  const feedback = getFeedback();
+export function ResultsSummary({ results, realTimeScores, onReset }: Omit<ResultsSummaryProps, 'settings'>) {
+  const categoryList = [
+    { key: 'fundamental', label: 'Kiến thức nền tảng', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
+    { key: 'logic', label: 'Tư duy logic', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
+    { key: 'language', label: 'Trình độ ngôn ngữ', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
+  ];
+
+  // Nếu có realTimeScores thì dùng luôn, không tính lại từ messages
+  const scores: Record<string, number> = realTimeScores
+    ? {
+        fundamental: realTimeScores.fundamental,
+        logic: realTimeScores.logic,
+        language: realTimeScores.language,
+      }
+    : {
+        fundamental: results.scores.fundamentalKnowledge / 10,
+        logic: results.scores.logicalReasoning / 10,
+        language: results.scores.languageFluency / 10,
+      };
+
+  const suggestions: Record<string, string> = realTimeScores
+    ? realTimeScores.suggestions
+    : { fundamental: '', logic: '', language: '' };
+
+  const overall = Math.round(((scores.fundamental + scores.logic + scores.language) / 3) * 100);
+
+  // Chuẩn hóa dữ liệu cho biểu đồ
+  const chartScores = realTimeScores
+    ? {
+        fundamental: realTimeScores.fundamental * 10,
+        logic: realTimeScores.logic * 10,
+        language: realTimeScores.language * 10,
+      }
+    : {
+        fundamental: results.scores.fundamentalKnowledge,
+        logic: results.scores.logicalReasoning,
+        language: results.scores.languageFluency,
+      };
+
+  const radarChartData = [
+    { subject: 'Kiến thức nền tảng', A: chartScores.fundamental, fullMark: 100 },
+    { subject: 'Tư duy logic', A: chartScores.logic, fullMark: 100 },
+    { subject: 'Trình độ ngôn ngữ', A: chartScores.language, fullMark: 100 },
+  ];
+
+  const barChartData = [
+    { name: 'Kiến thức nền tảng', score: chartScores.fundamental },
+    { name: 'Tư duy logic', score: chartScores.logic },
+    { name: 'Trình độ ngôn ngữ', score: chartScores.language },
+  ];
+
   return (
     <Card className="w-full max-w-4xl mx-auto mt-10">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-2xl">Interview Results</CardTitle>
+            <CardTitle className="text-2xl">Kết quả phỏng vấn</CardTitle>
             <CardDescription>
               {new Date(results.timestamp).toLocaleString()} • {results.position} ({results.level})
             </CardDescription>
           </div>
           <Badge variant="outline" className="text-lg px-3 py-1">
-            {results.scores.overall}%
+            {overall}%
           </Badge>
         </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardContent className="pt-6 flex flex-col items-center text-center">
-              <MessageSquare className="h-8 w-8 mb-2 text-sky-500" />
-              <h3 className="font-medium">Communication</h3>
-              <div className="text-3xl font-bold mt-2 text-sky-500">
-                {Math.round(results.scores.communicationClarity)}%
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 flex flex-col items-center text-center">
-              <Brain className="h-8 w-8 mb-2 text-violet-500" />
-              <h3 className="font-medium">Reasoning</h3>
-              <div className="text-3xl font-bold mt-2 text-violet-500">
-                {Math.round(results.scores.logicalReasoning)}%
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 flex flex-col items-center text-center">
-              <Award className="h-8 w-8 mb-2 text-emerald-500" />
-              <h3 className="font-medium">Language</h3>
-              <div className="text-3xl font-bold mt-2 text-emerald-500">
-                {Math.round(results.scores.languageFluency)}%
-              </div>
-            </CardContent>
-          </Card>
+          {categoryList.map(cat => (
+            <Card key={cat.key}>
+              <CardContent className="pt-6 flex flex-col items-center text-center">
+                {cat.icon}
+                <h3 className="font-medium">{cat.label}</h3>
+                <div className="text-3xl font-bold mt-2">
+                  {Math.round((scores[cat.key] || 0) * 100)}%
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
         <Card className="mb-6">
           <CardHeader>
@@ -101,15 +120,53 @@ export function ResultsSummary({ results, settings, onReset }: ResultsSummaryPro
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
-              {feedback.map((item, index) => (
-                <li key={index} className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  <span>{item}</span>
+              {categoryList.map(cat => (
+                <li key={cat.key} className="flex flex-col gap-1">
+                  <span className="font-semibold">{cat.label}:</span>
+                  <span>{suggestions[cat.key] || 'Không có gợi ý.'}</span>
                 </li>
               ))}
             </ul>
           </CardContent>
         </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart outerRadius={90} data={radarChartData}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="subject" />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                    <Radar name="Performance" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
+                    <Legend />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Detailed Score Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip />
+                    <Bar dataKey="score" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
         <div className="flex justify-end">
           <Button variant="outline" onClick={onReset} className="flex items-center gap-2">
             <RotateCcw className="w-4 h-4" />

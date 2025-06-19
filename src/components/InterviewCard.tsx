@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 export default function InterviewCard() {
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-shadow">
@@ -19,9 +21,11 @@ export default function InterviewCard() {
         {/* Video Interface */}
         <div className="relative aspect-video bg-black-900 rounded-xl mb-6 overflow-hidden group">
           <div className="absolute inset-0 flex items-center justify-center">
-            <img 
+            <Image 
               src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25' viewBox='0 0 800 450'%3E%3Crect width='800' height='450' fill='%23111827'/%3E%3Ccircle cx='400' cy='225' r='60' fill='%239333EA' opacity='0.1'/%3E%3Cpath d='M370 195 Q400 165 430 195 Q400 225 370 195' fill='%239333EA' opacity='0.2'/%3E%3C/svg%3E"
               alt="Video Preview"
+              width={800}
+              height={450}
               className="w-full h-full object-cover"
             />
             <button className="absolute p-4 bg-black-600 rounded-full transform transition-transform group-hover:scale-110">
