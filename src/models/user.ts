@@ -149,6 +149,14 @@ const userSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
+  },
+  savedQuestions: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Question' }],
+    default: []
+  },
+  quizHistory: {
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' }],
+    default: []
   }
 });
 
