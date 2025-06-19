@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, Typography, IconButton, Button } from '@mui/material';
-import { StopCircle, X } from 'lucide-react';
+import { Box, Typography, Button } from '@mui/material';
+import { StopCircle } from 'lucide-react';
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -14,6 +14,7 @@ interface VideoPlayerProps {
     [key: string]: string;
   };
   onStopSession: () => void;
+  onStopavatar: () => void;
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -80,23 +81,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <Typography variant="body2" sx={{ color: 'white' }}>
           {connectionQuality}
         </Typography>
-        {sessionState === SessionState.CONNECTED && (
-          <>
-            <IconButton
-              onClick={handleEndSession}
-              size="small"
-              sx={{ 
-                color: 'error.main',
-                '&:hover': {
-                  backgroundColor: 'rgba(255,0,0,0.1)'
-                }
-              }}
-              title="End Session"
-            >
-              <X />
-            </IconButton>
-          </>
-        )}
+        
       </Box>
 
       {/* Avatar Name and Status */}

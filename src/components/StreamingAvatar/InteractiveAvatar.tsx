@@ -1,21 +1,37 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Box } from '@mui/material';
+import { useAuth } from '@clerk/nextjs';
 import VideoPlayer from './VideoPlayer';
 import ChatControls from './ChatControls';
 import PreInterviewSetup from './PreInterviewSetup';
 import VoiceInteraction from './VoiceInteraction';
 import { AVATARS, STT_LANGUAGE_LIST, SessionState} from './HeygenConfig';
-import StreamingAvatar, { 
+import { generateInterviewEvaluation } from '@/services/evaluationService';
+import { ChatMessage } from '@/services/openaiService';
+import { 
   AvatarQuality,
-  StreamingEvents,
   VoiceEmotion,
   StartAvatarRequest,
   ElevenLabsModel,
-  TaskType
 } from '@heygen/streaming-avatar';
 import { useMemoizedFn } from 'ahooks';
-import { ChatMessage } from '@/services/openaiService';
-import { processInterviewResponse, startInterview } from '@/services/azureAiService';
+import { useConversation } from './hooks/useConversation';
+import { useAvatarControl } from './hooks/useAvatarControl';
+import { useAIConversation } from './hooks/useAIConversation';
+
+// Local type definitions
+type MessageType = 'user' | 'ai' | 'system';
+
+interface Message {
+  text: string;
+  timestamp: number;
+  isError?: boolean;
+}
+
+interface ConversationMessage extends Message {
+  type: MessageType;
+}
 
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.High,
@@ -29,323 +45,272 @@ const DEFAULT_CONFIG: StartAvatarRequest = {
   language: "vi",
 };
 
-// Unique message ID counter
-let messageCounter = 0;
-
-const generateMessageId = () => {
-  return `${Date.now()}_${++messageCounter}`;
-};
-
-interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: string;
-  isError?: boolean;
-  isPartial?: boolean;
-}
-
 interface InteractiveAvatarProps {
   onEndSession: () => void;
 }
 
 // Language list is already in the correct format
-const transformedLanguageList = STT_LANGUAGE_LIST; // Already has {code, name} format
+const transformedLanguageList = STT_LANGUAGE_LIST;
 
-const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) => {
-  const [sessionState, setSessionState] = useState<SessionState>(SessionState.INACTIVE);
+const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ 
+  onEndSession
+}) => {
+  const router = useRouter();
+  const { userId, isLoaded, isSignedIn, getToken } = useAuth();
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
   const [interviewField, setInterviewField] = useState<string>('frontend');
   const [interviewLevel, setInterviewLevel] = useState<string>('junior');
   const [connectionQuality, setConnectionQuality] = useState('UNKNOWN');
   const [isAvatarTalking, setIsAvatarTalking] = useState(false);
   const [message, setMessage] = useState('');
-  const [conversation, setConversation] = useState<Message[]>([]);
+  const [isInterviewComplete, setIsInterviewComplete] = useState(false);
   const [aiConversationHistory, setAiConversationHistory] = useState<ChatMessage[]>([]);
-  const [isThinking, setIsThinking] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const avatarRef = useRef<StreamingAvatar>(null);  const addMessage = useMemoizedFn((text: string, sender: string, isError = false) => {
-    setConversation(prev => [...prev, {
-      id: generateMessageId(),
-      sender,
-      text,
-      timestamp: new Date().toISOString(),
-      isError
-    }]);
+
+  // Add useEffect to handle auth state
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      console.log('User not signed in, redirecting to sign in page');
+      router.push('/sign-in?redirect=/interview');
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  const {
+    conversation,
+    addMessage,
+    updateTranscript,
+    finalizeTranscript,
+    clearPartialMessages,
+    clearConversation
+  } = useConversation();
+
+  const {
+    sessionState,
+    videoRef,
+    startSession,
+    endSession,
+    speakText
+  } = useAvatarControl({
+    onAvatarTalkingChange: setIsAvatarTalking,
+    onConnectionQualityChange: setConnectionQuality,
+    onTranscriptUpdate: updateTranscript,
+    onTranscriptFinalize: finalizeTranscript,
+    onTranscriptStart: clearPartialMessages,
+    onAvatarMessage: (text) => addMessage(text, 'ai'),
+    onError: (message) => addMessage(message, 'system', true)
   });
 
-  const fetchAccessToken = async () => {
+  const {
+    isThinking,
+    processMessage: aiProcessMessage,
+    startNewInterview: aiStartNewInterview,
+    questionCount,
+    interviewState
+  } = useAIConversation({
+    onAnswer: async (text: string) => {
+      console.log('AI response:', text);
+      addMessage(text, 'ai');
+      console.log('Current conversation:', conversation);
+      await speakText(text);
+    },
+    onError: (error: string) => {
+      console.error('AI error:', error);
+      addMessage(error, 'system', true);
+    },
+    onFollowUpQuestion: (question: string) => {
+      console.log('Follow-up question:', question);
+      addMessage(question, 'system');
+    },
+    onInterviewComplete: (progress) => handleInterviewCompleteInternal(progress),
+  
+    language: config.language === 'vi' ? 'vi-VN' : 'en-US'
+  });
+
+  // Update AI conversation history when conversation changes
+  useEffect(() => {
+    const messages = conversation as unknown as ConversationMessage[];
+    const convertedHistory: ChatMessage[] = messages.map(msg => ({
+      role: msg.type === 'user' ? 'user' : msg.type === 'ai' ? 'assistant' : 'system',
+      content: msg.text
+    }));
+    setAiConversationHistory(convertedHistory);
+  }, [conversation]);
+
+  const handleInterviewCompleteInternal = useCallback(async (progress: number) => {
+    setIsInterviewComplete(true);
+    
+    if (!isLoaded) {
+      console.log('Auth state is still loading...');
+      return;
+    }
+    
+    if (!isSignedIn || !userId) {
+      console.log('User not signed in. Auth state:', { isLoaded, isSignedIn, userId });
+      router.push('/sign-in?redirect=/interview');
+      return;
+    }
+    
+    const completionMessage = config.language === 'vi' 
+      ? `Phỏng vấn đã hoàn thành với tiến độ ${progress}%. Cảm ơn bạn đã tham gia buổi phỏng vấn! Đang chuyển đến trang đánh giá...`
+      : `Interview completed with progress ${progress}%. Thank you for participating in the interview! Redirecting to evaluation...`;
+    
     try {
-      const response = await fetch('/api/heygen-token', {
+      addMessage(completionMessage, 'system');
+      await speakText(completionMessage);
+
+      const evaluation = await generateInterviewEvaluation(
+        aiConversationHistory,
+        interviewField,
+        interviewLevel,
+        config.language === 'vi' ? 'vi-VN' : 'en-US'
+      );
+
+      const messages = conversation as unknown as ConversationMessage[];
+      const apiConversation = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' : msg.type === 'ai' ? 'assistant' : 'system',
+        content: msg.text,
+        timestamp: msg.timestamp
+      }));
+
+      // Get auth token for request
+      const token = await getToken();
+      console.log('Making API request with auth:', { hasUserId: !!userId, hasToken: !!token });
+
+      const response = await fetch('/api/interviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId, // Include userId for validation
+          interviewField,
+          interviewLevel,
+          language: config.language === 'vi' ? 'vi-VN' : 'en-US',
+          startTime: new Date(conversation[0]?.timestamp || Date.now()),
+          endTime: new Date(),
+          conversationHistory: apiConversation,
+          evaluation,
+          progress,
+          avatarConfig: {
+            avatarId: config.avatarName,
+            avatarName: AVATARS.find(a => a.avatar_id === config.avatarName)?.name,
+            quality: config.quality,
+            voiceSettings: config.voice
+          },
+          questionCount,
+          coveredTopics: interviewState.coveredTopics,
+          skillAssessment: interviewState.skillAssessment,
+          status: 'completed' as const
+        }),
       });
+
       if (!response.ok) {
-        throw new Error('Failed to get token');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API error:', { status: response.status, errorData });
+        throw new Error(`Failed to save interview data: ${errorData?.error || response.statusText}`);
       }
-      const token = await response.text();
-      return token;
+
+      const savedInterview = await response.json();
+      localStorage.setItem('currentInterviewId', savedInterview._id);
+      
+      await endSession();
+      setIsAvatarTalking(false);
+      setMessage('');
+      onEndSession();
+      router.push('/interview-review');
     } catch (error) {
-      console.error('Error fetching token:', error);
-      throw error;
+      console.error('Error during interview completion:', error);
+      addMessage(
+        config.language === 'vi'
+          ? 'Đã xảy ra lỗi khi lưu kết quả phỏng vấn. Vui lòng kiểm tra đăng nhập và thử lại.'
+          : 'Error saving interview results. Please check your login and try again.',
+        'system',
+        true
+      );
     }
-  };  const handleTranscriptUpdate = useCallback((text: string) => {
-    if (text) {
-      // Find and update or add partial message
-      setConversation(prev => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg?.isPartial) {
-          return [...prev.slice(0, -1), { ...lastMsg, text }];
-        }
-        return [...prev, {
-          id: generateMessageId(),
-          sender: 'user',
-          text,
-          timestamp: new Date().toISOString(),
-          isPartial: true
-        }];
-      });
-    }
-  }, []);
+  }, [
+    userId,
+    isLoaded,
+    isSignedIn,
+    getToken,
+    config,
+    addMessage,
+    speakText,
+    aiConversationHistory,
+    interviewField,
+    interviewLevel,
+    conversation,
+    endSession,
+    onEndSession,
+    router,
+    questionCount,
+    interviewState
+  ]);
 
-  const initAvatar = useCallback(async (token: string) => {
+  const initializeSession = useMemoizedFn(async () => {
     try {
-      const avatar = new StreamingAvatar({
-        token,
-        basePath: process.env.NEXT_PUBLIC_BASE_API_URL || 'https://api.heygen.com'
-      });
-
-      avatar.on(StreamingEvents.STREAM_READY, (event) => {
-        console.log('>>>>> Stream ready:', event.detail);
-        if (videoRef.current && event.detail) {
-          videoRef.current.srcObject = event.detail;
-          setSessionState(SessionState.CONNECTED);
-        }
-      });
-
-      avatar.on(StreamingEvents.STREAM_DISCONNECTED, () => {
-        console.log('>>>>> Stream disconnected');
-        if (videoRef.current) {
-          videoRef.current.srcObject = null;
-          setSessionState(SessionState.INACTIVE);
-        }
-      });
-
-      avatar.on(StreamingEvents.AVATAR_START_TALKING, (e) => {
-        console.log('>>>>> Avatar started talking', e);
-        setIsAvatarTalking(true);
-      });
-
-      avatar.on(StreamingEvents.AVATAR_STOP_TALKING, (e) => {
-        console.log('>>>>> Avatar stopped talking', e);
-        setIsAvatarTalking(false);
-      });
-
-      avatar.on(StreamingEvents.CONNECTION_QUALITY_CHANGED, (e) => {
-        setConnectionQuality(e.detail);
-      });      avatar.on(StreamingEvents.USER_START, () => {
-        // Remove any existing partial messages
-        setConversation(prev => prev.filter(msg => !msg.isPartial));
-      });
-
-      avatar.on(StreamingEvents.USER_TALKING_MESSAGE, (event) => {
-        handleTranscriptUpdate(event.detail.text);
-      });
-
-      avatar.on(StreamingEvents.USER_END_MESSAGE, (event) => {
-        if (event.detail.text) {
-          // Remove any partial messages and add the final one
-          setConversation(prev => [
-            ...prev.filter(msg => !msg.isPartial),
-            {
-              id: generateMessageId(),
-              sender: 'user',
-              text: event.detail.text,
-              timestamp: new Date().toISOString()
-            }
-          ]);
-        }
-      });
-
-      avatar.on(StreamingEvents.AVATAR_TALKING_MESSAGE, () => {
-        // Optionally handle partial avatar responses
-      });
-
-      avatar.on(StreamingEvents.AVATAR_END_MESSAGE, (event) => {
-        if (event.detail.text) {
-          addMessage(event.detail.text, 'ai');
-        }
-      });
-
-      avatar.on('error', (error) => {
-        console.error('Avatar error:', error);
-        addMessage(error.message, 'system', true);
-        setSessionState(SessionState.INACTIVE);
-      });
-
-      avatarRef.current = avatar;
-      return avatar;
-    } catch (error) {
-      console.error('Error initializing avatar:', error);
-      throw error;
-    }
-  }, [handleTranscriptUpdate, addMessage]);
-  
-  const startSession = useMemoizedFn(async () => {
-    try {
-      setSessionState(SessionState.CONNECTING);
-      const token = await fetchAccessToken();
-      const avatar = await initAvatar(token);
+      setIsInterviewComplete(false);
+      // Start the avatar session
+      await startSession(config);
       
-      console.log('Starting avatar with config:', config);
-      await avatar.createStartAvatar(config);      // Start interview with AI greeting
-      const initialResponse = await startInterview({
-        field: interviewField,
-        level: interviewLevel,
-        language: config.language === 'vi' ? 'vi-VN' : 'en-US'
-      });
+      // Start interview with AI greeting
+      await aiStartNewInterview(interviewField, interviewLevel);
       
-      // Add AI greeting to conversation
-      addMessage(initialResponse.answer, 'ai');
-      
-      // Make avatar speak the greeting
-      await avatar.speak({
-        text: initialResponse.answer,
-        taskType: TaskType.REPEAT
-      });
-
     } catch (error) {
       console.error('Error starting session:', error);
       addMessage('Failed to start session: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
-      setSessionState(SessionState.INACTIVE);
     }
   });
 
-  const endSession = useCallback(async () => {
+  const handleEndSession = useCallback(async () => {
     try {
-      if (avatarRef.current) {
-        await avatarRef.current.stopAvatar();
-        avatarRef.current = null;
-      }
-
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-        videoRef.current.srcObject = null;
-      }
-
-      setSessionState(SessionState.INACTIVE);
+      await endSession();
       setIsAvatarTalking(false);
       setMessage('');
-      setConversation([]);
+      clearConversation();
       addMessage('Session ended', 'system');
       onEndSession();
     } catch (error) {
       console.error('Error ending session:', error);
       addMessage('Failed to end session properly: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
     }
-  }, [onEndSession, addMessage]);
-  const processMessageWithAI = useCallback(async (text: string) => {
-    try {
-      setIsThinking(true);
-      
-      // Add user message to AI conversation history
-      const userMessage: ChatMessage = { role: 'user', content: text };
-      setAiConversationHistory(prev => [...prev, userMessage]);
+  }, [endSession, onEndSession, addMessage, clearConversation]);
 
-      // Process with Azure OpenAI
-      const aiResponse = await processInterviewResponse(
-        text, 
-        aiConversationHistory,
-        config.language === 'vi' ? 'vi-VN' : 'en-US'
-      );
-
-      // Add AI response to conversation history
-      const assistantMessage: ChatMessage = { 
-        role: 'assistant', 
-        content: aiResponse.answer 
-      };
-      setAiConversationHistory(prev => [...prev, assistantMessage]);
-
-      // Make avatar speak the AI response
-      if (avatarRef.current && !isAvatarTalking) {
-        await avatarRef.current.speak({
-          text: aiResponse.answer,
-          taskType: TaskType.REPEAT
-        });
-      }
-
-      // Add the response to the UI conversation
-      addMessage(aiResponse.answer, 'ai');
-
-      // If there is a follow-up question, add it as a system message
-      if (aiResponse.followUpQuestion) {
-        addMessage(aiResponse.followUpQuestion, 'system');
-      }
-    } catch (error) {
-      console.error('Error processing message with AI:', error);
-      addMessage('Xin lỗi, đã xảy ra lỗi khi xử lý tin nhắn. Vui lòng thử lại.', 'system', true);
-    } finally {
-      setIsThinking(false);
-    }
-  }, [aiConversationHistory, isAvatarTalking, addMessage, config.language]);
   const handleSendMessage = useCallback(async () => {
-    if (!message.trim() || !avatarRef.current || isAvatarTalking || isThinking) return;
+    if (!message.trim() || isAvatarTalking || isThinking || isInterviewComplete) return;
 
     try {
       const textToSpeak = message;
-      setMessage(''); // Clear input first
-
-      // Add message to conversation
-      const newMessage = {
-        id: generateMessageId(),
-        sender: 'user',
-        text: textToSpeak,
-        timestamp: new Date().toISOString()
-      };
-      setConversation(prev => [...prev, newMessage]);
-
-      // Process with AI and get response
-      await processMessageWithAI(textToSpeak);
-
+      setMessage('');
+      addMessage(textToSpeak, 'user');
+      await aiProcessMessage(textToSpeak);
     } catch (error) {
       console.error('Error sending message:', error);
       addMessage('Gửi tin nhắn thất bại: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
     }
-  }, [message, isAvatarTalking, isThinking, addMessage, processMessageWithAI, avatarRef]);
+  }, [message, isAvatarTalking, isThinking, isInterviewComplete, addMessage, aiProcessMessage]);
+
   const handleSpeechResult = useCallback((text: string) => {
-    if (!text.trim() || !avatarRef.current || isAvatarTalking) return;
-
-    // Add user's speech to conversation
-    const newMessage = {
-      id: generateMessageId(),
-      sender: 'user',
-      text: text,
-      timestamp: new Date().toISOString()
-    };
-    setConversation(prev => [...prev, newMessage]);
-
-    // Process with AI and get response
-    processMessageWithAI(text).catch(error => {
+    if (!text.trim() || isAvatarTalking || isInterviewComplete) return;
+    addMessage(text, 'user');
+    aiProcessMessage(text).catch((error: Error) => {
       console.error('Error processing speech with AI:', error);
-      addMessage('Failed to process speech: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
+      addMessage('Failed to process speech: ' + error.message, 'system', true);
     });
-  }, [isAvatarTalking, addMessage, processMessageWithAI, avatarRef]);
+  }, [isAvatarTalking, isInterviewComplete, addMessage, aiProcessMessage]);
 
   useEffect(() => {
     return () => {
-      if (avatarRef.current) {
-        endSession();
-      }
+      endSession().catch(console.error);
     };
   }, [endSession]);
-  if (sessionState === SessionState.INACTIVE) {    return (
+
+  if (sessionState === SessionState.INACTIVE) {
+    return (
       <PreInterviewSetup
         config={config}
         onConfigChange={setConfig}
-        onStartInterview={startSession}
+        onStartInterview={initializeSession}
         sessionState={sessionState}
         AVATARS={AVATARS}
         STT_LANGUAGE_LIST={transformedLanguageList}
@@ -366,17 +331,17 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
         avatarId={config.avatarName}
         avatarName={AVATARS.find(a => a.avatar_id === config.avatarName)?.name || ''}
         SessionState={SessionState}
-        onStopSession={endSession}
+        onStopSession={handleEndSession}
+        onStopavatar={() => setIsAvatarTalking(false)}
       />
       <Box sx={{ p: 2 }}>
         <VoiceInteraction 
           onSpeechResult={handleSpeechResult}
-          disabled={sessionState !== SessionState.CONNECTED}
+          disabled={sessionState !== SessionState.CONNECTED || isInterviewComplete}
           language={config.language === 'en' ? 'en-US' : 'vi-VN'}
           isAvatarTalking={isAvatarTalking}
         />
-      </Box>
-      <ChatControls
+      </Box>      <ChatControls
         sessionState={sessionState}
         inputText={message}
         setInputText={setMessage}
@@ -384,6 +349,11 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
         conversation={conversation}
         onSendMessage={handleSendMessage}
         isThinking={isThinking}
+        isInterviewComplete={isInterviewComplete}
+        questionCount={questionCount}
+        skillAssessment={interviewState.skillAssessment}
+        coveredTopics={interviewState.coveredTopics}
+        progress={interviewState.progress || 0}
       />
     </Box>
   );

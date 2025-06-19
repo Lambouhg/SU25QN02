@@ -17,19 +17,84 @@ interface PreInterviewSetupProps {
 }
 
 const INTERVIEW_FIELDS = [
-  { value: 'frontend', label: 'Frontend Development' },
-  { value: 'backend', label: 'Backend Development' },
-  { value: 'fullstack', label: 'Fullstack Development' },
-  { value: 'devops', label: 'DevOps Engineering' },
-  { value: 'mobile', label: 'Mobile Development' },
-  { value: 'ai', label: 'AI/Machine Learning' },
+  {
+    value: 'frontend',
+    label: 'Frontend Development',
+    subfields: ['React', 'Vue', 'Angular', 'NextJS']
+  },
+  {
+    value: 'backend',
+    label: 'Backend Development',
+    subfields: ['Node.js', 'Java', 'Python', 'Go']
+  },
+  {
+    value: 'fullstack',
+    label: 'Fullstack Development',
+    subfields: ['MERN', 'MEAN', 'Java Full-stack']
+  },
+  {
+    value: 'mobile',
+    label: 'Mobile Development',
+    subfields: ['React Native', 'Flutter', 'iOS', 'Android']
+  },
+  {
+    value: 'devops',
+    label: 'DevOps/Cloud',
+    subfields: ['AWS', 'Azure', 'GCP', 'Kubernetes']
+  },
+  {
+    value: 'data',
+    label: 'Data Engineering',
+    subfields: ['ETL', 'Data Warehouse', 'Big Data']
+  },
+  {
+    value: 'ai',
+    label: 'AI/ML Engineering',
+    subfields: ['Machine Learning', 'Deep Learning', 'NLP']
+  },
+  {
+    value: 'security',
+    label: 'Security Engineering',
+    subfields: ['Application Security', 'Network Security']
+  },
+  {
+    value: 'qa',
+    label: 'QA/Testing',
+    subfields: ['Automation Testing', 'Performance Testing']
+  }
 ];
 
 const INTERVIEW_LEVELS = [
-  { value: 'junior', label: 'Junior (0-2 năm)' },
-  { value: 'mid', label: 'Mid-level (2-4 năm)' },
-  { value: 'senior', label: 'Senior (4-8 năm)' },
-  { value: 'lead', label: 'Tech Lead (8+ năm)' },
+  {
+    value: 'intern',
+    label: 'Intern/Fresher (0-1 năm)',
+    description: 'Kiến thức cơ bản, học việc thực tế'
+  },
+  {
+    value: 'junior',
+    label: 'Junior (1-2 năm)',
+    description: 'Làm việc độc lập với tasks đơn giản'
+  },
+  {
+    value: 'mid',
+    label: 'Mid-level (2-4 năm)',
+    description: 'Xử lý vấn đề phức tạp, mentor junior'
+  },
+  {
+    value: 'senior',
+    label: 'Senior (4-6 năm)',
+    description: 'Thiết kế giải pháp, lead dự án nhỏ'
+  },
+  {
+    value: 'lead',
+    label: 'Tech Lead (6+ năm)',
+    description: 'Kiến trúc hệ thống, quản lý team'
+  },
+  {
+    value: 'architect',
+    label: 'Solution Architect (8+ năm)',
+    description: 'Thiết kế kiến trúc, định hướng công nghệ'
+  }
 ];
 
 const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
