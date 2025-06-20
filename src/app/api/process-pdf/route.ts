@@ -1,10 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import path from 'path';
-import { pathToFileURL } from 'url';
 import { JDValidationService } from '@/services/jdValidationService';
 
 export const runtime = 'nodejs';
+
+// Helper function to extract text using pdfjs-dist
+async function extractTextWithPdfjs(arrayBuffer: ArrayBuffer): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  
+  // Configure worker with error handling
+  try {
+    const workerPath = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (pdfjsLib.GlobalWorkerOptions as any).workerSrc = workerPath;
+  } catch (workerError) {
+    console.warn('Worker configuration failed, using fallback:', workerError);
+    // Fallback to CDN worker
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (pdfjsLib.GlobalWorkerOptions as any).workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+  }
+
+  const loadingTask = pdfjsLib.getDocument({
+    data: arrayBuffer,
+    verbosity: 0,
+    disableAutoFetch: true,
+    disableStream: true
+  });
+
+  interface PDFPage {
+    getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
+  }
+
+  interface PDFDocument {
+    numPages: number;
+    getPage: (pageNum: number) => Promise<PDFPage>;
+  }
+
+  const pdf = await Promise.race([
+    loadingTask.promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('PDF loading timeout')), 30000)
+    )
+  ]) as PDFDocument;
+
+  const textItems: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .filter((item) => 'str' in item)
+      .map((item) => item.str)
+      .join(' ');
+    textItems.push(pageText);
+  }
+  
+  return textItems.join('\n').trim();
+}
+
+// Helper function to extract text using pdf-parse as fallback
+async function extractTextWithPdfParse(arrayBuffer: ArrayBuffer): Promise<string> {
+  const pdfParse = await import('pdf-parse');
+  const buffer = Buffer.from(arrayBuffer);
+  const data = await pdfParse.default(buffer);
+  return data.text.trim();
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,41 +72,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
     }
 
-    const arrayBuffer = await req.arrayBuffer();    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-      return NextResponse.json({ error: 'Uploaded file is empty.' }, { status: 400 });    }    // Configure pdfjs-dist for Node.js environment
-    // Use absolute path to worker file and convert to file URL for Windows
-    const workerPath = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs');
-    const workerUrl = pathToFileURL(workerPath).href;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (pdfjsLib.GlobalWorkerOptions as any).workerSrc = workerUrl;
+    const arrayBuffer = await req.arrayBuffer();
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      return NextResponse.json({ error: 'Uploaded file is empty.' }, { status: 400 });
+    }
 
     let text = '';
     try {
-      // Load PDF document
-      const pdf = await pdfjsLib.getDocument({
-        data: arrayBuffer,
-        verbosity: 0
-      }).promise;
-
-      // Extract text from all pages
-      const textItems: string[] = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();        const pageText = textContent.items
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((item: any) => 'str' in item)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((item: any) => item.str)
-          .join(' ');
-        textItems.push(pageText);
+      // Try extracting text with pdfjs-dist
+      text = await extractTextWithPdfjs(arrayBuffer);
+    } catch (pdfjsError) {
+      console.warn('pdfjs-dist extraction failed, trying pdf-parse:', pdfjsError);
+      try {
+        // Fallback to pdf-parse
+        text = await extractTextWithPdfParse(arrayBuffer);
+      } catch (pdfParseError) {
+        console.error('PDF parsing error with both libraries:', pdfParseError);
+        return NextResponse.json(
+          { error: 'Failed to parse PDF. The file may be corrupted or not a valid PDF.' },
+          { status: 400 }
+        );
       }
-      text = textItems.join('\n').trim();
-    } catch (parseErr) {
-      console.error('PDF parsing error:', parseErr);
-      return NextResponse.json(
-        { error: 'Failed to parse PDF. The file may be corrupted or not a valid PDF.' },
-        { status: 400 }
-      );
     }    if (!text) {
       return NextResponse.json({ error: 'No readable text found in PDF' }, { status: 400 });
     }
