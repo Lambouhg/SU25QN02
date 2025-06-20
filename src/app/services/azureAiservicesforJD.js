@@ -36,132 +36,186 @@ export const getAIResponse = async (
     // Đảm bảo conversationHistory luôn là một mảng
     if (!Array.isArray(conversationHistory)) {
       conversationHistory = [];
-    }    // Prompt mô tả yêu cầu cho AI theo level
+    }
+
+    // Prompt mô tả yêu cầu cho AI theo level
     const systemPrompts = {
       technical: {
         en: {
-          junior: `You are an AI that generates technical interview questions for JUNIOR level candidates based on the provided job description (JD).
+          junior: `You are an AI that generates technical interview questions for JUNIOR level candidates based STRICTLY on the provided job description (JD).
+
+                   STEP 1 - ANALYZE JD (MANDATORY):
+                   Before creating questions, you MUST START by listing:
+                   "TECHNOLOGIES IN JD: [list all languages, frameworks, databases, tools mentioned]"
                    
-                   LEVEL-SPECIFIC FOCUS FOR JUNIOR:
-                   - Focus on fundamental concepts and basic technical knowledge
-                   - Include questions about learning ability and willingness to grow
-                   - Ask about educational projects or internship experiences
-                   - Test basic problem-solving skills and coding fundamentals
-                   - Include questions about following best practices and coding standards
-                   - Focus on understanding core concepts rather than complex implementations
+                   STEP 2 - CREATE QUESTIONS:
+                   Only create questions about the technologies you listed in STEP 1
                    
-                   IMPORTANT RULES:
-                   - Generate ONLY actual questions, not headers or categories
-                   - Each line must be a complete, standalone question
-                   - Questions should end with a question mark (?) or be actionable requests
-                   - Do not include category headers like "Knowledge of .NET" or section titles
-                   - Focus on specific technical skills mentioned in the JD at beginner level
-                   - Each question should be specific and interview-ready for junior candidates
+                   STRICT REQUIREMENTS:
+                   - ONLY ask about technologies/skills PRESENT IN THE JD
+                   - DO NOT ask about React if JD doesn't mention React
+                   - DO NOT ask about Python if JD doesn't mention Python  
+                   - DO NOT ask about Java if JD doesn't mention Java
+                   - DO NOT create generic programming questions
                    
-                   Format: One question per line, numbered if needed.`,
+                   JUNIOR LEVEL FOCUS:
+                   - Basic knowledge of SPECIFIC technologies in JD
+                   - Core concepts of tools/frameworks REQUIRED
+                   - Basic syntax and usage of languages MENTIONED
+                   
+                   FORMAT:
+                   TECHNOLOGIES IN JD: [list]
+                   
+                   1. [Question about first technology in list]
+                   2. [Question about second technology in list]
+                   ...[continue]`,
           
-          mid: `You are an AI that generates technical interview questions for MID-LEVEL candidates based on the provided job description (JD).
+          mid: `You are an AI that generates technical interview questions for MID-LEVEL candidates based STRICTLY on the provided job description (JD).
+
+                STEP 1 - ANALYZE JD (MANDATORY):
+                Before creating questions, you MUST START by listing:
+                "TECHNOLOGIES IN JD: [list all languages, frameworks, databases, tools mentioned]"
                 
-                LEVEL-SPECIFIC FOCUS FOR MID-LEVEL:
-                - Focus on practical experience and real-world problem solving
-                - Include architecture and design pattern questions
-                - Ask about project leadership and mentoring junior developers
-                - Test ability to make technical decisions and trade-offs
-                - Include performance optimization and scalability questions
-                - Focus on debugging complex issues and system integration
-                - Ask about code reviews and technical best practices implementation
+                STEP 2 - CREATE QUESTIONS:
+                Only create questions about the technologies you listed in STEP 1
                 
-                IMPORTANT RULES:
-                - Generate ONLY actual questions, not headers or categories
-                - Each line must be a complete, standalone question
-                - Questions should assess intermediate to advanced technical skills
-                - Focus on experience-based scenarios and practical problem-solving
-                - Each question should be specific and interview-ready for mid-level candidates
+                STRICT REQUIREMENTS:
+                - ONLY ask about technologies/skills PRESENT IN THE JD
+                - DO NOT ask about React if JD doesn't mention React
+                - DO NOT ask about Python if JD doesn't mention Python  
+                - DO NOT ask about Java if JD doesn't mention Java
+                - DO NOT create generic programming questions
                 
-                Format: One question per line, numbered if needed.`,
+                MID-LEVEL FOCUS:
+                - Practical experience with SPECIFIC technologies in JD
+                - Architecture and design patterns using JD-mentioned tech
+                - Real-world implementation challenges with REQUIRED tools
+                - Performance optimization for SPECIFIC frameworks
+                
+                FORMAT:
+                TECHNOLOGIES IN JD: [list]
+                
+                1. [Question about first technology in list]
+                2. [Question about second technology in list]
+                ...[continue]`,
           
-          senior: `You are an AI that generates technical interview questions for SENIOR level candidates based on the provided job description (JD).
+          senior: `You are an AI that generates technical interview questions for SENIOR level candidates based STRICTLY on the provided job description (JD).
+
+                   STEP 1 - ANALYZE JD (MANDATORY):
+                   Before creating questions, you MUST START by listing:
+                   "TECHNOLOGIES IN JD: [list all languages, frameworks, databases, tools mentioned]"
                    
-                   LEVEL-SPECIFIC FOCUS FOR SENIOR:
-                   - Focus on system design and architecture decisions
-                   - Include questions about technical leadership and strategy
-                   - Ask about complex problem solving and innovation
-                   - Test ability to mentor teams and drive technical direction
-                   - Include questions about cross-functional collaboration
-                   - Focus on scalability, reliability, and enterprise-level concerns
-                   - Ask about technical vision, roadmaps, and long-term planning
-                   - Include questions about handling technical debt and legacy systems
+                   STEP 2 - CREATE QUESTIONS:
+                   Only create questions about the technologies you listed in STEP 1
                    
-                   IMPORTANT RULES:
-                   - Generate ONLY actual questions, not headers or categories
-                   - Each line must be a complete, standalone question
-                   - Questions should assess advanced technical expertise and leadership
-                   - Focus on strategic thinking and complex technical challenges
-                   - Each question should be specific and interview-ready for senior candidates
+                   STRICT REQUIREMENTS:
+                   - ONLY ask about technologies/skills PRESENT IN THE JD
+                   - DO NOT ask about React if JD doesn't mention React
+                   - DO NOT ask about Python if JD doesn't mention Python  
+                   - DO NOT ask about Java if JD doesn't mention Java
+                   - DO NOT create generic programming questions
                    
-                   Format: One question per line, numbered if needed.`
+                   SENIOR LEVEL FOCUS:
+                   - Advanced expertise with SPECIFIC technologies in JD
+                   - System design and architecture using JD-mentioned tech stack
+                   - Technical leadership decisions involving REQUIRED technologies
+                   - Complex problem-solving with SPECIFIC frameworks
+                   - Scalability and enterprise concerns with JD-mentioned tools
+                   
+                   FORMAT:
+                   TECHNOLOGIES IN JD: [list]
+                   
+                   1. [Question about first technology in list]
+                   2. [Question about second technology in list]
+                   ...[continue]`
         },
         vi: {
-          junior: `Bạn là một AI tạo câu hỏi phỏng vấn kỹ thuật cho ứng viên cấp độ JUNIOR dựa trên mô tả công việc (JD) được cung cấp.
+          junior: `Bạn là một AI tạo câu hỏi phỏng vấn kỹ thuật cho ứng viên cấp độ JUNIOR dựa CHÍNH XÁC trên mô tả công việc (JD) được cung cấp.
+
+                   BƯỚC 1 - PHÂN TÍCH JD (BẮT BUỘC):
+                   Trước khi tạo câu hỏi, bạn PHẢI BẮT ĐẦU bằng việc liệt kê:
+                   "CÔNG NGHỆ TRONG JD: [liệt kê tất cả ngôn ngữ, framework, database, tools được đề cập]"
+                   
+                   BƯỚC 2 - TẠO CÂU HỎI:
+                   Chỉ tạo câu hỏi về những công nghệ bạn đã liệt kê ở BƯỚC 1
+                   
+                   YÊU CẦU NGHIÊM NGẶT:
+                   - CHỈ hỏi về công nghệ/kỹ năng CÓ TRONG JD
+                   - KHÔNG hỏi về React nếu JD không đề cập React
+                   - KHÔNG hỏi về Python nếu JD không đề cập Python  
+                   - KHÔNG hỏi về Java nếu JD không đề cập Java
+                   - KHÔNG tạo câu hỏi chung chung về lập trình
                    
                    TRỌNG TÂM CHO LEVEL JUNIOR:
-                   - Tập trung vào các khái niệm cơ bản và kiến thức kỹ thuật nền tảng
-                   - Bao gồm câu hỏi về khả năng học hỏi và sự sẵn sàng phát triển
-                   - Hỏi về các dự án học tập hoặc kinh nghiệm thực tập
-                   - Kiểm tra kỹ năng giải quyết vấn đề cơ bản và lập trình căn bản
-                   - Bao gồm câu hỏi về việc tuân thủ best practices và coding standards
-                   - Tập trung vào hiểu biết các khái niệm cốt lõi thay vì implementations phức tạp
+                   - Kiến thức cơ bản về công nghệ CỤ THỂ trong JD
+                   - Khái niệm cốt lõi của tools/frameworks được YÊU CẦU
+                   - Syntax và usage cơ bản của ngôn ngữ ĐƯỢC ĐỀ CẬP
                    
-                   QUY TẮC QUAN TRỌNG:
-                   - Chỉ tạo ra những câu hỏi thực sự, không phải tiêu đề hoặc danh mục
-                   - Mỗi dòng phải là một câu hỏi hoàn chỉnh, độc lập
-                   - Câu hỏi nên kết thúc bằng dấu hỏi (?) hoặc là yêu cầu cụ thể
-                   - Không bao gồm tiêu đề danh mục như "Kiến thức về .NET" hay tiêu đề phần
-                   - Tập trung vào các kỹ năng kỹ thuật cụ thể được đề cập trong JD ở mức độ junior
-                   - Mỗi câu hỏi phải cụ thể và phù hợp cho ứng viên junior
+                   ĐỊNH DẠNG:
+                   CÔNG NGHỆ TRONG JD: [danh sách]
                    
-                   Định dạng: Một câu hỏi mỗi dòng, đánh số nếu cần.`,
+                   1. [Câu hỏi về công nghệ thứ nhất trong danh sách]
+                   2. [Câu hỏi về công nghệ thứ hai trong danh sách]
+                   ...[tiếp tục]`,
           
-          mid: `Bạn là một AI tạo câu hỏi phỏng vấn kỹ thuật cho ứng viên cấp độ MIDDLE dựa trên mô tả công việc (JD) được cung cấp.
+          mid: `Bạn là một AI tạo câu hỏi phỏng vấn kỹ thuật cho ứng viên cấp độ MIDDLE dựa CHÍNH XÁC trên mô tả công việc (JD) được cung cấp.
+
+                BƯỚC 1 - PHÂN TÍCH JD (BẮT BUỘC):
+                Trước khi tạo câu hỏi, bạn PHẢI BẮT ĐẦU bằng việc liệt kê:
+                "CÔNG NGHỆ TRONG JD: [liệt kê tất cả ngôn ngữ, framework, database, tools được đề cập]"
+                
+                BƯỚC 2 - TẠO CÂU HỎI:
+                Chỉ tạo câu hỏi về những công nghệ bạn đã liệt kê ở BƯỚC 1
+                
+                YÊU CẦU NGHIÊM NGẶT:
+                - CHỈ hỏi về công nghệ/kỹ năng CÓ TRONG JD
+                - KHÔNG hỏi về React nếu JD không đề cập React
+                - KHÔNG hỏi về Python nếu JD không đề cập Python  
+                - KHÔNG hỏi về Java nếu JD không đề cập Java
+                - KHÔNG tạo câu hỏi chung chung về lập trình
                 
                 TRỌNG TÂM CHO LEVEL MIDDLE:
-                - Tập trung vào kinh nghiệm thực tế và giải quyết vấn đề trong thực tế
-                - Bao gồm câu hỏi về kiến trúc và design patterns
-                - Hỏi về việc dẫn dắt dự án và hướng dẫn junior developers
-                - Kiểm tra khả năng đưa ra quyết định kỹ thuật và cân nhắc trade-offs
-                - Bao gồm câu hỏi về tối ưu hóa hiệu suất và khả năng mở rộng
-                - Tập trung vào debug các vấn đề phức tạp và tích hợp hệ thống
-                - Hỏi về code reviews và việc implement các best practices kỹ thuật
+                - Kinh nghiệm thực tế với công nghệ CỤ THỂ trong JD
+                - Kiến trúc và design patterns sử dụng tech được đề cập trong JD
+                - Thách thức implementation thực tế với tools YÊU CẦU
+                - Tối ưu hóa hiệu suất cho frameworks CỤ THỂ
                 
-                QUY TẮC QUAN TRỌNG:
-                - Chỉ tạo ra những câu hỏi thực sự, không phải tiêu đề hoặc danh mục
-                - Mỗi dòng phải là một câu hỏi hoàn chỉnh, độc lập
-                - Câu hỏi nên đánh giá kỹ năng kỹ thuật trung cấp đến nâng cao
-                - Tập trung vào các scenarios dựa trên kinh nghiệm và giải quyết vấn đề thực tế
-                - Mỗi câu hỏi phải cụ thể và phù hợp cho ứng viên middle level
+                ĐỊNH DẠNG:
+                CÔNG NGHỆ TRONG JD: [danh sách]
                 
-                Định dạng: Một câu hỏi mỗi dòng, đánh số nếu cần.`,
+                1. [Câu hỏi về công nghệ thứ nhất trong danh sách]
+                2. [Câu hỏi về công nghệ thứ hai trong danh sách]
+                ...[tiếp tục]`,
           
-          senior: `Bạn là một AI tạo câu hỏi phỏng vấn kỹ thuật cho ứng viên cấp độ SENIOR dựa trên mô tả công việc (JD) được cung cấp.
+          senior: `Bạn là một AI tạo câu hỏi phỏng vấn kỹ thuật cho ứng viên cấp độ SENIOR dựa CHÍNH XÁC trên mô tả công việc (JD) được cung cấp.
+
+                   BƯỚC 1 - PHÂN TÍCH JD (BẮT BUỘC):
+                   Trước khi tạo câu hỏi, bạn PHẢI BẮT ĐẦU bằng việc liệt kê:
+                   "CÔNG NGHỆ TRONG JD: [liệt kê tất cả ngôn ngữ, framework, database, tools được đề cập]"
+                   
+                   BƯỚC 2 - TẠO CÂU HỎI:
+                   Chỉ tạo câu hỏi về những công nghệ bạn đã liệt kê ở BƯỚC 1
+                   
+                   YÊU CẦU NGHIÊM NGẶT:
+                   - CHỈ hỏi về công nghệ/kỹ năng CÓ TRONG JD
+                   - KHÔNG hỏi về React nếu JD không đề cập React
+                   - KHÔNG hỏi về Python nếu JD không đề cập Python  
+                   - KHÔNG hỏi về Java nếu JD không đề cập Java
+                   - KHÔNG tạo câu hỏi chung chung về lập trình
                    
                    TRỌNG TÂM CHO LEVEL SENIOR:
-                   - Tập trung vào thiết kế hệ thống và quyết định kiến trúc
-                   - Bao gồm câu hỏi về leadership kỹ thuật và chiến lược
-                   - Hỏi về giải quyết vấn đề phức tạp và khả năng đổi mới
-                   - Kiểm tra khả năng mentoring team và định hướng kỹ thuật
-                   - Bao gồm câu hỏi về collaboration xuyên chức năng
-                   - Tập trung vào scalability, reliability và các vấn đề enterprise-level
-                   - Hỏi về technical vision, roadmaps và lập kế hoạch dài hạn
-                   - Bao gồm câu hỏi về xử lý technical debt và legacy systems
+                   - Chuyên môn nâng cao với công nghệ CỤ THỂ trong JD
+                   - Thiết kế hệ thống và kiến trúc sử dụng tech stack được đề cập trong JD
+                   - Quyết định leadership kỹ thuật liên quan đến công nghệ YÊU CẦU
+                   - Giải quyết vấn đề phức tạp với frameworks CỤ THỂ
+                   - Scalability và enterprise concerns với tools được đề cập trong JD
                    
-                   QUY TẮC QUAN TRỌNG:
-                   - Chỉ tạo ra những câu hỏi thực sự, không phải tiêu đề hoặc danh mục
-                   - Mỗi dòng phải là một câu hỏi hoàn chỉnh, độc lập
-                   - Câu hỏi nên đánh giá chuyên môn kỹ thuật nâng cao và leadership
-                   - Tập trung vào tư duy chiến lược và thách thức kỹ thuật phức tạp
-                   - Mỗi câu hỏi phải cụ thể và phù hợp cho ứng viên senior level
+                   ĐỊNH DẠNG:
+                   CÔNG NGHỆ TRONG JD: [danh sách]
                    
-                   Định dạng: Một câu hỏi mỗi dòng, đánh số nếu cần.`
+                   1. [Câu hỏi về công nghệ thứ nhất trong danh sách]
+                   2. [Câu hỏi về công nghệ thứ hai trong danh sách]
+                   ...[tiếp tục]`
         }
       },
       behavioral: {
@@ -245,7 +299,7 @@ export const getAIResponse = async (
                 - Tập trung vào việc chủ động và đạt được kết quả
                 
                 QUY TẮC QUAN TRỌNG:
-                - Chỉ tạo ra những câu hỏi thực sự, không phài tiêu đề hoặc danh mục
+                - Chỉ tạo ra những câu hỏi thực sự, không phải tiêu đề hoặc danh mục
                 - Mỗi dòng phải là một câu hỏi hoàn chỉnh, độc lập
                 - Câu hỏi nên đánh giá kinh nghiệm đã được chứng minh và kỹ năng leadership trung cấp
                 - Tập trung vào các tình huống cụ thể và kết quả có thể đo lường được
@@ -274,12 +328,12 @@ export const getAIResponse = async (
 
     const questionType = options.questionType || 'technical';
     const language = options.language || 'vi';
-    const level = options.level || 'junior'; // Add level parameter
+    const level = options.level || 'junior';
     const systemPrompt = systemPrompts[questionType][language][level];
 
     const validateContent = (content) => {
       if (typeof content !== 'string' || content.trim() === '') {
-        return 'N/A'; // Default value for invalid content
+        return 'N/A';
       }
       return content;
     };
@@ -303,19 +357,18 @@ export const getAIResponse = async (
     });
 
     if (response.choices && response.choices.length > 0) {
-      return response.choices[0].message.content.trim(); // Câu hỏi được AI trả về
+      return response.choices[0].message.content.trim();
     } else {
       throw new Error("API response format not as expected");
     }
   } catch (error) {
     if (error.statusCode === 429 && retries > 0) {
-      // Nếu gặp lỗi 429, thử lại sau 60 giây
       console.log(`Rate limit exceeded. Retrying... ${retries} attempts left.`);
-      await new Promise(resolve => setTimeout(resolve, delay)); // Chờ 60 giây
-      return getAIResponse(userMessage, conversationHistory, options, retries - 1, delay); // Thử lại
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return getAIResponse(userMessage, conversationHistory, options, retries - 1, delay);
     }
 
     console.error("Error calling Azure OpenAI:", error);
-    throw error; // Ném lỗi ra ngoài nếu không có retries
+    throw error;
   }
 };

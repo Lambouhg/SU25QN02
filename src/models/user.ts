@@ -48,15 +48,7 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  firstName: {
-    type: String,
-    default: ''
-  },
-  lastName: {
-    type: String,
-    default: ''
-  },
-  name: {
+  fullName: {
     type: String,
     default: ''
   },
@@ -72,9 +64,29 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'none'
   },
+  bio: {
+    type: String,
+    default: ''
+  },
   phone: {
     type: String,
     default: 'none'
+  },
+  department: {
+    type: String,
+    default: ''
+  },
+  position: {
+    type: String,
+    default: ''
+  },
+  joinDate: {
+    type: String,
+    default: ''
+  },
+  status: {
+    type: String,
+    default: 'Hoạt động'
   },
   currentPosition: {
     type: String,
@@ -137,10 +149,9 @@ const userSchema = new mongoose.Schema({
   evaluations: {
     type: [evaluationSchema],
     default: []
-  },
-  lastLogin: {
-    type: Date,
-    default: Date.now
+  },  lastLogin: {
+    type: String,
+    default: "Hôm nay"
   },
   createdAt: {
     type: Date,

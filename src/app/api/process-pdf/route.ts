@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import path from 'path';
 import { pathToFileURL } from 'url';
+import { JDValidationService } from '@/services/jdValidationService';
 
 export const runtime = 'nodejs';
 
@@ -47,18 +48,40 @@ export async function POST(req: NextRequest) {
         { error: 'Failed to parse PDF. The file may be corrupted or not a valid PDF.' },
         { status: 400 }
       );
-    }
-
-    if (!text) {
+    }    if (!text) {
       return NextResponse.json({ error: 'No readable text found in PDF' }, { status: 400 });
     }
 
-    const questions = text
-      .split('\n')
-      .filter(line => line.trim() !== '')
-      .slice(0, 5);
+    // Validate if the document is a Job Description
+    const validationResult = JDValidationService.validateJD(text);
+    
+    if (!validationResult.isValidJD) {
+      return NextResponse.json({
+        error: 'Invalid Job Description',
+        validation: {
+          isValidJD: false,
+          confidence: validationResult.confidence,
+          message: JDValidationService.getValidationMessage(validationResult),
+          suggestions: JDValidationService.getSuggestions(validationResult),
+          detectedSections: validationResult.detectedSections,
+          missingCriticalSections: validationResult.missingCriticalSections
+        }
+      }, { status: 422 }); // 422 Unprocessable Entity
+    }
 
-    return NextResponse.json({ questions });
+    // If validation passed, return the text for question generation
+    const questions = [text]; // Return full text for AI processing
+
+    return NextResponse.json({
+      success: true,
+      questions,
+      validation: {
+        isValidJD: true,
+        confidence: validationResult.confidence,
+        detectedSections: validationResult.detectedSections,
+        message: JDValidationService.getValidationMessage(validationResult)
+      }
+    });
   } catch (err) {
     console.error('PDF processing error:', err);
     return NextResponse.json(

@@ -10,6 +10,7 @@ import UploadSection from '@/components/JobDescription/UploadSection';
 import QuestionsDisplay from '@/components/JobDescription/QuestionsDisplay';
 import FeatureHighlights from '@/components/JobDescription/FeatureHighlights';
 import SavedQuestionSets from '@/components/JobDescription/SavedQuestionSets';
+import ValidationInfoDisplay from '@/components/JobDescription/ValidationInfoDisplay';
 import Toast from '@/components/ui/Toast';
 import type { QuestionSetData } from '@/services/questionSetService';
 
@@ -23,6 +24,16 @@ const UploadJDPage = () => {
   const [questionType, setQuestionType] = useState<'technical' | 'behavioral' | ''>('');
   const [level, setLevel] = useState<'junior' | 'mid' | 'senior'>('junior');
   const [currentQuestionSetId, setCurrentQuestionSetId] = useState<string | null>(null);
+  
+  // Validation state
+  const [validationInfo, setValidationInfo] = useState<{
+    isValidJD: boolean;
+    confidence: number;
+    message: string;
+    detectedSections?: string[];
+    suggestions?: string[];
+    missingCriticalSections?: string[];
+  } | null>(null);
   
   // Toast state
   const [showToast, setShowToast] = useState(false);
@@ -133,7 +144,7 @@ const UploadJDPage = () => {
         setMessageType('');
         setQuestions([]);
         // Show success toast for drag & drop
-        showToastMessage(`📎 File "${droppedFile.name}" uploaded successfully!`, 'success');
+        showToastMessage(`File "${droppedFile.name}" uploaded successfully!`, 'success');
       }
     }
   };
@@ -144,21 +155,21 @@ const UploadJDPage = () => {
     if (!allowedTypes.includes(selectedFile.type)) {
       setMessage('Only PDF files are supported.');
       setMessageType('error');
-      showToastMessage('❌ Only PDF files are supported', 'error');
+      showToastMessage(' Only PDF files are supported', 'error');
       return false;
     }
 
     if (selectedFile.size > maxSize) {
       setMessage('File size must be less than 10MB');
       setMessageType('error');
-      showToastMessage('📏 File size must be less than 10MB', 'error');
+      showToastMessage('File size must be less than 10MB', 'error');
       return false;
     }
 
     if (selectedFile.size < 100) {
       setMessage('PDF file appears to be corrupted or empty');
       setMessageType('error');
-      showToastMessage('🚫 PDF file appears to be corrupted or empty', 'error');
+      showToastMessage('PDF file appears to be corrupted or empty', 'error');
       return false;
     }
 
@@ -172,7 +183,7 @@ const UploadJDPage = () => {
       setMessageType('');
       setQuestions([]);
       // Show success toast for file selection
-      showToastMessage(`📎 File "${selectedFile.name}" selected successfully!`, 'success');
+      showToastMessage(`File "${selectedFile.name}" selected successfully!`, 'success');
     }
   };// Function to check if a line is a real question
   const isValidQuestion = (line: string): boolean => {
@@ -244,14 +255,13 @@ const UploadJDPage = () => {
       setMessageType('error');
       showToastMessage('❓ Please select a question type', 'error');
       return;
-    }setUploading(true);
+    }    setUploading(true);
     setMessage('Processing file...');
     setMessageType('');
+    setValidationInfo(null); // Clear previous validation
 
     // Show processing toast
-    showToastMessage('Processing your job description...', 'info');
-
-    try {
+    showToastMessage('Processing your job description...', 'info');    try {
       const response = await fetch('/api/process-pdf', {
         method: 'POST',
         headers: {
@@ -260,12 +270,37 @@ const UploadJDPage = () => {
         body: file,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to process file.');
+      // Parse response once and handle both success and error cases
+      let responseData;
+      const responseText = await response.text();
+      
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        console.error('Failed to parse JSON response:', responseText);
+        throw new Error('Server returned invalid response. Please try again.');
       }
 
-      const { questions: extractedTextArr } = await response.json();
+      if (!response.ok) {
+        // Handle validation errors specifically
+        if (response.status === 422 && responseData.validation) {
+          setValidationInfo(responseData.validation);
+          setMessage('Invalid Job Description');
+          setMessageType('error');
+          showToastMessage('❌ Document is not a valid Job Description', 'error');
+          return;
+        }
+        
+        throw new Error(responseData.error || 'Failed to process file.');
+      }
+
+      // Show validation success
+      if (responseData.validation?.isValidJD) {
+        setValidationInfo(responseData.validation);
+        showToastMessage(`✅ Valid Job Description (${responseData.validation.confidence}% confidence)`, 'success');
+      }
+
+      const { questions: extractedTextArr } = responseData;
       const text = extractedTextArr?.[0] || '';
 
       if (!text.trim()) {
@@ -412,18 +447,34 @@ const UploadJDPage = () => {
     
     // Show toast for download action
     showToastMessage('Questions downloaded successfully!', 'success');
-  };
-  const clearCurrentSession = () => {
+  };  const clearCurrentSession = () => {
     setQuestions([]);
     setQuestionType('');
     setLevel('junior');
     setCurrentQuestionSetId(null);
     setMessage('');
     setMessageType('');
+    setValidationInfo(null); // Clear validation info
     localStorage.removeItem(STORAGE_KEY);
     
     // Show toast for clear action
     showToastMessage('Current session cleared!', 'info');
+  };
+
+  // Handle retry for validation
+  const handleRetry = () => {
+    setFile(null);
+    setValidationInfo(null);
+    setMessage('');
+    setMessageType('');
+    setQuestions([]);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+    showToastMessage('Ready to upload a new file', 'info');
   };
   return (
     <DashboardLayout>
@@ -431,9 +482,7 @@ const UploadJDPage = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Job Description</h1>
           <p className="text-gray-600 text-lg">Upload your job description file and we&apos;ll generate tailored interview questions for you.</p>
-        </div>
-
-        {/* Upload Section */}
+        </div>        {/* Upload Section */}
         <div className="mb-12">
           <UploadSection 
             file={file}
@@ -447,18 +496,31 @@ const UploadJDPage = () => {
             handleDrop={handleDrop}
             handleFileChange={handleFileChange}
             handleButtonClick={handleButtonClick}
-            removeFile={removeFile}            formatFileSize={formatFileSize}
+            removeFile={removeFile}
+            formatFileSize={formatFileSize}
             questionType={questionType}
             setQuestionType={(type) => setQuestionType(type as 'technical' | 'behavioral' | '')}
             level={level}
             setLevel={(selectedLevel) => setLevel(selectedLevel as 'junior' | 'mid' | 'senior')}
-            handleUpload={handleUpload}          />
+            handleUpload={handleUpload}
+          />
         </div>
 
-        {/* Saved Question Sets Section */}
+        {/* Validation Info Display */}
+        {validationInfo && (
+          <div className="mb-12">
+            <ValidationInfoDisplay 
+              validation={validationInfo}
+              onRetry={handleRetry}
+            />
+          </div>
+        )}        {/* Saved Question Sets Section */}
         <div className="mb-12">
-          <SavedQuestionSets onQuestionSetSelect={handleQuestionSetSelect} />
-        </div>        {/* Questions Display Section - Made larger and more prominent */}
+          <SavedQuestionSets 
+            onQuestionSetSelect={handleQuestionSetSelect} 
+            onShowToast={showToastMessage}
+          />
+        </div>{/* Questions Display Section - Made larger and more prominent */}
         {questions.length > 0 && (
           <div id="questions-section" className="mb-12">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">

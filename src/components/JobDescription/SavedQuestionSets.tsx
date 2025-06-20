@@ -7,9 +7,10 @@ import { questionSetService, QuestionSetData } from '@/services/questionSetServi
 
 interface SavedQuestionSetsProps {
   onQuestionSetSelect: (questionSet: QuestionSetData) => void;
+  onShowToast?: (message: string, type: 'success' | 'error' | 'info' | 'warning') => void;
 }
 
-const SavedQuestionSets: React.FC<SavedQuestionSetsProps> = ({ onQuestionSetSelect }) => {
+const SavedQuestionSets: React.FC<SavedQuestionSetsProps> = ({ onQuestionSetSelect, onShowToast }) => {
   const [questionSets, setQuestionSets] = useState<QuestionSetData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -29,20 +30,25 @@ const SavedQuestionSets: React.FC<SavedQuestionSetsProps> = ({ onQuestionSetSele
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleDelete = async (id: string, event: React.MouseEvent) => {
+  };  const handleDelete = async (id: string, title: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    
-    if (!window.confirm('Are you sure you want to delete this question set?')) {
-      return;
-    }
 
     try {
       await questionSetService.deleteQuestionSet(id);
       setQuestionSets(prev => prev.filter(set => set._id !== id));
+      
+      // Show success toast
+      if (onShowToast) {
+        onShowToast(`Question set "${title}" has been deleted!`, 'success');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete question set');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete question set';
+      setError(errorMessage);
+      
+      // Show error toast
+      if (onShowToast) {
+        onShowToast(`Failed to delete "${title}": ${errorMessage}`, 'error');
+      }
     }
   };
 
@@ -166,10 +172,8 @@ const SavedQuestionSets: React.FC<SavedQuestionSetsProps> = ({ onQuestionSetSele
                         </>
                       )}
                     </div>
-                  </div>
-
-                  <button
-                    onClick={(e) => handleDelete(questionSet._id!, e)}
+                  </div>                  <button
+                    onClick={(e) => handleDelete(questionSet._id!, questionSet.jobTitle, e)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded transition-all"
                     title="Delete question set"
                   >
