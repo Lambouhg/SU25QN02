@@ -1,28 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-import path from 'path';
-import { pathToFileURL } from 'url';
 import { JDValidationService } from '@/services/jdValidationService';
 
+// Ensure Node.js runtime for PDF processing
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
 
-export async function POST(req: NextRequest) {
+// Test endpoint to verify route is working
+export async function GET() {
+  return NextResponse.json({ 
+    message: 'PDF processing endpoint is accessible',
+    runtime: 'nodejs',
+    timestamp: new Date().toISOString()
+  });
+}
+
+export async function POST(request: NextRequest) {
+  console.log('POST /api/process-pdf called');
+  
   try {
-    const contentType = req.headers.get('content-type');
+    // Check content type
+    const contentType = request.headers.get('content-type');
+    console.log('Content-Type:', contentType);
+    
     if (!contentType?.includes('application/pdf')) {
+      console.log('Invalid content type:', contentType);
       return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
     }
 
-    const arrayBuffer = await req.arrayBuffer();    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-      return NextResponse.json({ error: 'Uploaded file is empty.' }, { status: 400 });    }    // Configure pdfjs-dist for Node.js environment
-    // Use absolute path to worker file and convert to file URL for Windows
-    const workerPath = path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs');
-    const workerUrl = pathToFileURL(workerPath).href;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (pdfjsLib.GlobalWorkerOptions as any).workerSrc = workerUrl;
-
+    // Get the file data
+    const arrayBuffer = await request.arrayBuffer();
+    console.log('ArrayBuffer size:', arrayBuffer.byteLength);if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      return NextResponse.json({ error: 'Uploaded file is empty.' }, { status: 400 });    }    // Use dynamic import for pdfjs-dist to avoid potential issues
     let text = '';
     try {
+      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+      
+      // Configure worker for server environment
+      if (typeof window === 'undefined') {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (pdfjsLib.GlobalWorkerOptions as any).workerSrc = 'https://unpkg.com/pdfjs-dist@5.3.31/legacy/build/pdf.worker.mjs';
+        } catch (err) {
+          console.warn('Failed to set worker src:', err);
+        }
+      }
+
       // Load PDF document
       const pdf = await pdfjsLib.getDocument({
         data: arrayBuffer,
@@ -81,12 +104,16 @@ export async function POST(req: NextRequest) {
         detectedSections: validationResult.detectedSections,
         message: JDValidationService.getValidationMessage(validationResult)
       }
-    });
-  } catch (err) {
+    });  } catch (err) {
     console.error('PDF processing error:', err);
-    return NextResponse.json(
-      { error: 'Internal server error', details: err instanceof Error ? err.message : String(err) },
-      { status: 500 }
-    );
+    console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+    
+    // Return more detailed error information for debugging
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorDetails = process.env.NODE_ENV === 'development' ? 
+      { error: 'Internal server error', details: errorMessage, stack: err instanceof Error ? err.stack : undefined } :
+      { error: 'Internal server error', details: 'PDF processing failed' };
+    
+    return NextResponse.json(errorDetails, { status: 500 });
   }
 }
