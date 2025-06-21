@@ -1,101 +1,123 @@
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { useState, useEffect } from "react";
-import { useUser } from "@clerk/nextjs";
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
+import { useUser, useClerk } from "@clerk/nextjs";
+import ConfirmationModal from "@/components/ui/ConfirmationModal";
+import Toast from "@/components/ui/Toast";
+import {
+  PersonalInfoForm,
+  AvatarCard,
+  ProfileLoading
+} from "@/components/Profile";
 
-
-interface Quiz {
-  _id: string;
-  field: string;
-  topic: string;
-  level: string;
-  completedAt: string;
-  score: number;
-  timeUsed: number;
-  timeLimit: number;
-  userAnswers: {
-    questionId: string;
-    answerIndex: number[];
-    isCorrect: boolean;
-  }[];
-  totalQuestions: number;
-  retryCount: number;
-  questions?: Question[];
-}
-
-interface Question {
-  _id: string;
-  question: string;
-  answers: { content: string; isCorrect: boolean }[];
-  explanation?: string;
-}
-
-export default function ProfilePage() {
-  const { user } = useUser();
+export default function ProfilePage() {  const { user, isLoaded, isSignedIn } = useUser();
+  const { signOut } = useClerk();
   const [isEditing, setIsEditing] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' | 'info' | 'warning' }>({ show: false, message: '', type: 'info' });
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    currentPosition: "",
-    experienceLevel: "mid",
-    preferredInterviewTypes: [],
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [quizHistory, setQuizHistory] = useState<Quiz[]>([]);
-  const [savedQuestions, setSavedQuestions] = useState<Question[]>([]);
-  const [activeTab, setActiveTab] = useState("profile");
-  const [selectedQuiz, setSelectedQuiz] = useState<Quiz | null>(null);
-  const router = useRouter();
+    phone: "",
+    department: "",
+    position: "",
+    bio: "",    skills: ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
+    joinDate: "05/15/2023",
+    lastLogin: "Today, 10:45 AM",
+    status: "Active"
+  });const [isLoading, setIsLoading] = useState(true);const fetchProfile = useCallback(async () => {
+    // Wait for Clerk to fully load and authenticate
+    if (!isLoaded) {
+      return;
+    }
 
-  const fetchProfile = useCallback(async () => {
+    if (!isSignedIn || !user) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const response = await fetch("/api/profile");
+      const response = await fetch("/api/profile", {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.text();
+          // If it's a 401, the API auth isn't working, so use default values
+        if (response.status === 401) {
+          setFormData({
+            fullName: user?.fullName || "",
+            email: user?.emailAddresses?.[0]?.emailAddress || "",
+            phone: "",
+            department: "",
+            position: "",
+            bio: "",
+            skills: ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
+            joinDate: "05/15/2023",
+            lastLogin: "Today, 10:45 AM",
+            status: "Active"
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        throw new Error(`HTTP ${response.status}: ${errorData}`);
+      }
+      
       const data = await response.json();
+      
       setFormData({
         fullName: data.fullName || user?.fullName || "",
         email: data.email || user?.emailAddresses?.[0]?.emailAddress || "",
-        currentPosition: data.currentPosition || "",
-        experienceLevel: data.experienceLevel || "mid",
-        preferredInterviewTypes: data.preferredInterviewTypes || [],
+        phone: data.phone || "",
+        department: data.department || "",
+        position: data.position || "",
+        bio: data.bio || "",        skills: data.skills || ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
+        joinDate: data.joinDate || "05/15/2023",
+        lastLogin: data.lastLogin || "Today, 10:45 AM",
+        status: data.status || "Active"
       });
     } catch (error) {
-      console.error("Error fetching profile:", error);
+      console.error("Error fetching profile:", error);      // Set default values if fetch fails
+      setFormData({
+        fullName: user?.fullName || "",
+        email: user?.emailAddresses?.[0]?.emailAddress || "",
+        phone: "",
+        department: "",
+        position: "",
+        bio: "",
+        skills: ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
+        joinDate: "05/15/2023",
+        lastLogin: "Today, 10:45 AM",
+        status: "Active"
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
-
-  const fetchQuizHistory = useCallback(async () => {
-    try {
-      const response = await fetch("/api/quizzes");
-      const data = await response.json();
-      setQuizHistory(data);
-    } catch (error) {
-      console.error("Error fetching quiz history:", error);
+  }, [user, isLoaded, isSignedIn]);useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (isLoaded) {
+      // Add a small delay to ensure auth is fully settled
+      timeoutId = setTimeout(() => {
+        fetchProfile();
+      }, 100);
     }
-  }, []);
-
-  const fetchSavedQuestions = useCallback(async () => {
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [fetchProfile, isLoaded]);  const handleSubmit = async () => {
     try {
-      const response = await fetch("/api/users/saved-questions");
-      const data = await response.json();
-      setSavedQuestions(data);
-    } catch (error) {
-      console.error("Error fetching saved questions:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchProfile();
-    fetchQuizHistory();
-    fetchSavedQuestions();
-  }, [fetchProfile, fetchQuizHistory, fetchSavedQuestions]);
-
-  const handleSubmit = async () => {
-    try {
+      setToast({ show: true, message: 'Saving information...', type: 'info' });
+      
       const response = await fetch("/api/profile", {
         method: "PUT",
         headers: {
@@ -108,167 +130,176 @@ export default function ProfilePage() {
       });
 
       if (response.ok) {
-        setIsEditing(false);
+        setIsEditing(false);        setToast({ show: true, message: 'Information saved successfully!', type: 'success' });
+      } else {
+        setToast({ show: true, message: 'Error saving information. Please try again.', type: 'error' });
       }
     } catch (error) {
       console.error("Error updating profile:", error);
+      setToast({ show: true, message: 'Error saving information. Please try again.', type: 'error' });
     }
   };
+  // const handleLogout = () => {
+  //   setShowLogoutConfirm(true);
+  // };
 
-  const handleViewQuizDetails = async (quiz: Quiz) => {
-    if (selectedQuiz?._id === quiz._id) {
-      setSelectedQuiz(null); // Close the dropdown if already open for this quiz
-    } else {
-      try {
-        const response = await fetch(`/api/quizzes/${quiz._id}`);
-        if (!response.ok) throw new Error('Failed to fetch quiz details');
-        const quizDetails = await response.json();
-        setSelectedQuiz(quizDetails);
-      } catch (error) {
-        console.error('Error fetching quiz details:', error);
-      }
-    }
-  };
-
-  const handleRetryQuiz = async (quiz: Quiz) => {
+  const confirmLogout = async () => {
     try {
-      const response = await fetch(`/api/quizzes/${quiz._id}/retry`, {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to retry quiz');
-      const newQuiz = await response.json();
-      console.log("New quiz created for retry:", newQuiz);
-      console.log("Redirecting to:", `/practice/quiz/${newQuiz._id}`);
-      router.push(`/practice/quiz/${newQuiz._id}`);
+      setShowLogoutConfirm(false);
+      setToast({ show: true, message: 'Signing out...', type: 'info' });
+      await signOut();
     } catch (error) {
-      console.error('Error retrying quiz:', error);
+      console.error("Error signing out:", error);
+      setToast({ show: true, message: 'Error signing out. Please try again.', type: 'error' });
     }
   };
 
-  if (isLoading) {
+  // Handler for avatar changes
+  const handleAvatarChange = async () => {
+    // Reload user data to get updated avatar
+    if (user) {
+      await user.reload();
+      setToast({ show: true, message: 'Profile picture updated successfully!', type: 'success' });
+    }
+  };if (!isLoaded || isLoading) {
+    return (
+      <DashboardLayout>
+        <ProfileLoading isAuthenticating={!isLoaded} />
+      </DashboardLayout>
+    );
+  }
+
+  if (!isSignedIn) {
     return (
       <DashboardLayout>
         <div className="max-w-4xl mx-auto p-6">
-          <div className="animate-pulse">Loading...</div>
+          <div className="text-center">
+            <p>You need to sign in to view this page.</p>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
-  return (
-    
-    <DashboardLayout>
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">My Profile</h1>
-          {activeTab === "profile" && (
-            <button
-              onClick={isEditing ? handleSubmit : () => setIsEditing(true)}
-              className="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
-            >
-              {isEditing ? "Save Changes" : "Edit Profile"}
-            </button>
-          )}
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "profile"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              Profile Information
-            </button>
-          </nav>
-        </div>
-
-        {/* Chỉ giữ lại phần Profile Information */}
-        {activeTab === "profile" && (
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="space-y-6">
-              {/* Personal Information */}
+  return (    <DashboardLayout>
+      {/* Modern Gradient Background */}
+      <div>
+        <div className="relative z-10 max-w-7xl mx-auto">
+          {/* Modern Header with Glass Effect */}
+          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 mb-8">
+            <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold mb-4">Personal Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.fullName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, fullName: e.target.value })
-                      }
-                      disabled={!isEditing}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      disabled={!isEditing}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent">
+                  Profile Settings
+                </h1>
+                <p className="text-lg text-gray-600 mt-2">
+                  Manage your personal information and account preferences
+                </p>
               </div>
-
-              {/* Professional Information */}
-              <div>
-                <h2 className="text-xl font-semibold mb-4">
-                  Professional Information
-                </h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Current Position
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.currentPosition}
-                      onChange={(e) =>
-                        setFormData({ ...formData, currentPosition: e.target.value })
-                      }
-                      disabled={!isEditing}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Experience Level
-                    </label>
-                    <select
-                      value={formData.experienceLevel}
-                      onChange={(e) =>
-                        setFormData({ ...formData, experienceLevel: e.target.value })
-                      }
-                      disabled={!isEditing}
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    >
-                      <option value="junior">Junior (0-2 years)</option>
-                      <option value="mid">Mid-Level (3-5 years)</option>
-                      <option value="senior">Senior (6+ years)</option>
-                    </select>
-                  </div>
+              <div className="hidden md:flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-gray-600">Online</span>
                 </div>
+                {isEditing && (
+                  <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium animate-bounce">
+                    Editing Mode
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        )}
+
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+            {/* Left Column - Avatar & Quick Stats */}
+            <div className="xl:col-span-1 space-y-6">
+              {/* Enhanced Avatar Card */}
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                <AvatarCard
+                  user={user}
+                  fullName={formData.fullName}
+                  onAvatarChange={handleAvatarChange}
+                />
+              </div>
+              {/* Account Information
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300">
+                <AccountInfo
+                  accountData={{
+                    joinDate: formData.joinDate,
+                    lastLogin: formData.lastLogin,
+                    status: formData.status
+                  }}
+                />
+              </div> */}
+
+              {/* Quick Actions
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300">
+                <QuickActions
+                  onLogout={handleLogout}
+                />
+              </div> */}
+            </div>
+
+            {/* Right Column - Main Content */}
+            <div className="xl:col-span-3 space-y-8">
+              {/* Personal Information Card */}
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
+                <div className="flex items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Personal Information</h2>
+                </div>
+                
+                <PersonalInfoForm
+                  formData={{
+                    fullName: formData.fullName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    department: formData.department,
+                    position: formData.position,
+                    bio: formData.bio
+                  }}
+                  isEditing={isEditing}
+                  onDataChange={(data) => setFormData({ ...formData, ...data })}
+                  onEditToggle={() => setIsEditing(true)}
+                  onSubmit={handleSubmit}
+                />
+              </div>
+
+              {/* Skills Section
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
+                <div className="flex items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Skills & Expertise</h2>
+                </div>
+                <SkillsManagement
+                  skills={formData.skills}
+                  isEditing={isEditing}
+                  onSkillsChange={(skills) => setFormData({ ...formData, skills })}
+                />
+              </div> */}
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={confirmLogout}        title="Confirm Sign Out"
+        message="Are you sure you want to sign out of your account? You will need to sign in again to continue using the service."
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        type="warning"
+      />
+
+      {/* Toast Notifications */}
+      <Toast
+        show={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+        duration={3000}
+      />
     </DashboardLayout>
   );
 }

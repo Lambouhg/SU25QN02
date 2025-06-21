@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
-  Star, Users, Settings, Menu, X, Search, Bell 
+  Star, Users, Settings, Menu, X, Search, Bell
 } from 'lucide-react';
 import Link from 'next/link';
-import { UserButton } from '@clerk/nextjs';
+import { UserButton, useUser } from '@clerk/nextjs';
+import Image from 'next/image';
 
 export default function DashboardLayout({
   children
@@ -16,6 +17,7 @@ export default function DashboardLayout({
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
+  const { user } = useUser();
   
   // Function to check if a route is active
   const isActiveRoute = (href: string) => {
@@ -27,6 +29,14 @@ export default function DashboardLayout({
   // Function to check if any subroute is active
   const hasActiveSubItem = (subItems: { href: string }[]) => {
     return subItems.some(subItem => pathname.startsWith(subItem.href));
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase() || 'U';
   };  const menuItems = [
     { icon: Home, label: 'Dashboard', href: '/dashboard' },
     { icon: Brain, label: 'Practice Modes', href: '/practice', subItems: [
@@ -41,7 +51,7 @@ export default function DashboardLayout({
     { icon: History, label: 'Practice History', href: '/history' },
     { icon: Star, label: 'Saved Questions', href: '/saved' },
     { icon: Users, label: 'Community', href: '/community' },
-    { icon: Settings, label: 'Settings', href: '/dashboard/profile' },
+    // { icon: Settings, label: 'Settings', href: '/profile' }
   ];
 
   return (
@@ -86,22 +96,31 @@ export default function DashboardLayout({
             </div>
           </div>
         </div>
-      </nav>
+      </nav>      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
-      <aside className={`fixed top-[61px] left-0 z-40 w-64 h-screen transition-transform ${
+      <aside className={`fixed top-[61px] left-0 z-40 w-64 transition-transform ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:translate-x-0`}>        <div className="h-full px-3 py-4 overflow-y-auto bg-white border-r border-gray-200">
-          <ul className="space-y-2">
-            {menuItems.map((item, index) => {
+      } lg:translate-x-0`} style={{ height: 'calc(100vh - 61px)' }}>
+        <div className="h-full bg-white border-r border-gray-200 flex flex-col">
+          {/* Navigation Menu - Scrollable */}
+          <div className="flex-1 overflow-y-auto px-3 py-4">
+            <ul className="space-y-2">
+              {menuItems.map((item, index) => {
               const isActive = isActiveRoute(item.href);
               const hasActiveSub = item.subItems ? hasActiveSubItem(item.subItems) : false;
               const shouldHighlight = isActive || hasActiveSub;
               
               return (
-                <li key={index}>
-                  <Link
+                <li key={index}>                  <Link
                     href={item.href}
+                    onClick={() => setIsSidebarOpen(false)}
                     className={`flex items-center p-3 rounded-lg group transition-colors ${
                       shouldHighlight 
                         ? 'bg-purple-50 text-purple-700 border-r-2 border-purple-600' 
@@ -119,15 +138,16 @@ export default function DashboardLayout({
                       {item.label}
                     </span>
                   </Link>
+
                   {item.subItems && (
                     <ul className="pl-11 mt-2 space-y-2">
                       {item.subItems.map((subItem, subIndex) => {
                         const isSubActive = pathname.startsWith(subItem.href);
                         
                         return (
-                          <li key={subIndex}>
-                            <Link
+                          <li key={subIndex}>                            <Link
                               href={subItem.href}
+                              onClick={() => setIsSidebarOpen(false)}
                               className={`flex items-center p-2 text-sm rounded-lg transition-colors ${
                                 isSubActive 
                                   ? 'bg-purple-100 text-purple-700 font-medium' 
@@ -145,6 +165,45 @@ export default function DashboardLayout({
               );
             })}
           </ul>
+          </div>
+
+          {/* User Profile Section - Fixed at Bottom */}
+          <div className="flex-shrink-0 p-3 border-t border-gray-200 bg-white">
+            <Link 
+              href="/profile" 
+              onClick={() => setIsSidebarOpen(false)}
+              className="block"
+            >
+              <div className="p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 ring-2 ring-white shadow-sm">
+                    {user?.imageUrl ? (
+                      <Image
+                        src={user.imageUrl}
+                        alt="Profile"
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                        {getInitials(user?.fullName || 'User')}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {user?.fullName || 'User'}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      Manage your account
+                    </p>
+                  </div>
+                  <Settings className="w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+            </Link>
+          </div>
         </div>
       </aside>
 

@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react';
-import { Box, FormControl, InputLabel, Select, MenuItem, Button, Typography } from '@mui/material';
 import { SessionState } from './HeygenConfig';
 import { StartAvatarRequest } from '@heygen/streaming-avatar';
 
@@ -117,231 +116,144 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
     onConfigChange(newConfig);
   }, [config, onConfigChange]);
 
-  // Common styles
-  const commonTransition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-  const commonBorderRadius = '16px';
-
-  // Select component styles
-  const selectStyles = {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    color: '#E0E7FF',
-    borderRadius: commonBorderRadius,
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    transition: commonTransition,
-    '& .MuiOutlinedInput-notchedOutline': {
-      border: 'none',
-    },
-    '&:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.12)',
-      transform: 'translateY(-2px)',
-    },
-    '&.Mui-focused': {
-      backgroundColor: 'rgba(255, 255, 255, 0.15)',
-      boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-    },
-    '& .MuiSelect-icon': {
-      color: '#818CF8',
-    },
-    '& .MuiSelect-select': {
-      padding: '16px',
-    },
-    '& .MuiMenuItem-root': {
-      color: '#E0E7FF',
-      fontSize: '0.95rem',
-      padding: '12px 16px',
-      transition: commonTransition,
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-      '&:hover': {
-        backgroundColor: 'rgba(255, 255, 255, 0.12)',
-        transform: 'translateX(5px)',
-      },
-      '&.Mui-selected': {
-        backgroundColor: 'rgba(129, 140, 248, 0.2)',
-        '&:hover': {
-          backgroundColor: 'rgba(129, 140, 248, 0.3)',
-        },
-      },
-    },
-  };
-
-  // Label styles
-  const labelStyles = {
-    color: '#E0E7FF',
-    fontSize: '0.9rem',
-    fontWeight: 500,
-    '&.Mui-focused': {
-      color: '#818CF8',
-    },
-  };
-
-  // Button styles
-  const buttonStyles = {
-    background: 'linear-gradient(135deg, #818CF8 0%, #6366F1 100%)',
-    color: '#ffffff',
-    fontSize: '1.1rem',
-    padding: '16px',
-    borderRadius: commonBorderRadius,
-    fontWeight: 600,
-    letterSpacing: '0.5px',
-    textTransform: 'none',
-    transition: commonTransition,
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    backdropFilter: 'blur(12px)',
-    '&:hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 8px 32px rgba(129, 140, 248, 0.4)',
-      background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)',
-    },
-    '&:active': {
-      transform: 'translateY(1px)',
-    },
-    '&:disabled': {
-      background: 'rgba(255, 255, 255, 0.12)',
-      color: 'rgba(255, 255, 255, 0.3)',
-      boxShadow: 'none',
-    },
-  };
-
   return (
-    <Box sx={{ 
-      p: 4,
-      background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 100%)',
-      borderRadius: '24px',
-      boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-      border: '1px solid rgba(255, 255, 255, 0.18)',
-      position: 'relative',
-      overflow: 'hidden',
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'radial-gradient(circle at top right, rgba(129, 140, 248, 0.1), transparent 40%)',
-        pointerEvents: 'none',
-      },
-    }}>
-      <Typography 
-        variant="h4" 
-        gutterBottom 
-        sx={{ 
-          color: '#E0E7FF',
-          mb: 4,
-          textAlign: 'center',
-          fontWeight: 700,
-          letterSpacing: '0.5px',
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: '-8px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '60px',
-            height: '4px',
-            background: 'linear-gradient(90deg, #818CF8, #6366F1)',
-            borderRadius: '2px',
-          },
-        }}
-      >
-        Cài đặt phỏng vấn
-      </Typography>
-      
-      <Box sx={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: 3,
-        '@media (min-width: 600px)': {
-          maxWidth: '500px',
-          mx: 'auto',
-        },
-        position: 'relative',
-        zIndex: 1,
-      }}>
-        {/* Interview Field Selection */}
-        <FormControl fullWidth>
-          <InputLabel sx={labelStyles}>Lĩnh vực</InputLabel>
-          <Select
-            value={interviewField}
-            onChange={(e) => onFieldChange(e.target.value)}
-            sx={selectStyles}
-          >
-            {INTERVIEW_FIELDS.map((field) => (
-              <MenuItem key={field.value} value={field.value}>
-                {field.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+    <div className="min-h-screen  py-8 px-4">
+      <div className="max-w-1xl mx-auto">
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Thiết lập phỏng vấn</h2>
+          <p className="text-gray-600 text-sm">Tùy chỉnh phiên phỏng vấn theo nhu cầu của bạn</p>
+        </div>
 
-        {/* Experience Level Selection */}
-        <FormControl fullWidth>
-          <InputLabel sx={labelStyles}>Cấp độ kinh nghiệm</InputLabel>
-          <Select
-            value={interviewLevel}
-            onChange={(e) => onLevelChange(e.target.value)}
-            sx={selectStyles}
-          >
-            {INTERVIEW_LEVELS.map((level) => (
-              <MenuItem key={level.value} value={level.value}>
-                {level.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <div className="space-y-8">
+          {/* Avatar Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-4">Chọn Avatar</label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {AVATARS.map((avatar) => (
+                <div
+                  key={avatar.avatar_id}
+                  className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all duration-200 bg-white ${
+                    config.avatarName === avatar.avatar_id
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                  onClick={() => handleConfigChange('avatarName', avatar.avatar_id)}
+                >
+                  <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                    {/* Avatar placeholder - you can replace with actual avatar images */}
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                      <span className="text-2xl text-gray-400">👤</span>
+                    </div>
+                  </div>
+                  <p className="text-center text-sm font-medium text-gray-900">{avatar.name}</p>
+                  {config.avatarName === avatar.avatar_id && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
 
-        {/* Avatar Selection */}
-        <FormControl fullWidth>
-          <InputLabel sx={labelStyles}>Avatar</InputLabel>
-          <Select
-            value={config.avatarName}
-            onChange={(e) => handleConfigChange('avatarName', e.target.value)}
-            sx={selectStyles}
-          >
-            {AVATARS.map((avatar) => (
-              <MenuItem key={avatar.avatar_id} value={avatar.avatar_id}>
-                {avatar.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+          {/* Language Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Ngôn ngữ</label>
+            <div className="relative">
+              <select
+                value={config.language || ''}
+                onChange={(e) => handleConfigChange('language', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+              >
+                <option value="" disabled>Chọn ngôn ngữ</option>
+                {STT_LANGUAGE_LIST.map((lang) => (
+                  <option key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-        {/* Language Selection */}
-        <FormControl fullWidth>          
-          <InputLabel sx={labelStyles}>Ngôn ngữ</InputLabel>
-          <Select
-            value={config.language || ''}
-            onChange={(e) => handleConfigChange('language', e.target.value)}
-            displayEmpty
-            sx={selectStyles}
-          >            
-            <MenuItem value="" disabled>
-              <em>Chọn ngôn ngữ</em>
-            </MenuItem>
-            {STT_LANGUAGE_LIST.map((lang) => (
-              <MenuItem key={lang.value} value={lang.value}>
-                {lang.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+          {/* Interview Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Lĩnh vực phỏng vấn</label>
+            <div className="relative">
+              <select
+                value={interviewField}
+                onChange={(e) => onFieldChange(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+              >
+                <option value="">Chọn lĩnh vực</option>
+                {INTERVIEW_FIELDS.map((field) => (
+                  <option key={field.value} value={field.value}>
+                    {field.label}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-        {/* Start Button */}
-        <Box sx={{ mt: 3 }}>
-          <Button
-            variant="contained"
-            onClick={() => onStartInterview()}
-            disabled={sessionState === SessionState.CONNECTING}
-            fullWidth
-            sx={buttonStyles}
-          >
-            {sessionState === SessionState.CONNECTING ? 'Đang kết nối...' : 'Bắt đầu phỏng vấn'}
-          </Button>
-        </Box>
-      </Box>
-    </Box>
+          {/* Experience Level */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Cấp độ kinh nghiệm</label>
+            <div className="relative">
+              <select
+                value={interviewLevel}
+                onChange={(e) => onLevelChange(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+              >
+                <option value="">Chọn cấp độ</option>
+                {INTERVIEW_LEVELS.map((level) => (
+                  <option key={level.value} value={level.value}>
+                    {level.label}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Start Button */}
+          <div className="pt-6">
+            <button
+              onClick={() => onStartInterview()}
+              disabled={sessionState === SessionState.CONNECTING}
+              className={`w-full py-4 px-6 rounded-lg font-medium text-white transition-all duration-200 ${
+                sessionState === SessionState.CONNECTING
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-gray-900 hover:bg-gray-800 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2'
+              }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                </svg>
+                <span>
+                  {sessionState === SessionState.CONNECTING ? 'Đang kết nối...' : 'Bắt đầu phỏng vấn'}
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
