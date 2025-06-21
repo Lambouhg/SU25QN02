@@ -1,0 +1,51 @@
+import React from "react";
+import { InterviewChat } from '@/components/ui/test-mode/InterviewChat';
+import ReactMarkdown from 'react-markdown';
+
+interface InterviewScreenProps {
+  position: string;
+  isSpeechEnabled: boolean;
+  voiceLanguage: 'vi-VN' | 'en-US';
+  isListening: boolean;
+  isSpeakerOn: boolean;
+  isAiSpeaking: boolean;
+  conversation: any[];
+  message: string;
+  isAiThinking: boolean;
+  onToggleLanguage: () => void;
+  onToggleSpeechRecognition: () => void;
+  onToggleSpeaker: () => void;
+  onSpeechToggle: () => void;
+  onMessageChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onSendMessage: () => void;
+  messageListRef: React.RefObject<HTMLDivElement | null>;
+  duration: number;
+  onEndInterview: () => void;
+  realTimeScores: any;
+  lastFeedback: string | null;
+}
+
+const InterviewScreen: React.FC<InterviewScreenProps> = (props) => {
+  return (
+    <>
+      <InterviewChat {...props} />
+      {props.lastFeedback && (
+        <div className="mt-8 w-full flex justify-center">
+          <div className="w-full max-w-xl rounded-2xl border border-blue-200 bg-white shadow-md p-7 flex flex-col gap-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600">
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/></svg>
+              </span>
+              <span className="font-bold text-lg text-blue-700">AI Feedback</span>
+            </div>
+            <div className="prose prose-blue max-w-none text-gray-800 text-base">
+              <ReactMarkdown>{props.lastFeedback}</ReactMarkdown>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default InterviewScreen; 

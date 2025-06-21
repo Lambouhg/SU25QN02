@@ -31,8 +31,8 @@ const QuestionSetSchema = new Schema<IQuestionSet>({
   },
   level: {
     type: String,
-    enum: ['junior', 'mid', 'senior'],
-    required: true
+    enum: ['junior', 'mid', 'senior'],  
+     required: true
   },
   questions: [{
     type: String,

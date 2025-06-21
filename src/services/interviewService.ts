@@ -109,9 +109,10 @@ export const getNextInterviewStep = async (context: {
 /**
  * Kiểm tra câu trả lời có đầy đủ không
  */
-export const evaluateAnswer = async (question: string, answer: string) => {
-  const prompt = `Hãy đánh giá câu trả lời sau cho câu hỏi "${question}":\n  ${answer}\n  \n  Trả về JSON object với format:\n  {\n    \"isComplete\": boolean, // Câu trả lời có đầy đủ không\n    \"score\": number, // Điểm số từ 0-10\n    \"strengths\": string[], // Các điểm mạnh trong câu trả lời\n    \"weaknesses\": string[], // Các điểm yếu cần cải thiện\n    \"missingPoints\": string[], // Các điểm chưa được đề cập\n    \"feedback\": string, // Phản hồi chi tiết\n    \"suggestedImprovements\": string[], // Các đề xuất cải thiện\n    \"followUpQuestions\": string[] // Các câu hỏi tiếp theo có thể hỏi\n  }`;
-  try {    const messages: ChatMessage[] = [
+export const evaluateAnswer = async (question: string, answer: string, historySummary?: string) => {
+  const prompt = `Hãy đánh giá câu trả lời sau cho câu hỏi "${question}":\n  ${answer}\n\nDưới đây là lịch sử các câu hỏi và câu trả lời trước đó của ứng viên (nếu có):\n${historySummary || 'Chưa có lịch sử.'}\n\nKhi đánh giá, hãy tham chiếu đến các câu trả lời trước để tránh hỏi lại các khái niệm đã được trả lời đầy đủ, và không yêu cầu ứng viên lặp lại định nghĩa nếu đã trả lời trước đó.\n\nTrả về JSON object với format:\n  {\n    "isComplete": boolean, // Câu trả lời có đầy đủ không\n    "scores": {\n      "fundamental": number, // Kiến thức nền tảng (0-10)\n      "logic": number, // Tư duy logic (0-10)\n      "language": number // Trình độ ngôn ngữ (0-10)\n    },\n    "suggestions": {\n      "fundamental": string,\n      "logic": string,\n      "language": string\n    },\n    "strengths": string[], // Các điểm mạnh trong câu trả lời\n    "weaknesses": string[], // Các điểm yếu cần cải thiện\n    "missingPoints": string[], // Các điểm chưa được đề cập\n    "feedback": string, // Phản hồi chi tiết\n    "suggestedImprovements": string[], // Các đề xuất cải thiện\n    "followUpQuestions": string[] // Các câu hỏi tiếp theo có thể hỏi\n  }`;
+  try {
+    const messages: ChatMessage[] = [
       { role: "system", content: "Trả về kết quả dưới dạng JSON object với các trường như mô tả" },
       { role: "user", content: prompt }
     ];
@@ -119,7 +120,16 @@ export const evaluateAnswer = async (question: string, answer: string) => {
     const evaluation = JSON.parse(response.choices[0].message.content.trim());
     return {
       isComplete: evaluation.isComplete || false,
-      score: evaluation.score || 0,
+      scores: evaluation.scores || {
+        fundamental: 0,
+        logic: 0,
+        language: 0
+      },
+      suggestions: evaluation.suggestions || {
+        fundamental: '',
+        logic: '',
+        language: ''
+      },
       strengths: evaluation.strengths || [],
       weaknesses: evaluation.weaknesses || [],
       missingPoints: evaluation.missingPoints || [],
@@ -131,7 +141,16 @@ export const evaluateAnswer = async (question: string, answer: string) => {
     console.error('Error evaluating answer:', error);
     return {
       isComplete: false,
-      score: 0,
+      scores: {
+        fundamental: 0,
+        logic: 0,
+        language: 0
+      },
+      suggestions: {
+        fundamental: '',
+        logic: '',
+        language: ''
+      },
       strengths: [],
       weaknesses: ["Không thể đánh giá câu trả lời"],
       missingPoints: [],

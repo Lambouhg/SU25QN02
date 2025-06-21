@@ -1,18 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { questionSetService, QuestionSetData } from '@/services/questionSetService';
 
-export default function InterviewQuestionPage({ params }: { params: { questionId: string } }) {
+export default function InterviewQuestionPage({ params }: { params: Promise<{ questionId: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const resolvedParams = React.use(params);
   const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);  const [questionsAnswered, setQuestionsAnswered] = useState(0);
+  const [availableQuestions, setAvailableQuestions] = useState<string[]>([]);
+  const [questionSets, setQuestionSets] = useState<QuestionSetData[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+
   const [interviewQuestion, setInterviewQuestion] = useState({
-    id: params.questionId,
+    id: resolvedParams.questionId,
     title: "Tell me about your experience with React and modern frontend development",
     type: "Technical Experience",
     description: "The interviewer wants to understand your hands-on experience with React, your knowledge of modern frontend practices, and how you have applied these skills in real projects. Focus on specific examples and technologies you have used.",
@@ -24,13 +29,84 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
     ]
   });
 
+  // Load question sets from database
   useEffect(() => {
+    const loadQuestionSets = async () => {
+      try {
+        const sets = await questionSetService.getAllQuestionSets();
+        setQuestionSets(sets);
+          // Flatten all questions from all sets
+        const allQuestions: string[] = [];
+        sets.forEach(set => {
+          allQuestions.push(...set.questions);
+        });
+        setAvailableQuestions(allQuestions);
+        
+        // Set current question index based on current question
+        const questionFromURL = searchParams.get('question');
+        if (questionFromURL) {
+          const currentIndex = allQuestions.findIndex(q => q === questionFromURL);
+          setCurrentQuestionIndex(currentIndex >= 0 ? currentIndex : 0);
+        } else {
+          setCurrentQuestionIndex(0);
+        }
+      } catch (error) {        console.error('Error loading question sets:', error);
+      }
+    };    loadQuestionSets();
+  }, [setAvailableQuestions, setQuestionSets, searchParams]);  // Helper function to get the next question in order
+  const getNextQuestion = () => {
+    if (availableQuestions.length === 0) {
+      // Fallback to default question if no questions in DB
+      return {
+        title: "Tell me about your experience with React and modern frontend development",
+        type: "Technical Experience",
+        description: "The interviewer wants to understand your hands-on experience with React, your knowledge of modern frontend practices, and how you have applied these skills in real projects.",
+        tips: [
+          "Mention specific React features you have used (hooks, context, etc.)",
+          "Include examples of projects you have worked on",
+          "Discuss challenges you have faced and how you solved them",
+          "Show knowledge of the React ecosystem and best practices"
+        ]
+      };
+    }
+
+    // Calculate next question index
+    const nextIndex = currentQuestionIndex + 1;
+    
+    // If we've reached the end, return null to indicate no more questions
+    if (nextIndex >= availableQuestions.length) {
+      return null;
+    }
+    
+    const nextQuestion = availableQuestions[nextIndex];
+    
+    // Update current question index
+    setCurrentQuestionIndex(nextIndex);
+
+    return {
+      title: nextQuestion,
+      type: "Saved Question", 
+      description: "This question is from your saved question sets. Focus on demonstrating relevant skills and experiences that match the requirements.",
+      tips: [
+        "Be specific about your relevant experience",
+        "Use concrete examples and metrics when possible",
+        "Connect your answer to the job requirements",
+        "Show your understanding of the role and company needs"
+      ]
+    };
+  };
+  useEffect(() => {
+    // Load questions answered count from localStorage
+    const savedCount = localStorage.getItem('questionsAnsweredToday');
+    if (savedCount) {
+      setQuestionsAnswered(parseInt(savedCount, 10));
+    }
+
     const questionFromURL = searchParams.get('question');
     const typeFromURL = searchParams.get('type');
-    
-    if (questionFromURL) {
+      if (questionFromURL) {
       setInterviewQuestion({
-        id: params.questionId,
+        id: resolvedParams.questionId,
         title: questionFromURL,
         type: typeFromURL || "Job Description Question",
         description: "This question is generated based on the job description you uploaded. Focus on demonstrating relevant skills and experiences that match the requirements.",
@@ -42,7 +118,12 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
         ]
       });
     }
-  }, [searchParams, params.questionId]);
+  }, [searchParams, resolvedParams.questionId]);
+
+  // Save questions answered count to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('questionsAnsweredToday', questionsAnswered.toString());
+  }, [questionsAnswered]);
 
   const analyzeAnswer = async () => {
     if (!answer.trim()) return;
@@ -74,9 +155,10 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
       setIsLoading(false);
     }
   };
-
   const handleSubmit = () => {
     analyzeAnswer();
+    // Increment questions answered when submitting
+    setQuestionsAnswered(prev => prev + 1);
   };
     const handleQuit = () => {
     // Check if there's a returnUrl parameter
@@ -95,10 +177,6 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
     }
   };
 
-  const handleHint = () => {
-    console.log('Requesting hint');
-    // Handle hint logic here
-  };
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -161,15 +239,7 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
                 </div>
                 
                 <div className="flex gap-3">
-                  {!isSubmitted && (
-                    <button
-                      onClick={handleHint}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl transition-colors"
-                    >
-                      <span>💡</span>
-                      Get Hint
-                    </button>
-                  )}
+  
                   
                   {!isSubmitted ? (
                     <button
@@ -183,7 +253,7 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
                           Analyzing...
                         </>
                       ) : (
-                        <>Submit Answer ⚡</>
+                        <>Submit Answer</>
                       )}
                     </button>                  ) : (
                     <button
@@ -202,9 +272,7 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
                   )}
                 </div>
               </div>
-            </div>
-
-            {/* Navigation */}
+            </div>            {/* Navigation */}
             <div className="flex justify-between items-center">
               <button
                 onClick={handleQuit}
@@ -212,7 +280,47 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
               >
                 <span>←</span>
                 Back to Questions
-              </button>
+              </button>              {isSubmitted && (
+                <button
+                  onClick={() => {
+                    // Reset state for next question
+                    setAnswer('');
+                    setFeedback(null);
+                    setIsSubmitted(false);
+                    setIsLoading(false);                    // Get the next question in order
+                    const nextQuestion = getNextQuestion();
+                    
+                    if (nextQuestion) {
+                      const newQuestionId = Math.random().toString(36).substring(7);
+                      
+                      // Update the question state without navigation
+                      setInterviewQuestion({
+                        id: newQuestionId,
+                        ...nextQuestion
+                      });
+                      
+                      // Update the URL without navigation to reflect new question ID
+                      window.history.replaceState(null, '', `/dashboard/interview/${newQuestionId}`);
+                    }}}                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  disabled={availableQuestions.length === 0 || currentQuestionIndex >= availableQuestions.length - 1}
+                  title={
+                    availableQuestions.length === 0 
+                      ? "No saved questions available. Please upload a job description first." 
+                      : currentQuestionIndex >= availableQuestions.length - 1
+                      ? "You've reached the last question in this set."
+                      : "Continue with next question"
+                  }                >
+                  <span>
+                    {availableQuestions.length === 0 
+                      ? "No Questions Available" 
+                      : currentQuestionIndex >= availableQuestions.length - 1
+                      ? "Last Question Completed"
+                      : "Continue Practice"
+                    }
+                  </span>
+                  <span className="text-lg">→</span>
+                </button>
+              )}
             </div>
           </div>          {/* Right Column - AI Feedback */}
           <div className="lg:col-span-2 space-y-6">
@@ -326,27 +434,35 @@ export default function InterviewQuestionPage({ params }: { params: { questionId
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Quick Stats */}
+            </div>            {/* Quick Stats */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
               <h3 className="font-bold mb-4 text-gray-900 text-lg">Today&apos;s Progress</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4 text-center">
                   <div className="w-12 h-12 bg-orange-400 rounded-full flex items-center justify-center mx-auto mb-3">
                     <span className="text-2xl">📝</span>
-                  </div>
-                  <div className="text-xs text-gray-600 mb-1">Questions Answered</div>
-                  <div className="font-bold text-gray-900 text-xl">{isSubmitted ? '1' : '0'}</div>
-                </div>
-                <div className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 text-center">
+                  </div>                  <div className="text-xs text-gray-600 mb-1">Questions Answered</div>
+                  <div className="font-bold text-gray-900 text-xl">{questionsAnswered}</div>
+                </div>                <div className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 text-center">
                   <div className="w-12 h-12 bg-purple-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-2xl">🎯</span>
+                    <span className="text-2xl">📋</span>
+                  </div>                  <div className="text-xs text-gray-600 mb-1">Question Progress</div>
+                  <div className="font-bold text-gray-900 text-xl">
+                    {availableQuestions.length > 0 
+                      ? `${currentQuestionIndex + 1}/${availableQuestions.length}`
+                      : "0/0"
+                    }
                   </div>
-                  <div className="text-xs text-gray-600 mb-1">AI Reviews</div>
-                  <div className="font-bold text-gray-900 text-xl">{feedback ? '1' : '0'}</div>
                 </div>
               </div>
+              
+              {questionSets.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <p className="text-sm text-gray-600 text-center">
+                    From {questionSets.length} saved question sets
+                  </p>
+                </div>
+              )}
             </div>
           </div>        </div>
         </div>
