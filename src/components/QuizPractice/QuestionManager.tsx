@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-
+import { useCallback } from 'react';
 type Answer = {
   content: string;
   isCorrect: boolean;
@@ -23,8 +21,7 @@ type Question = {
 };
 
 export default function QuestionManager() {
-  const { userId } = useAuth();
-  const router = useRouter();
+  // const { userId } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [fields, setFields] = useState<string[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
@@ -123,13 +120,8 @@ export default function QuestionManager() {
     }));
   };
 
-  useEffect(() => {
-    fetchQuestions();
-    fetchFields();
-    fetchTopics();
-  }, [pagination.page, searchParams]);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -152,7 +144,13 @@ export default function QuestionManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, searchParams]);
+
+  useEffect(() => {
+    fetchQuestions();
+    fetchFields();
+    fetchTopics();
+  }, [fetchQuestions]);
 
   const fetchFields = async () => {
     try {

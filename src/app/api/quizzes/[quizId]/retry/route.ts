@@ -6,7 +6,7 @@ import { connectDB } from '@/lib/mongodb';
 
 export async function POST(
   req: Request,
-  { params }: { params: { quizId: string } }
+  { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
     await connectDB();
@@ -22,7 +22,8 @@ export async function POST(
     }
 
     // Get the original quiz
-    const originalQuiz = await Quiz.findById(params.quizId);
+    const { quizId } = await params;
+    const originalQuiz = await Quiz.findById(quizId);
     if (!originalQuiz) {
       return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
     }

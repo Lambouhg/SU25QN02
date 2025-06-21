@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import User from '@/models/user';
-import Question from '@/models/question';
 import { connectDB } from '@/lib/mongodb';
 
 // Helper: Kết nối DB và xác thực user

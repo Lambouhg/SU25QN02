@@ -92,9 +92,14 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
           const data = await response.json();
           setQuiz(data);
           setStep("session");
-        } catch (err: any) {
-          setError(err.message);
-          toast.error(err.message);
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            setError(err.message);
+            toast.error(err.message);
+          } else {
+            setError('An unknown error occurred');
+            toast.error('An unknown error occurred');
+          }
         } finally {
           setLoading(false);
         }

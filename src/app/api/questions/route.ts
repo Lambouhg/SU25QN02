@@ -22,13 +22,20 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { question, answers, fields, topics, levels, explanation } = body;
 
+    // Define the type for an answer object
+    type Answer = {
+      text: string;
+      isCorrect: boolean;
+      [key: string]: unknown;
+    };
+
     // Ensure fields, topics and levels are always arrays
     const validatedFields = Array.isArray(fields) ? fields : [];
     const validatedTopics = Array.isArray(topics) ? topics : [];
     const validatedLevels = Array.isArray(levels) ? levels : [];
 
     // Validate at least one correct answer
-    const hasCorrectAnswer = answers.some((answer: any) => answer.isCorrect);
+    const hasCorrectAnswer = (answers as Answer[]).some((answer) => answer.isCorrect);
     if (!hasCorrectAnswer) {
       return NextResponse.json(
         { error: 'At least one answer must be marked as correct' },
@@ -54,7 +61,7 @@ export async function POST(req: Request) {
     await newQuestion.save();
 
     return NextResponse.json(newQuestion, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating question:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -75,7 +82,7 @@ export async function GET(req: Request) {
     const level = searchParams.get('level');
     const search = searchParams.get('search');
 
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     if (field) query.fields = field;
     if (topic) query.topics = topic;
     if (level) query.levels = level;

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
 import Question from '@/models/question';
 import { connectDB } from '@/lib/mongodb';
@@ -6,11 +6,12 @@ import User from '@/models/user';
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-    const question = await Question.findById(params.id);
+    const { id } = await params;
+    const question = await Question.findById(id);
     
     if (!question) {
       return NextResponse.json(
@@ -30,12 +31,12 @@ export async function GET(
 }
 
 export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-    const { userId } = getAuth(req as any);
+    const { userId } = getAuth(req);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -50,8 +51,11 @@ export async function PUT(
     const body = await req.json();
     const { question, answers, fields, topics, levels, explanation } = body;
 
+    // Define a type for answer
+    type Answer = { text: string; isCorrect: boolean };
+
     // Validate at least one correct answer
-    const hasCorrectAnswer = answers.some((answer: any) => answer.isCorrect);
+    const hasCorrectAnswer = (answers as Answer[]).some((answer) => answer.isCorrect);
     if (!hasCorrectAnswer) {
       return NextResponse.json(
         { error: 'At least one answer must be marked as correct' },
@@ -81,7 +85,8 @@ export async function PUT(
       );
     }
 
-    const existingQuestion = await Question.findById(params.id);
+    const { id } = await params;
+    const existingQuestion = await Question.findById(id);
     if (!existingQuestion) {
       return NextResponse.json(
         { error: 'Question not found' },
@@ -100,7 +105,7 @@ export async function PUT(
     }
 
     const updatedQuestion = await Question.findByIdAndUpdate(
-      params.id,
+      id,
       {
         question,
         answers,
@@ -124,12 +129,12 @@ export async function PUT(
 }
 
 export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-    const { userId } = getAuth(req as any);
+    const { userId } = getAuth(req);
     
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -141,7 +146,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const existingQuestion = await Question.findById(params.id);
+    const { id } = await params;
+    const existingQuestion = await Question.findById(id);
     if (!existingQuestion) {
       return NextResponse.json(
         { error: 'Question not found' },
@@ -159,7 +165,7 @@ export async function DELETE(
       }
     }
 
-    await Question.findByIdAndDelete(params.id);
+    await Question.findByIdAndDelete(id);
 
     return NextResponse.json(
       { message: 'Question deleted successfully' },

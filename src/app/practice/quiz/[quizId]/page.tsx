@@ -1,11 +1,11 @@
 import QuizPanel from "../QuizPanel";
 
 interface QuizPageProps {
-  params: { quizId: string };
+  params: Promise<{ quizId: string }>;
 }
 
-export default function QuizPage({ params }: QuizPageProps) {
-  const { quizId } = params;
+export default async function QuizPage({ params }: QuizPageProps) {
+  const { quizId } = await params;
 
   return <QuizPanel quizId={quizId} />;
-} 
+}

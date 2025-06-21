@@ -5,7 +5,7 @@ import { connectDB } from '@/lib/mongodb';
 
 export async function POST(
   req: Request,
-  { params }: { params: { quizId: string } }
+  { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
     await connectDB();
@@ -16,14 +16,20 @@ export async function POST(
     }
 
     const { userAnswers, score, timeUsed } = await req.json();
-    const quizId = params.quizId;
+    const { quizId } = await params;
+
+    type UserAnswer = {
+      questionId: string;
+      answerIndex: number;
+      isCorrect: boolean;
+    };
 
     // Sử dụng findOneAndUpdate thay vì findById và save
     const updatedQuiz = await Quiz.findOneAndUpdate(
       { _id: quizId },
       {
         $set: {
-          userAnswers: userAnswers.map((answer: any) => ({
+          userAnswers: (userAnswers as UserAnswer[]).map((answer: UserAnswer) => ({
             questionId: answer.questionId,
             answerIndex: answer.answerIndex,
             isCorrect: answer.isCorrect

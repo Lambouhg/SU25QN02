@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Quiz, Question } from './QuizPanel';
+import { Quiz } from './QuizPanel';
 
 interface QuizSessionProps {
   quiz: Quiz;
