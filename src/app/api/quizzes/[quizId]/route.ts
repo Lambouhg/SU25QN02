@@ -5,7 +5,7 @@ import { connectDB } from '@/lib/mongodb';
 
 export async function GET(
   req: Request,
-  { params }: { params: { quizId: string } }
+  { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
     await connectDB();
@@ -15,7 +15,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const quiz = await Quiz.findById(params.quizId)
+    const { quizId } = await params;
+    const quiz = await Quiz.findById(quizId)
       .populate('questions')
       .populate('userAnswers.questionId');
 

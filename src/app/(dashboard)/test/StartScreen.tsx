@@ -20,8 +20,8 @@ interface StartScreenProps {
   setIsSpeechEnabled: (v: boolean) => void;
   isSpeechEnabled: boolean;
   startInterview: () => void;
-  CATEGORY_ROLE_OPTIONS: any[];
-  LANGUAGES: any[];
+  CATEGORY_ROLE_OPTIONS: { category: string; roles: string[] }[];
+  LANGUAGES: { value: string; label: string }[];
   levelOptions: string[];
 }
 

@@ -17,7 +17,7 @@ export default function QuizResult({ quiz, onNewQuiz, onViewProfile }: QuizResul
         const response = await fetch('/api/users/saved-questions');
         if (!response.ok) throw new Error('Failed to fetch saved questions');
         const data = await response.json();
-        setSavedQuestionIds(data.map((q: any) => q._id));
+        setSavedQuestionIds(data.map((q: { _id: string }) => q._id));
       } catch (error) {
         console.error('Error fetching saved questions:', error);
         toast.error('Failed to load saved questions.');

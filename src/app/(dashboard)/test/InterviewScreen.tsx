@@ -9,7 +9,7 @@ interface InterviewScreenProps {
   isListening: boolean;
   isSpeakerOn: boolean;
   isAiSpeaking: boolean;
-  conversation: any[];
+  conversation: { role: string; content: string }[];
   message: string;
   isAiThinking: boolean;
   onToggleLanguage: () => void;
@@ -21,14 +21,37 @@ interface InterviewScreenProps {
   messageListRef: React.RefObject<HTMLDivElement | null>;
   duration: number;
   onEndInterview: () => void;
-  realTimeScores: any;
+  realTimeScores: Record<string, number>;
   lastFeedback: string | null;
 }
 
 const InterviewScreen: React.FC<InterviewScreenProps> = (props) => {
+  // Convert conversation to ChatMessage format
+  const chatMessages = props.conversation.map((msg, idx) => ({
+    id: idx.toString(),
+    sender: (msg.role === 'user' ? 'user' : 'ai') as 'user' | 'ai',
+    text: msg.content,
+  }));
+
+  // Convert realTimeScores to expected format
+  const formattedScores = {
+    fundamental: props.realTimeScores.fundamental || 0,
+    logic: props.realTimeScores.logic || 0,
+    language: props.realTimeScores.language || 0,
+    suggestions: {
+      fundamental: '',
+      logic: '',
+      language: ''
+    }
+  };
+
   return (
     <>
-      <InterviewChat {...props} />
+      <InterviewChat 
+        {...props} 
+        conversation={chatMessages}
+        realTimeScores={formattedScores}
+      />
       {props.lastFeedback && (
         <div className="mt-8 w-full flex justify-center">
           <div className="w-full max-w-xl rounded-2xl border border-blue-200 bg-white shadow-md p-7 flex flex-col gap-3">

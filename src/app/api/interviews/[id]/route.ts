@@ -10,11 +10,12 @@ interface MongoError {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectDB();
-    const interview = await Interview.findById(params.id);
+    const { id } = await params;
+    const interview = await Interview.findById(id);
     
     if (!interview) {
       return NextResponse.json(

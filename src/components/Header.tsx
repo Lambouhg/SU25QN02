@@ -1,4 +1,4 @@
-import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { UserButton} from "@clerk/nextjs";
 import Link from "next/link";
 
 export default function Header() {

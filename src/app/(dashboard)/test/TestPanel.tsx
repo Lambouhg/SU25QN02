@@ -1,38 +1,13 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { CheckCircle, Briefcase, Brain, Award, BookOpen, Clock } from 'lucide-react';
-import { ResultsSummary } from '@/components/ui/test-mode/ResultsSummary';
-import { InterviewChat } from '@/components/ui/test-mode/InterviewChat';
+import {Brain, Award, BookOpen } from 'lucide-react';
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
 import { startSpeechRecognition, stopSpeechRecognition, textToSpeech } from '@/utils/speech/azureSpeechUtils';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
-import ReactMarkdown from 'react-markdown';
-import { Progress } from '@/components/ui/progress';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  Legend,
-} from "recharts";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, Share2, MessageSquare } from "lucide-react";
 import StartScreen from './StartScreen';
 import InterviewScreen from './InterviewScreen';
 import ResultScreen from './ResultScreen';
@@ -753,42 +728,6 @@ export default function TestPanel() {
   };
 
   // Timer component cho phỏng vấn
-  const Timer = ({ duration }: { duration: number }) => {
-    const [timeLeft, setTimeLeft] = useState(duration * 60); // convert to seconds
-
-    useEffect(() => {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }, []);
-
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-    
-    // Tính phần trăm thời gian còn lại
-    const timePercentage = (timeLeft / (duration * 60)) * 100;
-    
-    // Đổi màu theo thời gian còn lại
-    const getTimerColor = () => {
-      if (timePercentage > 50) return "text-green-700 bg-green-50 border-green-200";
-      if (timePercentage > 20) return "text-amber-700 bg-amber-50 border-amber-200";
-      return "text-red-700 bg-red-50 border-red-200";
-    };
-    
-    return (
-      <div className={`px-3 py-1.5 rounded-lg border flex items-center gap-1.5 transition-colors duration-300 ${getTimerColor()}`}>
-        <Clock className="h-4 w-4" />
-        <span className="font-mono font-medium">{minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}</span>
-      </div>
-    );
-  };
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -826,15 +765,17 @@ export default function TestPanel() {
               LANGUAGES={LANGUAGES}
               levelOptions={levelOptions}
             />
-          ) : (
-            <InterviewScreen
+          ) : (            <InterviewScreen
               position={position}
               isSpeechEnabled={isSpeechEnabled}
               voiceLanguage={voiceLanguage as 'vi-VN' | 'en-US'}
               isListening={isListening}
               isSpeakerOn={isSpeakerOn}
               isAiSpeaking={isAiSpeaking}
-              conversation={conversation}
+              conversation={conversation.map(msg => ({
+                role: msg.sender,
+                content: msg.text
+              }))}
               message={message}
               isAiThinking={isAiThinking}
               onToggleLanguage={() => setVoiceLanguage(prev => prev === 'vi-VN' ? 'en-US' : 'vi-VN')}
@@ -843,10 +784,13 @@ export default function TestPanel() {
               onSpeechToggle={() => setIsSpeechEnabled(prev => !prev)}
               onMessageChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
               onSendMessage={handleSendMessage}
-              messageListRef={messageListRef}
-              duration={duration}
+              messageListRef={messageListRef}              duration={duration}
               onEndInterview={onEndInterview}
-              realTimeScores={realTimeScores}
+              realTimeScores={{
+                fundamental: realTimeScores.fundamental,
+                logic: realTimeScores.logic,
+                language: realTimeScores.language
+              } as Record<string, number>}
               lastFeedback={lastFeedback}
             />
           )}
