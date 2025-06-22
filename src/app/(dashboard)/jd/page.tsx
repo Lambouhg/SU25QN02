@@ -262,17 +262,29 @@ const UploadJDPageContent = () => {
 
     // Show processing toast
     showToastMessage('Processing your job description...', 'info');    try {
+      // Create FormData and append file
+      const formData = new FormData();
+      formData.append('file', file);
+
       const response = await fetch('/api/process-pdf', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/pdf',
+          'Accept': 'application/json',
         },
-        body: file,
+        body: file, // Send file directly as binary
+      });      // Handle streaming timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Request timed out after 25 seconds')), 25000);
       });
+
+      // Race between response and timeout
+      const responseText = await Promise.race([
+        response.text(),
+        timeoutPromise
+      ]) as string;
 
       // Parse response once and handle both success and error cases
       let responseData;
-      const responseText = await response.text();
       
       try {
         responseData = JSON.parse(responseText);

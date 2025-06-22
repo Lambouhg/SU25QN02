@@ -1,70 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
+import PDFParser from 'pdf2json';
 import { JDValidationService } from '@/services/jdValidationService';
 
-// Ensure Node.js runtime for PDF processing
+// Route segment config for Next.js 13+ App Router
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const maxDuration = 30;
 
-// Test endpoint to verify route is working
-export async function GET() {
-  return NextResponse.json({ 
-    message: 'PDF processing endpoint is accessible',
-    runtime: 'nodejs',
-    timestamp: new Date().toISOString()
-  });
-}
-
-export async function POST(request: NextRequest) {
-  console.log('POST /api/process-pdf called');
-  
+export async function POST(req: NextRequest) {
   try {
-    // Check content type
-    const contentType = request.headers.get('content-type');
-    console.log('Content-Type:', contentType);
-    
+    // Validate request size (10MB limit on Vercel)
+    const contentLength = parseInt(req.headers.get('content-length') || '0');
+    if (contentLength > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File size must be less than 10MB' }, { status: 400 });
+    }
+
+    const contentType = req.headers.get('content-type');
     if (!contentType?.includes('application/pdf')) {
-      console.log('Invalid content type:', contentType);
       return NextResponse.json({ error: 'Only PDF files are supported' }, { status: 400 });
     }
 
-    // Get the file data
-    const arrayBuffer = await request.arrayBuffer();
-    console.log('ArrayBuffer size:', arrayBuffer.byteLength);if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-      return NextResponse.json({ error: 'Uploaded file is empty.' }, { status: 400 });    }    // Use dynamic import for pdfjs-dist to avoid potential issues
-    let text = '';
-    try {
-      const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-      
-      // Configure worker for server environment
-      if (typeof window === 'undefined') {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (pdfjsLib.GlobalWorkerOptions as any).workerSrc = 'https://unpkg.com/pdfjs-dist@5.3.31/legacy/build/pdf.worker.mjs';
-        } catch (err) {
-          console.warn('Failed to set worker src:', err);
-        }
-      }
+    // Get file as ArrayBuffer
+    const arrayBuffer = await req.arrayBuffer();
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      return NextResponse.json({ error: 'Uploaded file is empty.' }, { status: 400 });
+    }    let text = '';
+    try {      // Create new instance of PDFParser
+      const pdfParser = new PDFParser();
 
-      // Load PDF document
-      const pdf = await pdfjsLib.getDocument({
-        data: arrayBuffer,
-        verbosity: 0
-      }).promise;
+      // Create a promise to handle the parsing
+      const parseResult = await new Promise<string>((resolve, reject) => {        pdfParser.on('pdfParser_dataReady', (pdfData) => {
+          try {
+            // Convert PDF data to text
+            const raw = pdfData.Pages.map(page => 
+              page.Texts.map(text => 
+                decodeURIComponent(text.R.map(r => r.T).join(' '))
+              ).join(' ')
+            ).join('\n');
+            
+            resolve(raw);          } catch {
+            reject(new Error('Failed to process PDF content'));
+          }
+        });
 
-      // Extract text from all pages
-      const textItems: string[] = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();        const pageText = textContent.items
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((item: any) => 'str' in item)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((item: any) => item.str)
-          .join(' ');
-        textItems.push(pageText);
-      }
-      text = textItems.join('\n').trim();
+        pdfParser.on('pdfParser_dataError', (errData) => {
+          reject(new Error(`PDF parsing error: ${errData.parserError}`));
+        });
+
+        // Parse the PDF from the array buffer
+        pdfParser.parseBuffer(Buffer.from(arrayBuffer));
+      });
+
+      text = parseResult.trim();
     } catch (parseErr) {
       console.error('PDF parsing error:', parseErr);
       return NextResponse.json(
@@ -104,16 +89,12 @@ export async function POST(request: NextRequest) {
         detectedSections: validationResult.detectedSections,
         message: JDValidationService.getValidationMessage(validationResult)
       }
-    });  } catch (err) {
+    });
+  } catch (err) {
     console.error('PDF processing error:', err);
-    console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
-    
-    // Return more detailed error information for debugging
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    const errorDetails = process.env.NODE_ENV === 'development' ? 
-      { error: 'Internal server error', details: errorMessage, stack: err instanceof Error ? err.stack : undefined } :
-      { error: 'Internal server error', details: 'PDF processing failed' };
-    
-    return NextResponse.json(errorDetails, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal server error', details: err instanceof Error ? err.message : String(err) },
+      { status: 500 }
+    );
   }
 }
