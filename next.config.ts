@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Cấu hình cho images từ Clerk
   images: {
     remotePatterns: [
       {
@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  // CORS headers
   async headers() {
     return [
       {
@@ -30,31 +32,21 @@ const nextConfig: NextConfig = {
         ],
       },
     ];
-  },  webpack: (config, { isServer }) => {
-    // Handle PDF.js worker files
-    config.module.rules.push({
-      test: /pdf\.worker\.js$/,
-      use: { loader: 'file-loader', options: { name: '[name].[ext]' } },
-    });
+  },
 
-    // Handle PDF.js in server and client builds
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        path: false,
-        canvas: false,
-      };
-    }
-
-    // Externalize heavy dependencies for server builds
-    if (isServer) {
-      config.externals = config.externals || [];
-      config.externals.push('canvas');
-    }
+  // Webpack configuration
+  webpack: (config) => {
+    // PDF.js configuration
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'pdfjs-dist': 'pdfjs-dist/legacy/build/pdf',
+    };
 
     return config;
   },
+
+  // External packages configuration
+  serverExternalPackages: ['pdf2json'],
 };
 
 export default nextConfig;
