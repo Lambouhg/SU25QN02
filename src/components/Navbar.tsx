@@ -15,7 +15,7 @@ export default function Navbar() {
         <div className="flex items-center">
           <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
             <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
-              <path d="M8 12C8 9.79086 9.79086 8 12 8H14C16.2091 8 18 9.79086 18 12C18 14.2091 16.2091 16 14 16H12C9.79086 16 8 14.2091 8 12Z" fill="#7C3AED"/>
+              <path d="M8 12C8 9.79086 9.79086 8 12 8H14C16.2091 8 18 9.79086 18 12C18 14.2091 16.2091 16 14 16H12C9.79086 16 8 14.2091 8 12Z" fill="#7C3AED" />
             </svg>
           </div>
           <span className="text-white font-bold text-2xl ml-3">InterviewAI</span>
@@ -26,6 +26,9 @@ export default function Navbar() {
       <div className="hidden md:flex items-center space-x-10">
         <Link href="#" className="text-white font-medium hover:text-white/80 transition-colors">
           Home
+        </Link>
+        <Link href="/dashboard" className="text-white font-medium hover:text-white/80 transition-colors">
+          Dashboard
         </Link>
         <div className="relative group">
           <button className="text-white font-medium flex items-center hover:text-white/80 transition-colors">
@@ -63,7 +66,7 @@ export default function Navbar() {
           />
         </div>
         <SignedIn>
-          <UserButton 
+          <UserButton
             afterSignOutUrl="/"
             appearance={{
               elements: {
@@ -77,7 +80,7 @@ export default function Navbar() {
           <Link href="/sign-in" className="text-white font-medium hover:text-white/80 transition-colors">
             Login
           </Link>
-          <Link 
+          <Link
             href="/sign-up"
             className="bg-white text-purple-600 px-6 py-2.5 rounded-full font-medium hover:bg-white/90 transition-colors"
           >
@@ -87,7 +90,7 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu Button */}
-      <button 
+      <button
         className="md:hidden text-white"
         onClick={() => setIsMenuOpen(!isMenuOpen)}
       >
@@ -109,6 +112,7 @@ export default function Navbar() {
               </div>
             </div>
             <Link href="#" className="block py-2 text-white font-medium">Home</Link>
+            <Link href="/dashboard" className="block py-2 text-white font-medium">Dashboard</Link>
             <Link href="#" className="block py-2 text-white font-medium">Features</Link>
             <Link href="#" className="block py-2 text-white font-medium">Pricing</Link>
             <Link href="#" className="block py-2 text-white font-medium">Resources</Link>
@@ -120,7 +124,7 @@ export default function Navbar() {
             </SignedIn>
             <SignedOut>
               <Link href="/sign-in" className="block py-2 text-white font-medium">Đăng nhập</Link>
-              <Link 
+              <Link
                 href="/sign-up"
                 className="block py-2 text-white font-medium bg-white/10 rounded-lg text-center mt-2"
               >
