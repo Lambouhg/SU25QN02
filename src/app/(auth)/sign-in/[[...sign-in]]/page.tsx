@@ -3,8 +3,10 @@
 import { useSignIn } from "@clerk/nextjs";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
+  const router = useRouter();
   const { signIn, setActive, isLoaded } = useSignIn();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,9 +27,10 @@ export default function SignInPage() {
       const result = await signIn.create({
         identifier: email,
         password,
-      });      if (result.status === "complete") {
+      });      
+      if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        window.location.href = "/";
+        router.push("/");
       } else {
         console.error("Sign in failed", result);
         setErrorMessage("Sign in failed. Please check your credentials.");
