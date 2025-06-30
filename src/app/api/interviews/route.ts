@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongodb';
 import Interview from '@/models/interview';
 import User from '@/models/user';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 
 interface MongoError {
   message: string;
@@ -69,13 +70,22 @@ export async function POST(req: NextRequest) {
     console.log('Received interview data:', { clerkId, field: data.interviewField });
 
     // Structure interview data according to the new model
+    // Tính duration chính xác từ startTime và endTime client gửi lên
+    const startTime = data.startTime ? new Date(data.startTime) : new Date();
+    const endTime = data.endTime ? new Date(data.endTime) : new Date();
+    let duration = 0;
+    if (startTime && endTime && !isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
+      duration = Math.max(0, Math.round((endTime.getTime() - startTime.getTime()) / 1000)); // giây
+    }
+
     const interviewData = {
       userId: dbUser._id,
       interviewField: data.interviewField,
       interviewLevel: data.interviewLevel,
       language: data.language,
-      startTime: data.startTime || new Date(),
-      endTime: data.endTime || new Date(),
+      startTime,
+      endTime,
+      duration, // thêm duration vào model
       conversationHistory: data.conversationHistory || [],
       evaluation: data.evaluation || {
         technicalScore: 0,
@@ -94,7 +104,6 @@ export async function POST(req: NextRequest) {
           potential: ''
         }
       },
-      avatarConfig: data.avatarConfig,
       questionCount: data.questionCount || 0,
       coveredTopics: data.coveredTopics || [],
       skillAssessment: data.skillAssessment || {
@@ -109,6 +118,9 @@ export async function POST(req: NextRequest) {
     // Create new interview
     const newInterview = await Interview.create(interviewData);
     console.log('Created interview:', { interviewId: newInterview._id });
+
+    // Tracking hoạt động phỏng vấn
+    await TrackingIntegrationService.trackInterviewCompletion(dbUser._id.toString(), newInterview);
 
     // Update user's interview stats
     await User.findByIdAndUpdate(dbUser._id, {

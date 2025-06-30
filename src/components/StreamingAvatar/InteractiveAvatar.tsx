@@ -191,12 +191,6 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
           conversationHistory: apiConversation,
           evaluation,
           progress,
-          avatarConfig: {
-            avatarId: config.avatarName,
-            avatarName: AVATARS.find(a => a.avatar_id === config.avatarName)?.name,
-            quality: config.quality,
-            voiceSettings: config.voice
-          },
           questionCount,
           coveredTopics: interviewState.coveredTopics,
           skillAssessment: interviewState.skillAssessment,

@@ -41,16 +41,7 @@ export interface IInterview extends Document {
       currency: string;
     };
   };
-  avatarConfig: {
-    avatarId: string;
-    avatarName: string;
-    quality: string;
-    voiceSettings: {
-      rate: number;
-      emotion: string;
-      model: string;
-    };
-  };
+
   questionCount: number;
   coveredTopics: string[];
   skillAssessment: {
@@ -101,16 +92,7 @@ const InterviewSchema = new Schema<IInterview>({
       currency: String
     }
   },
-  avatarConfig: {
-    avatarId: { type: String, required: true },
-    avatarName: String,
-    quality: String,
-    voiceSettings: {
-      rate: Number,
-      emotion: String,
-      model: String
-    }
-  },
+
   questionCount: { type: Number, default: 0 },
   coveredTopics: [String],
   skillAssessment: {

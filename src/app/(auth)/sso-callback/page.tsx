@@ -10,34 +10,18 @@ export default function SSOCallback() {
   const router = useRouter();
 
   useEffect(() => {
-    const saveUserToDB = async () => {
-      try {
-        const response = await fetch("/api/user", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          console.error("Failed to save user to database");
-        }
-      } catch (error) {
-        console.error("Error saving user:", error);
-      }
-    };
-
+    
     // Lưu user vào DB sau khi xác thực thành công
     const handleCallback = async () => {
       if (!isSignInLoaded || !isSignUpLoaded) {
         return;
       }      try {
         if (signUp?.status === "complete" && setActive) {
-          await saveUserToDB();
+          
           await setActive({ session: signUp.createdSessionId });
           router.push("/"); // Redirect to home page after successful signup
         } else if (signIn?.status === "complete" && setActive) {
-          await saveUserToDB();
+        
           await setActive({ session: signIn.createdSessionId });
           router.push("/"); // Redirect to home page after successful signin
         }

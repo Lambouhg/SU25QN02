@@ -42,11 +42,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-  },
-  clerkId: {
+  },  clerkId: {
     type: String,
     required: true,
     unique: true,
+  },
+  firstName: {
+    type: String,
+    default: ''
+  },
+  lastName: {
+    type: String,
+    default: ''
   },
   fullName: {
     type: String,
@@ -88,10 +95,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'Hoạt động'
   },
-  currentPosition: {
-    type: String,
-    default: ''
-  },
+  
   experienceLevel: {
     type: String,
     enum: ['junior', 'mid', 'senior'],
@@ -150,8 +154,8 @@ const userSchema = new mongoose.Schema({
     type: [evaluationSchema],
     default: []
   },  lastLogin: {
-    type: String,
-    default: "Hôm nay"
+    type: Date,
+    default: Date.now
   },
   createdAt: {
     type: Date,
@@ -168,6 +172,10 @@ const userSchema = new mongoose.Schema({
   quizHistory: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' }],
     default: []
+  },
+  userActivityId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'UserActivity'
   }
 });
 
