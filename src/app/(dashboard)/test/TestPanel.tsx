@@ -530,7 +530,8 @@ export default function TestPanel() {
 
     // Gọi API lưu kết quả xuống DB
     try {
-      await fetch('/api/test-mode/test-panel-result', {
+      console.log('Calling API to save result');
+      const response = await fetch('/api/test-mode/test-panel-result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -541,6 +542,7 @@ export default function TestPanel() {
           realTimeScores,
         })
       });
+      console.log('API response:', response);
     } catch (error) {
       console.error('Error saving interview result:', error);
     }
@@ -628,7 +630,24 @@ export default function TestPanel() {
   };
 
   // Thêm hàm mới để kết thúc phỏng vấn sớm và chuyển sang màn result
-  const handleEndInterviewEarly = () => {
+  const handleEndInterviewEarly = async () => {
+    try {
+      console.log('Calling API to save result');
+      const response = await fetch('/api/test-mode/test-panel-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          duration,
+          position,
+          level,
+          history,
+          realTimeScores,
+        })
+      });
+      console.log('API response:', response);
+    } catch (error) {
+      console.error('Error saving interview result:', error);
+    }
     setShowResult(true);
     setInterviewing(false);
   };
