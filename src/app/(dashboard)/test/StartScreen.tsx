@@ -10,26 +10,21 @@ interface StartScreenProps {
   category: string;
   position: string;
   level: string;
-  language: string;
   duration: number;
   setCategory: (v: string) => void;
   setPosition: (v: string) => void;
   setLevel: (v: string) => void;
-  setLanguage: (v: string) => void;
   setDuration: (v: number) => void;
-  setIsSpeechEnabled: (v: boolean) => void;
-  isSpeechEnabled: boolean;
   startInterview: () => void;
   CATEGORY_ROLE_OPTIONS: { category: string; roles: string[] }[];
-  LANGUAGES: { value: string; label: string }[];
   levelOptions: string[];
 }
 
 const StartScreen: React.FC<StartScreenProps> = ({
-  category, position, level, language, duration,
-  setCategory, setPosition, setLevel, setLanguage, setDuration,
-  setIsSpeechEnabled, isSpeechEnabled, startInterview,
-  CATEGORY_ROLE_OPTIONS, LANGUAGES, levelOptions
+  category, position, level, duration,
+  setCategory, setPosition, setLevel, setDuration,
+  startInterview,
+  CATEGORY_ROLE_OPTIONS, levelOptions
 }) => {
   const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
   return (
@@ -80,7 +75,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             Select interview level:
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {levelOptions.map((lv) => (
+            {levelOptions.filter(lv => lv === 'Junior' || lv === 'Mid-level' || lv === 'Senior').map((lv) => (
               <div
                 key={lv}
                 className={`border rounded-lg p-3 cursor-pointer ${level === lv ? 'bg-amber-50 border-amber-300 shadow-sm' : 'hover:border-gray-300 hover:bg-gray-50'}`}
@@ -93,20 +88,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
               </div>
             ))}
           </div>
-        </div>
-        {/* Ngôn ngữ phỏng vấn */}
-        <div className="space-y-2">
-          <Label htmlFor="language">Interview language</Label>
-          <Select value={language} onValueChange={setLanguage}>
-            <SelectTrigger id="language">
-              <SelectValue placeholder="Select language" />
-            </SelectTrigger>
-            <SelectContent>
-              {LANGUAGES.map((lang) => (
-                <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
         {/* Thời gian phỏng vấn */}
         <div className="space-y-2">
@@ -126,14 +107,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
             ))}
           </div>
         </div>
-        {/* Tương tác giọng nói */}
-        <div className="flex items-center justify-between pt-2">
-          <div className="space-y-0.5">
-            <Label htmlFor="voice">Voice interaction</Label>
-            <p className="text-sm text-muted-foreground">Turn on voice recognition and read text</p>
-          </div>
-          <Switch id="voice" checked={isSpeechEnabled} onCheckedChange={setIsSpeechEnabled} />
-        </div>
         {/* Thông tin phỏng vấn */}
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
           <h3 className="font-medium mb-2">Interview information:</h3>
@@ -152,4 +125,4 @@ const StartScreen: React.FC<StartScreenProps> = ({
   );
 };
 
-export default StartScreen; 
+export default StartScreen;

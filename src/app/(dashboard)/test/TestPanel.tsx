@@ -6,11 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {Brain, Award, BookOpen } from 'lucide-react';
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
-import { startSpeechRecognition, stopSpeechRecognition, textToSpeech } from '@/utils/speech/azureSpeechUtils';
-import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
 import StartScreen from './StartScreen';
 import InterviewScreen from './InterviewScreen';
 import ResultScreen from './ResultScreen';
+import { Alert } from '@mui/material';
 
 const CATEGORY_ROLE_OPTIONS = [
   {
@@ -196,18 +195,9 @@ export default function TestPanel() {
   const [category, setCategory] = useState(CATEGORY_ROLE_OPTIONS[0].category);
   const [position, setPosition] = useState('Frontend Developer');
   const [level, setLevel] = useState('Junior');
-  const [language, setLanguage] = useState('vi-VN');
   const [duration, setDuration] = useState(15);
   const [isAiThinking, setIsAiThinking] = useState(false);
   const messageListRef = useRef<HTMLDivElement | null>(null);
-
-  // Speech states
-  const [isSpeechEnabled, setIsSpeechEnabled] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
-  const [voiceLanguage, setVoiceLanguage] = useState('vi-VN');
-  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
-  const [speechRecognizer, setSpeechRecognizer] = useState<sdk.SpeechRecognizer | null>(null);
 
   const [interviewState, setInterviewState] = useState<InterviewState>({
     phase: 'introduction',
@@ -238,10 +228,6 @@ export default function TestPanel() {
   // Thêm state lưu feedback cuối cùng
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
 
-  const addHistoryStage = (stage: HistoryStage) => {
-    setHistory(prev => [...prev, stage]);
-  };
-
   useEffect(() => {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
@@ -253,9 +239,6 @@ export default function TestPanel() {
     if (interviewing && !hasSentInitialMessage) {
       const initialMessage = createMessage('ai', `Hello! I am the AI Interviewer. Today we will conduct an interview for the position of ${position} (${level}). First, could you briefly introduce yourself and your work experience?`);
       setConversation([initialMessage]);
-      if (isSpeechEnabled && isSpeakerOn) {
-        speakAiResponse(initialMessage.text);
-      }
       setHasSentInitialMessage(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -265,62 +248,6 @@ export default function TestPanel() {
   useEffect(() => {
     console.log('[DEBUG] showResult:', showResult, '| interviewing:', interviewing);
   }, [showResult, interviewing]);
-
-  // Speech handlers
-  const startSpeechInteraction = async () => {
-    if (!isSpeechEnabled) return;
-    setIsListening(true);
-    const recognizer = await startSpeechRecognition(
-      (text: string) => {
-        if (text.trim()) {
-          setMessage(text);
-          handleSendMessage();
-        }
-      },
-      (error: unknown) => {
-        console.error("Speech recognition error:", error);
-        setIsListening(false);
-      },
-      voiceLanguage
-    );
-    setSpeechRecognizer(recognizer);
-  };
-
-  const stopSpeechInteraction = async () => {
-    setIsListening(false);
-    if (speechRecognizer) {
-      try {
-        await stopSpeechRecognition(speechRecognizer);
-        setSpeechRecognizer(null);
-      } catch (error) {
-        console.error("Error stopping speech recognition:", error);
-      }
-    }
-  };
-
-  const toggleSpeechRecognition = () => {
-    if (isListening) {
-      stopSpeechInteraction();
-    } else {
-      startSpeechInteraction();
-    }
-  };
-
-  const toggleSpeaker = () => {
-    setIsSpeakerOn(prev => !prev);
-  };
-
-  const speakAiResponse = async (text: string) => {
-    if (!isSpeakerOn || !isSpeechEnabled) return;
-    try {
-      setIsAiSpeaking(true);
-      await textToSpeech(text, voiceLanguage);
-    } catch (error) {
-      console.error("Error in text-to-speech:", error);
-    } finally {
-      setIsAiSpeaking(false);
-    }
-  };
 
   const startInterview = () => {
     setShowResult(false);
@@ -351,7 +278,7 @@ export default function TestPanel() {
   const handleSendMessage = async () => {
     if (!message.trim()) return;
     const userMessage = createMessage('user', message);
-    addMessageToConversation(setConversation, userMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+    addMessageToConversation(setConversation, userMessage);
     setMessage('');
     setIsAiThinking(true);
     try {
@@ -361,9 +288,6 @@ export default function TestPanel() {
             message,
             setConversation,
             setInterviewState,
-            speakAiResponse,
-            isSpeechEnabled,
-            isSpeakerOn,
             position
           );
           break;
@@ -373,10 +297,7 @@ export default function TestPanel() {
             interviewState,
             setInterviewState,
             setConversation,
-            setInterviewing,
-            speakAiResponse,
-            isSpeechEnabled,
-            isSpeakerOn
+            setInterviewing
           );
           break;
         case 'completed':
@@ -388,7 +309,7 @@ export default function TestPanel() {
         'Sorry, an error occurred while ending the interview. Please try again.',
         true
       );
-      addMessageToConversation(setConversation, errorMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, errorMessage);
     } finally {
       setIsAiThinking(false);
     }
@@ -407,9 +328,6 @@ export default function TestPanel() {
     message: string,
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
-    speakAiResponse: (text: string) => void,
-    isSpeechEnabled: boolean,
-    isSpeakerOn: boolean,
     position: string
   ) => {
     const topics = await extractTopics(message);
@@ -418,7 +336,7 @@ export default function TestPanel() {
         'ai',
         `I noticed you didn't introduce yourself and your work experience. Could you briefly introduce yourself and your work experience in the field of ${position}?`
       );
-      addMessageToConversation(setConversation, clarificationMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, clarificationMessage);
       return;
     }
     const technicalKeywords = ['frontend', 'backend', 'fullstack', 'react', 'angular', 'vue', 'javascript', 'html', 'css', 'api', 'database', 'sql', 'python', 'java', 'c++', 'c#', 'devops', 'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'mobile', 'ios', 'android', 'qa', 'testing', 'ui/ux', 'next.js', 'tailwind css'];
@@ -428,13 +346,13 @@ export default function TestPanel() {
       return bIsTechnical - aIsTechnical;
     });
     const firstTopic = prioritizedTopics[0];
-    const questions = await generateQuestionsForTopic(firstTopic);
+    const questions = await generateQuestionsForTopic(firstTopic, level);
     if (!questions || questions.length === 0) {
       const noQuestionsMessage = createMessage(
         'ai',
         `Sorry, I'm having trouble creating detailed questions about the topic ${firstTopic}. Would you like to try introducing it again or focusing on other skills?`
       );
-      addMessageToConversation(setConversation, noQuestionsMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, noQuestionsMessage);
       return;
     }
     setInterviewState({
@@ -449,7 +367,7 @@ export default function TestPanel() {
       'ai',
       `Thank you for introducing yourself and your work experience! Now let's start with professional questions.\n\n${questions[0]}`
     );
-    addMessageToConversation(setConversation, thankMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+    addMessageToConversation(setConversation, thankMessage);
   };
 
   const handleInterviewingPhase = async (
@@ -457,10 +375,7 @@ export default function TestPanel() {
     interviewState: InterviewState,
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
-    setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
-    speakAiResponse: (text: string) => void,
-    isSpeechEnabled: boolean,
-    isSpeakerOn: boolean
+    setInterviewing: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
     // FIX: Always evaluate answer against the last question sent
     const lastQuestionIndex = interviewState.currentQuestionIndex;
@@ -471,8 +386,8 @@ export default function TestPanel() {
         'Sorry, an error occurred while processing the current question. Let\'s try switching to a different topic.',
         true
       );
-      addMessageToConversation(setConversation, errorMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
-      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, errorMessage);
+      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing);
       return;
     }
     const evaluation = await evaluateAnswer(currentQuestion, message, getHistorySummary());
@@ -499,8 +414,8 @@ export default function TestPanel() {
         'Sorry, an error occurred while evaluating your answer. Let\'s try switching to the next question.',
         true
       );
-      addMessageToConversation(setConversation, errorMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
-      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, errorMessage);
+      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing);
       return;
     }
     // --- Markdown formatting improvement ---
@@ -526,10 +441,10 @@ export default function TestPanel() {
     // Nếu vẫn muốn AI hỏi tiếp, chỉ add câu hỏi tiếp theo vào chat
     if (nextQuestion) {
       const nextQuestionMessage = createMessage('ai', nextQuestion);
-      addMessageToConversation(setConversation, nextQuestionMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, nextQuestionMessage);
     }
     if (evaluation.isComplete && (!evaluation.followUpQuestions || evaluation.followUpQuestions.length === 0)) {
-      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing);
     }
   };
 
@@ -538,43 +453,37 @@ export default function TestPanel() {
     interviewState: InterviewState,
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
-    setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
-    speakAiResponse: (text: string) => void,
-    isSpeechEnabled: boolean,
-    isSpeakerOn: boolean
+    setInterviewing: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
     const nextQuestionIndex = interviewState.currentQuestionIndex + 1;
     if (nextQuestionIndex < interviewState.questions.length) {
       const nextQuestion = createMessage('ai', interviewState.questions[nextQuestionIndex]);
-      addMessageToConversation(setConversation, nextQuestion, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, nextQuestion);
       setInterviewState((prev: InterviewState) => ({
         ...prev,
         currentQuestionIndex: nextQuestionIndex
       }));
       return;
     }
-    await handleTopicTransition(interviewState, setInterviewState, setConversation, setInterviewing, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+    await handleTopicTransition(interviewState, setInterviewState, setConversation, setInterviewing);
   };
 
   const handleTopicTransition = async (
     interviewState: InterviewState,
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
-    setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
-    speakAiResponse: (text: string) => void,
-    isSpeechEnabled: boolean,
-    isSpeakerOn: boolean
+    setInterviewing: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
     const nextTopicIndex = interviewState.currentTopicIndex + 1;
     if (nextTopicIndex < interviewState.topics.length) {
       const nextTopic = interviewState.topics[nextTopicIndex];
-      const nextTopicQuestions = await generateQuestionsForTopic(nextTopic);
+      const nextTopicQuestions = await generateQuestionsForTopic(nextTopic, level);
       if (!nextTopicQuestions || nextTopicQuestions.length === 0) {
         const noQuestionsMessage = createMessage(
           'ai',
           `Sorry, I'm having trouble creating detailed questions about the topic ${nextTopic}. We can switch to a different topic or end the interview.`
         );
-        addMessageToConversation(setConversation, noQuestionsMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+        addMessageToConversation(setConversation, noQuestionsMessage);
         const nextNextTopicIndex = nextTopicIndex + 1;
         if (nextNextTopicIndex < interviewState.topics.length) {
           setInterviewState((prev: InterviewState) => ({
@@ -584,7 +493,7 @@ export default function TestPanel() {
             currentQuestionIndex: 0
           }));
         } else {
-          await endInterview(setInterviewState, setInterviewing, setConversation, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+          await endInterview(setInterviewState, setInterviewing, setConversation);
         }
         return;
       }
@@ -595,19 +504,16 @@ export default function TestPanel() {
         currentQuestionIndex: 0
       }));
       const nextQuestion = createMessage('ai', nextTopicQuestions[0]);
-      addMessageToConversation(setConversation, nextQuestion, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+      addMessageToConversation(setConversation, nextQuestion);
       return;
     }
-    await endInterview(setInterviewState, setInterviewing, setConversation, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+    await endInterview(setInterviewState, setInterviewing, setConversation);
   };
 
   const endInterview = async (
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
     setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
-    setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
-    speakAiResponse: (text: string) => void,
-    isSpeechEnabled: boolean,
-    isSpeakerOn: boolean
+    setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>
   ) => {
     console.log('[DEBUG] endInterview called');
     setInterviewState((prev: InterviewState) => ({
@@ -618,7 +524,7 @@ export default function TestPanel() {
       'ai',
       'Thank you for participating in the interview. We will summarize the results now.'
     );
-    addMessageToConversation(setConversation, endingMessage, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+    addMessageToConversation(setConversation, endingMessage);
     setInterviewing(false);
     setShowResult(true);
 
@@ -711,23 +617,21 @@ export default function TestPanel() {
 
   const addMessageToConversation = (
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
-    message: ConversationMessage,
-    speakAiResponse: (text: string) => void,
-    isSpeechEnabled: boolean,
-    isSpeakerOn: boolean
+    message: ConversationMessage
   ) => {
     setConversation(prev => [...prev, message]);
-    if (isSpeechEnabled && isSpeakerOn && message.sender === 'ai') {
-      speakAiResponse(message.text);
-    }
   };
 
-  const onEndInterview = async () => {
-    console.log('[DEBUG] onEndInterview called');
-    await endInterview(setInterviewState, setInterviewing, setConversation, speakAiResponse, isSpeechEnabled, isSpeakerOn);
+  // BỔ SUNG hàm addHistoryStage để tránh lỗi khi gọi trong handleInterviewingPhase
+  const addHistoryStage = (stage: HistoryStage) => {
+    setHistory(prev => [...prev, stage]);
   };
 
-  // Timer component cho phỏng vấn
+  // Thêm hàm mới để kết thúc phỏng vấn sớm và chuyển sang màn result
+  const handleEndInterviewEarly = () => {
+    setShowResult(true);
+    setInterviewing(false);
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -751,41 +655,28 @@ export default function TestPanel() {
               category={category}
               position={position}
               level={level}
-              language={language}
               duration={duration}
               setCategory={setCategory}
               setPosition={setPosition}
               setLevel={setLevel}
-              setLanguage={setLanguage}
               setDuration={setDuration}
-              setIsSpeechEnabled={setIsSpeechEnabled}
-              isSpeechEnabled={isSpeechEnabled}
               startInterview={startInterview}
               CATEGORY_ROLE_OPTIONS={CATEGORY_ROLE_OPTIONS}
-              LANGUAGES={LANGUAGES}
               levelOptions={levelOptions}
             />
           ) : (            <InterviewScreen
               position={position}
-              isSpeechEnabled={isSpeechEnabled}
-              voiceLanguage={voiceLanguage as 'vi-VN' | 'en-US'}
-              isListening={isListening}
-              isSpeakerOn={isSpeakerOn}
-              isAiSpeaking={isAiSpeaking}
               conversation={conversation.map(msg => ({
                 role: msg.sender,
                 content: msg.text
               }))}
               message={message}
               isAiThinking={isAiThinking}
-              onToggleLanguage={() => setVoiceLanguage(prev => prev === 'vi-VN' ? 'en-US' : 'vi-VN')}
-              onToggleSpeechRecognition={toggleSpeechRecognition}
-              onToggleSpeaker={toggleSpeaker}
-              onSpeechToggle={() => setIsSpeechEnabled(prev => !prev)}
-              onMessageChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessage(e.target.value)}
               onSendMessage={handleSendMessage}
-              messageListRef={messageListRef}              duration={duration}
-              onEndInterview={onEndInterview}
+              onMessageChange={(e) => setMessage(e.target.value)}
+              onEndInterview={handleEndInterviewEarly}
+              messageListRef={messageListRef}
+              duration={duration}
               realTimeScores={{
                 fundamental: realTimeScores.fundamental,
                 logic: realTimeScores.logic,
