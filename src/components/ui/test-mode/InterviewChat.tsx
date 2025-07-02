@@ -90,6 +90,21 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
     (msg) => !(msg.sender === 'ai' && msg.text && msg.text.includes('**Đánh giá câu trả lời:**'))
   );
 
+  React.useEffect(() => {
+    if (secondsLeft === 0 && onEndInterview) {
+      onEndInterview();
+    }
+  }, [secondsLeft, onEndInterview]);
+
+  // Timer color logic
+  const percentLeft = secondsLeft / (duration * 60);
+  let timerColor = 'text-green-600';
+  if (percentLeft <= 0.33) {
+    timerColor = 'text-red-600';
+  } else if (percentLeft <= 0.66) {
+    timerColor = 'text-yellow-500';
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Cột trái: Chat + header + timer */}
@@ -98,7 +113,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           <h2 className="text-2xl font-bold mb-1">Interview in Progress</h2>
           <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
             <Badge variant="outline">{position}</Badge>
-            <span className="inline-flex items-center gap-1"><svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="2"/><path d="M12 6v6l4 2" stroke="#888" strokeWidth="2" strokeLinecap="round"/></svg> {timer}</span>
+            <span className={`inline-flex items-center gap-1 font-mono text-lg ${timerColor}`}><svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="2"/><path d="M12 6v6l4 2" stroke="#888" strokeWidth="2" strokeLinecap="round"/></svg> {timer}</span>
           </div>
         </div>
         <Card className="flex-1 flex flex-col">
@@ -140,7 +155,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
             <div className="space-y-2">
               {latestEvaluation.text.split('\n').map((line, idx) => {
                 if (line.trim().startsWith('- **Strengths:**')) {
-                  return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-green-600"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#bbf7d0'/><path d='M6 10.5l2.5 2.5L14 8' stroke='#059669' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'/></svg></span><span className="font-semibold text-green-700">Strengths</span></div>;
+                  return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-green-600"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#bbf7d0'/><path d='M6 10.5l2 2L14 8' stroke='#059669' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'/></svg></span><span className="font-semibold text-green-700">Strengths</span></div>;
                 }
                 if (line.trim().startsWith('- **Areas for Improvement:**')) {
                   return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-orange-500"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#fef3c7'/><path d='M10 6v4' stroke='#ea580c' strokeWidth='2' strokeLinecap='round'/><circle cx='10' cy='14' r='1' fill='#ea580c'/></svg></span><span className="font-semibold text-orange-700">Areas for Improvement</span></div>;

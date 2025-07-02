@@ -273,6 +273,7 @@ export default function TestPanel() {
     });
     setConversation([]);
     setMessage('');
+    setLastFeedback(null); // Reset AI feedback khi bắt đầu phiên mới
   };
 
   const handleSendMessage = async () => {

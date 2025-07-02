@@ -36,9 +36,9 @@ interface ResultsSummaryProps {
 
 export function ResultsSummary({ results, realTimeScores, onReset }: Omit<ResultsSummaryProps, 'settings'>) {
   const categoryList = [
-    { key: 'fundamental', label: 'Kiến thức nền tảng', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
-    { key: 'logic', label: 'Tư duy logic', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
-    { key: 'language', label: 'Trình độ ngôn ngữ', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
+    { key: 'fundamental', label: 'Fundamental Knowledge', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
+    { key: 'logic', label: 'Logical Reasoning', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
+    { key: 'language', label: 'Language Proficiency', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
   ];
 
   // Nếu có realTimeScores thì dùng luôn, không tính lại từ messages
@@ -58,6 +58,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
     ? realTimeScores.suggestions
     : { fundamental: '', logic: '', language: '' };
 
+  // Fix: overall should be out of 100, not 1000
   const overall = Math.round(((scores.fundamental + scores.logic + scores.language) / 3) * 100);
 
   // Chuẩn hóa dữ liệu cho biểu đồ
@@ -74,15 +75,15 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
       };
 
   const radarChartData = [
-    { subject: 'Kiến thức nền tảng', A: chartScores.fundamental, fullMark: 100 },
-    { subject: 'Tư duy logic', A: chartScores.logic, fullMark: 100 },
-    { subject: 'Trình độ ngôn ngữ', A: chartScores.language, fullMark: 100 },
+    { subject: 'Fundamental Knowledge', A: chartScores.fundamental, fullMark: 100 },
+    { subject: 'Logical Reasoning', A: chartScores.logic, fullMark: 100 },
+    { subject: 'Language Proficiency', A: chartScores.language, fullMark: 100 },
   ];
 
   const barChartData = [
-    { name: 'Kiến thức nền tảng', score: chartScores.fundamental },
-    { name: 'Tư duy logic', score: chartScores.logic },
-    { name: 'Trình độ ngôn ngữ', score: chartScores.language },
+    { name: 'Fundamental Knowledge', score: chartScores.fundamental },
+    { name: 'Logical Reasoning', score: chartScores.logic },
+    { name: 'Language Proficiency', score: chartScores.language },
   ];
 
   return (
@@ -90,7 +91,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-2xl">Kết quả phỏng vấn</CardTitle>
+            <CardTitle className="text-2xl">Interview Result</CardTitle>
             <CardDescription>
               {new Date(results.timestamp).toLocaleString()} • {results.position} ({results.level})
             </CardDescription>
@@ -123,7 +124,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
               {categoryList.map(cat => (
                 <li key={cat.key} className="flex flex-col gap-1">
                   <span className="font-semibold">{cat.label}:</span>
-                  <span>{suggestions[cat.key] || 'Không có gợi ý.'}</span>
+                  <span>{suggestions[cat.key] || 'No suggestion.'}</span>
                 </li>
               ))}
             </ul>
@@ -170,10 +171,10 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
         <div className="flex justify-end">
           <Button variant="outline" onClick={onReset} className="flex items-center gap-2">
             <RotateCcw className="w-4 h-4" />
-            Luyện tập lại
+            Practice again
           </Button>
         </div>
       </CardContent>
     </Card>
   );
-} 
+}
