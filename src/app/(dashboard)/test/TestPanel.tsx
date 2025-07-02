@@ -9,7 +9,6 @@ import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/serv
 import StartScreen from './StartScreen';
 import InterviewScreen from './InterviewScreen';
 import ResultScreen from './ResultScreen';
-import { Alert } from '@mui/material';
 
 const CATEGORY_ROLE_OPTIONS = [
   {
@@ -125,10 +124,6 @@ const CATEGORY_ROLE_OPTIONS = [
 ];
 
 const levelOptions = ['Junior', 'Mid-level', 'Senior', 'Lead'];
-const LANGUAGES = [
-  { key: 'vi', value: 'vi-VN', label: 'Tiếng Việt' },
-  { key: 'en', value: 'en-US', label: 'English' }
-];
 
 export interface ConversationMessage {
   id: string | number;
@@ -653,35 +648,6 @@ export default function TestPanel() {
   // BỔ SUNG hàm addHistoryStage để tránh lỗi khi gọi trong handleInterviewingPhase
   const addHistoryStage = (stage: HistoryStage) => {
     setHistory(prev => [...prev, stage]);
-  };
-
-  // Thêm hàm mới để kết thúc phỏng vấn sớm và chuyển sang màn result
-  const handleEndInterviewEarly = async () => {
-    let totalTime = null;
-    if (interviewStartTime) {
-      const diffMs = Date.now() - interviewStartTime;
-      totalTime = Math.ceil(diffMs / 60000);
-    }
-    try {
-      console.log('Calling API to save result');
-      const response = await fetch('/api/test-mode/test-panel-result', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          duration,
-          position,
-          level,
-          history,
-          realTimeScores,
-          totalTime,
-        })
-      });
-      console.log('API response:', response);
-    } catch (error) {
-      console.error('Error saving interview result:', error);
-    }
-    setShowResult(true);
-    setInterviewing(false);
   };
 
   // Callback nhận thời gian còn lại từ InterviewScreen/InterviewChat
