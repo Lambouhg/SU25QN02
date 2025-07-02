@@ -119,6 +119,21 @@ export const evaluateAnswer = async (question: string, answer: string, historySu
     ];
     const response = await callOpenAI(messages);
     const evaluation = JSON.parse(response.choices[0].message.content.trim());
+    // Detect irrelevant answer: if answer is too short, or scores are very low, or missingPoints covers all main points
+    let isRelevant = true;
+    if (
+      typeof answer === 'string' && answer.trim().length < 10
+    ) {
+      isRelevant = false;
+    } else if (
+      evaluation.scores &&
+      evaluation.scores.fundamental < 3 &&
+      evaluation.scores.logic < 3 &&
+      evaluation.scores.language < 3 &&
+      (evaluation.missingPoints?.length ?? 0) > 0
+    ) {
+      isRelevant = false;
+    }
     return {
       isComplete: evaluation.isComplete || false,
       scores: evaluation.scores || {
@@ -136,7 +151,8 @@ export const evaluateAnswer = async (question: string, answer: string, historySu
       missingPoints: evaluation.missingPoints || [],
       feedback: evaluation.feedback || "No detailed feedback",
       suggestedImprovements: evaluation.suggestedImprovements || [],
-      followUpQuestions: evaluation.followUpQuestions || []
+      followUpQuestions: evaluation.followUpQuestions || [],
+      isRelevant // Thêm trường này để TestPanel.tsx sử dụng
     };
   } catch (error) {
     console.error('Error evaluating answer:', error);

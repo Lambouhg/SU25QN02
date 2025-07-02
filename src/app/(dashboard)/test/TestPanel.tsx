@@ -400,6 +400,16 @@ export default function TestPanel() {
         suggestions: evaluation.suggestions || realTimeScores.suggestions
       });
     }
+    // Nếu câu trả lời không liên quan, hỏi lại câu hỏi hiện tại với lời nhắc thân thiện
+    if (evaluation && evaluation.isRelevant === false) {
+      const friendlyReminder = createMessage(
+        'ai',
+        `It seems your answer didn't address the question. No worries! Could you please try answering again?\n\n${currentQuestion}`
+      );
+      addMessageToConversation(setConversation, friendlyReminder);
+      setLastFeedback("Let's try to answer the question above as clearly as you can!");
+      return;
+    }
     // Lưu vào history
     addHistoryStage({
       question: currentQuestion,
