@@ -20,6 +20,7 @@ interface ResultsSummaryProps {
     };
     messages: unknown[];
     timestamp: string;
+    totalTime?: number; // Thêm trường totalTime ở đây
   };
   realTimeScores?: {
     fundamental: number;
@@ -86,6 +87,22 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
     { name: 'Language Proficiency', score: chartScores.language },
   ];
 
+  // Hàm tạo nhận xét tổng quan
+  function getOverallSummary(scores: Record<string, number>) {
+    const f = scores.fundamental * 100;
+    const l = scores.logic * 100;
+    const lang = scores.language * 100;
+    if (f >= 80 && l >= 80 && lang >= 80) return 'Excellent performance in all areas. You are well-prepared for interviews!';
+    if (f < 50 && l < 50 && lang < 50) return 'You need to improve in all areas. Focus on fundamental knowledge, logical reasoning, and language proficiency.';
+    if (f < 60 && l >= 70 && lang >= 70) return 'Your logic and language are strong, but you should review fundamental knowledge.';
+    if (l < 60 && f >= 70 && lang >= 70) return 'Your fundamental knowledge and language are good, but logical reasoning needs improvement.';
+    if (lang < 60 && f >= 70 && l >= 70) return 'Your fundamental knowledge and logic are good, but language proficiency needs improvement.';
+    if (f < 60) return 'You should focus on improving your fundamental knowledge.';
+    if (l < 60) return 'You should focus on improving your logical reasoning.';
+    if (lang < 60) return 'You should focus on improving your language proficiency.';
+    return 'Good effort! Keep practicing to improve further.';
+  }
+
   return (
     <Card className="w-full max-w-4xl mx-auto mt-10">
       <CardHeader>
@@ -94,6 +111,9 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
             <CardTitle className="text-2xl">Interview Result</CardTitle>
             <CardDescription>
               {new Date(results.timestamp).toLocaleString()} • {results.position} ({results.level})
+              {typeof results.totalTime === 'number' && results.totalTime > 0 && (
+                <span className="ml-2 text-green-700 font-semibold">• Total time spent: {results.totalTime} minute{results.totalTime > 1 ? 's' : ''}</span>
+              )}
             </CardDescription>
           </div>
           <Badge variant="outline" className="text-lg px-3 py-1">
@@ -109,7 +129,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
                 {cat.icon}
                 <h3 className="font-medium">{cat.label}</h3>
                 <div className="text-3xl font-bold mt-2">
-                  {Math.round((scores[cat.key] || 0) * 100)}%
+                  {Math.round(scores[cat.key] * 100)}%
                 </div>
               </CardContent>
             </Card>
@@ -120,6 +140,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
             <CardTitle>Feedback & Recommendations</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-3 font-semibold text-blue-700">{getOverallSummary(scores)}</div>
             <ul className="space-y-2">
               {categoryList.map(cat => (
                 <li key={cat.key} className="flex flex-col gap-1">

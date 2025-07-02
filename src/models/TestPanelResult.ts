@@ -36,6 +36,7 @@ export interface TestPanelResultDocument extends Document {
   position: string;
   level: string;
   duration: number;
+  totalTime?: number;
   history: QAHistory[];
   realTimeScores: RealTimeScores;
   createdAt: Date;
@@ -46,6 +47,7 @@ const TestPanelResultSchema = new Schema<TestPanelResultDocument>({
   position: { type: String, required: true },
   level: { type: String, required: true },
   duration: { type: Number, required: true },
+  totalTime: { type: Number }, // tổng thời gian làm bài (phút)
   history: { type: [Object], required: true },
   realTimeScores: {
     fundamental: { type: Number, required: true },

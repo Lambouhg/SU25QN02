@@ -228,6 +228,12 @@ export default function TestPanel() {
   // Thêm state lưu feedback cuối cùng
   const [lastFeedback, setLastFeedback] = useState<string | null>(null);
 
+  // Thời gian bắt đầu interview
+  const [interviewStartTime, setInterviewStartTime] = useState<number | null>(null);
+
+  // Thêm state lưu thời gian còn lại
+  const [remainingTime, setRemainingTime] = useState<number>(duration);
+
   useEffect(() => {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
@@ -274,6 +280,7 @@ export default function TestPanel() {
     setConversation([]);
     setMessage('');
     setLastFeedback(null); // Reset AI feedback khi bắt đầu phiên mới
+    setInterviewStartTime(Date.now()); // Lưu thời điểm bắt đầu
   };
 
   const handleSendMessage = async () => {
@@ -539,6 +546,13 @@ export default function TestPanel() {
     setInterviewing(false);
     setShowResult(true);
 
+    // Tính tổng thời gian làm bài (làm tròn lên phút)
+    let totalTime = null;
+    if (interviewStartTime) {
+      const diffMs = Date.now() - interviewStartTime;
+      totalTime = Math.ceil(diffMs / 60000); // làm tròn lên phút
+    }
+
     // Gọi API lưu kết quả xuống DB
     try {
       console.log('Calling API to save result');
@@ -551,6 +565,7 @@ export default function TestPanel() {
           level,
           history,
           realTimeScores,
+          totalTime,
         })
       });
       console.log('API response:', response);
@@ -642,6 +657,11 @@ export default function TestPanel() {
 
   // Thêm hàm mới để kết thúc phỏng vấn sớm và chuyển sang màn result
   const handleEndInterviewEarly = async () => {
+    let totalTime = null;
+    if (interviewStartTime) {
+      const diffMs = Date.now() - interviewStartTime;
+      totalTime = Math.ceil(diffMs / 60000);
+    }
     try {
       console.log('Calling API to save result');
       const response = await fetch('/api/test-mode/test-panel-result', {
@@ -653,9 +673,35 @@ export default function TestPanel() {
           level,
           history,
           realTimeScores,
+          totalTime,
         })
       });
       console.log('API response:', response);
+    } catch (error) {
+      console.error('Error saving interview result:', error);
+    }
+    setShowResult(true);
+    setInterviewing(false);
+  };
+
+  // Callback nhận thời gian còn lại từ InterviewScreen/InterviewChat
+  const handleEndInterviewWithTime = (minutesLeft: number) => {
+    setRemainingTime(minutesLeft);
+    const totalTime = Math.ceil(duration - minutesLeft);
+    // Lưu kết quả
+    try {
+      fetch('/api/test-mode/test-panel-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          duration,
+          position,
+          level,
+          history,
+          realTimeScores,
+          totalTime,
+        })
+      });
     } catch (error) {
       console.error('Error saving interview result:', error);
     }
@@ -676,6 +722,7 @@ export default function TestPanel() {
                 scores: calculateFinalScores(),
                 messages: conversation,
                 timestamp: new Date().toISOString(),
+                totalTime: Math.ceil(duration - remainingTime),
               }}
               realTimeScores={realTimeScores}
               onReset={handleReset}
@@ -694,7 +741,8 @@ export default function TestPanel() {
               CATEGORY_ROLE_OPTIONS={CATEGORY_ROLE_OPTIONS}
               levelOptions={levelOptions}
             />
-          ) : (            <InterviewScreen
+          ) : (
+            <InterviewScreen
               position={position}
               conversation={conversation.map(msg => ({
                 role: msg.sender,
@@ -704,7 +752,7 @@ export default function TestPanel() {
               isAiThinking={isAiThinking}
               onSendMessage={handleSendMessage}
               onMessageChange={(e) => setMessage(e.target.value)}
-              onEndInterview={handleEndInterviewEarly}
+              onEndInterview={handleEndInterviewWithTime}
               messageListRef={messageListRef}
               duration={duration}
               realTimeScores={{

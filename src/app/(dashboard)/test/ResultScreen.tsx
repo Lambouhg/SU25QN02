@@ -14,6 +14,7 @@ interface ResultScreenProps {
     };
     messages: unknown[];
     timestamp: string;
+    totalTime?: number;
   };
   realTimeScores: {
     fundamental: number;
@@ -34,4 +35,4 @@ const ResultScreen: React.FC<ResultScreenProps> = ({ results, realTimeScores, on
   );
 };
 
-export default ResultScreen; 
+export default ResultScreen;

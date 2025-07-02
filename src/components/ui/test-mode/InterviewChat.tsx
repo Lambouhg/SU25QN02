@@ -20,7 +20,7 @@ interface InterviewChatProps {
   onMessageChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSendMessage: () => void;
   messageListRef: React.RefObject<HTMLDivElement | null>;
-  onEndInterview?: () => void;
+  onEndInterview?: (timeLeft: number) => void;
   duration: number;
   realTimeScores: {
     fundamental: number;
@@ -92,7 +92,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
 
   React.useEffect(() => {
     if (secondsLeft === 0 && onEndInterview) {
-      onEndInterview();
+      onEndInterview(0);
     }
   }, [secondsLeft, onEndInterview]);
 
@@ -216,7 +216,12 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
               <Progress value={scores.language * 10} />
               <div className="text-xs text-muted-foreground">{scores.suggestions.language || 'Needs improvement'}</div>
             </div>
-            <Button variant="outline" className="w-full mt-4" onClick={onEndInterview}>End Interview Early</Button>
+            <Button variant="outline" className="w-full mt-4" onClick={() => {
+  if (onEndInterview) {
+    const minutesLeft = secondsLeft / 60;
+    onEndInterview(minutesLeft);
+  }
+}}>End Interview Early</Button>
           </CardContent>
         </Card>
       </div>
