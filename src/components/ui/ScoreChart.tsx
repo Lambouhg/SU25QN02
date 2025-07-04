@@ -14,10 +14,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
-  Cell,
-  PieChart,
-  Pie
+  Cell
 } from 'recharts';
 
 export interface DetailedScores {
@@ -75,11 +72,6 @@ const ScoreChart: React.FC<ScoreChartProps> = ({
     advanced: '#EF4444'
   };
 
-  // Readiness pie chart data
-  const readinessData = [
-    { name: 'Ready', value: readinessScore, fill: '#22C55E' },
-    { name: 'Not Ready', value: 100 - readinessScore, fill: '#E5E7EB' }
-  ];
 
   return (
     <div className={`bg-white rounded-xl shadow-lg border border-gray-200 p-6 ${className}`}>
