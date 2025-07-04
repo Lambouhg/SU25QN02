@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, firstName, lastName, clerkId } = body;
+    const { email, firstName, lastName, clerkId, avatar } = body;
     
 
     if (!email || !clerkId) {
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
       // Cập nhật thông tin nếu có thay đổi
       if (firstName) existingUserByClerkId.firstName = firstName;
       if (lastName) existingUserByClerkId.lastName = lastName;
+      if (avatar) existingUserByClerkId.avatar = avatar;
       await existingUserByClerkId.save();
       
       return NextResponse.json({ 
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
       existingUserByEmail.lastLogin = new Date();
       if (firstName) existingUserByEmail.firstName = firstName;
       if (lastName) existingUserByEmail.lastName = lastName;
+      if (avatar) existingUserByEmail.avatar = avatar;
       await existingUserByEmail.save();
       
       return NextResponse.json({
@@ -81,6 +83,7 @@ export async function POST(request: Request) {
       firstName,
       lastName,
       clerkId,
+      avatar: avatar || '',
       lastLogin: new Date(),
     });
 

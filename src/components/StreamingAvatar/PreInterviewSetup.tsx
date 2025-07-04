@@ -119,36 +119,33 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   return (
     <div className="min-h-screen  py-8 px-4">
       <div className="max-w-1xl mx-auto">
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Thiết lập phỏng vấn</h2>
-          <p className="text-gray-600 text-sm">Tùy chỉnh phiên phỏng vấn theo nhu cầu của bạn</p>
-        </div>
+       
 
         <div className="space-y-8">
           {/* Avatar Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-4">Chọn Avatar</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Avatar</label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {AVATARS.map((avatar) => (
                 <div
                   key={avatar.avatar_id}
-                  className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all duration-200 bg-white ${
+                  className={`relative cursor-pointer rounded-lg border-2 p-3 transition-all duration-200 bg-white ${
                     config.avatarName === avatar.avatar_id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => handleConfigChange('avatarName', avatar.avatar_id)}
                 >
-                  <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                  <div className="aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
                     {/* Avatar placeholder - you can replace with actual avatar images */}
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                      <span className="text-2xl text-gray-400">👤</span>
+                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                      <span className="text-lg text-gray-400">👤</span>
                     </div>
                   </div>
-                  <p className="text-center text-sm font-medium text-gray-900">{avatar.name}</p>
+                  <p className="text-center text-xs font-medium text-gray-900 truncate">{avatar.name}</p>
                   {config.avatarName === avatar.avatar_id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>

@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import UserSync from "@/components/UserSync";
 import { UserSyncProvider } from "@/context/UserSyncContext";
+import { RoleProvider } from "@/context/RoleContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,12 +29,14 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <UserSyncProvider>
-        <html lang="en" className="h-full">
-          <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}>
-            {children}
-            <UserSync />
-          </body>
-        </html>
+        <RoleProvider>
+          <html lang="en" className="h-full">
+            <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}>
+              {children}
+              <UserSync />
+            </body>
+          </html>
+        </RoleProvider>
       </UserSyncProvider>
     </ClerkProvider>
   );

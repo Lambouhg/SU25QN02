@@ -3,10 +3,12 @@
 import { useUser } from "@clerk/nextjs";
 import { useEffect, useRef } from "react";
 import { useUserSync } from "@/context/UserSyncContext";
+import { useRole } from "@/context/RoleContext";
 
 export default function UserSync() {
   const { user, isLoaded } = useUser();
   const { syncedUserIds, markUserSynced } = useUserSync();
+  const { refreshRole } = useRole();
   const syncInProgress = useRef<Set<string>>(new Set()); // Để track sync đang chạy
 
   useEffect(() => {
@@ -15,6 +17,7 @@ export default function UserSync() {
       firstName: string;
       lastName: string;
       clerkId: string;
+      avatar: string;
     }) => {
       try {
         const response = await fetch("/api/user", {
@@ -30,22 +33,16 @@ export default function UserSync() {
           console.error("Error details:", errorData);
         } else {
           const result = await response.json();
+          console.log("✅ User sync completed:", result.action);
+          
           // Đánh dấu user này đã được sync bất kể action nào
           markUserSynced(userData.clerkId);
-          // Log thông tin dựa trên action
-          switch (result.action) {
-            case "signup":
-              console.log("✅ New user created and synced");
-              break;
-            case "login":
-              console.log("✅ Existing user login recorded");
-              break;
-            case "link":
-              console.log("✅ Account linked successfully");
-              break;
-            default:
-              console.log("✅ User sync completed");
-          }
+          
+          // Refresh role sau khi sync để đảm bảo có role mới nhất
+          // Đặc biệt quan trọng cho admin users
+          setTimeout(() => {
+            refreshRole();
+          }, 500); // Small delay để đảm bảo DB đã commit
         }
       } catch (error) {
         console.error("Error saving user:", error);
@@ -62,8 +59,6 @@ export default function UserSync() {
       !syncedUserIds.has(user.id) &&
       !syncInProgress.current.has(user.id)
     ) {
-      console.log("=== UserSync: All conditions met, proceeding to sync ===");
-      console.log("UserSync: Detected new user, syncing to database...");
       // Đánh dấu đang sync để tránh duplicate
       syncInProgress.current.add(user.id);
       const userData = {
@@ -71,8 +66,8 @@ export default function UserSync() {
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         clerkId: user.id,
+        avatar: user.imageUrl || "",
       };
-      console.log("UserSync: userData to be synced:", userData);
       // Kiểm tra xem có email không trước khi lưu
       if (userData.email) {
         saveUserToDB(userData);
@@ -81,7 +76,7 @@ export default function UserSync() {
         syncInProgress.current.delete(user.id); // Remove from progress nếu skip
       }
     }
-  }, [user, isLoaded, syncedUserIds, markUserSynced]);
+  }, [user, isLoaded, syncedUserIds, markUserSynced, refreshRole]);
 
   // Component này không render gì, chỉ xử lý logic sync
   return null;
