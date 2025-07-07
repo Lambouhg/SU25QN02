@@ -31,7 +31,7 @@ export interface QAHistory {
   timestamp: string;
 }
 
-export interface TestPanelResultDocument extends Document {
+export interface TestDocument extends Document {
   userId?: string;
   position: string;
   level: string;
@@ -42,7 +42,7 @@ export interface TestPanelResultDocument extends Document {
   createdAt: Date;
 }
 
-const TestPanelResultSchema = new Schema<TestPanelResultDocument>({
+const TestSchema = new Schema<TestDocument>({
   userId: { type: String },
   position: { type: String, required: true },
   level: { type: String, required: true },
@@ -62,4 +62,4 @@ const TestPanelResultSchema = new Schema<TestPanelResultDocument>({
   createdAt: { type: Date, default: Date.now }
 });
 
-export default models.TestPanelResult || model<TestPanelResultDocument>('TestPanelResult', TestPanelResultSchema);
+export default models.Test || model<TestDocument>('Test', TestSchema);

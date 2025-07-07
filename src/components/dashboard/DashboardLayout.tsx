@@ -47,6 +47,7 @@ export default function DashboardLayout({
   
   // Function to check if a route is active
   const isActiveRoute = (href: string) => {
+    if (!pathname) return false;
     if (href === '/dashboard' && pathname === '/dashboard') return true;
     if (href !== '/dashboard' && pathname.startsWith(href)) return true;
     return false;
@@ -54,6 +55,7 @@ export default function DashboardLayout({
 
   // Function to check if any subroute is active
   const hasActiveSubItem = (subItems: { href: string }[]) => {
+    if (!pathname) return false;
     return subItems.some(subItem => pathname.startsWith(subItem.href));
   };
 
