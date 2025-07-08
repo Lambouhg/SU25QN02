@@ -26,7 +26,17 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      const validStages = history.filter((stage: any) => 
+      interface HistoryStage {
+        evaluation?: {
+          scores?: {
+            emotionalAwareness?: number;
+            conflictResolution?: number;
+            communication?: number;
+          };
+        };
+      }
+
+      const validStages = history.filter((stage: HistoryStage) => 
         stage.evaluation?.scores && 
         typeof stage.evaluation.scores.emotionalAwareness === 'number' &&
         typeof stage.evaluation.scores.conflictResolution === 'number' &&
@@ -42,10 +52,16 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      const totalScores = validStages.reduce((acc: any, stage: any) => ({
-        emotionalAwareness: acc.emotionalAwareness + stage.evaluation.scores.emotionalAwareness,
-        conflictResolution: acc.conflictResolution + stage.evaluation.scores.conflictResolution,
-        communication: acc.communication + stage.evaluation.scores.communication
+      interface ScoreAccumulator {
+        emotionalAwareness: number;
+        conflictResolution: number;
+        communication: number;
+      }
+
+      const totalScores = validStages.reduce((acc: ScoreAccumulator, stage: HistoryStage) => ({
+        emotionalAwareness: acc.emotionalAwareness + (stage.evaluation?.scores?.emotionalAwareness || 0),
+        conflictResolution: acc.conflictResolution + (stage.evaluation?.scores?.conflictResolution || 0),
+        communication: acc.communication + (stage.evaluation?.scores?.communication || 0)
       }), {
         emotionalAwareness: 0,
         conflictResolution: 0,

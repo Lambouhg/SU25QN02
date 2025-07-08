@@ -5,8 +5,17 @@ import User from "@/models/user";
 export async function GET() {
   try {
     await connectDB();
-    const users = await User.find();
-    return NextResponse.json(users);
+    
+    // Select specific fields including activity tracking fields
+    const users = await User.find().select(
+      'clerkId email firstName lastName fullName avatar role status lastLogin lastActivity lastSignInAt isOnline clerkSessionActive createdAt updatedAt'
+    ).sort({ lastActivity: -1, lastLogin: -1 }); // Sort by most recent activity
+    
+    return NextResponse.json({
+      success: true,
+      users: users,
+      totalCount: users.length
+    });
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json(
@@ -23,7 +32,6 @@ export async function POST(request: Request) {
     
 
     if (!email || !clerkId) {
-      console.log("Missing required fields:", { email: !!email, clerkId: !!clerkId });
       return NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 });
     }
     
@@ -52,16 +60,10 @@ export async function POST(request: Request) {
 
     // Kiểm tra xem email đã được sử dụng với clerkId khác
     const existingUserByEmail = await User.findOne({ email });
-    console.log("Email already exists:", existingUserByEmail ? existingUserByEmail._id : "not found");
     
     if (existingUserByEmail) {
-      console.log("Email conflict - email already registered with different clerkId");
-      console.log("Existing email clerkId:", existingUserByEmail.clerkId);
-      console.log("New clerkId:", clerkId);
-      
       // Có thể user đăng nhập bằng phương thức khác (OAuth vs email/password)
       // Trong trường hợp này, cập nhật clerkId mới nhất
-      console.log("Updating existing user with new clerkId (account linking)");
       existingUserByEmail.clerkId = clerkId;
       existingUserByEmail.lastLogin = new Date();
       if (firstName) existingUserByEmail.firstName = firstName;
@@ -77,7 +79,6 @@ export async function POST(request: Request) {
     }
 
     // Tạo user mới nếu không tồn tại
-    console.log("Creating new user...");
     const newUser = await User.create({
       email,
       firstName,
@@ -87,7 +88,6 @@ export async function POST(request: Request) {
       lastLogin: new Date(),
     });
 
-    console.log("New user created:", newUser._id);
     return NextResponse.json({ 
       message: "User created successfully", 
       user: newUser,

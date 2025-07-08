@@ -176,6 +176,22 @@ const userSchema = new mongoose.Schema({
   userActivityId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'UserActivity'
+  },
+  lastSignInAt: {
+    type: Date,
+    default: null
+  },
+  lastActivity: {
+    type: Date,
+    default: Date.now
+  },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  clerkSessionActive: {
+    type: Boolean,
+    default: false
   }
 });
 

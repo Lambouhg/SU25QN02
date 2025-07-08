@@ -16,7 +16,13 @@ interface ResultScreenEQProps {
       communication: number;
       overall: number;
     };
-    messages: any[];
+    messages: Array<{
+      id: string;
+      type: 'user' | 'ai';
+      text: string;
+      timestamp: Date;
+      isError?: boolean;
+    }>;
     timestamp: string;
     totalTime: number;
   };
@@ -221,7 +227,7 @@ export default function ResultScreenEQ({ results, realTimeScores, onReset }: Res
                 <MessageCircle className="h-5 w-5 text-gray-600" />
               </div>
               <div className="text-sm text-gray-600">Questions</div>
-              <div className="font-semibold text-gray-900">{results.messages.filter(m => m.sender === 'ai').length}</div>
+              <div className="font-semibold text-gray-900">{results.messages.filter(m => m.type === 'ai').length}</div>
             </div>
           </div>
         </CardContent>

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Users, MessageSquare, Brain, FileDown, TrendingUp, Award, Clock, Target, Plus, Edit2, Trash2 } from 'lucide-react';
-import DashboardLayout from '@/components/dashboard/AdminDashboardLayout';
 import AdminUserModal from '@/components/admin/AdminUserModal';
 import StatisticsChart from '@/components/admin/StatisticsChart';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
@@ -56,7 +55,9 @@ export default function AdminDashboard() {
     try {
       const response = await fetch('/api/user');
       if (response.ok) {
-        const users = await response.json();
+        const data = await response.json();
+        const users = data.users || [];
+        
         setMetrics(prev => ({
           ...prev,
           totalUsers: users.length
@@ -224,8 +225,7 @@ export default function AdminDashboard() {
 
   return (
     <AdminRouteGuard>
-      <DashboardLayout>
-        <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 p-6">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8 flex justify-between items-center">
@@ -465,17 +465,16 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* User Modal */}
-      <AdminUserModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveUser}
-        user={selectedUser}
-        mode={modalMode}
-      />
-    </DashboardLayout>
+        {/* User Modal */}
+        <AdminUserModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveUser}
+          user={selectedUser}
+          mode={modalMode}
+        />
+      </div>
     </AdminRouteGuard>
   );
 }

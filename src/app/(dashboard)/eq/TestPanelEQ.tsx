@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Brain, Award, BookOpen, Heart, Users, MessageCircle } from 'lucide-react';
+import { Heart, Users, MessageCircle } from 'lucide-react';
 import StartScreenEQ from './StartScreenEQ';
 import InterviewScreenEQ from './InterviewScreenEQ';
 import ResultScreenEQ from './ResultScreenEQ';
@@ -13,41 +13,141 @@ const EQ_SCENARIOS = [
 	{
 		category: "Workplace Relationships",
 		scenarios: [
-			"You notice a team member is upset after a meeting. How would you approach them?",
-			"Describe a time you had to resolve a conflict between colleagues.",
-			"How do you handle feedback that you disagree with?",
-			"A colleague takes credit for your work. How do you respond?",
-			"Your manager gives you negative feedback in front of the team. How do you handle it?"
+			{
+				id: 1,
+				title: "Team Member Support",
+				description: "You notice a team member is upset after a meeting. How would you approach them?",
+				difficulty: "Medium"
+			},
+			{
+				id: 2,
+				title: "Conflict Resolution",
+				description: "Describe a time you had to resolve a conflict between colleagues.",
+				difficulty: "Hard"
+			},
+			{
+				id: 3,
+				title: "Handling Feedback",
+				description: "How do you handle feedback that you disagree with?",
+				difficulty: "Medium"
+			},
+			{
+				id: 4,
+				title: "Credit Recognition",
+				description: "A colleague takes credit for your work. How do you respond?",
+				difficulty: "Hard"
+			},
+			{
+				id: 5,
+				title: "Public Criticism",
+				description: "Your manager gives you negative feedback in front of the team. How do you handle it?",
+				difficulty: "Hard"
+			}
 		]
 	},
 	{
 		category: "Stress Management",
 		scenarios: [
-			"You're overwhelmed with multiple deadlines. How do you manage the stress?",
-			"Describe a time when you had to work under extreme pressure.",
-			"How do you handle criticism from clients or stakeholders?",
-			"You make a mistake that affects the team. How do you handle it?",
-			"How do you maintain work-life balance during busy periods?"
+			{
+				id: 6,
+				title: "Multiple Deadlines",
+				description: "You're overwhelmed with multiple deadlines. How do you manage the stress?",
+				difficulty: "Medium"
+			},
+			{
+				id: 7,
+				title: "Extreme Pressure",
+				description: "Describe a time when you had to work under extreme pressure.",
+				difficulty: "Hard"
+			},
+			{
+				id: 8,
+				title: "Client Criticism",
+				description: "How do you handle criticism from clients or stakeholders?",
+				difficulty: "Medium"
+			},
+			{
+				id: 9,
+				title: "Mistake Management",
+				description: "You make a mistake that affects the team. How do you handle it?",
+				difficulty: "Hard"
+			},
+			{
+				id: 10,
+				title: "Work-Life Balance",
+				description: "How do you maintain work-life balance during busy periods?",
+				difficulty: "Medium"
+			}
 		]
 	},
 	{
 		category: "Leadership & Teamwork",
 		scenarios: [
-			"How do you motivate team members who are struggling?",
-			"Describe a time when you had to lead a difficult team member.",
-			"How do you handle disagreements with your supervisor?",
-			"You need to deliver bad news to your team. How do you approach it?",
-			"How do you build trust with new team members?"
+			{
+				id: 11,
+				title: "Team Motivation",
+				description: "How do you motivate team members who are struggling?",
+				difficulty: "Hard"
+			},
+			{
+				id: 12,
+				title: "Difficult Team Member",
+				description: "Describe a time when you had to lead a difficult team member.",
+				difficulty: "Hard"
+			},
+			{
+				id: 13,
+				title: "Supervisor Disagreement",
+				description: "How do you handle disagreements with your supervisor?",
+				difficulty: "Medium"
+			},
+			{
+				id: 14,
+				title: "Delivering Bad News",
+				description: "You need to deliver bad news to your team. How do you approach it?",
+				difficulty: "Hard"
+			},
+			{
+				id: 15,
+				title: "Building Trust",
+				description: "How do you build trust with new team members?",
+				difficulty: "Medium"
+			}
 		]
 	},
 	{
 		category: "Communication & Empathy",
 		scenarios: [
-			"How do you communicate with someone who has a different communication style?",
-			"Describe a time when you had to show empathy to a colleague.",
-			"How do you handle difficult conversations with clients?",
-			"You need to give constructive feedback. How do you approach it?",
-			"How do you handle cultural differences in the workplace?"
+			{
+				id: 16,
+				title: "Different Communication Styles",
+				description: "How do you communicate with someone who has a different communication style?",
+				difficulty: "Medium"
+			},
+			{
+				id: 17,
+				title: "Showing Empathy",
+				description: "Describe a time when you had to show empathy to a colleague.",
+				difficulty: "Medium"
+			},
+			{
+				id: 18,
+				title: "Difficult Client Conversations",
+				description: "How do you handle difficult conversations with clients?",
+				difficulty: "Hard"
+			},
+			{
+				id: 19,
+				title: "Constructive Feedback",
+				description: "You need to give constructive feedback. How do you approach it?",
+				difficulty: "Medium"
+			},
+			{
+				id: 20,
+				title: "Cultural Differences",
+				description: "How do you handle cultural differences in the workplace?",
+				difficulty: "Medium"
+			}
 		]
 	}
 ];
@@ -103,7 +203,12 @@ interface InterviewState {
 	phase: 'introduction' | 'interviewing' | 'completed';
 	categories: string[];
 	currentCategoryIndex: number;
-	scenarios: string[];
+	scenarios: Array<{
+		id: number;
+		title: string;
+		description: string;
+		difficulty: string;
+	}>;
 	currentScenarioIndex: number;
 }
 
@@ -200,7 +305,7 @@ export default function TestPanelEQ() {
 		try {
 			switch (interviewState.phase) {
 				case 'introduction':
-					await handleIntroductionPhase(message);
+					await handleIntroductionPhase();
 					break;
 				case 'interviewing':
 					await handleInterviewingPhase(message);
@@ -208,7 +313,7 @@ export default function TestPanelEQ() {
 				case 'completed':
 					break;
 			}
-		} catch (error) {
+		} catch {
 			const errorMessage = createMessage(
 				'ai',
 				'Sorry, an error occurred while processing your response. Please try again.',
@@ -220,7 +325,7 @@ export default function TestPanelEQ() {
 		}
 	};
 
-	const handleIntroductionPhase = async (message: string) => {
+	const handleIntroductionPhase = async () => {
 		// Simulate AI processing for introduction
 		const scenarios = EQ_SCENARIOS.find(cat => cat.category === selectedCategory)?.scenarios || [];
 		if (scenarios.length === 0) {
@@ -243,13 +348,13 @@ export default function TestPanelEQ() {
 
 		const thankMessage = createMessage(
 			'ai',
-			`Thank you for sharing your experience! Now let's explore some specific scenarios to better understand your EQ approach.\n\n${scenarios[0]}`
+			`Thank you for sharing your experience! Now let's explore some specific scenarios to better understand your EQ approach.\n\n${scenarios[0].description}`
 		);
 		addMessageToConversation(setConversation, thankMessage);
 	};
 
 	const handleInterviewingPhase = async (message: string) => {
-		const currentScenario = interviewState.scenarios[interviewState.currentScenarioIndex];
+		const currentScenario = interviewState.scenarios[interviewState.currentScenarioIndex].description;
 		if (!currentScenario) {
 			const errorMessage = createMessage(
 				'ai',
@@ -361,7 +466,7 @@ export default function TestPanelEQ() {
 	const handleScenarioTransition = async () => {
 		const nextScenarioIndex = interviewState.currentScenarioIndex + 1;
 		if (nextScenarioIndex < interviewState.scenarios.length) {
-			const nextScenario = createMessage('ai', interviewState.scenarios[nextScenarioIndex]);
+			const nextScenario = createMessage('ai', interviewState.scenarios[nextScenarioIndex].description);
 			addMessageToConversation(setConversation, nextScenario);
 			setInterviewState(prev => ({
 				...prev,
@@ -518,7 +623,13 @@ export default function TestPanelEQ() {
 								selectedCategory,
 								level,
 								scores: calculateFinalScores(),
-								messages: conversation,
+								messages: conversation.map(msg => ({
+									id: msg.id.toString(),
+									type: msg.sender,
+									text: msg.text,
+									timestamp: new Date(msg.timestamp || new Date().toISOString()),
+									isError: msg.isError
+								})),
 								timestamp: new Date().toISOString(),
 								totalTime: Math.ceil(duration - remainingTime),
 							}}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
@@ -13,6 +13,9 @@ import Image from 'next/image';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Toast from '@/components/ui/Toast';
 import { useRole } from '@/context/RoleContext';
+import { useClerkActivity } from '@/hooks/useClerkActivity';
+import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+
 
 export default function DashboardLayout({
   children
@@ -33,48 +36,14 @@ export default function DashboardLayout({
   const { signOut } = useClerk();
   const { isAdmin } = useRole();
   
-  // Function to confirm logout
-  const confirmLogout = async () => {
-    try {
-      setShowLogoutConfirm(false);
-      setToast({ show: true, message: 'Signing out...', type: 'info' });
-      await signOut();
-    } catch (error) {
-      console.error("Error signing out:", error);
-      setToast({ show: true, message: 'Sign out failed.', type: 'error' });
-    }
-  };
+  // Track user activity với Clerk
+  useClerkActivity();
   
-  // Function to check if a route is active
-  const isActiveRoute = (href: string) => {
-    if (!pathname) return false;
-    if (href === '/dashboard' && pathname === '/dashboard') return true;
-    if (href !== '/dashboard' && pathname.startsWith(href)) return true;
-    return false;
-  };
-
-  // Function to check if any subroute is active
-  const hasActiveSubItem = (subItems: { href: string }[]) => {
-    if (!pathname) return false;
-    return subItems.some(subItem => pathname.startsWith(subItem.href));
-  };
-
-  // Function to toggle expanded menus
-  const toggleMenu = (menuKey: string) => {
-    setExpandedMenus(prev => 
-      prev.includes(menuKey) 
-        ? prev.filter(key => key !== menuKey)
-        : [...prev, menuKey]
-    );
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase() || 'U';
-  };  const menuItems = [
+  // Listen for role invalidation signals
+  useRoleInvalidation();
+  
+  // Memoize menu items để tránh re-render không cần thiết
+  const menuItems = useMemo(() => [
     { 
       icon: Home, 
       label: 'Dashboard', 
@@ -123,7 +92,50 @@ export default function DashboardLayout({
       href: '/community',
       key: 'community'
     }
-  ];
+  ], []);
+
+  // Optimized logout function
+  const confirmLogout = useCallback(async () => {
+    try {
+      setShowLogoutConfirm(false);
+      setToast({ show: true, message: 'Signing out...', type: 'info' });
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+      setToast({ show: true, message: 'Sign out failed.', type: 'error' });
+    }
+  }, [signOut]);
+  
+  // Optimized route checking functions
+  const isActiveRoute = useCallback((href: string) => {
+    if (!pathname) return false;
+    if (href === '/dashboard' && pathname === '/dashboard') return true;
+    if (href !== '/dashboard' && pathname.startsWith(href)) return true;
+    return false;
+  }, [pathname]);
+
+  const hasActiveSubItem = useCallback((subItems: { href: string }[]) => {
+    if (!pathname) return false;
+    return subItems.some(subItem => pathname.startsWith(subItem.href));
+  }, [pathname]);
+
+  // Optimized menu toggle function
+  const toggleMenu = useCallback((menuKey: string) => {
+    setExpandedMenus(prev => 
+      prev.includes(menuKey) 
+        ? prev.filter(key => key !== menuKey)
+        : [...prev, menuKey]
+    );
+  }, []);
+
+  // Optimized initials function
+  const getInitials = useCallback((name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase() || 'U';
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -181,14 +193,16 @@ export default function DashboardLayout({
                 className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg"
               >
                 <LogOut className="w-4 h-4" />
-               
+                Sign Out
               </button>
               
               <UserButton afterSignOutUrl="/" />
             </div>
           </div>
         </div>
-      </nav>      {/* Mobile Overlay */}
+      </nav>
+
+      {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
           className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden" 
@@ -401,6 +415,7 @@ export default function DashboardLayout({
         onClose={() => setToast({ ...toast, show: false })}
         duration={3000}
       />
+      
     </div>
   );
 }

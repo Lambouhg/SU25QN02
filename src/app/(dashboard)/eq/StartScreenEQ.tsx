@@ -13,7 +13,15 @@ interface StartScreenEQProps {
   setLevel: (level: string) => void;
   setDuration: (duration: number) => void;
   startEQInterview: () => void;
-  EQ_SCENARIOS: any[];
+  EQ_SCENARIOS: Array<{
+    category: string;
+    scenarios: Array<{
+      id: number;
+      title: string;
+      description: string;
+      difficulty: string;
+    }>;
+  }>;
   levelOptions: string[];
 }
 

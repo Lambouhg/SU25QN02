@@ -12,6 +12,8 @@ import { UserButton, useUser, useClerk } from '@clerk/nextjs';
 import Image from 'next/image';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Toast from '@/components/ui/Toast';
+import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+import UserStatusDebug from '@/components/debug/UserStatusDebug';
 
 
 export default function AdminDashboardLayout({
@@ -31,6 +33,9 @@ export default function AdminDashboardLayout({
   const pathname = usePathname();
   const { user } = useUser();
   const { signOut } = useClerk();
+  
+  // Listen for role invalidation signals
+  useRoleInvalidation();
   
   // Function to confirm logout
   const confirmLogout = async () => {
@@ -92,6 +97,7 @@ export default function AdminDashboardLayout({
       key: 'management',
       subItems: [
         { label: 'All Users', href: '/admin/users' },
+        { label: 'User Activities', href: '/admin/user-activities' },
         { label: 'User Roles', href: '/admin/roles' },
         { label: 'User Activity', href: '/admin/activity' },
         { label: 'Permissions', href: '/admin/permissions' }
@@ -391,6 +397,9 @@ export default function AdminDashboardLayout({
         onClose={() => setToast({ ...toast, show: false })}
         duration={3000}
       />
+
+      {/* Debug Component - chỉ hiển thị trong development */}
+      <UserStatusDebug />
     </div>
   );
 }

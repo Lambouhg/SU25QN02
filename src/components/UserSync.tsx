@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser } from "@clerk/nextjs";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useUserSync } from "@/context/UserSyncContext";
 import { useRole } from "@/context/RoleContext";
 
@@ -9,75 +9,72 @@ export default function UserSync() {
   const { user, isLoaded } = useUser();
   const { syncedUserIds, markUserSynced } = useUserSync();
   const { refreshRole } = useRole();
-  const syncInProgress = useRef<Set<string>>(new Set()); // Để track sync đang chạy
+  const syncInProgress = useRef<Set<string>>(new Set());
+
+  // Memoize saveUserToDB function để tránh re-create
+  const saveUserToDB = useCallback(async (userData: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    clerkId: string;
+    avatar: string;
+  }) => {
+    try {
+      const response = await fetch("/api/user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await response.json();
+      
+      // Đánh dấu user đã sync
+      markUserSynced(userData.clerkId);
+      
+      // Refresh role sau khi sync (quan trọng cho admin users)
+      setTimeout(refreshRole, 300);
+      
+      return result;
+    } finally {
+      syncInProgress.current.delete(userData.clerkId);
+    }
+  }, [markUserSynced, refreshRole]);
 
   useEffect(() => {
-    const saveUserToDB = async (userData: {
-      email: string;
-      firstName: string;
-      lastName: string;
-      clerkId: string;
-      avatar: string;
-    }) => {
-      try {
-        const response = await fetch("/api/user", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(userData),
-        });
-        if (!response.ok) {
-          console.error("Failed to save user to database, status:", response.status);
-          const errorData = await response.text();
-          console.error("Error details:", errorData);
-        } else {
-          const result = await response.json();
-          console.log("✅ User sync completed:", result.action);
-          
-          // Đánh dấu user này đã được sync bất kể action nào
-          markUserSynced(userData.clerkId);
-          
-          // Refresh role sau khi sync để đảm bảo có role mới nhất
-          // Đặc biệt quan trọng cho admin users
-          setTimeout(() => {
-            refreshRole();
-          }, 500); // Small delay để đảm bảo DB đã commit
-        }
-      } catch (error) {
-        console.error("Error saving user:", error);
-      } finally {
-        // Luôn remove khỏi progress, dù thành công hay thất bại
-        syncInProgress.current.delete(userData.clerkId);
-      }
+    // Early returns để tối ưu performance
+    if (!isLoaded || !user?.id) return;
+    
+    const userId = user.id;
+    
+    // Skip nếu đã sync hoặc đang sync
+    if (syncedUserIds.has(userId) || syncInProgress.current.has(userId)) return;
+    
+    // Validate email trước khi sync
+    const email = user.emailAddresses?.[0]?.emailAddress;
+    if (!email) return;
+
+    // Mark as syncing
+    syncInProgress.current.add(userId);
+    
+    const userData = {
+      email,
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      clerkId: userId,
+      avatar: user.imageUrl || "",
     };
+    
+    saveUserToDB(userData).catch(() => {
+      // Error handled in saveUserToDB
+    });
+  }, [user, isLoaded, syncedUserIds, saveUserToDB]);
 
-    if (
-      isLoaded &&
-      user &&
-      user.id &&
-      !syncedUserIds.has(user.id) &&
-      !syncInProgress.current.has(user.id)
-    ) {
-      // Đánh dấu đang sync để tránh duplicate
-      syncInProgress.current.add(user.id);
-      const userData = {
-        email: user.emailAddresses?.[0]?.emailAddress || "",
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        clerkId: user.id,
-        avatar: user.imageUrl || "",
-      };
-      // Kiểm tra xem có email không trước khi lưu
-      if (userData.email) {
-        saveUserToDB(userData);
-      } else {
-        console.warn("UserSync: User has no email address, skipping save");
-        syncInProgress.current.delete(user.id); // Remove from progress nếu skip
-      }
-    }
-  }, [user, isLoaded, syncedUserIds, markUserSynced, refreshRole]);
-
-  // Component này không render gì, chỉ xử lý logic sync
   return null;
 }

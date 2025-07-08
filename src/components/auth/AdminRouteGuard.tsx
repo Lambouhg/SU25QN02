@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRole } from '@/context/RoleContext';
 
@@ -10,57 +10,70 @@ interface AdminRouteGuardProps {
 }
 
 export default function AdminRouteGuard({ children, fallback }: AdminRouteGuardProps) {
-  const { isAdmin, loading, role } = useRole();
+  const { isAdmin, loading, role, refreshRole } = useRole();
   const router = useRouter();
   const [retryCount, setRetryCount] = useState(0);
+  const [lastRoleCheck, setLastRoleCheck] = useState(Date.now());
+
+  const handleRedirect = useCallback(() => {
+    router.push('/dashboard');
+  }, [router]);
+
+  // Periodic role checking để đảm bảo role luôn up-to-date
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      // Check role every 30 seconds nếu là admin để đảm bảo still admin
+      if (isAdmin && (now - lastRoleCheck) > 30000) {
+        refreshRole();
+        setLastRoleCheck(now);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isAdmin, lastRoleCheck, refreshRole]);
 
   useEffect(() => {
-    console.log('🛡️ AdminRouteGuard - Status:', { loading, isAdmin, role, retryCount });
-    
-    // Nếu đang loading, đợi
-    if (loading) {
+    // Still loading - wait
+    if (loading) return;
+
+    // Admin access granted - reset retry count
+    if (isAdmin && role === 'admin') {
+      setRetryCount(0);
       return;
     }
 
-    // Nếu là admin, không cần làm gì thêm - sẽ render children bên dưới
-    if (isAdmin) {
-      console.log('✅ Admin access granted');
-      return;
-    }
-
-    // Nếu role là null và chưa retry nhiều, thử lại
-    if (role === null && retryCount < 3) {
-      console.log('🔄 Retrying role check...', retryCount + 1);
-      setTimeout(() => {
+    // Role is null and haven't retried enough - try again
+    if (role === null && retryCount < 2) {
+      const timer = setTimeout(() => {
+        refreshRole();
         setRetryCount(prev => prev + 1);
       }, 1000);
-      return;
+      return () => clearTimeout(timer);
     }
 
-    // Nếu không phải admin sau khi retry, redirect
-    if (!isAdmin && role !== null) {
-      console.log('❌ Access denied, redirecting...');
-      setTimeout(() => {
-        router.push('/dashboard');
-      }, 2000);
+    // Not admin after retries - redirect
+    if (!isAdmin || role === 'user') {
+      const timer = setTimeout(handleRedirect, 1500);
+      return () => clearTimeout(timer);
     }
-  }, [loading, isAdmin, role, retryCount, router]);
+  }, [loading, isAdmin, role, retryCount, handleRedirect, refreshRole]);
 
-  // Show loading while checking permissions hoặc đang retry
-  if (loading || (role === null && retryCount < 3)) {
+  // Show loading while checking permissions or retrying
+  if (loading || (role === null && retryCount < 2)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">
-            {retryCount > 0 ? `Retrying... (${retryCount}/3)` : 'Checking permissions...'}
+            {retryCount > 0 ? `Verifying access... (${retryCount + 1}/3)` : 'Checking permissions...'}
           </p>
         </div>
       </div>
     );
   }
 
-  // Show content if admin - ngay lập tức không cần showContent state
+  // Show content if admin
   if (isAdmin) {
     return <>{children}</>;
   }
@@ -68,21 +81,21 @@ export default function AdminRouteGuard({ children, fallback }: AdminRouteGuardP
   // Show fallback if not admin
   return fallback || (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
+      <div className="text-center max-w-md mx-auto p-8">
         <div className="text-6xl text-red-500 mb-4">🚫</div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Access Denied</h1>
         <p className="text-gray-600 mb-2">You don&apos;t have permission to access this page.</p>
-        <p className="text-sm text-gray-500 mb-4">Current role: {role || 'Unknown'}</p>
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Go to Dashboard
-        </button>
-        <div className="mt-4">
+        <p className="text-sm text-gray-500 mb-6">Current role: {role || 'Unknown'}</p>
+        <div className="space-y-3">
+          <button
+            onClick={handleRedirect}
+            className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go to Dashboard
+          </button>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+            className="w-full px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
           >
             Refresh Page
           </button>

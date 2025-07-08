@@ -15,8 +15,6 @@ interface User {
   _id: string;
   clerkId: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
   fullName: string;
   imageUrl?: string;
   role: 'admin' | 'user';
@@ -29,7 +27,7 @@ interface User {
 }
 
 export default function AdminUsersPage() {
-  const { loading } = useRole();
+  const { role, loading } = useRole();
   const { refreshRole } = useRole();
   const { broadcastRoleInvalidation } = useRoleInvalidation();
 
@@ -48,21 +46,21 @@ export default function AdminUsersPage() {
   });
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch('/api/user');
-        if (response.ok) {
-          const data = await response.json();
-          setUsers(data.users || []);
-        }
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        showToast('Failed to fetch users', 'error');
-      }
-    };
-    
     fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/user');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      showToast('Failed to fetch users', 'error');
+    }
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
     setToast({ show: true, message, type });
@@ -89,7 +87,7 @@ export default function AdminUsersPage() {
         ));
 
         // Trigger role invalidation
-        broadcastRoleInvalidation('ROLE_CHANGE');
+        broadcastRoleInvalidation();
         refreshRole();
         showToast(`Successfully ${actionText}d ${user.fullName}`, 'success');
 
@@ -298,13 +296,10 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end">
-                        <DropdownMenu 
-                          trigger={
-                            <button className="p-2 hover:bg-gray-100 rounded-full">
-                              <MoreVertical className="w-4 h-4 text-gray-500" />
-                            </button>
-                          }
-                        >
+                        <DropdownMenu>
+                          <button className="p-2 hover:bg-gray-100 rounded-full">
+                            <MoreVertical className="w-4 h-4 text-gray-500" />
+                          </button>
                           <DropdownMenuItem onClick={() => setEditingUser(user)}>
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
@@ -347,22 +342,14 @@ export default function AdminUsersPage() {
         </div>
 
         <EditUserModal
-          user={editingUser ? {
-            ...editingUser,
-            firstName: editingUser.firstName || editingUser.fullName?.split(' ')[0] || '',
-            lastName: editingUser.lastName || editingUser.fullName?.split(' ').slice(1).join(' ') || ''
-          } : null}
+          user={editingUser}
           isOpen={!!editingUser}
           onClose={() => setEditingUser(null)}
           onSave={handleEditUser}
         />
 
         <ConfirmDeleteModal
-          user={deletingUser ? {
-            ...deletingUser,
-            firstName: deletingUser.firstName || deletingUser.fullName?.split(' ')[0] || '',
-            lastName: deletingUser.lastName || deletingUser.fullName?.split(' ').slice(1).join(' ') || ''
-          } : null}
+          user={deletingUser}
           isOpen={!!deletingUser}
           onClose={() => setDeletingUser(null)}
           onConfirm={handleDeleteUser}

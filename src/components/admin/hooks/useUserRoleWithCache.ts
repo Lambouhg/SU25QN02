@@ -109,8 +109,6 @@ export function useUserRoleWithCache(): UserRole {
           const userData = await response.json();
           const role = userData.role || 'user';
           
-          console.log('✅ Role fetched:', role);
-          
           // Cache the result
           setCachedRole(user.id, role);
           

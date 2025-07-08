@@ -5,6 +5,7 @@ import "./globals.css";
 import UserSync from "@/components/UserSync";
 import { UserSyncProvider } from "@/context/UserSyncContext";
 import { RoleProvider } from "@/context/RoleContext";
+import AdminRedirect from "@/components/auth/AdminRedirect";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,7 @@ export default function RootLayout({
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}>
               {children}
               <UserSync />
+              <AdminRedirect />
             </body>
           </html>
         </RoleProvider>
