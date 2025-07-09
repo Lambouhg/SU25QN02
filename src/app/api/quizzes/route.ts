@@ -69,22 +69,38 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
+    console.log('GET /api/quizzes - Starting request');
     await connectDB();
+    console.log('Database connected successfully');
+    
     const { userId } = await auth();
+    console.log('Auth check completed, userId:', userId);
     
     if (!userId) {
+      console.log('No userId found, returning 401');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const user = await User.findOne({ clerkId: userId });
+    console.log('User lookup completed, user found:', !!user);
+    
     if (!user) {
+      console.log('User not found, returning 404');
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const quizzes = await Quiz.find({ userId: user._id }).sort({ completedAt: -1 });
+    console.log('Fetching quizzes for user:', user._id);
+    const quizzes = await Quiz.find({ userId: user._id })
+      .sort({ completedAt: -1 })
+      .populate('questions');
+    
+    console.log('Quizzes fetched successfully, count:', quizzes.length);
     return NextResponse.json(quizzes);
   } catch (error) {
-    console.error('Error fetching quizzes:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error in GET /api/quizzes:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }

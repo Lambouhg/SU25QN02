@@ -435,14 +435,14 @@ export default function QuestionManager() {
               Levels
             </label>
             <div className="space-y-2">
-              {['intern', 'fresher', 'middle', 'junior', 'senior'].map((level) => (
+              {['junior', 'middle', 'senior'].map((level) => (
                 <div key={level} className="flex items-center">
                   <input
                     type="checkbox"
                     id={`level-${level}`}
                     checked={formData.levels.includes(level)}
                     onChange={() => toggleLevel(level)}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   />
                   <label
                     htmlFor={`level-${level}`}
@@ -605,10 +605,8 @@ export default function QuestionManager() {
               onChange={(e) => setSearchParams({...searchParams, level: e.target.value})}
             >
               <option value="">All Levels</option>
-              <option value="intern">Intern</option>
-              <option value="fresher">Fresher</option>
-              <option value="middle">Middle</option>
               <option value="junior">Junior</option>
+              <option value="middle">Middle</option>
               <option value="senior">Senior</option>
             </select>
           </div>

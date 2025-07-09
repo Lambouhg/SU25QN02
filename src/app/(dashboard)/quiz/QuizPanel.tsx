@@ -51,7 +51,7 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
   const [quizConfig, setQuizConfig] = useState<QuizConfig>({
     field: '',
     topic: '',
-    level: 'intern',
+    level: '',
     questionCount: 10,
     timeLimit: 15,
   });
@@ -192,7 +192,7 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
 
   const handleNewQuiz = () => {
     setQuiz(null);
-    router.push('/practice/quiz');
+    router.push('/quiz');
   };
 
   const handleViewProfile = () => {
@@ -211,14 +211,13 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
     return (
       <div className="text-center text-red-500 mt-8">
         <p>Error: {error}</p>
-        <button onClick={() => router.push('/practice/quiz')} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Try Again</button>
+        <button onClick={() => router.push('/quiz')} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">Try Again</button>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6 text-center">Interview Quiz</h1>
+    <div>
       
       {step === 'config' && (
         <QuizStart

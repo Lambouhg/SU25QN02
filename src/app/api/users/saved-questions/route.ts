@@ -20,7 +20,12 @@ export async function GET() {
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: result.status });
     }
-    const user = await User.findById(result.user._id).populate('savedQuestions');
+    const user = await User.findById(result.user._id)
+      .populate({
+        path: 'savedQuestions',
+        select: 'question answers explanation fields topics levels difficulty createdAt',
+        model: 'Question'
+      });
     return NextResponse.json(user.savedQuestions, { status: 200 });
   } catch (error) {
     console.error('Error fetching saved questions:', error);

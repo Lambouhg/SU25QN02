@@ -12,7 +12,7 @@ const questionSchema = new mongoose.Schema({
   topics: [{ type: mongoose.Schema.Types.String, required: true }],
   levels: [{
     type: mongoose.Schema.Types.String,
-    enum: ['intern', 'fresher', 'middle', 'junior', 'senior'],
+    enum: ['junior', 'middle', 'senior'],
     required: true
   }],
   explanation: { type: String, default: '' },

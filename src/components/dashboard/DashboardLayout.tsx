@@ -57,9 +57,9 @@ export default function DashboardLayout({
       subItems: [
         { label: 'Mock Interview (AI)', href: '/interview' },
         { label: 'Avatar Interview', href: '/avatar-interview' },
-        { label: 'Quiz Mode', href: '/practice/quiz' },
+        { label: 'Quiz Mode', href: '/quiz' },
         { label: 'Test Mode', href: '/test' },
-        { label: 'EQ Test Mode', href: '/practice/eq' },
+        { label: 'EQ Test Mode', href: '/eq' },
       ]
     },
     { 
