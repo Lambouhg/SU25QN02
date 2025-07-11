@@ -58,13 +58,14 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   const router = useRouter();
   const { userId, isLoaded, isSignedIn, getToken } = useAuth();
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
-  const [interviewField, setInterviewField] = useState<string>('frontend');
-  const [interviewLevel, setInterviewLevel] = useState<string>('junior');
   const [connectionQuality, setConnectionQuality] = useState('UNKNOWN');
   const [isAvatarTalking, setIsAvatarTalking] = useState(false);
   const [message, setMessage] = useState('');
   const [isInterviewComplete, setIsInterviewComplete] = useState(false);
   const [aiConversationHistory, setAiConversationHistory] = useState<ChatMessage[]>([]);
+  const [positionKey, setPositionKey] = useState<string>(''); // Store key for AI
+  const [positionType, setPositionType] = useState<string>(''); // Store type for AI
+  const [positionId, setPositionId] = useState<string>(''); // Store _id for backend
 
   // Add useEffect to handle auth state
   useEffect(() => {
@@ -135,6 +136,29 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
     setAiConversationHistory(convertedHistory);
   }, [conversation]);
 
+  // Ensure interviewField and interviewLevel are selected before starting the session
+  const initializeSession = useMemoizedFn(async () => {
+    if (!positionKey) {
+      console.error('Please select a position before starting the interview.');
+      return;
+    }
+
+    try {
+      setIsInterviewComplete(false);
+      // Start the avatar session
+      await startSession(config);
+
+      // Start interview with AI using field and level
+      await aiStartNewInterview(
+       positionKey, // Provide more context about the field
+        positionType // e.g., "Senior"
+      );
+    } catch (error) {
+      console.error('Error starting session:', error);
+      addMessage('Failed to start session: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
+    }
+  });
+
   const handleInterviewCompleteInternal = useCallback(async (progress: number) => {
     setIsInterviewComplete(true);
     
@@ -159,8 +183,8 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
 
       const evaluation = await generateInterviewEvaluation(
         aiConversationHistory,
-        interviewField,
-        interviewLevel,
+        positionKey, // Use key for evaluation
+        positionId,
         config.language === 'vi' ? 'vi-VN' : 'en-US'
       );
 
@@ -183,8 +207,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         },
         body: JSON.stringify({
           userId, // Include userId for validation
-          interviewField,
-          interviewLevel,
+          positionId, // Save only the position ID
           language: config.language === 'vi' ? 'vi-VN' : 'en-US',
           startTime: new Date(conversation[0]?.timestamp || Date.now()),
           endTime: new Date(),
@@ -231,8 +254,8 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
     addMessage,
     speakText,
     aiConversationHistory,
-    interviewField,
-    interviewLevel,
+    positionKey,
+    positionId,
     conversation,
     endSession,
     onEndSession,
@@ -240,21 +263,6 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
     questionCount,
     interviewState
   ]);
-
-  const initializeSession = useMemoizedFn(async () => {
-    try {
-      setIsInterviewComplete(false);
-      // Start the avatar session
-      await startSession(config);
-      
-      // Start interview with AI greeting
-      await aiStartNewInterview(interviewField, interviewLevel);
-      
-    } catch (error) {
-      console.error('Error starting session:', error);
-      addMessage('Failed to start session: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
-    }
-  });
 
   const handleEndSession = useCallback(async () => {
     try {
@@ -308,10 +316,14 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         sessionState={sessionState}
         AVATARS={AVATARS}
         STT_LANGUAGE_LIST={transformedLanguageList}
-        interviewField={interviewField}
-        interviewLevel={interviewLevel}
-        onFieldChange={setInterviewField}
-        onLevelChange={setInterviewLevel}
+        interviewField={positionKey} // Pass positionKey to PreInterviewSetup
+        interviewLevel={positionId}
+        onFieldChange={(key) => setPositionKey(key)} // Update positionKey
+        onLevelChange={(typeAndId) => {
+          const [type, id] = typeAndId.split('|');
+          setPositionType(type);
+          setPositionId(id);
+        }} // Update both type and positionId
       />
     );
   }

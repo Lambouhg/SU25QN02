@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import Interview from '@/models/interview';
 import User from '@/models/user';
+import Position from '@/models/position';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 
@@ -67,25 +68,32 @@ export async function POST(req: NextRequest) {
       }
     }    // Get request data
     const data = await req.json();
-    console.log('Received interview data:', { clerkId, field: data.interviewField });
+    console.log('Received interview data:', { clerkId, positionId: data.positionId });
+
+    // Validate positionId
+    const position = await Position.findById(data.positionId);
+    if (!position) {
+      return NextResponse.json(
+        { error: 'Invalid positionId' },
+        { status: 400 }
+      );
+    }
 
     // Structure interview data according to the new model
-    // Tính duration chính xác từ startTime và endTime client gửi lên
     const startTime = data.startTime ? new Date(data.startTime) : new Date();
     const endTime = data.endTime ? new Date(data.endTime) : new Date();
     let duration = 0;
     if (startTime && endTime && !isNaN(startTime.getTime()) && !isNaN(endTime.getTime())) {
-      duration = Math.max(0, Math.round((endTime.getTime() - startTime.getTime()) / 1000)); // giây
+      duration = Math.max(0, Math.round((endTime.getTime() - startTime.getTime()) / 1000)); // seconds
     }
 
     const interviewData = {
       userId: dbUser._id,
-      interviewField: data.interviewField,
-      interviewLevel: data.interviewLevel,
+      positionId: data.positionId, // Use positionId instead of interviewField and interviewLevel
       language: data.language,
       startTime,
       endTime,
-      duration, // thêm duration vào model
+      duration,
       conversationHistory: data.conversationHistory || [],
       evaluation: data.evaluation || {
         technicalScore: 0,
@@ -114,7 +122,7 @@ export async function POST(req: NextRequest) {
       progress: data.progress || 0,
       status: data.status || 'in-progress'
     };
-    
+
     // Create new interview
     const newInterview = await Interview.create(interviewData);
     console.log('Created interview:', { interviewId: newInterview._id });
@@ -125,9 +133,9 @@ export async function POST(req: NextRequest) {
     // Update user's interview stats
     await User.findByIdAndUpdate(dbUser._id, {
       $push: { interviewPractices: newInterview._id },
-      $inc: { 
+      $inc: {
         'interviewStats.totalInterviews': 1,
-        [`interviewStats.${interviewData.interviewField}Interviews`]: 1
+        [`interviewStats.${position.key}Interviews`]: 1
       }
     });
 

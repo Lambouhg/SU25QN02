@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { SessionState } from './HeygenConfig';
 import { StartAvatarRequest } from '@heygen/streaming-avatar';
 
@@ -15,86 +15,12 @@ interface PreInterviewSetupProps {
   onLevelChange: (level: string) => void;
 }
 
-const INTERVIEW_FIELDS = [
-  {
-    value: 'frontend',
-    label: 'Frontend Development',
-    subfields: ['React', 'Vue', 'Angular', 'NextJS']
-  },
-  {
-    value: 'backend',
-    label: 'Backend Development',
-    subfields: ['Node.js', 'Java', 'Python', 'Go']
-  },
-  {
-    value: 'fullstack',
-    label: 'Fullstack Development',
-    subfields: ['MERN', 'MEAN', 'Java Full-stack']
-  },
-  {
-    value: 'mobile',
-    label: 'Mobile Development',
-    subfields: ['React Native', 'Flutter', 'iOS', 'Android']
-  },
-  {
-    value: 'devops',
-    label: 'DevOps/Cloud',
-    subfields: ['AWS', 'Azure', 'GCP', 'Kubernetes']
-  },
-  {
-    value: 'data',
-    label: 'Data Engineering',
-    subfields: ['ETL', 'Data Warehouse', 'Big Data']
-  },
-  {
-    value: 'ai',
-    label: 'AI/ML Engineering',
-    subfields: ['Machine Learning', 'Deep Learning', 'NLP']
-  },
-  {
-    value: 'security',
-    label: 'Security Engineering',
-    subfields: ['Application Security', 'Network Security']
-  },
-  {
-    value: 'qa',
-    label: 'QA/Testing',
-    subfields: ['Automation Testing', 'Performance Testing']
-  }
-];
-
-const INTERVIEW_LEVELS = [
-  {
-    value: 'intern',
-    label: 'Intern/Fresher (0-1 năm)',
-    description: 'Kiến thức cơ bản, học việc thực tế'
-  },
-  {
-    value: 'junior',
-    label: 'Junior (1-2 năm)',
-    description: 'Làm việc độc lập với tasks đơn giản'
-  },
-  {
-    value: 'mid',
-    label: 'Mid-level (2-4 năm)',
-    description: 'Xử lý vấn đề phức tạp, mentor junior'
-  },
-  {
-    value: 'senior',
-    label: 'Senior (4-6 năm)',
-    description: 'Thiết kế giải pháp, lead dự án nhỏ'
-  },
-  {
-    value: 'lead',
-    label: 'Tech Lead (6+ năm)',
-    description: 'Kiến trúc hệ thống, quản lý team'
-  },
-  {
-    value: 'architect',
-    label: 'Solution Architect (8+ năm)',
-    description: 'Thiết kế kiến trúc, định hướng công nghệ'
-  }
-];
+interface Position {
+  _id: string;
+  key: string;
+  type: string;
+  order: number;
+}
 
 const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   config,
@@ -104,10 +30,41 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   AVATARS,
   STT_LANGUAGE_LIST,
   interviewField,
-  interviewLevel,
   onFieldChange,
+  interviewLevel,
   onLevelChange,
 }) => {
+  const [positions, setPositions] = useState<Position[]>([]); // Định nghĩa kiểu dữ liệu cho positions
+  const [levels, setLevels] = useState<string[]>([]); // State to store levels dynamically
+
+  // Gọi API để lấy danh sách Position
+  useEffect(() => {
+    const fetchPositions = async () => {
+      try {
+        const response = await fetch('/api/positions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch positions');
+        }
+        const data: Position[] = await response.json(); // Đảm bảo kiểu dữ liệu trả về
+        setPositions(data);
+      } catch (error) {
+        console.error('Error fetching positions:', error);
+      }
+    };
+
+    fetchPositions();
+  }, []);
+
+  // Update levels dynamically based on selected position
+  useEffect(() => {
+    const selectedPosition = positions.find((position) => position._id === interviewLevel); // Match by _id
+    if (selectedPosition && selectedPosition.type) {
+      setLevels(selectedPosition.type.split(',')); // Assuming type contains levels separated by commas
+    } else {
+      setLevels([]); // Reset levels if no position is selected or type is empty
+    }
+  }, [interviewLevel, positions]);
+
   const handleConfigChange = useCallback(<K extends keyof StartAvatarRequest>(
     key: K,
     value: StartAvatarRequest[K]
@@ -179,19 +136,25 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
             </div>
           </div>
 
-          {/* Interview Field */}
+          {/* Position Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Lĩnh vực phỏng vấn</label>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Vị trí</label>
             <div className="relative">
               <select
-                value={interviewField}
-                onChange={(e) => onFieldChange(e.target.value)}
+                value={interviewLevel} // Use _id for selection
+                onChange={(e) => {
+                  const selectedPosition = positions.find(pos => pos._id === e.target.value);                if (selectedPosition) {
+                  console.log('Selected position:', selectedPosition);
+                  onFieldChange(selectedPosition.key); // Pass key for AI
+                  onLevelChange(`${selectedPosition.type}|${selectedPosition._id}`); // Pass both type and _id
+                }
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
               >
-                <option value="">Chọn lĩnh vực</option>
-                {INTERVIEW_FIELDS.map((field) => (
-                  <option key={field.value} value={field.value}>
-                    {field.label}
+                <option value="">Chọn vị trí</option>
+                {positions.map((position) => (
+                  <option key={position._id} value={position._id}> {/* Use _id for selection */}
+                    {position.key} ({position.type || 'N/A'})
                   </option>
                 ))}
               </select>
@@ -203,20 +166,18 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
             </div>
           </div>
 
-          {/* Experience Level */}
+          {/* Level Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Cấp độ kinh nghiệm</label>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Cấp độ</label>
             <div className="relative">
               <select
-                value={interviewLevel}
-                onChange={(e) => onLevelChange(e.target.value)}
+                value={interviewField} // Use key for selection
+                onChange={(e) => onFieldChange(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
               >
                 <option value="">Chọn cấp độ</option>
-                {INTERVIEW_LEVELS.map((level) => (
-                  <option key={level.value} value={level.value}>
-                    {level.label}
-                  </option>
+                {levels.map((level, index) => (
+                  <option key={index} value={level}>{level}</option>
                 ))}
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">

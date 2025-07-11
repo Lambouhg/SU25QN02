@@ -49,6 +49,9 @@ export const useAIConversation = ({
   }, []);
 
   const startNewInterview = useCallback(async (field: string, level: string) => {
+    console.log('Starting new interview with:', { field, level });
+    // Reset state
+    setConversationHistory([]);
     try {
       setIsThinking(true);
       setQuestionCount(0);      setInterviewState({
