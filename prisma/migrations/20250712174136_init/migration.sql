@@ -1,13 +1,3 @@
-/*
-  Warnings:
-
-  - The primary key for the `User` table will be changed. If it partially fails, the table could be left without primary key constraint.
-  - You are about to drop the column `name` on the `User` table. All the data in the column will be lost.
-  - A unique constraint covering the columns `[clerkId]` on the table `User` will be added. If there are existing duplicate values, this will fail.
-  - A unique constraint covering the columns `[userActivityId]` on the table `User` will be added. If there are existing duplicate values, this will fail.
-  - Added the required column `clerkId` to the `User` table without a default value. This is not possible if the table is not empty.
-
-*/
 -- CreateEnum
 CREATE TYPE "ExperienceLevel" AS ENUM ('junior', 'mid', 'senior');
 
@@ -41,48 +31,48 @@ CREATE TYPE "SkillLevel" AS ENUM ('beginner', 'intermediate', 'advanced', 'exper
 -- CreateEnum
 CREATE TYPE "ActivityType" AS ENUM ('interview', 'quiz', 'practice', 'learning', 'goal_completed', 'goal_started');
 
--- AlterTable
-ALTER TABLE "User" DROP CONSTRAINT "User_pkey",
-DROP COLUMN "name",
-ADD COLUMN     "aboutMe" TEXT,
-ADD COLUMN     "appliedJobs" TEXT[],
-ADD COLUMN     "avatar" TEXT,
-ADD COLUMN     "bio" TEXT,
-ADD COLUMN     "clerkId" TEXT NOT NULL,
-ADD COLUMN     "clerkSessionActive" BOOLEAN DEFAULT false,
-ADD COLUMN     "companyId" TEXT,
-ADD COLUMN     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
-ADD COLUMN     "cvUrl" TEXT,
-ADD COLUMN     "department" TEXT,
-ADD COLUMN     "education" JSONB,
-ADD COLUMN     "evaluations" JSONB,
-ADD COLUMN     "experience" JSONB,
-ADD COLUMN     "experienceLevel" "ExperienceLevel" DEFAULT 'mid',
-ADD COLUMN     "firstName" TEXT,
-ADD COLUMN     "fullName" TEXT,
-ADD COLUMN     "interviewPractices" TEXT[],
-ADD COLUMN     "interviewStats" JSONB,
-ADD COLUMN     "isOnline" BOOLEAN DEFAULT false,
-ADD COLUMN     "joinDate" TEXT,
-ADD COLUMN     "languages" TEXT[],
-ADD COLUMN     "lastActivity" TIMESTAMP(3),
-ADD COLUMN     "lastLogin" TIMESTAMP(3),
-ADD COLUMN     "lastName" TEXT,
-ADD COLUMN     "lastSignInAt" TIMESTAMP(3),
-ADD COLUMN     "location" TEXT,
-ADD COLUMN     "phone" TEXT,
-ADD COLUMN     "position" TEXT,
-ADD COLUMN     "preferredInterviewTypes" TEXT[],
-ADD COLUMN     "role" "UserRole" NOT NULL DEFAULT 'user',
-ADD COLUMN     "skills" TEXT[],
-ADD COLUMN     "socialLinks" JSONB,
-ADD COLUMN     "status" TEXT DEFAULT 'Hoạt động',
-ADD COLUMN     "updatedAt" TIMESTAMP(3),
-ADD COLUMN     "userActivityId" TEXT,
-ALTER COLUMN "id" DROP DEFAULT,
-ALTER COLUMN "id" SET DATA TYPE TEXT,
-ADD CONSTRAINT "User_pkey" PRIMARY KEY ("id");
-DROP SEQUENCE "User_id_seq";
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "clerkId" TEXT NOT NULL,
+    "firstName" TEXT,
+    "lastName" TEXT,
+    "fullName" TEXT,
+    "avatar" TEXT,
+    "location" TEXT,
+    "aboutMe" TEXT,
+    "bio" TEXT,
+    "phone" TEXT,
+    "department" TEXT,
+    "position" TEXT,
+    "joinDate" TEXT,
+    "status" TEXT DEFAULT 'Hoạt động',
+    "experienceLevel" "ExperienceLevel" DEFAULT 'mid',
+    "preferredInterviewTypes" TEXT[],
+    "cvUrl" TEXT,
+    "socialLinks" JSONB,
+    "role" "UserRole" NOT NULL DEFAULT 'user',
+    "companyId" TEXT,
+    "skills" TEXT[],
+    "appliedJobs" TEXT[],
+    "interviewPractices" TEXT[],
+    "interviewStats" JSONB,
+    "experience" JSONB,
+    "education" JSONB,
+    "languages" TEXT[],
+    "evaluations" JSONB,
+    "lastLogin" TIMESTAMP(3),
+    "lastSignInAt" TIMESTAMP(3),
+    "lastActivity" TIMESTAMP(3),
+    "isOnline" BOOLEAN NOT NULL DEFAULT false,
+    "clerkSessionActive" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userActivityId" TEXT,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "Interview" (
@@ -93,12 +83,12 @@ CREATE TABLE "Interview" (
     "startTime" TIMESTAMP(3) NOT NULL,
     "endTime" TIMESTAMP(3),
     "duration" INTEGER,
-    "conversationHistory" JSONB,
-    "evaluation" JSONB,
-    "questionCount" INTEGER,
+    "conversationHistory" JSONB NOT NULL,
+    "evaluation" JSONB NOT NULL,
+    "questionCount" INTEGER NOT NULL DEFAULT 0,
     "coveredTopics" TEXT[],
-    "skillAssessment" JSONB,
-    "progress" INTEGER,
+    "skillAssessment" JSONB NOT NULL,
+    "progress" INTEGER NOT NULL DEFAULT 0,
     "status" "InterviewStatus" NOT NULL DEFAULT 'in_progress',
 
     CONSTRAINT "Interview_pkey" PRIMARY KEY ("id")
@@ -143,9 +133,10 @@ CREATE TABLE "Question" (
 CREATE TABLE "Position" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
-    "value" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "order" INTEGER DEFAULT 0,
+    "positionName" TEXT NOT NULL,
+    "level" TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "order" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "Position_pkey" PRIMARY KEY ("id")
 );
@@ -240,7 +231,25 @@ CREATE TABLE "_QuizSavedQuestions" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_clerkId_key" ON "User"("clerkId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_userActivityId_key" ON "User"("userActivityId");
+
+-- CreateIndex
+CREATE INDEX "Interview_userId_idx" ON "Interview"("userId");
+
+-- CreateIndex
+CREATE INDEX "Interview_positionId_idx" ON "Interview"("positionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Position_key_key" ON "Position"("key");
+
+-- CreateIndex
+CREATE INDEX "Position_key_idx" ON "Position"("key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "UserActivity_userId_key" ON "UserActivity"("userId");
@@ -253,12 +262,6 @@ CREATE INDEX "_SavedQuestions_B_index" ON "_SavedQuestions"("B");
 
 -- CreateIndex
 CREATE INDEX "_QuizSavedQuestions_B_index" ON "_QuizSavedQuestions"("B");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_clerkId_key" ON "User"("clerkId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_userActivityId_key" ON "User"("userActivityId");
 
 -- AddForeignKey
 ALTER TABLE "Interview" ADD CONSTRAINT "Interview_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

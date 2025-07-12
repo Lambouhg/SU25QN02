@@ -67,6 +67,11 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   const [positionType, setPositionType] = useState<string>(''); // Store type for AI
   const [positionId, setPositionId] = useState<string>(''); // Store _id for backend
 
+  // Debug position state changes
+  useEffect(() => {
+    console.log('Position state updated:', { positionKey, positionType, positionId });
+  }, [positionKey, positionType, positionId]);
+
   // Add useEffect to handle auth state
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -316,14 +321,14 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         sessionState={sessionState}
         AVATARS={AVATARS}
         STT_LANGUAGE_LIST={transformedLanguageList}
-        interviewField={positionKey} // Pass positionKey to PreInterviewSetup
-        interviewLevel={positionId}
-        onFieldChange={(key) => setPositionKey(key)} // Update positionKey
-        onLevelChange={(typeAndId) => {
-          const [type, id] = typeAndId.split('|');
-          setPositionType(type);
+        interviewField={positionKey}
+        interviewLevel={positionType}
+        onFieldChange={setPositionKey}
+        onLevelChange={setPositionType}
+        onPositionIdChange={(id) => {
+          console.log('Position ID changed:', id);
           setPositionId(id);
-        }} // Update both type and positionId
+        }}
       />
     );
   }

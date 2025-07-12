@@ -13,12 +13,15 @@ interface PreInterviewSetupProps {
   interviewLevel: string;
   onFieldChange: (field: string) => void;
   onLevelChange: (level: string) => void;
+  onPositionIdChange: (id: string) => void; // New prop for _id
 }
 
 interface Position {
   _id: string;
   key: string;
-  type: string;
+  positionName: string;
+  level: string;
+  displayName: string;
   order: number;
 }
 
@@ -33,9 +36,11 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   onFieldChange,
   interviewLevel,
   onLevelChange,
+  onPositionIdChange,
 }) => {
   const [positions, setPositions] = useState<Position[]>([]); // Định nghĩa kiểu dữ liệu cho positions
-  const [levels, setLevels] = useState<string[]>([]); // State to store levels dynamically
+  const [availableLevels, setAvailableLevels] = useState<string[]>([]); // Levels cho vị trí được chọn
+  const [selectedPositionName, setSelectedPositionName] = useState<string>(''); // Tên vị trí được chọn
 
   // Gọi API để lấy danh sách Position
   useEffect(() => {
@@ -55,15 +60,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
     fetchPositions();
   }, []);
 
-  // Update levels dynamically based on selected position
-  useEffect(() => {
-    const selectedPosition = positions.find((position) => position._id === interviewLevel); // Match by _id
-    if (selectedPosition && selectedPosition.type) {
-      setLevels(selectedPosition.type.split(',')); // Assuming type contains levels separated by commas
-    } else {
-      setLevels([]); // Reset levels if no position is selected or type is empty
-    }
-  }, [interviewLevel, positions]);
+  // No need for levels effect anymore since levels are part of positions
 
   const handleConfigChange = useCallback(<K extends keyof StartAvatarRequest>(
     key: K,
@@ -141,20 +138,36 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Vị trí</label>
             <div className="relative">
               <select
-                value={interviewLevel} // Use _id for selection
+                value={interviewField || ''} // Use empty string as default
                 onChange={(e) => {
-                  const selectedPosition = positions.find(pos => pos._id === e.target.value);                if (selectedPosition) {
-                  console.log('Selected position:', selectedPosition);
-                  onFieldChange(selectedPosition.key); // Pass key for AI
-                  onLevelChange(`${selectedPosition.type}|${selectedPosition._id}`); // Pass both type and _id
-                }
+                  const selectedPosition = positions.find(pos => pos.positionName === e.target.value);
+                  if (selectedPosition) {
+                    setSelectedPositionName(selectedPosition.positionName);
+                    // Get all levels for this position
+                    const levels = positions
+                      .filter(p => p.positionName === selectedPosition.positionName)
+                      .map(p => p.level);
+                    setAvailableLevels(levels);
+                    // Update the field with selected position name
+                    onFieldChange(e.target.value);
+                    // Reset only the level and position ID
+                    onLevelChange('');
+                    onPositionIdChange('');
+                  } else {
+                    // Clear everything if no position is selected
+                    setSelectedPositionName('');
+                    setAvailableLevels([]);
+                    onFieldChange('');
+                    onLevelChange('');
+                    onPositionIdChange('');
+                  }
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
               >
                 <option value="">Chọn vị trí</option>
-                {positions.map((position) => (
-                  <option key={position._id} value={position._id}> {/* Use _id for selection */}
-                    {position.key} ({position.type || 'N/A'})
+                {Array.from(new Set(positions.map(p => p.positionName))).sort().map(positionName => (
+                  <option key={positionName} value={positionName}>
+                    {positionName}
                   </option>
                 ))}
               </select>
@@ -168,16 +181,32 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
 
           {/* Level Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Cấp độ</label>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Cấp độ</label>
             <div className="relative">
               <select
-                value={interviewField} // Use key for selection
-                onChange={(e) => onFieldChange(e.target.value)}
+                value={interviewLevel || ''}
+                onChange={(e) => {
+                  const selectedLevel = e.target.value;
+                  onLevelChange(selectedLevel);
+                  
+                  // Find the position with matching name and level
+                  const matchingPosition = positions.find(
+                    p => p.positionName === selectedPositionName && p.level === selectedLevel
+                  );
+                  
+                  if (matchingPosition) {
+                    onFieldChange(matchingPosition.key);
+                    onPositionIdChange(matchingPosition._id);
+                  }
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                disabled={!selectedPositionName} // Disabled if no position is selected
               >
                 <option value="">Chọn cấp độ</option>
-                {levels.map((level, index) => (
-                  <option key={index} value={level}>{level}</option>
+                {availableLevels.sort().map(level => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
                 ))}
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">

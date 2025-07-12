@@ -74,6 +74,7 @@ model User {
   clerkId           String    @unique
   firstName         String?
   lastName          String?
+  fullName          String?
   avatar            String?
   location          String?
   aboutMe           String?
@@ -98,19 +99,21 @@ model User {
   languages         String[]
   evaluations       Json?
   lastLogin         DateTime?
-  createdAt         DateTime? @default(now())
-  updatedAt         DateTime? @updatedAt
+  lastSignInAt      DateTime?
+  lastActivity      DateTime?
+  isOnline          Boolean   @default(false)
+  clerkSessionActive Boolean  @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  userActivityId    String?   @unique
+  
+  // Relations
+  interviews        Interview[]
+  questionsCreated  Question[] @relation("QuestionsCreated")
   savedQuestions    Question[] @relation("SavedQuestions")
   quizHistory       Quiz[]     @relation("QuizHistory")
   userActivity      UserActivity?
-  userActivityId    String?   @unique
-  lastSignInAt      DateTime?
-  lastActivity      DateTime?
-  isOnline          Boolean?  @default(false)
-  clerkSessionActive Boolean? @default(false)
-  interviews        Interview[]
   quizzes           Quiz[]
-  questionsCreated  Question[] @relation("QuestionsCreated")
 }
 
 model Interview {
@@ -123,13 +126,16 @@ model Interview {
   startTime         DateTime
   endTime           DateTime?
   duration          Int?
-  conversationHistory Json?
-  evaluation        Json?
-  questionCount     Int?
+  conversationHistory Json    // Array of IMessage
+  evaluation        Json    // Contains all evaluation metrics
+  questionCount     Int      @default(0)
   coveredTopics     String[]
-  skillAssessment   Json?
-  progress          Int?
+  skillAssessment   Json    // Contains technical, communication, problemSolving scores
+  progress          Int      @default(0)
   status            InterviewStatus @default(in_progress)
+
+  @@index([userId])
+  @@index([positionId])
 }
 
 model Quiz {
@@ -170,12 +176,15 @@ model Question {
 }
 
 model Position {
-  id     String @id @default(uuid())
-  key    String @unique
-  value  String
-  type   String
-  order  Int? @default(0)
-  interviews Interview[]
+  id          String @id @default(uuid())
+  key         String @unique    // Unique identifier (e.g., frontend_junior)
+  positionName String          // e.g., Frontend Developer
+  level       String          // e.g., Junior, Middle, Senior
+  displayName String          // Full display name
+  order       Int    @default(0)
+  interviews  Interview[]
+
+  @@index([key])
 }
 
 model Test {
