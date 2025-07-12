@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
+import prisma from "@/lib/prisma";
+
+// Function to invalidate user list cache (shared with main route)
+async function invalidateUserListCache() {
+  try {
+    // Make a request to the main user route to invalidate its cache
+    await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/user/invalidate-cache`, {
+      method: 'POST'
+    });
+  } catch (error) {
+    console.error('Failed to invalidate user list cache:', error);
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -15,11 +26,11 @@ export async function GET(
         { status: 400 }
       );
     }
-
-    await connectDB();
     
     // Tìm user theo clerkId
-    const user = await User.findOne({ clerkId: id });
+    const user = await prisma.user.findUnique({
+      where: { clerkId: id }
+    });
     
     if (!user) {
       return NextResponse.json(
@@ -28,17 +39,20 @@ export async function GET(
       );
     }
 
-    // Trả về thông tin user (bao gồm role)
+    // Calculate fullName from firstName and lastName
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
+    
     return NextResponse.json({
-      id: user._id,
+      id: user.id,
       clerkId: user.clerkId,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      fullName: user.fullName,
+      fullName,
       role: user.role,
       status: user.status,
       avatar: user.avatar,
+      imageUrl: user.avatar, // Add imageUrl alias
       lastLogin: user.lastLogin,
       createdAt: user.createdAt
     });
@@ -66,35 +80,49 @@ export async function PATCH(
         { status: 400 }
       );
     }
-
-    await connectDB();
     
-    // Tìm và cập nhật user theo clerkId
-    const user = await User.findOneAndUpdate(
-      { clerkId: id },
-      { ...body, updatedAt: new Date() },
-      { new: true }
-    );
+    // Tìm user trước khi cập nhật
+    const existingUser = await prisma.user.findUnique({
+      where: { clerkId: id }
+    });
     
-    if (!user) {
+    if (!existingUser) {
       return NextResponse.json(
         { error: "User not found" },
         { status: 404 }
       );
     }
 
+    // Prepare update data
+    const updateData: Record<string, unknown> & {
+      updatedAt: Date;
+    } = { ...body, updatedAt: new Date() };
+    
+    // Cập nhật user
+    const user = await prisma.user.update({
+      where: { clerkId: id },
+      data: updateData
+    });
+
+    // Calculate fullName from updated user data
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
+
+    // Invalidate user list cache since user data was modified
+    await invalidateUserListCache();
+
     return NextResponse.json({
       message: "User updated successfully",
       user: {
-        id: user._id,
+        id: user.id,
         clerkId: user.clerkId,
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        fullName: user.fullName,
+        fullName,
         role: user.role,
         status: user.status,
-        avatar: user.avatar
+        avatar: user.avatar,
+        imageUrl: user.avatar // Add imageUrl alias
       }
     });
     
@@ -120,31 +148,36 @@ export async function DELETE(
         { status: 400 }
       );
     }
-
-    await connectDB();
     
     // Tìm và xóa user theo clerkId
-    const user = await User.findOneAndDelete({ clerkId: id });
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
-      );
-    }
+    const user = await prisma.user.delete({
+      where: { clerkId: id }
+    });
+
+    // Invalidate user list cache since user was deleted
+    await invalidateUserListCache();
 
     return NextResponse.json({
       message: "User deleted successfully",
       deletedUser: {
-        id: user._id,
+        id: user.id,
         clerkId: user.clerkId,
         email: user.email,
-        fullName: user.fullName
+        fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null
       }
     });
     
   } catch (error) {
     console.error("Error deleting user:", error);
+    
+    // Check if user not found
+    if ((error as { code?: string })?.code === 'P2025') {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+    
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

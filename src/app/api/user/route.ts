@@ -1,21 +1,76 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
+import prisma from "@/lib/prisma";
+
+// Cache for user list to prevent frequent database queries
+interface UserListCacheData {
+  success: boolean;
+  users: object[];
+  totalCount: number;
+}
+
+let userListCache: { data: UserListCacheData; timestamp: number } | null = null;
+const USER_LIST_CACHE_DURATION = 30000; // 30 seconds
+
+// Function to invalidate the cache
+export function invalidateUserListCache() {
+  userListCache = null;
+}
 
 export async function GET() {
   try {
-    await connectDB();
+    // Check cache first
+    const now = Date.now();
+    if (userListCache && (now - userListCache.timestamp) < USER_LIST_CACHE_DURATION) {
+      return NextResponse.json(userListCache.data);
+    }
     
     // Select specific fields including activity tracking fields
-    const users = await User.find().select(
-      'clerkId email firstName lastName fullName avatar role status lastLogin lastActivity lastSignInAt isOnline clerkSessionActive createdAt updatedAt'
-    ).sort({ lastActivity: -1, lastLogin: -1 }); // Sort by most recent activity
-    
-    return NextResponse.json({
-      success: true,
-      users: users,
-      totalCount: users.length
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        clerkId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        role: true,
+        status: true,
+        lastLogin: true,
+        lastActivity: true,
+        lastSignInAt: true,
+        isOnline: true,
+        clerkSessionActive: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: [
+        { lastActivity: 'desc' },
+        { lastLogin: 'desc' }
+      ]
     });
+    
+    // Transform the users to ensure fullName and imageUrl are properly set
+    const transformedUsers = users.map(user => {
+      // Calculate fullName from firstName and lastName
+      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
+      
+      return {
+        ...user,
+        fullName,
+        imageUrl: user.avatar // Add imageUrl as alias for avatar
+      };
+    });
+    
+    const responseData = {
+      success: true,
+      users: transformedUsers,
+      totalCount: transformedUsers.length
+    };
+
+    // Update cache
+    userListCache = { data: responseData, timestamp: now };
+    
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error("Error fetching users:", error);
     return NextResponse.json(
@@ -29,69 +84,38 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { email, firstName, lastName, clerkId, avatar } = body;
-    
 
     if (!email || !clerkId) {
       return NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 });
     }
-    
-    await connectDB();
 
-    // Kiểm tra user đã tồn tại với clerkId này
-    const existingUserByClerkId = await User.findOne({ clerkId });
-    
-
-    if (existingUserByClerkId) {
-     
-      // Cập nhật lastLogin cho user đã tồn tại
-      existingUserByClerkId.lastLogin = new Date();
-      // Cập nhật thông tin nếu có thay đổi
-      if (firstName) existingUserByClerkId.firstName = firstName;
-      if (lastName) existingUserByClerkId.lastName = lastName;
-      if (avatar) existingUserByClerkId.avatar = avatar;
-      await existingUserByClerkId.save();
-      
-      return NextResponse.json({ 
-        message: "User login recorded", 
-        user: existingUserByClerkId,
-        action: "login"
-      });
-    }
-
-    // Kiểm tra xem email đã được sử dụng với clerkId khác
-    const existingUserByEmail = await User.findOne({ email });
-    
-    if (existingUserByEmail) {
-      // Có thể user đăng nhập bằng phương thức khác (OAuth vs email/password)
-      // Trong trường hợp này, cập nhật clerkId mới nhất
-      existingUserByEmail.clerkId = clerkId;
-      existingUserByEmail.lastLogin = new Date();
-      if (firstName) existingUserByEmail.firstName = firstName;
-      if (lastName) existingUserByEmail.lastName = lastName;
-      if (avatar) existingUserByEmail.avatar = avatar;
-      await existingUserByEmail.save();
-      
-      return NextResponse.json({
-        message: "Account linked successfully",
-        user: existingUserByEmail,
-        action: "link"
-      });
-    }
-
-    // Tạo user mới nếu không tồn tại
-    const newUser = await User.create({
-      email,
-      firstName,
-      lastName,
-      clerkId,
-      avatar: avatar || '',
-      lastLogin: new Date(),
+    // Sử dụng upsert để tránh race condition
+    const user = await prisma.user.upsert({
+      where: { clerkId },
+      update: {
+        email,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        avatar: avatar || undefined,
+        lastLogin: new Date(),
+      },
+      create: {
+        email,
+        firstName: firstName || '',
+        lastName: lastName || '',
+        clerkId,
+        avatar: avatar || '',
+        lastLogin: new Date(),
+      }
     });
 
+    // Invalidate cache since user data was modified
+    invalidateUserListCache();
+
     return NextResponse.json({ 
-      message: "User created successfully", 
-      user: newUser,
-      action: "signup"
+      message: user ? "User updated successfully" : "User created successfully", 
+      user,
+      action: user ? "update" : "create"
     });
   } catch (error) {
     console.error("Error in user API:", error);

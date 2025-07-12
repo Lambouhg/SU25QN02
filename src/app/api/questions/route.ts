@@ -53,11 +53,6 @@ export async function POST(req: Request) {
       createdBy: user._id
     });
 
-    console.log('New Question Document Before Save:', newQuestion);
-    console.log('New Question Document Fields:', newQuestion.fields);
-    console.log('New Question Document Topics:', newQuestion.topics);
-    console.log('New Question Document Levels:', newQuestion.levels);
-
     await newQuestion.save();
 
     return NextResponse.json(newQuestion, { status: 201 });

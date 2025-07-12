@@ -1,7 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
+import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
@@ -27,15 +26,13 @@ export async function GET() {
         { status: 401 }
       );
     }
-    await connectDB();
-    let user = await User.findOne({ clerkId: userId });
 
-    // If user doesn't exist, create one with default values
-    if (!user) {
-      user = new User({
+    // Find or create user
+    const user = await prisma.user.upsert({
+      where: { clerkId: userId },
+      create: {
         clerkId: userId,
         email: clerkUser?.emailAddresses?.[0]?.emailAddress || "",
-        fullName: clerkUser?.fullName || "",
         firstName: clerkUser?.firstName || "",
         lastName: clerkUser?.lastName || "",
         phone: "",
@@ -46,11 +43,19 @@ export async function GET() {
         joinDate: new Date().toLocaleDateString('vi-VN'),
         lastLogin: new Date(),
         status: "Hoạt động"
-      });
-      await user.save();
-    }
+      },
+      update: {
+        lastLogin: new Date()
+      }
+    });
 
-    return NextResponse.json(user);
+    // Add computed fullName to response
+    const responseUser = {
+      ...user,
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null
+    };
+
+    return NextResponse.json(responseUser);
 
   } catch (error) {
     console.error('Profile GET error:', error);
@@ -89,14 +94,11 @@ export async function PUT(request: Request) {
 
     const data = await request.json();
 
-    await connectDB();
-    let user = await User.findOne({ clerkId: userId });
-
-    // If user doesn't exist, create one
-    if (!user) {
-      user = new User({
+    // Upsert user with new data
+    const user = await prisma.user.upsert({
+      where: { clerkId: userId },
+      create: {
         clerkId: userId,
-        fullName: data.fullName || "",
         firstName: data.firstName || "",
         lastName: data.lastName || "",
         email: data.email || "",
@@ -107,30 +109,32 @@ export async function PUT(request: Request) {
         skills: data.skills || [],
         joinDate: new Date().toLocaleDateString('vi-VN'),
         lastLogin: new Date(),
-        status: "Hoạt động"
-      });
-    } else {
-      // Update existing user
-      user.fullName = data.fullName || user.fullName;
-      user.firstName = data.firstName || user.firstName;
-      user.lastName = data.lastName || user.lastName;
-      user.email = data.email || user.email;
-      user.phone = data.phone || user.phone;
-      user.department = data.department || user.department;
-      user.position = data.position || user.position;
-      user.bio = data.bio || user.bio;
-      user.skills = data.skills || user.skills;
-      user.lastLogin = new Date();
-      
-      // Keep existing fields for backward compatibility
-      if(data.currentPosition) user.currentPosition = data.currentPosition;
-      if(data.experienceLevel) user.experienceLevel = data.experienceLevel;
-      if(data.preferredInterviewTypes) user.preferredInterviewTypes = data.preferredInterviewTypes;
-    }
-    
-    await user.save();
+        status: "Hoạt động",
+        experienceLevel: data.experienceLevel || 'mid',
+        preferredInterviewTypes: data.preferredInterviewTypes || []
+      },
+      update: {
+        firstName: data.firstName || undefined,
+        lastName: data.lastName || undefined,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+        department: data.department || undefined,
+        position: data.position || undefined,
+        bio: data.bio || undefined,
+        skills: data.skills || undefined,
+        lastLogin: new Date(),
+        experienceLevel: data.experienceLevel || undefined,
+        preferredInterviewTypes: data.preferredInterviewTypes || undefined
+      }
+    });
 
-    return NextResponse.json(user);
+    // Add computed fullName to response
+    const responseUser = {
+      ...user,
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null
+    };
+
+    return NextResponse.json(responseUser);
 
   } catch (error) {
     console.error('Profile PUT error:', error);

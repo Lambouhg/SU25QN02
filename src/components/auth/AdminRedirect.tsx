@@ -3,35 +3,40 @@
 import { useUser } from '@clerk/nextjs';
 import { useRole } from '@/context/RoleContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function AdminRedirect() {
   const { user, isLoaded } = useUser();
   const { role, loading } = useRole();
   const router = useRouter();
   const pathname = usePathname();
+  const [hasCheckedInitialRedirect, setHasCheckedInitialRedirect] = useState(false);
 
   useEffect(() => {
     // Only run if Clerk is loaded and we have a user
     if (!isLoaded || !user || loading) {
-      console.log('🔄 AdminRedirect waiting...', { isLoaded, hasUser: !!user, loading });
       return;
     }
 
-    console.log('🔍 AdminRedirect checking...', { role, pathname });
-
-    // Skip if we're already on an admin page or auth page
-    if (pathname.startsWith('/admin') || pathname.startsWith('/sign-') || pathname.startsWith('/sso-callback')) {
-      console.log('⏭️ Skipping redirect - already on admin/auth page');
+    // Skip if we're on auth pages
+    if (pathname.startsWith('/sign-') || pathname.startsWith('/sso-callback')) {
       return;
     }
 
-    // If user has admin role and is on dashboard, redirect to admin dashboard
-    if (role === 'admin' && pathname === '/dashboard') {
-      console.log('� Redirecting admin to admin dashboard');
+    // If user has admin role and this is their first visit after login (on dashboard)
+    // and they haven't been redirected yet, redirect to admin dashboard
+    if (role === 'admin' && pathname === '/dashboard' && !hasCheckedInitialRedirect) {
+      setHasCheckedInitialRedirect(true);
       router.push('/admin/dashboard');
+      return;
     }
-  }, [isLoaded, user, role, loading, pathname, router]);
+
+    // Mark that we've checked for initial redirect
+    if (!hasCheckedInitialRedirect) {
+      setHasCheckedInitialRedirect(true);
+    }
+
+  }, [isLoaded, user, role, loading, pathname, router, hasCheckedInitialRedirect]);
 
   return null; // This component doesn't render anything
 }

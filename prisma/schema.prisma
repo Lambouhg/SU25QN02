@@ -74,7 +74,6 @@ model User {
   clerkId           String    @unique
   firstName         String?
   lastName          String?
-  fullName          String?
   avatar            String?
   location          String?
   aboutMe           String?

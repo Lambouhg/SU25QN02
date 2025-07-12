@@ -195,10 +195,25 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Middleware to update the updatedAt field
+// Middleware to update the updatedAt field and fullName
 userSchema.pre('save', function(next) {
   this.updatedAt = new Date();
+  
+  // Ensure fullName is properly set
+  if (this.firstName || this.lastName) {
+    this.fullName = `${this.firstName || ''} ${this.lastName || ''}`.trim();
+  }
+  
   next();
 });
+
+// Virtual field for imageUrl (alias for avatar)
+userSchema.virtual('imageUrl').get(function() {
+  return this.avatar;
+});
+
+// Ensure virtual fields are included in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 export default mongoose.models.User || mongoose.model('User', userSchema);

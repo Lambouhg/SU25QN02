@@ -6,15 +6,15 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
-// Connection options với timeout tối ưu
+// Connection options với timeout tối ưu cho role fetching
 const options = {
   bufferCommands: false,
-  serverSelectionTimeoutMS: 5000, // 5 seconds
-  socketTimeoutMS: 45000, // 45 seconds
+  serverSelectionTimeoutMS: 3000, // 3 seconds - faster for role checks
+  socketTimeoutMS: 30000, // 30 seconds
   maxPoolSize: 10,
   minPoolSize: 2,
   maxIdleTimeMS: 30000,
-  connectTimeoutMS: 10000, // 10 seconds
+  connectTimeoutMS: 5000, // 5 seconds - faster connection
 };
 
 export async function connectDB() {

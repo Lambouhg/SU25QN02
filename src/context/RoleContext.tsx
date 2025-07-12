@@ -81,13 +81,14 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Optimized fetch role function
+  // Optimized fetch role function with faster endpoint
   const fetchRole = useCallback(async (userId: string): Promise<string> => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
     
     try {
-      const response = await fetch(`/api/user/${userId}`, {
+      // Use the faster role-only endpoint
+      const response = await fetch(`/api/user/${userId}/role`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
@@ -98,14 +99,18 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       if (response.ok) {
         const userData = await response.json();
         return userData.role || 'user';
+      } else if (response.status === 404) {
+        // User not found, they might be new - default to user
+        console.warn('User not found in database, defaulting to user role');
+        return 'user';
       }
       
-      console.warn(`API returned ${response.status}, defaulting to user role`);
+      console.warn(`Role API returned ${response.status}, defaulting to user role`);
       return 'user';
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error('Role fetch timeout');
+        console.error('Role fetch timeout - using cached or default role');
       } else {
         console.error('Role fetch error:', error);
       }
@@ -113,14 +118,25 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Optimized refresh role function
+  // Optimized refresh role function with fallback
   const refreshRole = useCallback(async () => {
     if (!user?.id) return;
     
     setUserRole(prev => ({ ...prev, loading: true }));
     
     try {
-      const role = await fetchRole(user.id);
+      // First try the fast role endpoint
+      let role = await fetchRole(user.id);
+      
+      // If that fails, try to get from cache or use default
+      if (!role || role === 'user') {
+        const cachedRole = getCachedRole(user.id);
+        if (cachedRole && cachedRole !== 'user') {
+          role = cachedRole;
+          console.log('Using cached role due to API issues:', role);
+        }
+      }
+      
       setCachedRole(user.id, role);
       
       setUserRole({
@@ -131,16 +147,30 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       });
     } catch (error) {
       console.error('Error refreshing role:', error);
-      setUserRole({
-        isAdmin: false,
-        isUser: true,
-        role: 'user',
-        loading: false
-      });
+      
+      // Try to use cached role as fallback
+      const cachedRole = getCachedRole(user.id);
+      if (cachedRole) {
+        console.log('Using cached role as fallback:', cachedRole);
+        setUserRole({
+          isAdmin: cachedRole === 'admin',
+          isUser: cachedRole === 'user',
+          role: cachedRole as 'admin' | 'user',
+          loading: false
+        });
+      } else {
+        // Final fallback to user role
+        setUserRole({
+          isAdmin: false,
+          isUser: true,
+          role: 'user',
+          loading: false
+        });
+      }
     }
-  }, [user?.id, fetchRole, setCachedRole]);
+  }, [user?.id, fetchRole, setCachedRole, getCachedRole]);
 
-  // Main effect to check user role
+  // Main effect to check user role with improved error handling
   useEffect(() => {
     const checkUserRole = async () => {
       if (!isLoaded) return;
@@ -164,12 +194,37 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
           role: cachedRole as 'admin' | 'user',
           loading: false
         });
+        
+        // Still fetch in background to update cache, but don't wait
+        fetchRole(user.id).then(freshRole => {
+          if (freshRole !== cachedRole) {
+            setCachedRole(user.id, freshRole);
+            setUserRole({
+              isAdmin: freshRole === 'admin',
+              isUser: freshRole === 'user',
+              role: freshRole as 'admin' | 'user',
+              loading: false
+            });
+          }
+        }).catch(error => {
+          console.log('Background role fetch failed, keeping cached role:', error.message);
+        });
+        
         return;
       }
 
-      // Fetch from API
+      // No cache, fetch from API with timeout protection
+      setUserRole(prev => ({ ...prev, loading: true }));
+      
       try {
-        const role = await fetchRole(user.id);
+        // Set a maximum wait time
+        const timeoutPromise = new Promise<string>((_, reject) => {
+          setTimeout(() => reject(new Error('Role fetch timeout')), 3000);
+        });
+        
+        const rolePromise = fetchRole(user.id);
+        const role = await Promise.race([rolePromise, timeoutPromise]);
+        
         setCachedRole(user.id, role);
         
         setUserRole({
@@ -180,6 +235,8 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         });
       } catch (error) {
         console.error('Error checking role:', error);
+        
+        // Default to user role but don't show loading forever
         setUserRole({
           isAdmin: false,
           isUser: true,
