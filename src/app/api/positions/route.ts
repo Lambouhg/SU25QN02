@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 
 type PrismaError = Error & { code?: string };
@@ -19,93 +20,67 @@ type PositionUpdateInput = {
   order?: number;
 };
 
-// Get all positions or filter by level
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const { searchParams } = new URL(req.url);
-    const level = searchParams.get('level');
-    const search = searchParams.get('search');
+    const { searchParams } = new URL(request.url);
+    const level = searchParams.get('level'); // filter theo level nếu có
 
-    const query: PositionWhereInput = {};
-
-    // Filter by level if provided
-    if (level) {
-      query.level = level;
-    }
-
-    // Search in positionName or displayName if search term provided
-    if (search) {
-      query.OR = [
-        { positionName: { contains: search, mode: 'insensitive' } },
-        { displayName: { contains: search, mode: 'insensitive' } }
-      ];
-    }
+    const where = level ? { level } : {};
 
     const positions = await prisma.position.findMany({
-      where: {
-        ...query,
-        ...(search ? {
-          OR: [
-            { positionName: { contains: search, mode: 'insensitive' } },
-            { displayName: { contains: search, mode: 'insensitive' } }
-          ]
-        } : {})
-      },
-      orderBy: {
-        order: 'asc'
-      }
+      where,
+      orderBy: { order: 'asc' },
     });
 
-    return NextResponse.json(positions, { status: 200 });
+    return NextResponse.json(positions);
   } catch (error) {
     console.error('Error fetching positions:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Lấy danh sách position thất bại', 
+      detail: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
-    const body = await req.json();
-    const positions = Array.isArray(body) ? body : [body];
+    const body = await request.json();
+    const { key, positionName, level, displayName, order = 0 } = body;
 
-    const validLevels = ['Junior', 'Middle', 'Senior', 'Lead', 'Principal'];
+    // Kiểm tra required fields
+    if (!key || !positionName || !level || !displayName) {
+      return NextResponse.json({ 
+        error: 'Missing required fields: key, positionName, level, displayName' 
+      }, { status: 400 });
+    }
 
-    const prepared = positions.map((pos) => {
-      const { positionName, level, order = 0 } = pos;
-
-      if (!positionName || !level || !validLevels.includes(level)) {
-        throw new Error('Invalid or missing positionName or level');
-      }
-
-      const key = `${positionName.toLowerCase().replace(/\s+/g, '_')}_${level.toLowerCase()}`;
-      const displayName = `${positionName} - ${level}`;
-
-      return {
+    const position = await prisma.position.create({
+      data: {
         key,
         positionName,
         level,
         displayName,
         order,
-      };
+      },
     });
 
-    const result = await prisma.position.createMany({
-      data: prepared,
-      skipDuplicates: true,
-    });
-
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(position, { status: 201 });
   } catch (error) {
-    console.error('Bulk insert error:', error);
-    
-    if (error instanceof Error && (error as PrismaError).code === 'P2002') {
-      return NextResponse.json(
-        { error: 'Some positions already exist (duplicate key)' },
-        { status: 409 }
-      );
-    }
-
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error creating position:', error);
+    return NextResponse.json({ 
+      error: 'Tạo position thất bại', 
+      detail: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 

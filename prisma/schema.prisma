@@ -66,6 +66,10 @@ enum ActivityType {
   goal_completed
   goal_started
 }
+enum AssessmentType {
+  test
+  eq
+}
 
 // -------------------- MODELS --------------------
 model User {
@@ -183,34 +187,9 @@ model Position {
   displayName String          // Full display name
   order       Int    @default(0)
   interviews  Interview[]
+  assessments Assessment[]     // relation với Assessment
 
   @@index([key])
-}
-
-model Test {
-  id         String   @id @default(uuid())
-  userId     String?
-  position   String
-  level      String
-  duration   Int
-  totalTime  Int?
-  history    Json?
-  realTimeScores Json?
-  createdAt  DateTime? @default(now())
-}
-
-model EQ {
-  id                String   @id @default(uuid())
-  userId            String
-  duration          Int
-  selectedCategory  String
-  level             String
-  history           Json?
-  realTimeScores    Json?
-  finalScores       Json?
-  totalTime         Int
-  createdAt         DateTime? @default(now())
-  updatedAt         DateTime? @updatedAt
 }
 
 model UserActivity {
@@ -239,4 +218,51 @@ model QuestionSet {
   fileName      String?
   createdAt     DateTime? @default(now())
   updatedAt     DateTime? @updatedAt
-} 
+}
+
+// New unified Assessment model
+model Assessment {
+  id               String   @id @default(uuid())
+  userId           String
+  type             AssessmentType
+  positionId       String?      // relation với Position
+  position         Position?    @relation(fields: [positionId], references: [id])
+  selectedCategory String?      // chỉ dùng cho EQ
+  level            String
+  duration         Int
+  totalTime        Int
+  history          Json?
+  realTimeScores   Json?
+  finalScores      Json?        // chỉ dùng cho EQ
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime?    @updatedAt
+
+  @@index([positionId])
+}
+
+// Comment out old models
+// model Test {
+//   id         String   @id @default(uuid())
+//   userId     String?
+//   position   String
+//   level      String
+//   duration   Int
+//   totalTime  Int?
+//   history    Json?
+//   realTimeScores Json?
+//   createdAt  DateTime? @default(now())
+// }
+
+// model EQ {
+//   id                String   @id @default(uuid())
+//   userId            String
+//   duration          Int
+//   selectedCategory  String
+//   level             String
+//   history           Json?
+//   realTimeScores    Json?
+//   finalScores       Json?
+//   totalTime         Int
+//   createdAt         DateTime? @default(now())
+//   updatedAt         DateTime? @updatedAt
+// } 

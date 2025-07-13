@@ -184,6 +184,7 @@ const createMessage = (sender: 'user' | 'ai', text: string, isError = false): Co
 });
 
 export default function TestPanel() {
+  console.log('[DEBUG] TestPanel component rendered');
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [interviewing, setInterviewing] = useState(false);
@@ -555,6 +556,7 @@ export default function TestPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          type: 'test', // Thêm trường type
           duration,
           position,
           level,
@@ -652,14 +654,17 @@ export default function TestPanel() {
 
   // Callback nhận thời gian còn lại từ InterviewScreen/InterviewChat
   const handleEndInterviewWithTime = (minutesLeft: number) => {
+    console.log('[DEBUG] handleEndInterviewWithTime called with minutesLeft:', minutesLeft);
     setRemainingTime(minutesLeft);
     const totalTime = Math.ceil(duration - minutesLeft);
     // Lưu kết quả
     try {
+      console.log('[DEBUG] Calling API from handleEndInterviewWithTime');
       fetch('/api/test-mode/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          type: 'test', // Thêm trường type
           duration,
           position,
           level,
@@ -667,6 +672,10 @@ export default function TestPanel() {
           realTimeScores,
           totalTime,
         })
+      }).then(response => {
+        console.log('[DEBUG] API response from handleEndInterviewWithTime:', response);
+      }).catch(error => {
+        console.error('[DEBUG] API error from handleEndInterviewWithTime:', error);
       });
     } catch (error) {
       console.error('Error saving interview result:', error);

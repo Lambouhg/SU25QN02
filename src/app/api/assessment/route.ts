@@ -10,52 +10,30 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type = 'test', positionId, position, ...rest } = body; // Nhận cả positionId và position
+    const { type = 'test', positionId, ...rest } = body; // Sử dụng positionId thay vì position
 
     // Kiểm tra type hợp lệ
     if (type !== 'test' && type !== 'eq') {
       return NextResponse.json({ error: 'Invalid type. Must be "test" or "eq"' }, { status: 400 });
     }
 
-    // Xây dựng data object
-    const data: any = {
-      userId,
-      type,
-      ...rest,
-    };
-
-    // Nếu có positionId, sử dụng positionId
+    // Kiểm tra positionId nếu có
     if (positionId) {
-      const positionRecord = await prisma.position.findUnique({
+      const position = await prisma.position.findUnique({
         where: { id: positionId }
       });
-      if (!positionRecord) {
+      if (!position) {
         return NextResponse.json({ error: 'Position not found' }, { status: 400 });
       }
-      data.positionId = positionId;
-    } else if (position) {
-      // Nếu không có positionId nhưng có position string, tìm hoặc tạo position
-      let positionRecord = await prisma.position.findFirst({
-        where: { positionName: position }
-      });
-      
-      if (!positionRecord) {
-        // Tạo position mới nếu chưa có
-        positionRecord = await prisma.position.create({
-          data: {
-            key: position.toLowerCase().replace(/\s+/g, '_'),
-            positionName: position,
-            level: 'Junior', // Default level
-            displayName: position,
-            order: 0
-          }
-        });
-      }
-      data.positionId = positionRecord.id;
     }
 
     const assessment = await prisma.assessment.create({
-      data,
+      data: {
+        userId,
+        type,
+        positionId, // Sử dụng positionId
+        ...rest,
+      },
       include: {
         position: true, // Include position data trong response
       },
