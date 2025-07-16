@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Xây dựng data object
-    const data: any = {
+    const data = {
       userId,
       type,
       ...rest,

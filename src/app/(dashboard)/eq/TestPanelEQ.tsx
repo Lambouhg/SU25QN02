@@ -273,13 +273,13 @@ export default function TestPanelEQ() {
 	useEffect(() => {
 		fetch('/api/positions')
 			.then(res => res.json())
-			.then(data => {
+			.then((data: Record<string, unknown>[]) => {
 				if (Array.isArray(data)) {
-					setPositionOptions(Array.from(new Set(data.map((p: any) => p.positionName))));
-					if (!position && data.length > 0) setPosition(data[0].positionName);
+					setPositionOptions(Array.from(new Set(data.map((p) => (p as { positionName: string }).positionName))));
+					if (!position && data.length > 0) setPosition((data[0] as { positionName: string }).positionName);
 				}
 			});
-	}, []);
+	}, [position]);
 
 	const startEQInterview = () => {
 		setShowResult(false);
