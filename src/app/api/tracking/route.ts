@@ -1,21 +1,20 @@
 import { NextResponse } from 'next/server';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 import { auth } from '@clerk/nextjs/server';
-import User from '@/models/user';
-import { connectDB } from '@/lib/mongodb';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Kết nối MongoDB trước khi thực hiện bất kỳ truy vấn nào
-    await connectDB();
-
     const { userId: clerkId } = await auth();
     if (!clerkId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Lấy MongoDB user ID từ Clerk ID
-    const user = await User.findOne({ clerkId });
+    // Tìm user trong Prisma database bằng clerkId
+    const user = await prisma.user.findUnique({
+      where: { clerkId }
+    });
+
     if (!user) {
       // Initialize a new user if needed
       return NextResponse.json({
@@ -41,8 +40,7 @@ export async function GET() {
       });
     }
 
-    const userId = user._id;
-    const progress = await TrackingIntegrationService.getProgressOverview(userId);
+    const progress = await TrackingIntegrationService.getProgressOverview(user.id);
     
     return NextResponse.json(progress);
   } catch (error) {

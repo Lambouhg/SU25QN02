@@ -1,45 +1,79 @@
-import mongoose, { Types } from 'mongoose';
-import UserActivity, { 
-  IActivity, 
-  ISkill, 
-  IGoal, 
-  IUserActivity,
-  ILearningStats 
-} from '../models/userActivity';
-import User from '../models/user';
-import Interview, { IInterview } from '../models/interview';
+import prisma from '@/lib/prisma';
+import type { 
+  UserActivity as PrismaUserActivity,
+  ActivityType,
+  SkillLevel,
+  GoalStatus,
+  Prisma
+} from '@prisma/client';
 
-// Define the document interface
-type IUserActivityDocument = mongoose.Document & {
-  _id: Types.ObjectId;
-  userId: Types.ObjectId;
-  activities: IActivity[];
-  skills: ISkill[];
-  goals: IGoal[];
-  learningStats: ILearningStats;
-  progressHistory: Array<{
-    date: Date;
-    overallScore: number;
-    skillScores: Record<string, number>;
-  }>;
-  strengths: string[];
-  weaknesses: string[];
+// JSON field types
+interface IEvaluation {
+  technicalScore: number;
+  communicationScore: number;
+  problemSolvingScore: number;
+  overallRating: number;
   recommendations: string[];
 }
 
-// Interface cho populated user
-interface IUserPopulated {
+interface IActivity {
+  type: ActivityType;
+  referenceId?: string;
+  score?: number;
+  duration: number;
+  timestamp: Date | string;
+  skillScores?: Record<string, number>;  // Add skillScores to interface
+}
+
+interface ISkill {
   name: string;
-  email: string;
+  score: number;
+  level: SkillLevel;
+  lastAssessed: string; // Changed from Date to string
+}
+
+interface IGoal {
+  id?: string;
+  title: string;
+  description?: string;
+  targetDate?: string; // Changed from Date to string
+  status: GoalStatus;
+  type: string;
+  completedDate?: string; // Changed from Date to string
+}
+
+interface ILearningStats {
+  totalStudyTime: number;
+  weeklyStudyTime: number;
+  monthlyStudyTime: number;
+  streak: number;
+  lastStudyDate: string;
+}
+
+// Helper function to safely parse JSON fields
+function parseJsonField<T>(field: Prisma.JsonValue | undefined | null, defaultValue: T): T {
+  if (!field) return defaultValue;
+  try {
+    return typeof field === 'string' ? JSON.parse(field) : field as T;
+  } catch {
+    return defaultValue;
+  }
 }
 
 export class UserActivityService {
+  private static formatDate(date: Date): string {
+    return date.toISOString();
+  }
+
+  private static parseDate(dateStr: string): Date {
+    return new Date(dateStr);
+  }
+
   /**
    * Khởi tạo hoạt động tracking cho người dùng mới
    */
-  static async initializeUserActivity(userId: string): Promise<IUserActivityDocument> {
-    const userActivity = await UserActivity.create({
-      userId,
+  static async initializeUserActivity(userId: string): Promise<PrismaUserActivity> {
+    const initialData = {
       activities: [],
       skills: [],
       goals: [],
@@ -48,12 +82,19 @@ export class UserActivityService {
         weeklyStudyTime: 0,
         monthlyStudyTime: 0,
         streak: 0,
-        lastStudyDate: new Date()
+        lastStudyDate: this.formatDate(new Date())
+      }
+    };
+
+    const userActivity = await prisma.userActivity.create({
+      data: {
+        userId,
+        activities: initialData.activities as Prisma.JsonArray,
+        skills: initialData.skills as Prisma.JsonArray,
+        goals: initialData.goals as Prisma.JsonArray,
+        learningStats: initialData.learningStats as Prisma.JsonObject
       }
     });
-
-    // Cập nhật reference trong User model
-    await User.findByIdAndUpdate(userId, { userActivityId: userActivity._id });
 
     return userActivity;
   }
@@ -62,120 +103,214 @@ export class UserActivityService {
    * Tracking một hoạt động phỏng vấn mới
    */
   static async trackInterviewActivity(userId: string, interviewId: string): Promise<void> {
-    const interview = await Interview.findById(interviewId) as IInterview;
-    if (!interview) throw new Error('Interview not found');
+    const interview = await prisma.interview.findUnique({
+      where: { id: interviewId }
+    });
+    
+    if (!interview || interview.status !== 'completed') {
+      throw new Error('Interview not found or not completed');
+    }
+
+    const evaluation = parseJsonField<IEvaluation>(interview.evaluation, {
+      technicalScore: 0,
+      communicationScore: 0,
+      problemSolvingScore: 0,
+      overallRating: 0,
+      recommendations: []
+    });
+
+    const skillAssessment = parseJsonField<Record<string, number>>(interview.skillAssessment, {});
+
+    // Calculate duration in minutes from seconds
+    const durationMinutes = Math.max(1, Math.ceil((interview.duration || 0) / 60));
+    const timestamp = this.formatDate(new Date());
 
     const activity: IActivity = {
       type: 'interview',
-      referenceId: new mongoose.Types.ObjectId(interviewId),
-      score: interview.evaluation.overallRating,
-      duration: Math.max(1, Math.ceil(interview.duration / 60)), // chuyển giây sang phút, làm tròn lên, tối thiểu 1 phút
-      timestamp: new Date()
+      referenceId: interviewId,
+      score: evaluation.overallRating,
+      duration: durationMinutes,
+      timestamp,
+      skillScores: skillAssessment
     };
 
-    // Cập nhật UserActivity
-    await UserActivity.findOneAndUpdate(
-      { userId: new mongoose.Types.ObjectId(userId) },
-      {
-        $push: { activities: activity },
-        $inc: { 'learningStats.totalStudyTime': Math.max(1, Math.ceil(interview.duration / 60)) }
-      }
+    // Get current activities and stats
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
+
+    if (!userActivity) {
+      // Create new user activity if not exists
+      const skills = this.convertEvaluationToSkills(evaluation, timestamp);
+      
+      await prisma.userActivity.create({
+        data: {
+          userId,
+          activities: JSON.parse(JSON.stringify([activity])),
+          learningStats: {
+            totalStudyTime: durationMinutes,
+            weeklyStudyTime: durationMinutes,
+            monthlyStudyTime: durationMinutes,
+            streak: 1,
+            lastStudyDate: timestamp
+          },
+          skills: JSON.parse(JSON.stringify(skills))
+        }
+      });
+      return;
+    }
+
+    const currentActivities = parseJsonField<IActivity[]>(userActivity.activities, []);
+    const currentStats = parseJsonField<ILearningStats>(userActivity.learningStats, {
+      totalStudyTime: 0,
+      weeklyStudyTime: 0,
+      monthlyStudyTime: 0,
+      streak: 0,
+      lastStudyDate: timestamp
+    });
+
+    // Calculate streak
+    const lastStudyDate = new Date(currentStats.lastStudyDate);
+    const today = new Date();
+    // Set both dates to midnight for comparison
+    lastStudyDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+
+    const diffDays = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    let newStreak = currentStats.streak;
+    if (diffDays === 0) {
+      // Same day activity, keep streak
+      newStreak = Math.max(currentStats.streak, 1);
+    } else if (diffDays === 1) {
+      // Next day activity, increment streak
+      newStreak = currentStats.streak + 1;
+    } else {
+      // Gap in activity, start new streak
+      newStreak = 1;
+    }
+    
+    // Update weekly and monthly study time
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    const weeklyActivities = currentActivities.filter(a => 
+      new Date(a.timestamp) > oneWeekAgo
+    );
+    const monthlyActivities = currentActivities.filter(a => 
+      new Date(a.timestamp) > oneMonthAgo
     );
 
-    // Cập nhật streak và ngày học tập
-    await this.updateLearningStats(userId);
-
-    // Cập nhật kỹ năng dựa trên kết quả phỏng vấn
-    await this.updateSkillsFromInterview(userId, interview);
-  }
-
-  /**
-   * Cập nhật kỹ năng dựa trên kết quả phỏng vấn
-   */
-  private static async updateSkillsFromInterview(userId: string, interview: { 
-    evaluation: { 
-      technicalScore: number;
-      communicationScore: number;
-      problemSolvingScore: number;
-    } 
-  }): Promise<void> {
-    const skills: Partial<ISkill>[] = [
-      {
-        name: 'Technical',
-        score: interview.evaluation.technicalScore,
-        lastAssessed: new Date()
-      },
-      {
-        name: 'Communication',
-        score: interview.evaluation.communicationScore,
-        lastAssessed: new Date()
-      },
-      {
-        name: 'Problem Solving',
-        score: interview.evaluation.problemSolvingScore,
-        lastAssessed: new Date()
-      }
-    ];
-
-    // Cập nhật level dựa trên điểm số
-    skills.forEach(skill => {
-      if (skill.score) {
-        if (skill.score >= 90) skill.level = 'expert';
-        else if (skill.score >= 75) skill.level = 'advanced';
-        else if (skill.score >= 60) skill.level = 'intermediate';
-        else skill.level = 'beginner';
+    const weeklyTime = weeklyActivities.reduce((sum, a) => sum + (a.duration || 0), 0);
+    const monthlyTime = monthlyActivities.reduce((sum, a) => sum + (a.duration || 0), 0);
+    
+    // Add new activity and update learning stats
+    await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        activities: JSON.parse(JSON.stringify([...currentActivities, activity])),
+        learningStats: {
+          totalStudyTime: currentStats.totalStudyTime + durationMinutes,
+          weeklyStudyTime: weeklyTime + durationMinutes,
+          monthlyStudyTime: monthlyTime + durationMinutes,
+          streak: newStreak,
+          lastStudyDate: timestamp
+        }
       }
     });
 
-    // Cập nhật hoặc thêm mới các kỹ năng
-    for (const skill of skills) {
-      // Thử update nếu đã có skill
-      const updateResult = await UserActivity.findOneAndUpdate(
-        {
-          userId: new mongoose.Types.ObjectId(userId),
-          'skills.name': skill.name
-        },
-        {
-          $set: {
-            'skills.$.score': skill.score,
-            'skills.$.level': skill.level,
-            'skills.$.lastAssessed': skill.lastAssessed
-          }
-        },
-        { upsert: false }
-      );
-      // Nếu chưa có skill, push mới vào mảng skills
-      if (!updateResult) {
-        await UserActivity.findOneAndUpdate(
-          { userId: new mongoose.Types.ObjectId(userId) },
-          {
-            $push: {
-              skills: {
-                name: skill.name,
-                score: skill.score,
-                level: skill.level,
-                lastAssessed: skill.lastAssessed
-              }
-            }
-          },
-          { upsert: true }
-        );
+    // Update skills based on evaluation
+    await this.updateSkillsFromEvaluation(userId, evaluation, timestamp);
+  }
+
+  /**
+   * Convert interview evaluation to skills format
+   */
+  private static convertEvaluationToSkills(evaluation: IEvaluation, timestamp: string): ISkill[] {
+    const skills: ISkill[] = [
+      {
+        name: 'Technical',
+        score: evaluation.technicalScore,
+        level: this.getSkillLevel(evaluation.technicalScore),
+        lastAssessed: timestamp
+      },
+      {
+        name: 'Communication',
+        score: evaluation.communicationScore,
+        level: this.getSkillLevel(evaluation.communicationScore),
+        lastAssessed: timestamp
+      },
+      {
+        name: 'Problem Solving',
+        score: evaluation.problemSolvingScore,
+        level: this.getSkillLevel(evaluation.problemSolvingScore),
+        lastAssessed: timestamp
       }
+    ];
+
+    return skills;
+  }
+
+  private static getSkillLevel(score: number): SkillLevel {
+    if (score >= 90) return 'expert';
+    if (score >= 75) return 'advanced';
+    if (score >= 60) return 'intermediate';
+    return 'beginner';
+  }
+
+  /**
+   * Update skills based on interview evaluation
+   */
+  private static async updateSkillsFromEvaluation(
+    userId: string, 
+    evaluation: IEvaluation,
+    timestamp: string
+  ): Promise<void> {
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
+
+    if (!userActivity) {
+      throw new Error('User activity not found');
     }
+
+    const currentSkills = parseJsonField<ISkill[]>(userActivity.skills, []);
+    const newSkills = this.convertEvaluationToSkills(evaluation, timestamp);
+
+    // Update existing skills with new values or add new skills
+    const updatedSkills = newSkills.map(newSkill => {
+      const existingSkill = currentSkills.find(s => s.name === newSkill.name);
+      return existingSkill
+        ? { ...existingSkill, ...newSkill }
+        : newSkill;
+    });
+
+    await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        skills: JSON.parse(JSON.stringify(updatedSkills))
+      }
+    });
   }
 
   /**
    * Cập nhật streak và thống kê học tập
    */
   static async updateLearningStats(userId: string): Promise<void> {
-    const userActivity = await UserActivity.findOne({ userId }) as IUserActivityDocument;
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
     if (!userActivity) throw new Error('User activity not found');
 
-    const lastStudyDate = new Date(userActivity.learningStats.lastStudyDate);
+    const learningStats = userActivity.learningStats as unknown as ILearningStats;
+    const lastStudyDate = new Date(learningStats.lastStudyDate);
     const today = new Date();
     const diffDays = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
 
-    let streak = userActivity.learningStats.streak;
+    let streak = learningStats.streak;
     if (diffDays === 1) {
       // Người dùng học liên tiếp
       streak += 1;
@@ -184,26 +319,34 @@ export class UserActivityService {
       streak = 1;
     }
 
-    await UserActivity.findOneAndUpdate(
-      { userId },
-      {
-        $set: {
-          'learningStats.streak': streak,
-          'learningStats.lastStudyDate': today
-        }
+    await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        learningStats: JSON.parse(JSON.stringify({
+          ...learningStats,
+          streak,
+          lastStudyDate: today
+        }))
       }
-    );
+    });
   }
 
   /**
    * Thêm mục tiêu mới cho người dùng
    */
-  static async addGoal(userId: string, goal: IGoal): Promise<IUserActivityDocument | null> {
-    return await UserActivity.findOneAndUpdate(
-      { userId },
-      { $push: { goals: goal } },
-      { new: true }
-    );
+  static async addGoal(userId: string, goal: IGoal): Promise<PrismaUserActivity> {
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
+
+    const currentGoals = parseJsonField<IGoal[]>(userActivity?.goals, []);
+
+    return await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        goals: JSON.parse(JSON.stringify([...currentGoals, goal]))
+      }
+    });
   }
 
   /**
@@ -212,62 +355,80 @@ export class UserActivityService {
   static async updateGoalStatus(
     userId: string, 
     goalId: string, 
-    status: 'pending' | 'in-progress' | 'completed'
-  ): Promise<IUserActivityDocument | null> {
-    const update: {
-      $set: {
-        'goals.$.status': string;
-        'goals.$.completedDate'?: Date;
-      };
-    } = {
-      $set: {
-        'goals.$.status': status
+    status: GoalStatus
+  ): Promise<PrismaUserActivity> {
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
+
+    const goals = parseJsonField<IGoal[]>(userActivity?.goals, []);
+    const updatedGoals = goals.map(g => {
+      if (g.id === goalId) {
+        return {
+          ...g,
+          status,
+          ...(status === 'completed' ? { completedDate: new Date() } : {})
+        };
       }
-    };
+      return g;
+    });
 
-    if (status === 'completed') {
-      update.$set['goals.$.completedDate'] = new Date();
-    }
-
-    return await UserActivity.findOneAndUpdate(
-      { 
-        userId,
-        'goals._id': goalId 
-      },
-      update,
-      { new: true }
-    );
+    return await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        goals: JSON.parse(JSON.stringify(updatedGoals))
+      }
+    });
   }
 
   /**
    * Lấy báo cáo tiến độ của người dùng
    */
   static async getProgressReport(userId: string) {
-    const userActivity = await UserActivity.findOne({ userId })
-      .populate<{ userId: IUserPopulated }>('userId', 'name email')
-      .lean();
+    const [userActivity, user] = await Promise.all([
+      prisma.userActivity.findUnique({
+        where: { userId }
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true, email: true }
+      })
+    ]);
 
     if (!userActivity) throw new Error('User activity not found');
 
-    // Ép kiểu để TypeScript hiểu đúng cấu trúc
-    const typedActivity = userActivity as unknown as IUserActivity & {
-      userId: IUserPopulated;
-    };
+    const activities = parseJsonField<IActivity[]>(userActivity.activities, []);
+    const learningStats = parseJsonField<ILearningStats>(userActivity.learningStats, {
+      totalStudyTime: 0,
+      weeklyStudyTime: 0,
+      monthlyStudyTime: 0,
+      streak: 0,
+      lastStudyDate: new Date().toISOString()
+    });
+    const skills = parseJsonField<ISkill[]>(userActivity.skills, []);
+    const progressHistory = parseJsonField<Array<{
+      date: string;
+      overallScore: number;
+      skillScores: Record<string, number>;
+    }>>(userActivity.progressHistory, []);
+    const goals = parseJsonField<IGoal[]>(userActivity.goals, []);
 
     // Tính toán các chỉ số
-    const totalInterviews = typedActivity.activities.filter(a => a.type === 'interview').length;
-    const averageScore = typedActivity.activities.reduce((sum, act) => sum + (act.score || 0), 0) / 
-      typedActivity.activities.length || 0;
+    const totalInterviews = activities.filter(a => a.type === 'interview').length;
+    const averageScore = activities.length > 0
+      ? activities.reduce((sum, act) => sum + (act.score || 0), 0) / activities.length
+      : 0;
     
-    const recentActivities = typedActivity.activities
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    // Sắp xếp activities theo timestamp (ISO string comparison)
+    const recentActivities = [...activities]
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 5);
 
-    const skillProgress = typedActivity.skills.map(skill => ({
+    const skillProgress = skills.map(skill => ({
       name: skill.name,
       level: skill.level,
       score: skill.score,
-      progress: typedActivity.progressHistory
+      progress: progressHistory
         .filter(ph => skill.name in ph.skillScores)
         .map(ph => ({
           date: ph.date,
@@ -276,19 +437,22 @@ export class UserActivityService {
     }));
 
     return {
-      user: typedActivity.userId,
+      user: {
+        name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+        email: user?.email
+      },
       stats: {
         totalInterviews,
         averageScore,
-        studyStreak: typedActivity.learningStats.streak,
-        totalStudyTime: typedActivity.learningStats.totalStudyTime
+        studyStreak: learningStats.streak,
+        totalStudyTime: learningStats.totalStudyTime
       },
       recentActivities,
       skillProgress,
-      goals: typedActivity.goals,
-      strengths: typedActivity.strengths,
-      weaknesses: typedActivity.weaknesses,
-      recommendations: typedActivity.recommendations
+      goals,
+      strengths: userActivity.strengths as string[] || [],
+      weaknesses: userActivity.weaknesses as string[] || [],
+      recommendations: userActivity.recommendations as string[] || []
     };
   }
 
@@ -296,12 +460,14 @@ export class UserActivityService {
    * Tạo recommendations dựa trên hoạt động người dùng
    */
   static async generateRecommendations(userId: string): Promise<string[]> {
-    const userActivity = await UserActivity.findOne({ userId }) as IUserActivityDocument;
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
     if (!userActivity) throw new Error('User activity not found');
 
-    const weakSkills = userActivity.skills
-      .filter(skill => skill.score < 70)
-      .map(skill => skill.name);
+    const skills = userActivity.skills as unknown as ISkill[];
+    const weakSkills = skills.filter(skill => skill.score < 70).map(skill => skill.name);
+    const learningStats = userActivity.learningStats as unknown as ILearningStats;
 
     const recommendations = [];
     
@@ -312,7 +478,7 @@ export class UserActivityService {
       );
     }
 
-    if (userActivity.learningStats.streak < 3) {
+    if (learningStats.streak < 3) {
       recommendations.push(
         'Try to maintain a consistent practice schedule',
         'Set daily learning goals to build momentum'
@@ -320,15 +486,13 @@ export class UserActivityService {
     }
 
     // Cập nhật recommendations
-    await UserActivity.findOneAndUpdate(
-      { userId },
-      { 
-        $set: { 
-          recommendations,
-          weaknesses: weakSkills 
-        }
+    await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        recommendations: JSON.parse(JSON.stringify(recommendations)),
+        weaknesses: JSON.parse(JSON.stringify(weakSkills))
       }
-    );
+    });
 
     return recommendations;
   }
@@ -336,11 +500,26 @@ export class UserActivityService {
   /**
    * Thêm một hoạt động mới
    */
-  static async addActivity(userId: string, activity: IActivity): Promise<void> {
-    await UserActivity.findOneAndUpdate(
-      { userId: new Types.ObjectId(userId) },
-      { $push: { activities: activity } }
-    );
+  static async addActivity(userId: string, activity: Omit<IActivity, 'timestamp'> & { timestamp: Date | string }): Promise<void> {
+    const formattedActivity = {
+      ...activity,
+      timestamp: typeof activity.timestamp === 'string' 
+        ? activity.timestamp 
+        : this.formatDate(activity.timestamp)
+    };
+
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
+
+    const currentActivities = parseJsonField<IActivity[]>(userActivity?.activities, []);
+
+    await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        activities: [...currentActivities, formattedActivity] as unknown as Prisma.JsonArray
+      }
+    });
   }
 
   /**
@@ -350,27 +529,48 @@ export class UserActivityService {
     const { name, score, lastAssessed } = skillData;
     
     // Xác định level dựa trên score
-    let level: ISkill['level'] = 'beginner';
+    let level: SkillLevel = 'beginner';
     if (score) {
       if (score >= 90) level = 'expert';
       else if (score >= 75) level = 'advanced';
       else if (score >= 60) level = 'intermediate';
     }
 
-    await UserActivity.findOneAndUpdate(
-      { 
-        userId: new Types.ObjectId(userId),
-        'skills.name': name 
-      },
-      {
-        $set: {
-          'skills.$.score': score,
-          'skills.$.level': level,
-          'skills.$.lastAssessed': lastAssessed
-        }
-      },
-      { upsert: true }
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId }
+    });
+
+    const currentSkills = parseJsonField<ISkill[]>(userActivity?.skills, []);
+    const updatedSkills = currentSkills.map(s => 
+      s.name === name
+        ? { 
+            ...s, 
+            score: score || s.score, 
+            level, 
+            lastAssessed: lastAssessed 
+              ? typeof lastAssessed === 'string' 
+                ? lastAssessed 
+                : this.formatDate(lastAssessed)
+              : this.formatDate(new Date())
+          }
+        : s
     );
+
+    if (name && !currentSkills.some(s => s.name === name)) {
+      updatedSkills.push({
+        name,
+        score: score || 0,
+        level,
+        lastAssessed: this.formatDate(new Date())
+      });
+    }
+
+    await prisma.userActivity.update({
+      where: { userId },
+      data: {
+        skills: updatedSkills as unknown as Prisma.JsonArray
+      }
+    });
   }
 
   /**
@@ -383,11 +583,14 @@ export class UserActivityService {
     score?: number
   ): Promise<void> {
     // Tạo activity mới cho phiên thực hành
+    const now = new Date();
+    const timestamp = this.formatDate(now);
+    
     await this.addActivity(userId, {
       type: 'practice',
       score,
       duration,
-      timestamp: new Date()
+      timestamp
     });
 
     // Nếu có điểm số, cập nhật kỹ năng tương ứng
@@ -395,7 +598,7 @@ export class UserActivityService {
       await this.updateSkill(userId, {
         name: topic,
         score,
-        lastAssessed: new Date()
+        lastAssessed: timestamp
       });
     }
 
@@ -409,25 +612,12 @@ export class UserActivityService {
   static async trackGoalProgress(
     userId: string,
     goalId: string,
-    status: 'pending' | 'in-progress' | 'completed'
+    status: GoalStatus
   ): Promise<void> {
     try {
-      // Cập nhật trạng thái mục tiêu
-      const update: {
-        $set: {
-          'goals.$.status': string;
-          'goals.$.completedDate'?: Date;
-        };
-      } = {
-        $set: {
-          'goals.$.status': status
-        }
-      };
+      await this.updateGoalStatus(userId, goalId, status);
 
-      // Nếu hoàn thành, thêm thời điểm hoàn thành
       if (status === 'completed') {
-        update.$set['goals.$.completedDate'] = new Date();
-        
         // Thêm activity cho việc hoàn thành mục tiêu
         await this.addActivity(userId, {
           type: 'goal_completed',
@@ -437,19 +627,7 @@ export class UserActivityService {
 
         // Tạo recommendations mới dựa trên mục tiêu đã hoàn thành
         await this.generateRecommendations(userId);
-      }
-
-      // Cập nhật goal trong UserActivity
-      await UserActivity.findOneAndUpdate(
-        { 
-          userId: new Types.ObjectId(userId),
-          'goals._id': new Types.ObjectId(goalId)
-        },
-        update
-      );
-
-      // Nếu bắt đầu thực hiện mục tiêu
-      if (status === 'in-progress') {
+      } else if (status === 'in_progress') {
         await this.addActivity(userId, {
           type: 'goal_started',
           timestamp: new Date(),
@@ -468,9 +646,9 @@ export class UserActivityService {
   /**
    * Get user activity data
    */
-  static async getUserActivity(userId: string): Promise<IUserActivityDocument | null> {
-    return await UserActivity.findOne({ 
-      userId: new mongoose.Types.ObjectId(userId) 
+  static async getUserActivity(userId: string): Promise<PrismaUserActivity | null> {
+    return await prisma.userActivity.findUnique({
+      where: { userId }
     });
   }
 }

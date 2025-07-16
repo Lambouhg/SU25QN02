@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { SessionState } from './HeygenConfig';
 import { StartAvatarRequest } from '@heygen/streaming-avatar';
 
@@ -14,10 +14,11 @@ interface PreInterviewSetupProps {
   onFieldChange: (field: string) => void;
   onLevelChange: (level: string) => void;
   onPositionIdChange: (id: string) => void; // New prop for _id
+  positions: Position[]; // Add positions prop
 }
 
 interface Position {
-  _id: string;
+  id: string;  // Thay đổi từ _id sang id để phù hợp với Prisma
   key: string;
   positionName: string;
   level: string;
@@ -37,30 +38,10 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   interviewLevel,
   onLevelChange,
   onPositionIdChange,
+  positions // Sử dụng positions từ props
 }) => {
-  const [positions, setPositions] = useState<Position[]>([]); // Định nghĩa kiểu dữ liệu cho positions
-  const [availableLevels, setAvailableLevels] = useState<string[]>([]); // Levels cho vị trí được chọn
-  const [selectedPositionName, setSelectedPositionName] = useState<string>(''); // Tên vị trí được chọn
-
-  // Gọi API để lấy danh sách Position
-  useEffect(() => {
-    const fetchPositions = async () => {
-      try {
-        const response = await fetch('/api/positions');
-        if (!response.ok) {
-          throw new Error('Failed to fetch positions');
-        }
-        const data: Position[] = await response.json(); // Đảm bảo kiểu dữ liệu trả về
-        setPositions(data);
-      } catch (error) {
-        console.error('Error fetching positions:', error);
-      }
-    };
-
-    fetchPositions();
-  }, []);
-
-  // No need for levels effect anymore since levels are part of positions
+  const [availableLevels, setAvailableLevels] = useState<string[]>([]);
+  const [selectedPositionName, setSelectedPositionName] = useState<string>('');
 
   const handleConfigChange = useCallback(<K extends keyof StartAvatarRequest>(
     key: K,
@@ -196,7 +177,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                   
                   if (matchingPosition) {
                     onFieldChange(matchingPosition.key);
-                    onPositionIdChange(matchingPosition._id);
+                    onPositionIdChange(matchingPosition.id);
                   }
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"

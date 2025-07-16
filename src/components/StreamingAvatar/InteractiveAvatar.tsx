@@ -33,6 +33,15 @@ interface ConversationMessage extends Message {
   type: MessageType;
 }
 
+interface Position {
+  id: string;
+  key: string;
+  positionName: string;
+  level: string;
+  displayName: string;
+  order: number;
+}
+
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.High,
   avatarName: AVATARS[0].avatar_id,
@@ -59,6 +68,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   const { userId, isLoaded, isSignedIn, getToken } = useAuth();
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
   const [connectionQuality, setConnectionQuality] = useState('UNKNOWN');
+  const [positions, setPositions] = useState<Position[]>([]);
   const [isAvatarTalking, setIsAvatarTalking] = useState(false);
   const [message, setMessage] = useState('');
   const [isInterviewComplete, setIsInterviewComplete] = useState(false);
@@ -66,11 +76,29 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   const [positionKey, setPositionKey] = useState<string>(''); // Store key for AI
   const [positionType, setPositionType] = useState<string>(''); // Store type for AI
   const [positionId, setPositionId] = useState<string>(''); // Store _id for backend
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasLoadedPositions, setHasLoadedPositions] = useState(false);
 
-  // Debug position state changes
+  // Fetch positions once when component mounts
   useEffect(() => {
-    console.log('Position state updated:', { positionKey, positionType, positionId });
-  }, [positionKey, positionType, positionId]);
+    const fetchPositions = async () => {
+      if (hasLoadedPositions) return; // Prevent multiple fetches
+      
+      try {
+        const response = await fetch('/api/positions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch positions');
+        }
+        const data: Position[] = await response.json();
+        setPositions(data);
+        setHasLoadedPositions(true);
+      } catch (error) {
+        console.error('Error fetching positions:', error);
+      }
+    };
+
+    fetchPositions();
+  }, [hasLoadedPositions]); // Only depend on hasLoadedPositions
 
   // Add useEffect to handle auth state
   useEffect(() => {
@@ -165,19 +193,28 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   });
 
   const handleInterviewCompleteInternal = useCallback(async (progress: number) => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.log('Already submitting interview results, skipping...');
+      return;
+    }
+    
+    setIsSubmitting(true);
     setIsInterviewComplete(true);
     
     if (!isLoaded) {
       console.log('Auth state is still loading...');
+      setIsSubmitting(false);
       return;
     }
     
     if (!isSignedIn || !userId) {
       console.log('User not signed in. Auth state:', { isLoaded, isSignedIn, userId });
       router.push('/sign-in?redirect=/interview');
+      setIsSubmitting(false);
       return;
     }
-    
+
     const completionMessage = config.language === 'vi' 
       ? `Phỏng vấn đã hoàn thành với tiến độ ${progress}%. Cảm ơn bạn đã tham gia buổi phỏng vấn! Đang chuyển đến trang đánh giá...`
       : `Interview completed with progress ${progress}%. Thank you for participating in the interview! Redirecting to evaluation...`;
@@ -188,11 +225,12 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
 
       const evaluation = await generateInterviewEvaluation(
         aiConversationHistory,
-        positionKey, // Use key for evaluation
+        positionKey,
         positionId,
         config.language === 'vi' ? 'vi-VN' : 'en-US'
       );
 
+      // Transform conversation history
       const messages = conversation as unknown as ConversationMessage[];
       const apiConversation = messages.map(msg => ({
         role: msg.type === 'user' ? 'user' : msg.type === 'ai' ? 'assistant' : 'system',
@@ -200,40 +238,58 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         timestamp: msg.timestamp
       }));
 
-      // Get auth token for request
-      const token = await getToken();
-      console.log('Making API request with auth:', { hasUserId: !!userId, hasToken: !!token });
+      // Calculate interview duration in seconds
+      const startTime = new Date(messages[0].timestamp);
+      const endTime = new Date();
+      const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
 
+      // Get auth token
+      const token = await getToken();
+      
+      // Create request data
+      const requestData = {
+        positionId,
+        language: config.language === 'vi' ? 'vi-VN' : 'en-US',
+        startTime,
+        endTime,
+        duration,
+        conversationHistory: apiConversation,
+        evaluation,
+        questionCount: questionCount,
+        coveredTopics: interviewState.coveredTopics,
+        skillAssessment: interviewState.skillAssessment,
+        progress,
+        status: 'completed'  // Set status to completed
+      };
+      
+      // Save interview results
       const response = await fetch('/api/interviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          userId, // Include userId for validation
-          positionId, // Save only the position ID
-          language: config.language === 'vi' ? 'vi-VN' : 'en-US',
-          startTime: new Date(conversation[0]?.timestamp || Date.now()),
-          endTime: new Date(),
-          conversationHistory: apiConversation,
-          evaluation,
-          progress,
-          questionCount,
-          coveredTopics: interviewState.coveredTopics,
-          skillAssessment: interviewState.skillAssessment,
-          status: 'completed' as const
-        }),
+        body: JSON.stringify(requestData)
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('API error:', { status: response.status, errorData });
-        throw new Error(`Failed to save interview data: ${errorData?.error || response.statusText}`);
+        console.error('API error:', {
+          status: response.status,
+          errorData,
+          requestData
+        });
+        throw new Error(
+          `Failed to save interview data: ${
+            errorData?.error || errorData?.details || response.statusText
+          }`
+        );
       }
 
       const savedInterview = await response.json();
-      localStorage.setItem('currentInterviewId', savedInterview._id);
+      console.log('Interview saved successfully:', savedInterview);
+      
+      localStorage.setItem('currentInterviewId', savedInterview.id); // Sử dụng .id thay vì ._id
       
       await endSession();
       setIsAvatarTalking(false);
@@ -249,6 +305,8 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         'system',
         true
       );
+    } finally {
+      setIsSubmitting(false);
     }
   }, [
     userId,
@@ -266,7 +324,8 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
     onEndSession,
     router,
     questionCount,
-    interviewState
+    interviewState,
+    isSubmitting // Add isSubmitting to dependencies
   ]);
 
   const handleEndSession = useCallback(async () => {
@@ -329,6 +388,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
           console.log('Position ID changed:', id);
           setPositionId(id);
         }}
+        positions={positions}
       />
     );
   }

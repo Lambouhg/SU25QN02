@@ -97,26 +97,30 @@ export async function POST(request: Request) {
         firstName: firstName || undefined,
         lastName: lastName || undefined,
         avatar: avatar || undefined,
-        lastLogin: new Date(),
+        lastLogin: new Date()
       },
       create: {
+        clerkId,
         email,
         firstName: firstName || '',
         lastName: lastName || '',
-        clerkId,
         avatar: avatar || '',
         lastLogin: new Date(),
+        role: 'user'
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        clerkId: true,
+        role: true,
+        avatar: true,
+        lastLogin: true
       }
     });
 
-    // Invalidate cache since user data was modified
-    invalidateUserListCache();
-
-    return NextResponse.json({ 
-      message: user ? "User updated successfully" : "User created successfully", 
-      user,
-      action: user ? "update" : "create"
-    });
+    return NextResponse.json(user);
   } catch (error) {
     console.error("Error in user API:", error);
     return NextResponse.json(

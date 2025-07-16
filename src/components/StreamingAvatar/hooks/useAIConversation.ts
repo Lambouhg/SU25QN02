@@ -139,10 +139,6 @@ export const useAIConversation = ({
       // Update question count
       setQuestionCount(prev => prev + 1);
 
-      // Check if interview is complete
-      if (response.isInterviewComplete && onInterviewComplete) {
-        onInterviewComplete(response.interviewProgress);
-      }
     } catch (error) {
       console.error('Error processing message:', error);
       onError(language === 'vi-VN'
@@ -157,7 +153,6 @@ export const useAIConversation = ({
     onAnswer,
     onError,
     onFollowUpQuestion,
-    onInterviewComplete,
     updateInterviewState
   ]);
 

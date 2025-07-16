@@ -273,13 +273,23 @@ export class ClerkActivityService {
           isOnline: true,
           clerkSessionActive: true,
           lastActivity: now,
-          lastSignInAt: now
+          lastSignInAt: now,
+          role: 'user' // Thêm role mặc định
         },
         update: {
           isOnline: true,
           clerkSessionActive: true,
-          lastActivity: now,
-          lastSignInAt: now
+          lastActivity: now
+        },
+        select: {
+          id: true,
+          email: true,
+          clerkId: true,
+          isOnline: true,
+          clerkSessionActive: true,
+          lastActivity: true,
+          lastSignInAt: true,
+          role: true
         }
       });
       

@@ -1,18 +1,29 @@
 import { UserActivityService } from './userActivityService';
-import  { IInterview } from '../models/interview';
-import { Types } from 'mongoose';
+import type { Interview, GoalStatus, ActivityType } from '@prisma/client';
+
 interface QuestionWithTopics {
   topics: string[];
 }
 
+interface Activity {
+  type: ActivityType;
+  score?: number;
+  duration: number;
+  timestamp: string;  // Changed from Date to string
+}
+
 export class TrackingIntegrationService {
+  private static formatDate(date: Date): string {
+    return date.toISOString();
+  }
+
   /**
    * Tracking khi người dùng hoàn thành một buổi phỏng vấn
    */
-  static async trackInterviewCompletion(userId: string, interview: IInterview & { _id: Types.ObjectId }) {
+  static async trackInterviewCompletion(userId: string, interview: Interview) {
     try {
       // Track hoạt động phỏng vấn
-      await UserActivityService.trackInterviewActivity(userId, interview._id.toString());
+      await UserActivityService.trackInterviewActivity(userId, interview.id);
 
       // Cập nhật streak
       await UserActivityService.updateLearningStats(userId);
@@ -37,11 +48,11 @@ export class TrackingIntegrationService {
       const score = (correctAnswers / questions.length) * 100;
       
       // Tạo activity mới
-      const activity = {
-        type: 'quiz' as const,
+      const activity: Activity = {
+        type: 'quiz',
         score,
         duration: timeSpent,
-        timestamp: new Date()
+        timestamp: this.formatDate(new Date())
       };
 
       // Thêm vào activities
@@ -49,11 +60,12 @@ export class TrackingIntegrationService {
 
       // Cập nhật kỹ năng dựa trên chủ đề của quiz
       const topics = Array.from(new Set(questions.flatMap(q => q.topics)));
+      const timestamp = this.formatDate(new Date());
       for (const topic of topics) {
         await UserActivityService.updateSkill(userId, {
           name: topic,
           score: score,
-          lastAssessed: new Date()
+          lastAssessed: timestamp
         });
       }
 
@@ -74,23 +86,24 @@ export class TrackingIntegrationService {
     performanceScore?: number
   ) {
     try {
+      const timestamp = this.formatDate(new Date());
       // Tạo activity mới
-      const activity = {
-        type: 'practice' as const,
+      const activity: Activity = {
+        type: 'practice',
         score: performanceScore,
         duration,
-        timestamp: new Date()
+        timestamp
       };
 
       // Thêm vào activities
       await UserActivityService.addActivity(userId, activity);
 
       // Cập nhật kỹ năng nếu có performance score
-      if (performanceScore) {
+      if (performanceScore !== undefined) {
         await UserActivityService.updateSkill(userId, {
           name: topic,
           score: performanceScore,
-          lastAssessed: new Date()
+          lastAssessed: timestamp
         });
       }
 
@@ -107,7 +120,7 @@ export class TrackingIntegrationService {
   static async trackGoalProgress(
     userId: string,
     goalId: string,
-    status: 'pending' | 'in-progress' | 'completed'
+    status: GoalStatus
   ) {
     try {
       await UserActivityService.updateGoalStatus(userId, goalId, status);
@@ -135,7 +148,8 @@ export class TrackingIntegrationService {
       }
 
       // Return default progress data for new users
-      if (!userActivity.activities.length) {
+      if (!userActivity.activities) {
+        const oneWeekFromNow = this.formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
         return {
           stats: {
             totalInterviews: 0,
@@ -148,7 +162,7 @@ export class TrackingIntegrationService {
           nextMilestones: [
             {
               goal: 'Complete first interview practice',
-              targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
+              targetDate: oneWeekFromNow
             }
           ],
           recommendations: [

@@ -31,6 +31,9 @@ CREATE TYPE "SkillLevel" AS ENUM ('beginner', 'intermediate', 'advanced', 'exper
 -- CreateEnum
 CREATE TYPE "ActivityType" AS ENUM ('interview', 'quiz', 'practice', 'learning', 'goal_completed', 'goal_started');
 
+-- CreateEnum
+CREATE TYPE "AssessmentType" AS ENUM ('test', 'eq');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -142,38 +145,6 @@ CREATE TABLE "Position" (
 );
 
 -- CreateTable
-CREATE TABLE "Test" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT,
-    "position" TEXT NOT NULL,
-    "level" TEXT NOT NULL,
-    "duration" INTEGER NOT NULL,
-    "totalTime" INTEGER,
-    "history" JSONB,
-    "realTimeScores" JSONB,
-    "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Test_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "EQ" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "duration" INTEGER NOT NULL,
-    "selectedCategory" TEXT NOT NULL,
-    "level" TEXT NOT NULL,
-    "history" JSONB,
-    "realTimeScores" JSONB,
-    "finalScores" JSONB,
-    "totalTime" INTEGER NOT NULL,
-    "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3),
-
-    CONSTRAINT "EQ_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "UserActivity" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -204,6 +175,25 @@ CREATE TABLE "QuestionSet" (
     "updatedAt" TIMESTAMP(3),
 
     CONSTRAINT "QuestionSet_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Assessment" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "AssessmentType" NOT NULL,
+    "positionId" TEXT,
+    "selectedCategory" TEXT,
+    "level" TEXT NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "totalTime" INTEGER NOT NULL,
+    "history" JSONB,
+    "realTimeScores" JSONB,
+    "finalScores" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Assessment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -255,6 +245,9 @@ CREATE INDEX "Position_key_idx" ON "Position"("key");
 CREATE UNIQUE INDEX "UserActivity_userId_key" ON "UserActivity"("userId");
 
 -- CreateIndex
+CREATE INDEX "Assessment_positionId_idx" ON "Assessment"("positionId");
+
+-- CreateIndex
 CREATE INDEX "_QuizQuestions_B_index" ON "_QuizQuestions"("B");
 
 -- CreateIndex
@@ -280,6 +273,9 @@ ALTER TABLE "Question" ADD CONSTRAINT "Question_createdById_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "UserActivity" ADD CONSTRAINT "UserActivity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Assessment" ADD CONSTRAINT "Assessment_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_QuizQuestions" ADD CONSTRAINT "_QuizQuestions_A_fkey" FOREIGN KEY ("A") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
