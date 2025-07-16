@@ -23,6 +23,9 @@ interface StartScreenEQProps {
     }>;
   }>;
   levelOptions: string[];
+  position: string;
+  setPosition: (position: string) => void;
+  positionOptions: string[];
 }
 
 export default function StartScreenEQ({
@@ -34,7 +37,10 @@ export default function StartScreenEQ({
   setDuration,
   startEQInterview,
   EQ_SCENARIOS,
-  levelOptions
+  levelOptions,
+  position,
+  setPosition,
+  positionOptions
 }: StartScreenEQProps) {
   return (
     <Card className="shadow-lg">
@@ -62,6 +68,20 @@ export default function StartScreenEQ({
                 <SelectItem key={category.category} value={category.category}>
                   {category.category}
                 </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {/* Position Selection */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium text-gray-700">Position</Label>
+          <Select value={position} onValueChange={setPosition}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select position" />
+            </SelectTrigger>
+            <SelectContent>
+              {positionOptions.map((option) => (
+                <SelectItem key={option} value={option}>{option}</SelectItem>
               ))}
             </SelectContent>
           </Select>

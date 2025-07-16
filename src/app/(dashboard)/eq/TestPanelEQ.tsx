@@ -253,6 +253,9 @@ export default function TestPanelEQ() {
 	const [interviewStartTime, setInterviewStartTime] = useState<number | null>(null);
 	const [remainingTime, setRemainingTime] = useState<number>(duration);
 
+	const [position, setPosition] = useState('');
+	const [positionOptions, setPositionOptions] = useState<string[]>([]);
+
 	useEffect(() => {
 		if (messageListRef.current) {
 			messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
@@ -266,6 +269,17 @@ export default function TestPanelEQ() {
 			setHasSentInitialMessage(true);
 		}
 	}, [interviewing, selectedCategory, level, hasSentInitialMessage]);
+
+	useEffect(() => {
+		fetch('/api/positions')
+			.then(res => res.json())
+			.then(data => {
+				if (Array.isArray(data)) {
+					setPositionOptions(Array.from(new Set(data.map((p: any) => p.positionName))));
+					if (!position && data.length > 0) setPosition(data[0].positionName);
+				}
+			});
+	}, []);
 
 	const startEQInterview = () => {
 		setShowResult(false);
@@ -508,6 +522,7 @@ export default function TestPanelEQ() {
 					history,
 					realTimeScores,
 					totalTime,
+					position,
 				})
 			});
 			console.log('EQ result saved:', response);
@@ -603,6 +618,7 @@ export default function TestPanelEQ() {
 					history,
 					realTimeScores,
 					totalTime,
+					position,
 				})
 			});
 		} catch (error) {
@@ -647,6 +663,9 @@ export default function TestPanelEQ() {
 							startEQInterview={startEQInterview}
 							EQ_SCENARIOS={EQ_SCENARIOS}
 							levelOptions={levelOptions}
+							position={position}
+							setPosition={setPosition}
+							positionOptions={positionOptions}
 						/>
 					) : (
 						<InterviewScreenEQ
