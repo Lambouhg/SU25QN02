@@ -66,6 +66,18 @@ enum ActivityType {
   goal_completed
   goal_started
 }
+enum NotificationType {
+  USER_REGISTRATION
+  USER_LOGIN
+  INTERVIEW_COMPLETED
+  QUIZ_COMPLETED
+  SYSTEM_ALERT
+}
+enum NotificationStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
 enum AssessmentType {
   test
   eq
@@ -117,6 +129,7 @@ model User {
   quizHistory       Quiz[]     @relation("QuizHistory")
   userActivity      UserActivity?
   quizzes           Quiz[]
+  notifications     Notification[]
 }
 
 model Interview {
@@ -206,7 +219,7 @@ model UserActivity {
   progressHistory Json?
 }
 
-model QuestionSet {
+model JdQuestions {
   id            String   @id @default(uuid())
   userId        String
   jobTitle      String
@@ -239,29 +252,25 @@ model Assessment {
   @@index([positionId])
 }
 
-// Comment out old models
-// model Test {
-//   id         String   @id @default(uuid())
-//   userId     String?
-//   position   String
-//   level      String
-//   duration   Int
-//   totalTime  Int?
-//   history    Json?
-//   realTimeScores Json?
-//   createdAt  DateTime? @default(now())
-// }
+model Settings {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  value           Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
 
-// model EQ {
-//   id                String   @id @default(uuid())
-//   userId            String
-//   duration          Int
-//   selectedCategory  String
-//   level             String
-//   history           Json?
-//   realTimeScores    Json?
-//   finalScores       Json?
-//   totalTime         Int
-//   createdAt         DateTime? @default(now())
-//   updatedAt         DateTime? @updatedAt
-// }
+model Notification {
+  id          String             @id @default(uuid())
+  type        NotificationType
+  title       String
+  message     String
+  status      NotificationStatus @default(UNREAD)
+  userId      String?            // User ID liên quan (nếu có)
+  metadata    Json?              // Dữ liệu bổ sung
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  
+  // Optional relation to User
+  user        User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

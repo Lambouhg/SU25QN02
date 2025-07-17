@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import prisma from "../../../lib/prisma";
+// import NotificationService from "../../../services/notificationService";
 
 // Cache for user list to prevent frequent database queries
 interface UserListCacheData {
@@ -10,6 +11,10 @@ interface UserListCacheData {
 
 let userListCache: { data: UserListCacheData; timestamp: number } | null = null;
 const USER_LIST_CACHE_DURATION = 30000; // 30 seconds
+
+// Simple in-memory cache for user updates
+const userUpdateCache = new Map<string, number>();
+const userCache = new Map<string, object>();
 
 // Function to invalidate the cache
 export function invalidateUserListCache() {
@@ -88,6 +93,30 @@ export async function POST(request: Request) {
     if (!email || !clerkId) {
       return NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 });
     }
+
+    // Check if user was recently updated (within last hour) to avoid unnecessary updates
+    const recentUpdateKey = `user_update_${clerkId}`;
+    const lastUpdate = userUpdateCache.get(recentUpdateKey);
+    const oneHourAgo = Date.now() - (60 * 60 * 1000);
+    
+    if (lastUpdate && lastUpdate > oneHourAgo) {
+      // Return cached user data if recently updated
+      const cachedUser = userCache.get(clerkId);
+      if (cachedUser) {
+        return NextResponse.json({ 
+          message: "User data is current (cached)", 
+          user: cachedUser,
+          action: "cached"
+        });
+      }
+    }
+
+    // // Kiểm tra xem user đã tồn tại chưa
+    // const existingUser = await prisma.user.findUnique({
+    //   where: { clerkId }
+    // });
+
+    // const isNewUser = !existingUser;
 
     // Sử dụng upsert để tránh race condition
     const user = await prisma.user.upsert({

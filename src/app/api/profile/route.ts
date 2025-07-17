@@ -114,17 +114,17 @@ export async function PUT(request: Request) {
         preferredInterviewTypes: data.preferredInterviewTypes || []
       },
       update: {
-        firstName: data.firstName || undefined,
-        lastName: data.lastName || undefined,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
-        department: data.department || undefined,
-        position: data.position || undefined,
-        bio: data.bio || undefined,
-        skills: data.skills || undefined,
+        firstName: data.firstName !== undefined ? data.firstName : undefined,
+        lastName: data.lastName !== undefined ? data.lastName : undefined,
+        email: data.email !== undefined ? data.email : undefined,
+        phone: data.phone !== undefined ? data.phone : undefined,
+        department: data.department !== undefined ? data.department : undefined,
+        position: data.position !== undefined ? data.position : undefined,
+        bio: data.bio !== undefined ? data.bio : undefined,
+        skills: data.skills !== undefined ? data.skills : undefined,
         lastLogin: new Date(),
-        experienceLevel: data.experienceLevel || undefined,
-        preferredInterviewTypes: data.preferredInterviewTypes || undefined
+        experienceLevel: data.experienceLevel !== undefined ? data.experienceLevel : undefined,
+        preferredInterviewTypes: data.preferredInterviewTypes !== undefined ? data.preferredInterviewTypes : undefined
       }
     });
 

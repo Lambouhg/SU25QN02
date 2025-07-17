@@ -146,6 +146,11 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
     return `${mins}m`;
   };
 
+  const safeNumber = (value: unknown, defaultValue: number = 0): number => {
+    const num = Number(value);
+    return isNaN(num) || !isFinite(num) ? defaultValue : num;
+  };
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString();
   };
@@ -287,7 +292,7 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
               <Star className="h-4 w-4 text-yellow-600" />
               <div className="ml-2">
                 <p className="text-sm font-medium text-gray-600">Average Score</p>
-                <p className="text-2xl font-bold">{Math.round(data.stats.averageScore)}%</p>
+                <p className="text-2xl font-bold">{Math.round(safeNumber(data.stats.averageScore))}%</p>
               </div>
             </div>
           </CardContent>
@@ -388,10 +393,10 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
                         {skill.level}
                       </Badge>
                     </div>
-                    <Progress value={skill.score} className="mt-2" />
+                    <Progress value={safeNumber(skill.score)} className="mt-2" />
                   </div>
                   <div className="text-right ml-4">
-                    <p className="font-bold">{skill.score}%</p>
+                    <p className="font-bold">{safeNumber(skill.score)}%</p>
                     <p className="text-xs text-gray-500">
                       {formatDate(skill.lastAssessed)}
                     </p>
@@ -463,7 +468,7 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
                   <div className="flex items-center gap-2">
                     <p className="font-medium capitalize">{activity.type}</p>
                     {activity.score && (
-                      <Badge variant="outline">{activity.score}%</Badge>
+                      <Badge variant="outline">{safeNumber(activity.score)}%</Badge>
                     )}
                   </div>
                   <p className="text-sm text-gray-600">

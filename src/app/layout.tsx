@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import UserSync from "@/components/UserSync";
-import AuthUserSync from "@/components/auth/UserSync";
 import AuthRedirect from "@/components/auth/AuthRedirect";
 import { UserSyncProvider } from "@/context/UserSyncContext";
 import { RoleProvider } from "@/context/RoleContext";
@@ -37,7 +36,6 @@ export default function RootLayout({
             <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}>
               {children}
               <UserSync />
-              <AuthUserSync />
               <AuthRedirect />
               <AdminRedirect />
             </body>

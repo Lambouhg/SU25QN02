@@ -67,26 +67,33 @@ interface AnalyticsData {
     totalDuration: number;
   }>;
   topPerformers: Array<{
-    user: {
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-    };
+    userId: string;
+    userName: string;
+    email: string;
     averageScore: number;
     totalActivities: number;
     studyStreak: number;
+    totalStudyTime: number;
   }>;
   mostActiveUsers: Array<{
-    user: {
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-    };
+    userId: string;
+    userName: string;
+    email: string;
     totalActivities: number;
     recentActivities: number;
     studyStreak: number;
   }>;
   goalInsights: Record<string, unknown>;
+  recentActivities: Array<{
+    type: string;
+    score: number;
+    timestamp: string;
+    duration: number;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    details: Record<string, unknown>;
+  }>;
   timeframe: {
     days: number;
     startDate: string;
@@ -144,12 +151,18 @@ export default function AdminAnalytics() {
   };
 
   const formatNumber = (num: number) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
+    const safeNum = safeNumber(num);
+    if (safeNum >= 1000000) {
+      return (safeNum / 1000000).toFixed(1) + 'M';
+    } else if (safeNum >= 1000) {
+      return (safeNum / 1000).toFixed(1) + 'K';
     }
-    return num.toString();
+    return safeNum.toString();
+  };
+
+  const safeNumber = (value: unknown, defaultValue: number = 0): number => {
+    const num = Number(value);
+    return isNaN(num) || !isFinite(num) ? defaultValue : num;
   };
 
   if (loading && !data) {
@@ -239,7 +252,7 @@ export default function AdminAnalytics() {
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
                 <p className="text-2xl font-bold">{formatNumber(data.overview.totalUsers)}</p>
                 <p className="text-xs text-gray-500">
-                  {data.overview.activeUsers} active ({Math.round(data.overview.platformEngagement)}%)
+                  {data.overview.activeUsers} active ({Math.round(safeNumber(data.overview.platformEngagement))}%)
                 </p>
               </div>
             </div>
@@ -254,7 +267,7 @@ export default function AdminAnalytics() {
                 <p className="text-sm font-medium text-gray-600">Total Activities</p>
                 <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice)}</p>
                 <p className="text-xs text-gray-500">
-                  {Math.round((data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice) / Math.max(data.overview.activeUsers, 1))} per active user
+                  {Math.round(safeNumber((data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice) / Math.max(safeNumber(data.overview.activeUsers), 1)))} per active user
                 </p>
               </div>
             </div>
@@ -267,7 +280,7 @@ export default function AdminAnalytics() {
               <Star className="h-4 w-4 text-yellow-600" />
               <div className="ml-2">
                 <p className="text-sm font-medium text-gray-600">Study Streak</p>
-                <p className="text-2xl font-bold">{Math.round(data.learningStats.averageStreak)} days</p>
+                <p className="text-2xl font-bold">{Math.round(safeNumber(data.learningStats.averageStreak))} days</p>
                 <p className="text-xs text-gray-500">Average across users</p>
               </div>
             </div>
@@ -307,7 +320,9 @@ export default function AdminAnalytics() {
               <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalInterviews)}</p>
               <p className="text-sm text-gray-600">Interviews</p>
               <p className="text-xs text-gray-500 mt-1">
-                {Math.round((data.activityStats.totalInterviews / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100)}% of total
+                                <p className="text-xs text-gray-500">
+                {Math.round(safeNumber((data.activityStats.totalInterviews / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100))}% of total
+                </p>
               </p>
             </div>
             
@@ -318,7 +333,9 @@ export default function AdminAnalytics() {
               <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalQuizzes)}</p>
               <p className="text-sm text-gray-600">Quizzes</p>
               <p className="text-xs text-gray-500 mt-1">
-                {Math.round((data.activityStats.totalQuizzes / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100)}% of total
+                                <p className="text-xs text-gray-500">
+                {Math.round(safeNumber((data.activityStats.totalQuizzes / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100))}% of total
+                </p>
               </p>
             </div>
             
@@ -329,7 +346,9 @@ export default function AdminAnalytics() {
               <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalPractice)}</p>
               <p className="text-sm text-gray-600">Practice Sessions</p>
               <p className="text-xs text-gray-500 mt-1">
-                {Math.round((data.activityStats.totalPractice / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100)}% of total
+                                <p className="text-xs text-gray-500">
+                {Math.round(safeNumber((data.activityStats.totalPractice / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100))}% of total
+                </p>
               </p>
             </div>
           </div>
@@ -367,14 +386,14 @@ export default function AdminAnalytics() {
                   <span>Completion Rate</span>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">
-                      {data.learningStats.totalGoals > 0 ? Math.round((data.learningStats.completedGoals / data.learningStats.totalGoals) * 100) : 0}%
+                      {data.learningStats.totalGoals > 0 ? Math.round(safeNumber((data.learningStats.completedGoals / data.learningStats.totalGoals) * 100)) : 0}%
                     </Badge>
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span>Average Goals per User</span>
                   <div className="flex items-center gap-2">
-                    <span>{Math.round(data.learningStats.averageGoalsPerUser * 10) / 10}</span>
+                    <span>{Math.round(safeNumber(data.learningStats.averageGoalsPerUser) * 10) / 10}</span>
                   </div>
                 </div>
               </div>
@@ -474,6 +493,52 @@ export default function AdminAnalytics() {
         </CardContent>
       </Card>
 
+      {/* Recent Activities */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Recent Activities
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {(data.recentActivities || []).map((activity, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={
+                      activity.type === 'interview' ? 'default' :
+                      activity.type === 'quiz' ? 'secondary' : 'outline'
+                    }>
+                      {activity.type}
+                    </Badge>
+                    <span className="font-medium">{activity.userName}</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">{activity.userEmail}</p>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-lg">
+                      {safeNumber(activity.score)}/10
+                    </span>
+                    <Badge variant={safeNumber(activity.score) >= 7 ? 'default' : safeNumber(activity.score) >= 5 ? 'secondary' : 'destructive'}>
+                      {safeNumber(activity.score) >= 7 ? 'Good' : safeNumber(activity.score) >= 5 ? 'Average' : 'Needs Work'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {new Date(activity.timestamp).toLocaleDateString()} • {activity.duration}min
+                  </p>
+                </div>
+              </div>
+            ))}
+            {(!data.recentActivities || data.recentActivities.length === 0) && (
+              <p className="text-center text-gray-500 py-4">No recent activities found</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Top Performers */}
       <Card>
         <CardHeader>
@@ -488,9 +553,9 @@ export default function AdminAnalytics() {
               <div key={index} className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">
-                    {performer.user?.firstName || 'Unknown'} {performer.user?.lastName || 'User'}
+                    {performer.userName || 'Unknown User'}
                   </p>
-                  <p className="text-sm text-gray-500">{performer.user?.email}</p>
+                  <p className="text-sm text-gray-500">{performer.email}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold">{performer.totalActivities} activities</p>

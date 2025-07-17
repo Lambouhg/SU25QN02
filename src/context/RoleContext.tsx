@@ -84,7 +84,7 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
   // Optimized fetch role function with faster endpoint
   const fetchRole = useCallback(async (userId: string): Promise<string> => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // Increase to 8s timeout
     
     try {
       // Use the faster role-only endpoint
@@ -110,11 +110,11 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       clearTimeout(timeoutId);
       if (error instanceof Error && error.name === 'AbortError') {
-        console.error('Role fetch timeout - using cached or default role');
+        console.warn('Role fetch timeout - defaulting to user role');
       } else {
-        console.error('Role fetch error:', error);
+        console.warn('Role fetch error:', error);
       }
-      return 'user';
+      return 'user'; // Always return a default instead of throwing
     }
   }, []);
 
@@ -217,13 +217,8 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       setUserRole(prev => ({ ...prev, loading: true }));
       
       try {
-        // Set a maximum wait time
-        const timeoutPromise = new Promise<string>((_, reject) => {
-          setTimeout(() => reject(new Error('Role fetch timeout')), 3000);
-        });
-        
-        const rolePromise = fetchRole(user.id);
-        const role = await Promise.race([rolePromise, timeoutPromise]);
+        // Use fetchRole which already has proper timeout handling
+        const role = await fetchRole(user.id);
         
         setCachedRole(user.id, role);
         

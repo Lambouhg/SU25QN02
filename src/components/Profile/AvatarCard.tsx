@@ -8,26 +8,28 @@ interface AvatarCardProps {
   user: {
     imageUrl?: string;
   } | null;
-  fullName: string;
+  firstName: string;
+  lastName: string;
   onAvatarChange?: () => void;
 }
 
 export const AvatarCard: React.FC<AvatarCardProps> = ({
   user,
-  fullName,
+  firstName,
+  lastName,
   onAvatarChange
 }) => {
   const { user: clerkUser } = useUser();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase() || 'U';
+  const getInitials = (firstName: string, lastName: string) => {
+    const first = firstName?.charAt(0)?.toUpperCase() || '';
+    const last = lastName?.charAt(0)?.toUpperCase() || '';
+    return first + last || 'U';
   };
+
+  const fullName = `${firstName} ${lastName}`.trim() || 'User';
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -82,7 +84,7 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold">
-                  {getInitials(fullName)}
+                  {getInitials(firstName, lastName)}
                 </div>
               )}
             </div>

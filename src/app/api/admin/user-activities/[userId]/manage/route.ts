@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
-import UserActivity from "@/models/userActivity";
+import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   request: NextRequest,
@@ -17,10 +15,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
-    
     // Check if user is admin
-    const adminUser = await User.findOne({ clerkId: clerkUser.id });
+    const adminUser = await prisma.user.findUnique({
+      where: { clerkId: clerkUser.id },
+      select: { role: true }
+    });
+    
     if (!adminUser || adminUser.role !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
@@ -32,124 +32,162 @@ export async function PATCH(
 
     switch (action) {
       case 'updateGoal':
-        result = await UserActivity.findOneAndUpdate(
-          { 
-            userId,
-            'goals._id': data.goalId 
-          },
-          {
-            $set: {
-              'goals.$.status': data.status,
-              'goals.$.targetDate': data.targetDate,
-              'goals.$.description': data.description,
-              ...(data.status === 'completed' && { 'goals.$.completedDate': new Date() })
-            }
-          },
-          { new: true }
-        );
+        // Find the user activity and update the specific goal
+        const userActivity = await prisma.userActivity.findUnique({
+          where: { userId }
+        });
+        
+        if (userActivity && userActivity.goals) {
+          const goals = Array.isArray(userActivity.goals) ? userActivity.goals as Record<string, unknown>[] : [];
+          const goalIndex = goals.findIndex((g: Record<string, unknown>) => g._id === data.goalId);
+          
+          if (goalIndex !== -1) {
+            goals[goalIndex] = {
+              ...goals[goalIndex],
+              status: data.status,
+              targetDate: data.targetDate,
+              description: data.description,
+              ...(data.status === 'completed' && { completedDate: new Date().toISOString() })
+            };
+            
+            result = await prisma.userActivity.update({
+              where: { userId },
+              data: { goals: JSON.parse(JSON.stringify(goals)) }
+            });
+          }
+        }
         break;
 
       case 'addGoal':
-        result = await UserActivity.findOneAndUpdate(
-          { userId },
-          {
-            $push: {
-              goals: {
-                ...data,
-                createdDate: new Date(),
-                status: 'pending'
-              }
-            }
-          },
-          { new: true }
-        );
+        const existingActivity = await prisma.userActivity.findUnique({
+          where: { userId }
+        });
+        
+        const currentGoals = Array.isArray(existingActivity?.goals) ? existingActivity.goals as Record<string, unknown>[] : [];
+        const newGoal = {
+          _id: Date.now().toString(), // Simple ID generation
+          ...data,
+          createdDate: new Date().toISOString(),
+          status: 'pending'
+        };
+        
+        result = await prisma.userActivity.update({
+          where: { userId },
+          data: { 
+            goals: [...currentGoals, newGoal]
+          }
+        });
         break;
 
       case 'removeGoal':
-        result = await UserActivity.findOneAndUpdate(
-          { userId },
-          {
-            $pull: {
-              goals: { _id: data.goalId }
-            }
-          },
-          { new: true }
-        );
+        const activityForRemove = await prisma.userActivity.findUnique({
+          where: { userId }
+        });
+        
+        if (activityForRemove && activityForRemove.goals) {
+          const goals = Array.isArray(activityForRemove.goals) ? activityForRemove.goals as Record<string, unknown>[] : [];
+          const updatedGoals = goals.filter((g: Record<string, unknown>) => g._id !== data.goalId);
+          
+          result = await prisma.userActivity.update({
+            where: { userId },
+            data: { goals: JSON.parse(JSON.stringify(updatedGoals)) }
+          });
+        }
         break;
 
       case 'updateSkill':
-        result = await UserActivity.findOneAndUpdate(
-          {
-            userId,
-            'skills.name': data.skillName
-          },
-          {
-            $set: {
-              'skills.$.score': data.score,
-              'skills.$.level': data.level,
-              'skills.$.lastAssessed': new Date()
-            }
-          },
-          { new: true }
-        );
+        const activityForSkill = await prisma.userActivity.findUnique({
+          where: { userId }
+        });
+        
+        if (activityForSkill && activityForSkill.skills) {
+          const skills = Array.isArray(activityForSkill.skills) ? activityForSkill.skills as Record<string, unknown>[] : [];
+          const skillIndex = skills.findIndex((s: Record<string, unknown>) => s.name === data.skillName);
+          
+          if (skillIndex !== -1) {
+            skills[skillIndex] = {
+              ...skills[skillIndex],
+              score: data.score,
+              level: data.level,
+              lastAssessed: new Date().toISOString()
+            };
+            
+            result = await prisma.userActivity.update({
+              where: { userId },
+              data: { skills: JSON.parse(JSON.stringify(skills)) }
+            });
+          }
+        }
         break;
 
       case 'addRecommendation':
-        result = await UserActivity.findOneAndUpdate(
-          { userId },
-          {
-            $push: {
-              recommendations: data.recommendation
-            }
-          },
-          { new: true }
-        );
+        const activityForAdd = await prisma.userActivity.findUnique({
+          where: { userId }
+        });
+        
+        const currentRecommendations = Array.isArray(activityForAdd?.recommendations) ? activityForAdd.recommendations : [];
+        
+        result = await prisma.userActivity.update({
+          where: { userId },
+          data: { 
+            recommendations: [...currentRecommendations, data.recommendation]
+          }
+        });
         break;
 
       case 'removeRecommendation':
-        result = await UserActivity.findOneAndUpdate(
-          { userId },
-          {
-            $pull: {
-              recommendations: data.recommendation
-            }
-          },
-          { new: true }
-        );
+        const activityForRemoveRec = await prisma.userActivity.findUnique({
+          where: { userId }
+        });
+        
+        if (activityForRemoveRec && activityForRemoveRec.recommendations) {
+          const recommendations = Array.isArray(activityForRemoveRec.recommendations) ? activityForRemoveRec.recommendations : [];
+          const updatedRecommendations = recommendations.filter((r: unknown) => r !== data.recommendation);
+          
+          result = await prisma.userActivity.update({
+            where: { userId },
+            data: { recommendations: updatedRecommendations }
+          });
+        }
         break;
 
       case 'updateLearningStats':
-        result = await UserActivity.findOneAndUpdate(
-          { userId },
-          {
-            $set: {
-              'learningStats.streak': data.streak,
-              'learningStats.totalStudyTime': data.totalStudyTime
-            }
-          },
-          { new: true }
-        );
+        const currentLearningStats = await prisma.userActivity.findUnique({
+          where: { userId },
+          select: { learningStats: true }
+        });
+        
+        const existingStats = currentLearningStats?.learningStats as Record<string, unknown> || {};
+        const updatedStats = {
+          ...existingStats,
+          streak: data.streak,
+          totalStudyTime: data.totalStudyTime
+        };
+        
+        result = await prisma.userActivity.update({
+          where: { userId },
+          data: { learningStats: updatedStats }
+        });
         break;
 
       case 'resetProgress':
-        result = await UserActivity.findOneAndUpdate(
-          { userId },
-          {
-            $set: {
-              activities: [],
-              skills: [],
-              'learningStats.streak': 0,
-              'learningStats.totalStudyTime': 0,
-              'learningStats.weeklyStudyTime': 0,
-              'learningStats.monthlyStudyTime': 0,
-              progressHistory: [],
-              strengths: [],
-              weaknesses: [],
-              recommendations: []
-            }
-          },
-          { new: true }
-        );
+        result = await prisma.userActivity.update({
+          where: { userId },
+          data: {
+            activities: [],
+            skills: [],
+            learningStats: {
+              streak: 0,
+              totalStudyTime: 0,
+              weeklyStudyTime: 0,
+              monthlyStudyTime: 0
+            },
+            progressHistory: [],
+            strengths: [],
+            weaknesses: [],
+            recommendations: []
+          }
+        });
         break;
 
       default:
@@ -187,23 +225,24 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
-    
     // Check if user is admin
-    const adminUser = await User.findOne({ clerkId: clerkUser.id });
+    const adminUser = await prisma.user.findUnique({
+      where: { clerkId: clerkUser.id },
+      select: { role: true }
+    });
+    
     if (!adminUser || adminUser.role !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     // Delete user activity
-    const result = await UserActivity.findOneAndDelete({ userId });
+    const result = await prisma.userActivity.delete({
+      where: { userId }
+    });
 
     if (!result) {
       return NextResponse.json({ error: "User activity not found" }, { status: 404 });
     }
-
-    // Update user reference
-    await User.findByIdAndUpdate(userId, { $unset: { userActivityId: 1 } });
 
     return NextResponse.json({
       message: "User activity deleted successfully"

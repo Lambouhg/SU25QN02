@@ -1,9 +1,9 @@
 // api/question-sets/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { connectDB } from "@/lib/mongodb";
-import QuestionSet from '@/models/questionSet';
-import mongoose from 'mongoose';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // GET - Lấy một question set cụ thể
 export async function GET(
@@ -22,19 +22,19 @@ export async function GET(
 
     const { id } = await params;
 
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    // Validate UUID format (Prisma uses UUID instead of ObjectId)
+    if (!id || typeof id !== 'string') {
       return NextResponse.json(
         { error: 'Invalid question set ID' },
         { status: 400 }
       );
     }
 
-    await connectDB();
-
-    const questionSet = await QuestionSet.findOne({ 
-      _id: id, 
-      userId 
+    const questionSet = await prisma.jdQuestions.findFirst({ 
+      where: { 
+        id, 
+        userId 
+      }
     });
 
     if (!questionSet) {
@@ -75,19 +75,19 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    // Validate UUID format
+    if (!id || typeof id !== 'string') {
       return NextResponse.json(
         { error: 'Invalid question set ID' },
         { status: 400 }
       );
     }
 
-    await connectDB();
-
-    const questionSet = await QuestionSet.findOneAndDelete({ 
-      _id: id, 
-      userId 
+    const questionSet = await prisma.jdQuestions.delete({ 
+      where: { 
+        id,
+        userId 
+      }
     });
 
     if (!questionSet) {

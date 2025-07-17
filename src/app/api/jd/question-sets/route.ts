@@ -1,8 +1,9 @@
 // api/question-sets/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { connectDB } from "@/lib/mongodb";
-import QuestionSet from '@/models/questionSet';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // GET - Lấy tất cả question sets của user
 export async function GET() {
@@ -16,12 +17,23 @@ export async function GET() {
       );
     }
 
-    await connectDB();
-
-    const questionSets = await QuestionSet.find({ userId })
-      .sort({ createdAt: -1 })
-      .limit(20) // Giới hạn 20 bộ câu hỏi gần nhất
-      .select('-originalJDText'); // Không trả về full text để giảm size
+    const questionSets = await prisma.jdQuestions.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 20, // Giới hạn 20 bộ câu hỏi gần nhất
+      select: {
+        id: true,
+        userId: true,
+        jobTitle: true,
+        questionType: true,
+        level: true,
+        questions: true,
+        fileName: true,
+        createdAt: true,
+        updatedAt: true
+        // Không trả về originalJDText để giảm size
+      }
+    });
 
     return NextResponse.json({ 
       success: true, 
@@ -67,24 +79,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await connectDB();
-
-    const questionSet = new QuestionSet({
-      userId,
-      jobTitle: jobTitle.trim(),
-      questionType,
-      level,
-      questions,
-      originalJDText,
-      fileName
+    const questionSet = await prisma.jdQuestions.create({
+      data: {
+        userId,
+        jobTitle: jobTitle.trim(),
+        questionType,
+        level,
+        questions,
+        originalJDText,
+        fileName
+      }
     });
-
-    await questionSet.save();
 
     return NextResponse.json({ 
       success: true, 
       questionSet: {
-        _id: questionSet._id,
+        id: questionSet.id,
         jobTitle: questionSet.jobTitle,
         questionType: questionSet.questionType,
         level: questionSet.level,

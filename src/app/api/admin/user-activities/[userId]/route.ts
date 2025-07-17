@@ -1,28 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
-import UserActivity, { IActivity, ISkill, IGoal, ILearningStats } from "@/models/userActivity";
-import Interview from "@/models/interview";
-
-interface UserActivityWithActivities {
-  activities: IActivity[];
-  skills: ISkill[];
-  goals: IGoal[];
-  learningStats: ILearningStats;
-  strengths: string[];
-  weaknesses: string[];
-  recommendations: string[];
-  updatedAt: Date;
-  userId: string;
-}
-
-interface InterviewData {
-  _id: string;
-  questionSetId: string;
-  evaluation: unknown;
-  duration: number;
-}
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
   request: NextRequest,
@@ -37,147 +15,160 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectDB();
-    
     // Check if user is admin
-    const adminUser = await User.findOne({ clerkId: clerkUser.id });
+    const adminUser = await prisma.user.findUnique({
+      where: { clerkId: clerkUser.id },
+      select: { role: true }
+    });
+    
     if (!adminUser || adminUser.role !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    // Get user activity with populated data
-    const userActivity = await UserActivity.findOne({ userId })
-      .populate('userId', 'firstName lastName email avatar role status createdAt')
-      .lean() as UserActivityWithActivities | null;
+    const { searchParams } = new URL(request.url);
+    const timeRange = parseInt(searchParams.get('timeRange') || '30');
+    const activityType = searchParams.get('activityType') || 'all';
+    
+    const startDate = new Date(Date.now() - timeRange * 24 * 60 * 60 * 1000);
 
-    if (!userActivity) {
+    // Get user with activity data
+    const userActivity = await prisma.userActivity.findUnique({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            clerkId: true
+          }
+        }
+      }
+    });
+
+    if (!userActivity || !userActivity.user) {
       return NextResponse.json({ error: "User activity not found" }, { status: 404 });
     }
 
-    // Get detailed interview data
-    const interviewActivities = userActivity.activities.filter(a => a.type === 'interview');
-    const interviewIds = interviewActivities.map(a => a.referenceId).filter(Boolean);
-    
-    const interviews = await Interview.find({
-      _id: { $in: interviewIds }
-    }).select('questionSetId evaluation duration createdAt').lean() as unknown as InterviewData[];
+    // Process activities
+    const activities = Array.isArray(userActivity.activities) ? userActivity.activities as Record<string, unknown>[] : [];
+    const skills = Array.isArray(userActivity.skills) ? userActivity.skills as Record<string, unknown>[] : [];
+    const goals = Array.isArray(userActivity.goals) ? userActivity.goals as Record<string, unknown>[] : [];
+    const learningStats = userActivity.learningStats as Record<string, unknown> || {};
 
-    // Build detailed activities with interview data
-    const detailedActivities = await Promise.all(
-      userActivity.activities.map(async (activity) => {
-        if (activity.type === 'interview' && activity.referenceId) {
-          const interview = interviews.find(i => i._id.toString() === activity.referenceId?.toString());
-          return {
-            ...activity,
-            interviewDetails: interview ? {
-              questionSetId: interview.questionSetId,
-              evaluation: interview.evaluation,
-              duration: interview.duration
-            } : null
-          };
-        }
-        return activity;
-      })
-    );
-
-    // Calculate progress over time
-    const progressHistory = userActivity.activities
-      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-      .map((activity, index) => {
-        const previousActivities = userActivity.activities.slice(0, index + 1);
-        const avgScore = previousActivities.reduce((sum, act) => sum + (act.score || 0), 0) / previousActivities.length;
-        
-        return {
-          date: activity.timestamp,
-          averageScore: Math.round(avgScore * 100) / 100,
-          totalActivities: index + 1,
-          cumulativeStudyTime: previousActivities.reduce((sum, act) => sum + act.duration, 0)
-        };
-      });
-
-    // Skill progress over time
-    const skillProgress = userActivity.skills.map(skill => {
-      const skillActivities = userActivity.activities
-        .filter(a => a.timestamp <= skill.lastAssessed)
-        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-      return {
-        ...skill,
-        progressHistory: skillActivities.map((_, index) => ({
-          date: skillActivities[index].timestamp,
-          score: skill.score // This could be more detailed with historical tracking
-        }))
-      };
+    // Filter activities by time range and type
+    const filteredActivities = activities.filter((activity: Record<string, unknown>) => {
+      const timestamp = activity.timestamp as string;
+      const activityTimestamp = timestamp ? new Date(timestamp) : null;
+      const typeMatch = activityType === 'all' || activity.type === activityType;
+      const timeMatch = !activityTimestamp || activityTimestamp >= startDate;
+      
+      return typeMatch && timeMatch;
     });
 
-    // Activity breakdown by type and timeframe
-    const now = new Date();
-    const timeframes = {
-      lastWeek: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-      lastMonth: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-      lastThreeMonths: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+    // Calculate stats
+    const stats = {
+      totalActivities: filteredActivities.length,
+      byType: {
+        interview: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
+        quiz: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
+        practice: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
+        learning: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'learning').length,
+        goalCompleted: goals.filter((g: Record<string, unknown>) => g.status === 'completed').length,
+        goalStarted: goals.filter((g: Record<string, unknown>) => g.status === 'in_progress').length,
+      },
+      averageScore: filteredActivities.length > 0
+        ? filteredActivities.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.score) || 0), 0) / filteredActivities.length
+        : 0,
+      totalDuration: filteredActivities.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.duration) || 0), 0),
+      bestScore: filteredActivities.length > 0
+        ? Math.max(...filteredActivities.map((a: Record<string, unknown>) => Number(a.score) || 0))
+        : 0,
+      worstScore: filteredActivities.length > 0
+        ? Math.min(...filteredActivities.map((a: Record<string, unknown>) => Number(a.score) || 0))
+        : 0,
+      currentStreak: Number(learningStats.streak) || 0,
+      longestStreak: Number(learningStats.longestStreak) || 0,
+      totalStudyTime: Number(learningStats.totalStudyTime) || 0
     };
 
-    const activityBreakdown = Object.entries(timeframes).reduce((acc, [period, startDate]) => {
-      const periodActivities = userActivity.activities.filter(a => 
-        new Date(a.timestamp) >= startDate
-      );
+    // Recent activities (last 10)
+    const recentActivities = [...filteredActivities]
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const timestampA = new Date(a.timestamp as string).getTime();
+        const timestampB = new Date(b.timestamp as string).getTime();
+        return timestampB - timestampA;
+      })
+      .slice(0, 10)
+      .map((activity: Record<string, unknown>) => ({
+        id: activity.id,
+        type: activity.type,
+        score: activity.score,
+        duration: activity.duration,
+        timestamp: activity.timestamp,
+        details: activity.details || {}
+      }));
 
-      acc[period] = {
-        interview: periodActivities.filter(a => a.type === 'interview').length,
-        quiz: periodActivities.filter(a => a.type === 'quiz').length,
-        practice: periodActivities.filter(a => a.type === 'practice').length,
-        total: periodActivities.length,
-        averageScore: periodActivities.length > 0
-          ? periodActivities.reduce((sum, a) => sum + (a.score || 0), 0) / periodActivities.length
-          : 0
-      };
-
-      return acc;
-    }, {} as Record<string, {
-      interview: number;
-      quiz: number;
-      practice: number;
-      total: number;
-      averageScore: number;
-    }>);
-
-    // Performance insights
-    const insights = {
-      strongestSkill: userActivity.skills.length > 0 
-        ? userActivity.skills.reduce((max, skill) => skill.score > max.score ? skill : max)
-        : null,
-      weakestSkill: userActivity.skills.length > 0
-        ? userActivity.skills.reduce((min, skill) => skill.score < min.score ? skill : min)
-        : null,
-      improvementTrend: progressHistory.length >= 2
-        ? progressHistory[progressHistory.length - 1].averageScore - progressHistory[0].averageScore
-        : 0,
-      consistencyScore: userActivity.learningStats.streak,
-      goalCompletionRate: userActivity.goals.length > 0
-        ? (userActivity.goals.filter(g => g.status === 'completed').length / userActivity.goals.length) * 100
+    // Goal insights
+    const goalInsights = {
+      total: goals.length,
+      completed: goals.filter((g: Record<string, unknown>) => g.status === 'completed').length,
+      inProgress: goals.filter((g: Record<string, unknown>) => g.status === 'in_progress').length,
+      notStarted: goals.filter((g: Record<string, unknown>) => g.status === 'not_started').length,
+      completionRate: goals.length > 0 
+        ? Math.round((goals.filter((g: Record<string, unknown>) => g.status === 'completed').length / goals.length) * 100)
         : 0
     };
 
+    // Skills data
+    const skillsData = skills.map((skill: Record<string, unknown>) => ({
+      name: skill.name,
+      currentScore: Number(skill.score) || 0,
+      level: skill.level as string || 'beginner',
+      category: skill.category as string || 'general',
+      lastAssessed: skill.lastAssessed || null
+    }));
+
     return NextResponse.json({
-      user: userActivity.userId,
-      activities: detailedActivities,
-      skills: skillProgress,
-      goals: userActivity.goals,
-      learningStats: userActivity.learningStats,
-      progressHistory,
-      activityBreakdown,
-      insights,
-      strengths: userActivity.strengths,
-      weaknesses: userActivity.weaknesses,
-      recommendations: userActivity.recommendations,
-      lastUpdated: userActivity.updatedAt
+      user: {
+        id: userActivity.user.id,
+        firstName: userActivity.user.firstName || '',
+        lastName: userActivity.user.lastName || '',
+        email: userActivity.user.email,
+        role: userActivity.user.role,
+        isOnline: false,
+        lastActivity: userActivity.user.createdAt.toISOString(),
+        clerkId: userActivity.user.clerkId
+      },
+      stats,
+      activities: recentActivities,
+      skills: skillsData,
+      goals: goalInsights,
+      learningStats: {
+        totalStudyTime: stats.totalStudyTime,
+        currentStreak: stats.currentStreak,
+        longestStreak: stats.longestStreak,
+        averageSessionDuration: stats.totalActivities > 0 
+          ? Math.round(stats.totalDuration / stats.totalActivities)
+          : 0,
+        totalSessions: stats.totalActivities,
+        completionRate: goalInsights.completionRate
+      },
+      timeframe: {
+        days: timeRange,
+        activityType,
+        startDate: startDate.toISOString(),
+        endDate: new Date().toISOString()
+      }
     });
 
   } catch (error) {
     console.error("Error fetching user activity details:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

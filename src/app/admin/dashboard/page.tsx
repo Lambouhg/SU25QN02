@@ -5,6 +5,7 @@ import { Users, MessageSquare, Brain, FileDown, TrendingUp, Award, Clock, Target
 import AdminUserModal from '@/components/admin/AdminUserModal';
 import StatisticsChart from '@/components/admin/StatisticsChart';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
+import NotificationPanel from '@/components/admin/NotificationPanel';
 
 // Types
 interface UserStats {
@@ -185,6 +186,32 @@ export default function AdminDashboard() {
   };
 
 
+  const testNotification = async () => {
+    try {
+      const response = await fetch('/api/admin/test-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: 'test_user_' + Date.now(),
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com'
+        }),
+      });
+
+      if (response.ok) {
+        alert('Test notification created successfully!');
+      } else {
+        alert('Failed to create test notification');
+      }
+    } catch (error) {
+      console.error('Error creating test notification:', error);
+      alert('Error creating test notification');
+    }
+  };
+
   const quickActions = [
     {
       icon: Users,
@@ -220,6 +247,13 @@ export default function AdminDashboard() {
       description: 'Download detailed report',
       color: 'bg-orange-500',
       action: () => console.log('Export report')
+    },
+    {
+      icon: MessageSquare,
+      title: 'Test Notification',
+      description: 'Create test notification',
+      color: 'bg-red-500',
+      action: testNotification
     }
   ];
 
@@ -355,9 +389,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-7 gap-8">
             {/* Left Sidebar - Quick Actions */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-2">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
                 <div className="space-y-4">
@@ -383,7 +417,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Center - User List */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200">
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between">
@@ -462,6 +496,11 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Right Sidebar - Notifications */}
+            <div className="lg:col-span-2">
+              <NotificationPanel />
             </div>
           </div>
         </div>

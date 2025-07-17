@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
+import prisma from "../../../../lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,12 +12,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    await connectDB();
     
     // Tìm user theo email hoặc clerkId
-    const query = email ? { email } : { clerkId };
-    const user = await User.findOne(query);
+    const where = email ? { email } : { clerkId };
+    const user = await prisma.user.findUnique({
+      where,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true
+      }
+    });
     
     if (!user) {
       return NextResponse.json(
@@ -28,16 +34,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Update role thành admin
-    user.role = 'admin';
-    await user.save();
+    const updatedUser = await prisma.user.update({
+      where,
+      data: {
+        role: 'admin'
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true
+      }
+    });
 
     return NextResponse.json({
       message: "User has been granted admin privileges",
       user: {
-        id: user._id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role
+        id: updatedUser.id,
+        email: updatedUser.email,
+        fullName: `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim(),
+        role: updatedUser.role
       }
     });
     
@@ -52,14 +69,27 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    await connectDB();
-    
     // Lấy danh sách tất cả admin
-    const admins = await User.find({ role: 'admin' }).select('email fullName firstName lastName role createdAt');
+    const admins = await prisma.user.findMany({
+      where: { role: 'admin' },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        createdAt: true
+      }
+    });
+    
+    const adminsWithFullName = admins.map(admin => ({
+      ...admin,
+      fullName: `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+    }));
     
     return NextResponse.json({
       message: "List of all admins",
-      admins,
+      admins: adminsWithFullName,
       count: admins.length
     });
     

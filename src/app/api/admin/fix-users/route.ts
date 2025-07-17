@@ -1,33 +1,34 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
+import prisma from "../../../../lib/prisma";
 
 export async function POST() {
   try {
-    await connectDB();
-    
     // Find all users
-    const users = await User.find();
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true
+      }
+    });
     
     let updated = 0;
     
     for (const user of users) {
-      let needsUpdate = false;
+      const updates: { avatar?: string } = {};
       
-      // Fix fullName if it's missing or empty
-      if (!user.fullName && (user.firstName || user.lastName)) {
-        user.fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-        needsUpdate = true;
-      }
-      
-      // If user has no avatar but has a default, set it
+      // If user has no avatar, set it to empty string
       if (!user.avatar) {
-        user.avatar = '';
-        needsUpdate = true;
+        updates.avatar = '';
       }
       
-      if (needsUpdate) {
-        await user.save();
+      // Only update if there are changes
+      if (Object.keys(updates).length > 0) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: updates
+        });
         updated++;
       }
     }

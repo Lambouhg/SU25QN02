@@ -11,6 +11,20 @@ export default function UserSync() {
   const { refreshRole } = useRole();
   const syncInProgress = useRef<Set<string>>(new Set());
 
+  // Check if user was recently synced (within last 24 hours)
+  const isRecentlySynced = useCallback((clerkId: string) => {
+    const lastSyncTime = localStorage.getItem(`userSync_${clerkId}`);
+    if (!lastSyncTime) return false;
+    
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+    return parseInt(lastSyncTime) > twentyFourHoursAgo;
+  }, []);
+
+  // Mark user as synced in localStorage
+  const markSyncedInStorage = useCallback((clerkId: string) => {
+    localStorage.setItem(`userSync_${clerkId}`, Date.now().toString());
+  }, []);
+
   // Memoize saveUserToDB function để tránh re-create
   const saveUserToDB = useCallback(async (userData: {
     email: string;
@@ -35,8 +49,14 @@ export default function UserSync() {
       
       const result = await response.json();
       
-      // Đánh dấu user đã sync
+      // Log nếu đây là user mới 
+      if (result.created) {
+        console.log('New user registered:', userData.email);
+      }
+      
+      // Đánh dấu user đã sync trong cả context và localStorage
       markUserSynced(userData.clerkId);
+      markSyncedInStorage(userData.clerkId);
       
       // Refresh role sau khi sync (quan trọng cho admin users)
       setTimeout(refreshRole, 300);
@@ -45,7 +65,7 @@ export default function UserSync() {
     } finally {
       syncInProgress.current.delete(userData.clerkId);
     }
-  }, [markUserSynced, refreshRole]);
+  }, [markUserSynced, markSyncedInStorage, refreshRole]);
 
   useEffect(() => {
     // Early returns để tối ưu performance
@@ -55,6 +75,12 @@ export default function UserSync() {
     
     // Skip nếu đã sync hoặc đang sync
     if (syncedUserIds.has(userId) || syncInProgress.current.has(userId)) return;
+    
+    // Skip if recently synced (within 24 hours)
+    if (isRecentlySynced(userId)) {
+      markUserSynced(userId); // Mark in context to avoid re-checks
+      return;
+    }
     
     // Validate email trước khi sync
     const email = user.emailAddresses?.[0]?.emailAddress;
@@ -74,7 +100,7 @@ export default function UserSync() {
     saveUserToDB(userData).catch(() => {
       // Error handled in saveUserToDB
     });
-  }, [user, isLoaded, syncedUserIds, saveUserToDB]);
+  }, [user, isLoaded, syncedUserIds, saveUserToDB, isRecentlySynced, markUserSynced]);
 
   return null;
 }

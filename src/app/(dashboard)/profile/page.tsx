@@ -10,11 +10,7 @@ import {
   ProfileLoading
 } from "@/components/Profile";
 
-// Constants to avoid re-creation
-const DEFAULT_SKILLS = ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"];
-const DEFAULT_JOIN_DATE = "05/15/2023";
-const DEFAULT_LAST_LOGIN = "Today, 10:45 AM";
-const DEFAULT_STATUS = "Active";
+
 
 export default function ProfilePage() {
   const { user, isLoaded, isSignedIn } = useUser();
@@ -35,21 +31,29 @@ export default function ProfilePage() {
     bio: "",
   });
 
-  // Memoized values to prevent re-renders
-  const userInfo = useMemo(() => ({
-    fullName: user?.fullName || "",
-    email: user?.emailAddresses?.[0]?.emailAddress || "",
-    skills: DEFAULT_SKILLS,
-    joinDate: DEFAULT_JOIN_DATE,
-    lastLogin: DEFAULT_LAST_LOGIN,
-    status: DEFAULT_STATUS
-  }), [user?.fullName, user?.emailAddresses]);
+  // State for editable user info
+  const [editableUserInfo, setEditableUserInfo] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
+
+  // Update editable info when user changes
+  useEffect(() => {
+    setEditableUserInfo({
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.emailAddresses?.[0]?.emailAddress || "",
+    });
+  }, [user?.firstName, user?.lastName, user?.emailAddresses]);
 
   // Combined form data
   const formData = useMemo(() => ({
-    ...userInfo,
-    ...profileData
-  }), [userInfo, profileData]);
+    ...profileData,
+    firstName: editableUserInfo.firstName,
+    lastName: editableUserInfo.lastName,
+    email: editableUserInfo.email,
+  }), [profileData, editableUserInfo]);
 
   // Optimized profile fetch - only fetch additional data, not basic user info
   useEffect(() => {
@@ -80,6 +84,15 @@ export default function ProfilePage() {
             position: data.position || "",
             bio: data.bio || "",
           });
+          
+          // Also update editable user info with database values if they exist
+          if (data.firstName !== undefined || data.lastName !== undefined) {
+            setEditableUserInfo(prev => ({
+              ...prev,
+              firstName: data.firstName || prev.firstName,
+              lastName: data.lastName || prev.lastName,
+            }));
+          }
         }
       } catch (error) {
         // Silently handle error - profile still works with basic data
@@ -109,6 +122,9 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...profileData,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
           clerkId: user.id,
         }),
       });
@@ -116,6 +132,19 @@ export default function ProfilePage() {
       if (response.ok) {
         setIsEditing(false);
         setToast({ show: true, message: 'Saved successfully!', type: 'success' });
+        
+        // Cập nhật thông tin user trong Clerk nếu firstName/lastName thay đổi
+        if (user.firstName !== formData.firstName || user.lastName !== formData.lastName) {
+          try {
+            await user.update({
+              firstName: formData.firstName,
+              lastName: formData.lastName
+            });
+            await user.reload();
+          } catch (clerkError) {
+            console.warn('Could not update Clerk user:', clerkError);
+          }
+        }
       } else {
         throw new Error('Save failed');
       }
@@ -132,8 +161,27 @@ export default function ProfilePage() {
     }
   };
 
-  const updateProfileData = (data: Partial<typeof profileData>) => {
-    setProfileData(prev => ({ ...prev, ...data }));
+  const updateProfileData = (data: Record<string, string>) => {
+    // Update profile fields
+    const profileFields = ['phone', 'department', 'position', 'bio'];
+    const profileUpdate: Partial<typeof profileData> = {};
+    const userInfoUpdate: Partial<typeof editableUserInfo> = {};
+    
+    Object.keys(data).forEach(key => {
+      if (profileFields.includes(key)) {
+        (profileUpdate as Record<string, string>)[key] = data[key];
+      } else if (['firstName', 'lastName', 'email'].includes(key)) {
+        (userInfoUpdate as Record<string, string>)[key] = data[key];
+      }
+    });
+    
+    if (Object.keys(profileUpdate).length > 0) {
+      setProfileData(prev => ({ ...prev, ...profileUpdate }));
+    }
+    
+    if (Object.keys(userInfoUpdate).length > 0) {
+      setEditableUserInfo(prev => ({ ...prev, ...userInfoUpdate }));
+    }
   };
 
   // Show loading only for auth, not for additional profile data
@@ -195,7 +243,8 @@ export default function ProfilePage() {
               <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300 hover:scale-105">
                 <AvatarCard
                   user={user}
-                  fullName={formData.fullName}
+                  firstName={formData.firstName}
+                  lastName={formData.lastName}
                   onAvatarChange={handleAvatarChange}
                 />
               </div>
@@ -217,7 +266,8 @@ export default function ProfilePage() {
                 
                 <PersonalInfoForm
                   formData={{
-                    fullName: formData.fullName,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
                     email: formData.email,
                     phone: formData.phone,
                     department: formData.department,

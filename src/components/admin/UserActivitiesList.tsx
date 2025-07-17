@@ -67,8 +67,8 @@ export default function UserActivitiesList({
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState('lastActive');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [skillFilter, setSkillFilter] = useState('');
-  const [goalStatusFilter, setGoalStatusFilter] = useState('');
+  const [skillFilter, setSkillFilter] = useState('all');
+  const [goalStatusFilter, setGoalStatusFilter] = useState('all');
   const [summary, setSummary] = useState({
     totalUsers: 0,
     activeUsersToday: 0,
@@ -94,8 +94,8 @@ export default function UserActivitiesList({
         search,
         sortBy,
         sortOrder,
-        ...(skillFilter && { skill: skillFilter }),
-        ...(goalStatusFilter && { goalStatus: goalStatusFilter })
+        ...(skillFilter && skillFilter !== 'all' && { skill: skillFilter }),
+        ...(goalStatusFilter && goalStatusFilter !== 'all' && { goalStatus: goalStatusFilter })
       });
 
       const response = await fetch(`/api/admin/user-activities?${params}`);
@@ -289,7 +289,7 @@ export default function UserActivitiesList({
                 <SelectValue placeholder="Filter by skill" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Skills</SelectItem>
+                <SelectItem value="all">All Skills</SelectItem>
                 <SelectItem value="JavaScript">JavaScript</SelectItem>
                 <SelectItem value="Python">Python</SelectItem>
                 <SelectItem value="React">React</SelectItem>
@@ -303,7 +303,7 @@ export default function UserActivitiesList({
                 <SelectValue placeholder="Filter by goal status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Goals</SelectItem>
+                <SelectItem value="all">All Goals</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="in-progress">In Progress</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
@@ -439,7 +439,7 @@ export default function UserActivitiesList({
               <div className="text-sm text-gray-500">
                 Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
                 {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                {pagination.total} results
+                {pagination?.total || 0} results
               </div>
               
               <div className="flex items-center space-x-2">

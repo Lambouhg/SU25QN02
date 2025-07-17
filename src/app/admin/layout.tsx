@@ -2,16 +2,10 @@ import { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { currentUser } from '@clerk/nextjs/server';
 import AdminDashboardLayout from '@/components/dashboard/AdminDashboardLayout';
-import { connectDB } from '@/lib/mongodb';
-import User from '@/models/user';
+import prisma from '@/lib/prisma';
 
 interface AdminLayoutProps {
   children: ReactNode;
-}
-
-interface UserWithRole {
-  role: string;
-  clerkId: string;
 }
 
 export default async function AdminLayout({ children }: AdminLayoutProps) {
@@ -22,15 +16,21 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     redirect('/sign-in');
   }
 
-  // Connect to database and check user role
+  // Check user role using Prisma
   try {
-    await connectDB();
-    const user = await User.findOne({ clerkId: clerkUser.id }).lean() as UserWithRole | null;
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUser.id },
+      select: { role: true }
+    });
     
     if (!user || user.role !== 'admin') {
       redirect('/dashboard');
     }
   } catch (error) {
+    // Don't log redirect errors as they are expected
+    if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
+      throw error; // Re-throw redirect errors
+    }
     console.error('Error checking admin role:', error);
     redirect('/dashboard');
   }

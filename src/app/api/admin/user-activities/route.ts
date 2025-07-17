@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
-import { connectDB } from "@/lib/mongodb";
-import User from "@/models/user";
-import UserActivity, { IActivity, ISkill, IGoal } from "@/models/userActivity";
+import prisma from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,11 +9,13 @@ export async function GET(request: NextRequest) {
     if (!clerkUser) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    await connectDB();
     
     // Check if user is admin
-    const user = await User.findOne({ clerkId: clerkUser.id });
+    const user = await prisma.user.findUnique({
+      where: { clerkId: clerkUser.id },
+      select: { role: true }
+    });
+    
     if (!user || user.role !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
@@ -23,69 +23,109 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const sortBy = searchParams.get('sortBy') || 'updatedAt';
-    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 1 : -1;
+    const sortBy = searchParams.get('sortBy') || 'lastActive';
+    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
     const search = searchParams.get('search') || '';
 
     const skip = (page - 1) * limit;
 
-    // Build search query
-    let searchQuery = {};
+    // Build search query for users
+    let userWhere = {};
     if (search) {
-      const searchUsers = await User.find({
-        $or: [
-          { firstName: { $regex: search, $options: 'i' } },
-          { lastName: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } }
+      userWhere = {
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } }
         ]
-      }).select('_id');
-      
-      const userIds = searchUsers.map(u => u._id);
-      searchQuery = { userId: { $in: userIds } };
+      };
     }
 
     // Get user activities with pagination
     const [userActivities, totalCount] = await Promise.all([
-      UserActivity.find(searchQuery)
-        .populate('userId', 'firstName lastName email avatar role status')
-        .sort({ [sortBy]: sortOrder })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      UserActivity.countDocuments(searchQuery)
+      prisma.userActivity.findMany({
+        where: {
+          user: userWhere
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true,
+              role: true,
+              status: true
+            }
+          }
+        },
+        orderBy: {
+          [sortBy]: sortOrder
+        },
+        skip: skip,
+        take: limit
+      }),
+      prisma.userActivity.count({
+        where: {
+          user: userWhere
+        }
+      })
     ]);
+
+    // Define types for activities, skills, and goals
+    type Activity = {
+      type: string;
+      score?: number;
+      timestamp: string;
+    };
+
+    type Skill = {
+      score: number;
+      [key: string]: unknown;
+    };
+
+    type Goal = {
+      status: string;
+      [key: string]: unknown;
+    };
 
     // Calculate summary statistics for each user
     const enrichedActivities = userActivities.map(activity => {
-      const totalInterviews = activity.activities.filter((a: IActivity) => a.type === 'interview').length;
-      const totalQuizzes = activity.activities.filter((a: IActivity) => a.type === 'quiz').length;
-      const totalPractice = activity.activities.filter((a: IActivity) => a.type === 'practice').length;
+      const activities: Activity[] = Array.isArray(activity.activities) ? activity.activities as Activity[] : [];
+      const skills: Skill[] = Array.isArray(activity.skills) ? activity.skills as Skill[] : [];
+      const goals: Goal[] = Array.isArray(activity.goals) ? activity.goals as Goal[] : [];
+      const learningStats = activity.learningStats as { streak?: number; totalStudyTime?: number } || {};
       
-      const averageScore = activity.activities.length > 0 
-        ? activity.activities.reduce((sum: number, act: IActivity) => sum + (act.score || 0), 0) / activity.activities.length
+      const totalInterviews = activities.filter((a) => a.type === 'interview').length;
+      const totalQuizzes = activities.filter((a) => a.type === 'quiz').length;
+      const totalPractice = activities.filter((a) => a.type === 'practice').length;
+      
+      const averageScore = activities.length > 0 
+        ? activities.reduce((sum, act) => sum + (act.score || 0), 0) / activities.length
         : 0;
 
-      const recentActivity = activity.activities
-        .sort((a: IActivity, b: IActivity) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+      const recentActivity = activities
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
 
-      const topSkills = activity.skills
-        .sort((a: ISkill, b: ISkill) => b.score - a.score)
+      const topSkills = skills
+        .sort((a, b) => b.score - a.score)
         .slice(0, 3);
 
-      const completedGoals = activity.goals.filter((g: IGoal) => g.status === 'completed').length;
-      const activeGoals = activity.goals.filter((g: IGoal) => g.status === 'in-progress').length;
+      const completedGoals = goals.filter((g) => g.status === 'completed').length;
+      const activeGoals = goals.filter((g) => g.status === 'in_progress').length;
 
       return {
-        _id: activity._id,
-        user: activity.userId,
+        id: activity.id,
+        user: activity.user,
         stats: {
           totalInterviews,
           totalQuizzes,
           totalPractice,
-          totalActivities: activity.activities.length,
+          totalActivities: activities.length,
           averageScore: Math.round(averageScore * 100) / 100,
-          studyStreak: activity.learningStats.streak,
-          totalStudyTime: activity.learningStats.totalStudyTime,
+          studyStreak: learningStats.streak || 0,
+          totalStudyTime: learningStats.totalStudyTime || 0,
           completedGoals,
           activeGoals
         },
@@ -95,27 +135,30 @@ export async function GET(request: NextRequest) {
           score: recentActivity.score,
           timestamp: recentActivity.timestamp
         } : null,
-        lastUpdated: activity.updatedAt,
-        strengths: activity.strengths,
-        weaknesses: activity.weaknesses
+        lastUpdated: activity.lastActive,
+        strengths: Array.isArray(activity.strengths) ? activity.strengths : [],
+        weaknesses: Array.isArray(activity.weaknesses) ? activity.weaknesses : []
       };
     });
 
-    // Calculate overall statistics
+    // Calculate overall statistics  
     const overallStats = {
       totalUsers: totalCount,
-      activeUsers: userActivities.filter(ua => 
-        ua.activities.some((a: IActivity) => 
+      activeUsers: userActivities.filter(ua => {
+        const activities = Array.isArray(ua.activities) ? ua.activities as Activity[] : [];
+        return activities.some((a: Activity) => 
           new Date(a.timestamp).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
-        )
-      ).length,
-      totalInterviews: userActivities.reduce((sum, ua) => 
-        sum + ua.activities.filter((a: IActivity) => a.type === 'interview').length, 0
-      ),
+        );
+      }).length,
+      totalInterviews: userActivities.reduce((sum, ua) => {
+        const activities = Array.isArray(ua.activities) ? ua.activities as Activity[] : [];
+        return sum + activities.filter((a: Activity) => a.type === 'interview').length;
+      }, 0),
       averageScore: userActivities.length > 0
         ? userActivities.reduce((sum, ua) => {
-            const userAvg = ua.activities.length > 0 
-              ? ua.activities.reduce((s: number, a: IActivity) => s + (a.score || 0), 0) / ua.activities.length
+            const activities = Array.isArray(ua.activities) ? ua.activities as Activity[] : [];
+            const userAvg = activities.length > 0 
+              ? activities.reduce((s: number, a: Activity) => s + (a.score || 0), 0) / activities.length
               : 0;
             return sum + userAvg;
           }, 0) / userActivities.length
@@ -123,15 +166,21 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json({
-      userActivities: enrichedActivities,
+      activities: enrichedActivities,
+      summary: {
+        totalUsers: totalCount,
+        activeUsers: overallStats.activeUsers,
+        totalActivities: overallStats.totalInterviews,
+        averageScore: Math.round(overallStats.averageScore * 100) / 100
+      },
       pagination: {
-        currentPage: page,
+        page,
+        limit,
+        total: totalCount,
         totalPages: Math.ceil(totalCount / limit),
-        totalCount,
         hasNext: page < Math.ceil(totalCount / limit),
         hasPrev: page > 1
-      },
-      overallStats
+      }
     });
 
   } catch (error) {
