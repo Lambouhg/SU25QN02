@@ -9,7 +9,7 @@ type Answer = {
 };
 
 type Question = {
-  _id: string;
+  id: string;
   question: string;
   answers: Answer[];
   fields: string[];
@@ -184,7 +184,7 @@ export default function QuestionManager() {
 
     try {
       const url = editMode && currentQuestion 
-        ? `/api/questions/${currentQuestion._id}`
+        ? `/api/questions/${currentQuestion.id}`
         : '/api/questions';
       
       const method = editMode ? 'PUT' : 'POST';
@@ -205,7 +205,7 @@ export default function QuestionManager() {
       
       if (editMode) {
         setQuestions(questions.map(q => 
-          q._id === data._id ? data : q
+          q.id === data.id ? data : q
         ));
         toast.success('Question updated successfully');
       } else {
@@ -246,7 +246,7 @@ export default function QuestionManager() {
         throw new Error(res.statusText);
       }
 
-      setQuestions(questions.filter(q => q._id !== id));
+      setQuestions(questions.filter(q => q.id !== id));
       toast.success('Question deleted successfully');
     } catch (error) {
       console.error('Error deleting question:', error);
@@ -648,7 +648,7 @@ export default function QuestionManager() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {questions.map((q) => (
-                    <tr key={q._id}>
+                    <tr key={q.id}>
                       <td className="px-6 py-4 whitespace-pre-wrap">
                         {q.question}
                       </td>
@@ -708,7 +708,7 @@ export default function QuestionManager() {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(q._id)}
+                          onClick={() => handleDelete(q.id)}
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete

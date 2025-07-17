@@ -53,7 +53,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
 
   const handleAnswerSelect = (index: number) => {
     const currentAnswers = userAnswers.find(
-      (answer) => answer.questionId === currentQuestion._id
+      (answer) => answer.questionId === currentQuestion.id
     );
 
     const isMultipleChoice = currentQuestion.answers.filter(a => a.isCorrect).length > 1;
@@ -62,11 +62,11 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
       // Multiple choice logic
       if (currentAnswers) {
         const newAnswers = userAnswers.filter(
-          (answer) => answer.questionId !== currentQuestion._id
+          (answer) => answer.questionId !== currentQuestion.id
         );
         if (!currentAnswers.answerIndex.includes(index)) {
           newAnswers.push({
-            questionId: currentQuestion._id,
+            questionId: currentQuestion.id,
             answerIndex: [...currentAnswers.answerIndex, index],
             isCorrect: checkAnswer([...currentAnswers.answerIndex, index])
           });
@@ -74,7 +74,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
           const updatedIndexes = currentAnswers.answerIndex.filter(i => i !== index);
           if (updatedIndexes.length > 0) {
             newAnswers.push({
-              questionId: currentQuestion._id,
+              questionId: currentQuestion.id,
               answerIndex: updatedIndexes,
               isCorrect: checkAnswer(updatedIndexes)
             });
@@ -85,7 +85,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
         setUserAnswers([
           ...userAnswers,
           {
-            questionId: currentQuestion._id,
+            questionId: currentQuestion.id,
             answerIndex: [index],
             isCorrect: checkAnswer([index])
           }
@@ -94,10 +94,10 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
     } else {
       // Single choice logic
       const newAnswers = userAnswers.filter(
-        (answer) => answer.questionId !== currentQuestion._id
+        (answer) => answer.questionId !== currentQuestion.id
       );
       newAnswers.push({
-        questionId: currentQuestion._id,
+        questionId: currentQuestion.id,
         answerIndex: [index],
         isCorrect: checkAnswer([index])
       });
@@ -130,7 +130,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
   const userAnswer = userAnswers.find(
-    (answer) => answer.questionId === currentQuestion._id
+    (answer) => answer.questionId === currentQuestion.id
   );
   const isMultipleChoice = currentQuestion.answers.filter(a => a.isCorrect).length > 1;
 

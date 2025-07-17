@@ -17,7 +17,7 @@ export type QuizConfig = {
 };
 
 export type Question = {
-  _id: string;
+  id: string;
   question: string;
   answers: {
     content: string;
@@ -27,7 +27,7 @@ export type Question = {
 };
 
 export type Quiz = {
-  _id: string;
+  id: string;
   questions: Question[];
   timeLimit: number;
   userAnswers: {
@@ -155,7 +155,7 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
 
     try {
       // Save quiz result to database
-      const response = await fetch(`/api/quizzes/${quiz._id}/complete`, {
+      const response = await fetch(`/api/quizzes/${quiz.id}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

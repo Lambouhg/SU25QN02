@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import User from '@/models/user';
+import prisma from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ clerkId: string }> }
+  { params }: { params: { clerkId: string } }
 ) {
   try {
-    const { clerkId } = await params;
+    const { clerkId } = params;
 
     if (!clerkId) {
       return NextResponse.json(
@@ -16,18 +15,20 @@ export async function GET(
       );
     }
 
-    await connectDB();
-    
-    const user = await User.findOne({ clerkId }).lean() as {
-      clerkId: string;
-      role: string;
-      email: string;
-      fullName: string;
-      lastActivity?: string;
-      createdAt: string;
-      updatedAt: string;
-    } | null;
-    
+    const user = await prisma.user.findUnique({
+      where: { clerkId },
+      select: {
+        clerkId: true,
+        role: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        lastActivity: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
     if (!user) {
       return NextResponse.json(
         { 
@@ -40,12 +41,14 @@ export async function GET(
       );
     }
 
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
     return NextResponse.json({
       success: true,
       clerkId: user.clerkId,
       role: user.role,
       email: user.email,
-      fullName: user.fullName,
+      fullName,
       userExists: true,
       dbConnected: true,
       lastActivity: user.lastActivity,

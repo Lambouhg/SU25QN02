@@ -69,7 +69,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
   const handleRetryQuiz = async () => {
     try {
-      const response = await fetch(`/api/quizzes/${quiz._id}/retry`, {
+      const response = await fetch(`/api/quizzes/${quiz.id}/retry`, {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to retry quiz');
@@ -195,13 +195,13 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
                 <div className="space-y-6">
                   {quiz.questions.map((question, qIndex) => {
-                    const userAnswer = quiz.userAnswers.find((a) => a.questionId === question._id)
+                    const userAnswer = quiz.userAnswers.find((a) => a.questionId === question.id)
                     const isCorrect = userAnswer?.isCorrect
-                    const isSaved = savedQuestionIds.includes(question._id)
+                    const isSaved = savedQuestionIds.includes(question.id)
 
                     return (
                       <div
-                        key={question._id}
+                        key={question.id}
                         className={`p-6 border-2 rounded-xl transition-all duration-300 ${
                           isCorrect
                             ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
@@ -236,7 +236,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                           </div>
 
                           <button
-                            onClick={() => handleSaveQuestion(question._id)}
+                            onClick={() => handleSaveQuestion(question.id)}
                             className={`p-2 rounded-full transition-all duration-300 ${
                               isSaved
                                 ? "bg-orange-100 text-orange-600 hover:bg-orange-200"

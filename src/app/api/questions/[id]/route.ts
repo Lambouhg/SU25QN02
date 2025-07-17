@@ -1,25 +1,20 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import Question from '@/models/question';
-import { connectDB } from '@/lib/mongodb';
-import User from '@/models/user';
+import prisma from '@/lib/prisma';
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { id } = await params;
-    const question = await Question.findById(id);
-    
+    const question = await prisma.question.findUnique({ where: { id } });
     if (!question) {
       return NextResponse.json(
         { error: 'Question not found' },
         { status: 404 }
       );
     }
-
     return NextResponse.json(question);
   } catch (error) {
     console.error('Error fetching question:', error);
@@ -35,34 +30,29 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { userId } = getAuth(req);
-    
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     // Find the user by clerkId
-    const user = await User.findOne({ clerkId: userId });
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
+    if (user.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admin can update questions' }, { status: 403 });
+    }
     const body = await req.json();
     const { question, answers, fields, topics, levels, explanation } = body;
-
-    // Define a type for answer
-    type Answer = { text: string; isCorrect: boolean };
-
     // Validate at least one correct answer
-    const hasCorrectAnswer = (answers as Answer[]).some((answer) => answer.isCorrect);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hasCorrectAnswer = (answers as any[]).some((answer) => answer.isCorrect);
     if (!hasCorrectAnswer) {
       return NextResponse.json(
         { error: 'At least one answer must be marked as correct' },
         { status: 400 }
       );
     }
-
     // Validate at least one field, topic and level
     if (!fields || fields.length === 0) {
       return NextResponse.json(
@@ -70,54 +60,38 @@ export async function PUT(
         { status: 400 }
       );
     }
-
     if (!topics || topics.length === 0) {
       return NextResponse.json(
         { error: 'At least one topic must be selected' },
         { status: 400 }
       );
     }
-
     if (!levels || levels.length === 0) {
       return NextResponse.json(
         { error: 'At least one level must be selected' },
         { status: 400 }
       );
     }
-
     const { id } = await params;
-    const existingQuestion = await Question.findById(id);
+    const existingQuestion = await prisma.question.findUnique({ where: { id } });
     if (!existingQuestion) {
       return NextResponse.json(
         { error: 'Question not found' },
         { status: 404 }
       );
     }
-
-    // Check if user is the creator or admin
-    if (existingQuestion.createdBy.toString() !== user._id.toString()) {
-      if (user.role !== 'admin') {
-        return NextResponse.json(
-          { error: 'Unauthorized to edit this question' },
-          { status: 403 }
-        );
-      }
-    }
-
-    const updatedQuestion = await Question.findByIdAndUpdate(
-      id,
-      {
+    const updatedQuestion = await prisma.question.update({
+      where: { id },
+      data: {
         question,
         answers,
         fields,
         topics,
         levels,
         explanation,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       },
-      { new: true }
-    );
-
+    });
     return NextResponse.json(updatedQuestion);
   } catch (error) {
     console.error('Error updating question:', error);
@@ -133,40 +107,27 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB();
     const { userId } = getAuth(req);
-    
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
     // Find the user by clerkId
-    const user = await User.findOne({ clerkId: userId });
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
+    if (user.role !== 'admin') {
+      return NextResponse.json({ error: 'Only admin can delete questions' }, { status: 403 });
+    }
     const { id } = await params;
-    const existingQuestion = await Question.findById(id);
+    const existingQuestion = await prisma.question.findUnique({ where: { id } });
     if (!existingQuestion) {
       return NextResponse.json(
         { error: 'Question not found' },
         { status: 404 }
       );
     }
-
-    // Check if user is the creator or admin
-    if (existingQuestion.createdBy.toString() !== user._id.toString()) {
-      if (user.role !== 'admin') {
-        return NextResponse.json(
-          { error: 'Unauthorized to delete this question' },
-          { status: 403 }
-        );
-      }
-    }
-
-    await Question.findByIdAndDelete(id);
-
+    await prisma.question.delete({ where: { id } });
     return NextResponse.json(
       { message: 'Question deleted successfully' },
       { status: 200 }

@@ -17,7 +17,6 @@ import {
   Sparkles,
   Target,
   TrendingUp,
-  Award,
   RotateCcw,
   Star,
   Clock,
@@ -25,7 +24,6 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  RotateCw,
   Shuffle,
 } from "lucide-react";
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -48,6 +46,7 @@ export default function QuizSaveQuestionPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterField, setFilterField] = useState("all");
   const [filterLevel, setFilterLevel] = useState("all");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [filterDifficulty, setFilterDifficulty] = useState("all");
   const [filterTopic, setFilterTopic] = useState("all");
   const [showAnswers, setShowAnswers] = useState<Set<string>>(new Set());
@@ -439,7 +438,7 @@ export default function QuizSaveQuestionPage() {
               </Card>
             ) : (
               <div className="space-y-6">
-                {filteredQuestions.map((question, index) => (
+                {filteredQuestions.map((question) => (
                   <Card key={question._id} className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4">
@@ -666,8 +665,8 @@ export default function QuizSaveQuestionPage() {
 
       {/* Flash Cards Modal */}
       {showFlashCards && currentCard && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-50 flex items-center justify-center p-1 sm:p-2">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[98vh] overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
               <div className="flex items-center gap-4">
@@ -737,7 +736,7 @@ export default function QuizSaveQuestionPage() {
 
               {/* Flash Card */}
               <div
-                className={`relative w-full h-80 cursor-pointer transition-transform duration-700 transform-style-preserve-3d ${
+                className={`relative w-full h-[28rem] cursor-pointer transition-transform duration-700 transform-style-preserve-3d ${
                   isFlipped ? "rotate-y-180" : ""
                 }`}
                 onClick={flipCard}
@@ -745,43 +744,53 @@ export default function QuizSaveQuestionPage() {
               >
                 {/* Front Side - Question */}
                 <div
-                  className={`absolute inset-0 w-full h-full backface-hidden rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-8 ${
+                  className={`absolute inset-0 w-full h-full backface-hidden rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50 flex flex-col items-start justify-start p-0 ${
                     isFlipped ? "rotate-y-180" : ""
                   }`}
                   style={{ backfaceVisibility: "hidden" }}
                 >
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <BookOpen className="w-8 h-8 text-white" />
+                  {currentCard.question.length > 100 ? (
+                    <h3 className="w-full font-bold text-gray-800 mt-8 mb-4 leading-relaxed text-center break-words text-base">{currentCard.question}</h3>
+                  ) : (
+                    <h3 className="w-full font-bold text-gray-800 mt-8 mb-4 leading-relaxed text-center break-words text-xl">{currentCard.question}</h3>
+                  )}
+                  <div className="w-full flex-1 max-h-56 overflow-y-auto bg-gradient-to-br from-purple-50 to-blue-50 rounded-none p-0 shadow-none">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-8 py-4">
+                      {currentCard.answers.map((answer, idx) => (
+                        <div key={idx} className="p-2 bg-gray-200 border border-gray-300 rounded-lg text-gray-800 w-full">
+                          {answer.content}
+                        </div>
+                      ))}
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-4 leading-relaxed">{currentCard.question}</h3>
-                    <p className="text-sm text-gray-600">Click to reveal answer</p>
                   </div>
+                  <p className="w-full text-sm text-gray-600 mt-4 text-center">Click to reveal answer</p>
                 </div>
 
                 {/* Back Side - Answer */}
                 <div
-                  className={`absolute inset-0 w-full h-full backface-hidden rounded-xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-8 rotate-y-180 ${
+                  className={`absolute inset-0 w-full h-full backface-hidden rounded-xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-0 rotate-y-180 ${
                     isFlipped ? "" : "rotate-y-180"
                   }`}
                   style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                 >
-                  <div className="h-full overflow-y-auto">
-                    <div className="flex items-center gap-2 mb-4">
+                  <div className="h-full w-full flex flex-col items-center justify-start">
+                    <div className="flex items-center gap-2 mt-8 mb-4">
                       <CheckCircle2 className="w-6 h-6 text-green-600" />
                       <h4 className="text-lg font-bold text-gray-800">Correct Answers:</h4>
                     </div>
-                    <div className="space-y-3 mb-6">
-                      {currentCard.answers
-                        .filter((answer) => answer.isCorrect)
-                        .map((answer, index) => (
-                          <div
-                            key={index}
-                            className="p-4 bg-green-100 border border-green-200 rounded-lg text-green-800 font-medium"
-                          >
-                            ✓ {answer.content}
-                          </div>
-                        ))}
+                    <div className="w-full flex-1 max-h-56 overflow-y-auto bg-gradient-to-br from-green-50 to-emerald-50 rounded-none p-0 shadow-none mb-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-8 py-4">
+                        {currentCard.answers
+                          .filter((answer) => answer.isCorrect)
+                          .map((answer, index) => (
+                            <div
+                              key={index}
+                              className="p-4 bg-green-200 border border-green-300 rounded-lg text-green-800 font-medium w-full"
+                            >
+                              ✓ {answer.content}
+                            </div>
+                          ))}
+                      </div>
                     </div>
                     {currentCard.explanation && (
                       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -796,17 +805,6 @@ export default function QuizSaveQuestionPage() {
                     )}
                   </div>
                 </div>
-              </div>
-
-              {/* Flip Instruction */}
-              <div className="text-center mt-6">
-                <button
-                  onClick={flipCard}
-                  className="flex items-center gap-2 mx-auto px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-all duration-300"
-                >
-                  <RotateCw className="w-4 h-4" />
-                  {isFlipped ? "Show Question" : "Show Answer"}
-                </button>
               </div>
             </div>
 
