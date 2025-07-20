@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { AssessmentType } from '@prisma/client';
+import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     // Xây dựng data object
     const data = {
       userId,
-      type,
+      type: type as AssessmentType,
       ...rest,
     };
 
@@ -62,7 +63,48 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(assessment, { status: 201 });
+    // Find the database user ID for the Clerk user
+    let dbUserId = null;
+    try {
+      // Look up the user in the database using clerkId
+      const dbUser = await prisma.user.findUnique({
+        where: { clerkId: userId },
+        select: { id: true }
+      });
+      
+      if (dbUser) {
+        dbUserId = dbUser.id;
+        console.log(`[API] Found database user ID ${dbUserId} for Clerk user ${userId}`);
+      } else {
+        console.log(`[API] Could not find database user for Clerk ID ${userId}`);
+      }
+    } catch (userLookupError) {
+      console.error('[API] Error looking up database user:', userLookupError);
+    }
+    
+    // Prepare response with both IDs for client
+    const responseData = {
+      ...assessment,
+      userId,          // The Clerk ID
+      clerkId: userId, // Explicitly labeled Clerk ID
+      dbUserId         // The database user ID
+    };
+
+    // Track assessment completion
+    try {
+      if (dbUserId) {
+        // We have a valid database user ID - pass both IDs for complete context
+        await TrackingIntegrationService.trackAssessmentCompletion(dbUserId, assessment, { clerkId: userId });
+        console.log(`[API] Successfully tracked assessment completion for user ${dbUserId} (Clerk ID: ${userId})`);
+      } else {
+        console.warn(`[API] Skipping tracking - could not find database user ID for Clerk user ${userId}`);
+      }
+    } catch (trackingError) {
+      console.error('[API] Error tracking assessment completion:', trackingError);
+      // Continue and return results, just log the error
+    }
+
+    return NextResponse.json(responseData, { status: 201 });
   } catch (error) {
     console.error('Error creating assessment:', error);
     return NextResponse.json({ 

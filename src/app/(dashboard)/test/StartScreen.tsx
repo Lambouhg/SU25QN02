@@ -17,12 +17,14 @@ interface StartScreenProps {
   startInterview: () => void;
   CATEGORY_ROLE_OPTIONS: { category: string; roles: string[] }[];
   levelOptions: string[];
+  isLoading?: boolean;
 }
 
 const StartScreen: React.FC<StartScreenProps> = ({
   category, position, level, duration,
   setCategory, setPosition, setLevel, setDuration,
   startInterview,
+  isLoading = false,
   CATEGORY_ROLE_OPTIONS, levelOptions
 }) => {
   const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
@@ -38,16 +40,22 @@ const StartScreen: React.FC<StartScreenProps> = ({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="category">Industry/Field</Label>
-            <Select value={category} onValueChange={(value) => {
-              setCategory(value);
-              const newRoles = CATEGORY_ROLE_OPTIONS.find(c => c.category === value)?.roles || [];
-              setPosition(newRoles[0] || '');
-            }}>
+            <Select 
+              value={category} 
+              onValueChange={(value) => {
+                setCategory(value);
+                const newRoles = CATEGORY_ROLE_OPTIONS.find(c => c.category === value)?.roles || [];
+                setPosition(newRoles[0] || '');
+              }}
+              disabled={isLoading}
+            >
               <SelectTrigger id="category" className="w-full">
-                <SelectValue placeholder="Select field" />
+                <SelectValue placeholder={isLoading ? "Loading..." : "Select field"} />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORY_ROLE_OPTIONS.map((option) => (
+                {isLoading ? (
+                  <SelectItem value="loading" disabled>Loading categories...</SelectItem>
+                ) : CATEGORY_ROLE_OPTIONS.map((option) => (
                   <SelectItem key={option.category} value={option.category}>{option.category}</SelectItem>
                 ))}
               </SelectContent>
@@ -55,12 +63,14 @@ const StartScreen: React.FC<StartScreenProps> = ({
           </div>
           <div className="space-y-2">
             <Label htmlFor="position">Position applied for</Label>
-            <Select value={position} onValueChange={setPosition}>
+            <Select value={position} onValueChange={setPosition} disabled={isLoading}>
               <SelectTrigger id="position" className="w-full">
-                <SelectValue placeholder="Select position" />
+                <SelectValue placeholder={isLoading ? "Loading..." : "Select position"} />
               </SelectTrigger>
               <SelectContent>
-                {positionOptions.map((role: string) => (
+                {isLoading ? (
+                  <SelectItem value="loading" disabled>Loading positions...</SelectItem>
+                ) : positionOptions.map((role: string) => (
                   <SelectItem key={role} value={role}>{role}</SelectItem>
                 ))}
               </SelectContent>
@@ -118,7 +128,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={startInterview} className="w-full text-lg font-semibold">Start interview</Button>
+        <Button onClick={startInterview} className="w-full text-lg font-semibold" disabled={isLoading}>Start interview</Button>
       </CardFooter>
     </Card>
   );

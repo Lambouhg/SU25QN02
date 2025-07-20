@@ -1,5 +1,6 @@
 import { UserActivityService } from './userActivityService';
-import type { Interview, GoalStatus, ActivityType } from '@prisma/client';
+import { AssessmentTrackingService } from './assessmentTrackingService';
+import type { Interview, GoalStatus, ActivityType, Assessment } from '@prisma/client';
 
 interface QuestionWithTopics {
   topics: string[];
@@ -35,9 +36,6 @@ export class TrackingIntegrationService {
     }
   }
 
-  /**
-   * Tracking khi người dùng làm quiz
-   */
   static async trackQuizCompletion(
     userId: string, 
     questions: QuestionWithTopics[], 
@@ -49,7 +47,7 @@ export class TrackingIntegrationService {
       
       // Tạo activity mới
       const activity: Activity = {
-        type: 'quiz',
+        type: 'test' as ActivityType,
         score,
         duration: timeSpent,
         timestamp: this.formatDate(new Date())
@@ -89,7 +87,7 @@ export class TrackingIntegrationService {
       const timestamp = this.formatDate(new Date());
       // Tạo activity mới
       const activity: Activity = {
-        type: 'practice',
+        type: 'practice' as ActivityType,
         score: performanceScore,
         duration,
         timestamp
@@ -134,9 +132,36 @@ export class TrackingIntegrationService {
     }
   }
 
-  /**
-   * Lấy báo cáo tổng quan về tiến độ người dùng
-   */
+  static async trackAssessmentCompletion(
+    userId: string, 
+    assessment: Assessment,
+    extraData?: { clerkId?: string }
+  ) {
+    try {
+      // Include clerkId in logging if available
+      const userIdentifier = extraData?.clerkId 
+        ? `${userId} (ClerkID: ${extraData.clerkId})` 
+        : userId;
+      
+      console.log(`[TrackingIntegrationService] Starting assessment completion tracking for user ${userIdentifier}`);
+      
+      // Check if userId is valid before proceeding
+      if (!userId || userId.trim() === '') {
+        console.log(`[TrackingIntegrationService] Skipping tracking - invalid userId provided`);
+        return;
+      }
+      
+      // Let AssessmentTrackingService handle the tracking
+      
+      // Sử dụng AssessmentTrackingService để xử lý chi tiết
+      await AssessmentTrackingService.trackAssessmentCompletion(userId, assessment);
+      console.log(`[TrackingIntegrationService] Successfully tracked assessment completion for user ${userId}`);
+    } catch (error) {
+      console.error(`[TrackingIntegrationService] Error tracking assessment completion:`, error);
+      // Continue execution despite error - we'll log but not rethrow
+    }
+  }
+
   static async getProgressOverview(userId: string) {
     try {
       // Try to get existing activity
@@ -144,16 +169,18 @@ export class TrackingIntegrationService {
       
       // If no activity exists, initialize it
       if (!userActivity) {
+        console.log('No user activity found, initializing new activity for user:', userId);
         userActivity = await UserActivityService.initializeUserActivity(userId);
       }
 
       // Return default progress data for new users
-      if (!userActivity.activities) {
+      if (!userActivity || !userActivity.activities) {
+        console.log('No activities found in user activity, returning default data');
         const oneWeekFromNow = this.formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
         return {
           stats: {
             totalInterviews: 0,
-            averageScore: 0,
+            averageScore: 0.0,
             studyStreak: 0,
             totalStudyTime: 0
           },
@@ -174,10 +201,34 @@ export class TrackingIntegrationService {
       }
 
       // Get full progress report for existing users
-      return await UserActivityService.getProgressReport(userId);
+      console.log('User activity found, generating full progress report for user:', userId);
+      const report = await UserActivityService.getProgressReport(userId);
+      return report;
     } catch (error) {
       console.error('Error getting progress overview:', error);
-      throw error;
+      // Return default data instead of throwing error
+      const oneWeekFromNow = this.formatDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      return {
+        stats: {
+          totalInterviews: 0,
+          averageScore: 0.0,
+          studyStreak: 0,
+          totalStudyTime: 0
+        },
+        skillProgress: [],
+        currentFocus: ['Complete your first interview practice'],
+        nextMilestones: [
+          {
+            goal: 'Complete first interview practice',
+            targetDate: oneWeekFromNow
+          }
+        ],
+        recommendations: [
+          'Start with a practice interview to assess your current level',
+          'Set up your learning goals in the dashboard',
+          'Review available learning resources'
+        ]
+      };
     }
   }
 }

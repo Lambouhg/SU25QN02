@@ -11,12 +11,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type = 'eq', positionId, position, duration, selectedCategory, level, history, realTimeScores, totalTime, ...rest } = body;
-
-    // Kiểm tra type hợp lệ
-    if (type !== 'test' && type !== 'eq') {
-      return NextResponse.json({ error: 'Invalid type. Must be "test" or "eq"' }, { status: 400 });
-    }
+    // Always force type to 'eq' for this endpoint regardless of what was passed
+    const { positionId, position, duration, selectedCategory, level, history, realTimeScores, totalTime, ...rest } = body;
+    // Explicitly set type to 'eq' for this endpoint
+    const type = 'eq';
 
     // Xây dựng data object
     const data = {
@@ -129,12 +127,47 @@ export async function POST(request: NextRequest) {
     const finalScores = calculateFinalScores();
     data.finalScores = finalScores;
 
+    console.log(`[EQ API] Creating assessment with type: "${type}"`);
     const assessment = await prisma.assessment.create({
       data,
       include: {
         position: true, // Include position data
       },
     });
+    console.log(`[EQ API] Created assessment with type: "${assessment.type}"`);
+
+    // Track the EQ assessment completion
+    try {
+      // Find the database user ID for the Clerk user
+      let dbUserId = null;
+      try {
+        // Look up the user in the database using clerkId
+        const dbUser = await prisma.user.findUnique({
+          where: { clerkId: userId },
+          select: { id: true }
+        });
+        
+        if (dbUser) {
+          dbUserId = dbUser.id;
+          console.log(`[EQ API] Found database user ID ${dbUserId} for Clerk user ${userId}`);
+        } else {
+          console.log(`[EQ API] Could not find database user for Clerk ID ${userId}`);
+        }
+      } catch (userLookupError) {
+        console.error('[EQ API] Error looking up database user:', userLookupError);
+      }
+
+      if (dbUserId) {
+        const { TrackingIntegrationService } = await import('@/services/trackingIntegrationService');
+        await TrackingIntegrationService.trackAssessmentCompletion(dbUserId, assessment, { clerkId: userId });
+        console.log(`[EQ API] Successfully tracked EQ assessment completion for user ${dbUserId} (Clerk ID: ${userId})`);
+      } else {
+        console.warn(`[EQ API] Skipping tracking - could not find database user ID for Clerk user ${userId}`);
+      }
+    } catch (trackingError) {
+      console.error('[EQ API] Error tracking EQ completion:', trackingError);
+      // Continue despite error - we don't want to fail the response if tracking fails
+    }
 
     return NextResponse.json({ 
       success: true, 

@@ -72,31 +72,86 @@ export class UserActivityService {
   /**
    * Khởi tạo hoạt động tracking cho người dùng mới
    */
-  static async initializeUserActivity(userId: string): Promise<PrismaUserActivity> {
-    const initialData = {
-      activities: [],
-      skills: [],
-      goals: [],
-      learningStats: {
-        totalStudyTime: 0,
-        weeklyStudyTime: 0,
-        monthlyStudyTime: 0,
-        streak: 0,
-        lastStudyDate: this.formatDate(new Date())
+  static async initializeUserActivity(userId: string): Promise<PrismaUserActivity | null> {
+    try {
+      // Check if userId is empty or null
+      if (!userId || userId.trim() === '') {
+        console.error(`[UserActivityService] Cannot create UserActivity: Invalid userId provided`);
+        return null;
       }
-    };
-
-    const userActivity = await prisma.userActivity.create({
-      data: {
-        userId,
-        activities: initialData.activities as Prisma.JsonArray,
-        skills: initialData.skills as Prisma.JsonArray,
-        goals: initialData.goals as Prisma.JsonArray,
-        learningStats: initialData.learningStats as Prisma.JsonObject
+      
+      // Check if activity already exists before trying to create it
+      try {
+        const existingActivity = await prisma.userActivity.findUnique({
+          where: { userId }
+        });
+        
+        if (existingActivity) {
+          console.log(`[UserActivityService] UserActivity already exists for user ${userId}, returning existing record`);
+          return existingActivity;
+        }
+      } catch (findError) {
+        console.error(`[UserActivityService] Error checking for existing UserActivity:`, findError);
+        // Continue with creation attempt
       }
-    });
 
-    return userActivity;
+      // First, verify that the user exists in the database
+      try {
+        const userExists = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { id: true }
+        });
+        
+        if (!userExists) {
+          console.error(`[UserActivityService] User ${userId} does not exist in database`);
+          return null;
+        }
+      } catch (userCheckError) {
+        console.error(`[UserActivityService] Error checking if user exists in database:`, userCheckError);
+        // Continue with creation attempt
+      }
+      
+      const initialData = {
+        activities: [],
+        skills: [],
+        goals: [],
+        learningStats: {
+          totalStudyTime: 0,
+          weeklyStudyTime: 0,
+          monthlyStudyTime: 0,
+          streak: 0,
+          lastStudyDate: this.formatDate(new Date())
+        }
+      };
+
+      // Try to create the user activity with better error handling
+      try {
+        const userActivity = await prisma.userActivity.create({
+          data: {
+            userId,
+            activities: initialData.activities as Prisma.JsonArray,
+            skills: initialData.skills as Prisma.JsonArray,
+            goals: initialData.goals as Prisma.JsonArray,
+            learningStats: initialData.learningStats as Prisma.JsonObject
+          }
+        });
+        
+        console.log(`[UserActivityService] Successfully created UserActivity for user ${userId}`);
+        return userActivity;
+      } catch (createError) {
+        // Handle specific error cases
+        const error = createError as { name?: string; code?: string };
+        if (error?.name === 'PrismaClientKnownRequestError' && error?.code === 'P2003') {
+          console.error(`[UserActivityService] Foreign key constraint failed - user ${userId} not found in database`);
+        } else {
+          console.error(`[UserActivityService] Error creating UserActivity:`, createError);
+        }
+        return null;
+      }
+    } catch (error) {
+      console.error(`[UserActivityService] Error in initializeUserActivity:`, error);
+      return null;
+    }
   }
 
   /**
@@ -126,7 +181,7 @@ export class UserActivityService {
     const timestamp = this.formatDate(new Date());
 
     const activity: IActivity = {
-      type: 'interview',
+      type: 'interview' as ActivityType,
       referenceId: interviewId,
       score: evaluation.overallRating,
       duration: durationMinutes,
@@ -300,35 +355,66 @@ export class UserActivityService {
    * Cập nhật streak và thống kê học tập
    */
   static async updateLearningStats(userId: string): Promise<void> {
-    const userActivity = await prisma.userActivity.findUnique({
-      where: { userId }
-    });
-    if (!userActivity) throw new Error('User activity not found');
-
-    const learningStats = userActivity.learningStats as unknown as ILearningStats;
-    const lastStudyDate = new Date(learningStats.lastStudyDate);
-    const today = new Date();
-    const diffDays = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
-
-    let streak = learningStats.streak;
-    if (diffDays === 1) {
-      // Người dùng học liên tiếp
-      streak += 1;
-    } else if (diffDays > 1) {
-      // Reset streak nếu bỏ lỡ ngày
-      streak = 1;
-    }
-
-    await prisma.userActivity.update({
-      where: { userId },
-      data: {
-        learningStats: JSON.parse(JSON.stringify({
-          ...learningStats,
-          streak,
-          lastStudyDate: today
-        }))
+    try {
+      // Tìm hoặc tạo user activity
+      let userActivity = await prisma.userActivity.findUnique({
+        where: { userId }
+      });
+      
+      // Nếu không tồn tại, tạo mới user activity
+      if (!userActivity) {
+        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} during updateLearningStats`);
+        try {
+          userActivity = await this.initializeUserActivity(userId);
+          // Đã khởi tạo stats trong initializeUserActivity, không cần cập nhật thêm
+          return;
+        } catch (initError) {
+          console.error(`[UserActivityService] Error initializing UserActivity in updateLearningStats:`, initError);
+          // Check if it was created by another concurrent process
+          userActivity = await prisma.userActivity.findUnique({
+            where: { userId }
+          });
+          
+          if (!userActivity) {
+            throw new Error(`Failed to create UserActivity record for user ${userId} in updateLearningStats`);
+          }
+        }
       }
-    });
+
+      const learningStats = userActivity.learningStats as unknown as ILearningStats;
+      const lastStudyDate = new Date(learningStats.lastStudyDate);
+      const today = new Date();
+      const diffDays = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      let streak = learningStats.streak;
+      if (diffDays === 1) {
+        // Người dùng học liên tiếp
+        streak += 1;
+      } else if (diffDays > 1) {
+        // Reset streak nếu bỏ lỡ ngày
+        streak = 1;
+      }
+
+      try {
+        await prisma.userActivity.update({
+          where: { userId },
+          data: {
+            learningStats: JSON.parse(JSON.stringify({
+              ...learningStats,
+              streak,
+              lastStudyDate: today
+            }))
+          }
+        });
+        console.log(`[UserActivityService] Successfully updated learning stats for user ${userId}`);
+      } catch (updateError) {
+        console.error(`[UserActivityService] Error updating learning stats for user ${userId}:`, updateError);
+        throw updateError;
+      }
+    } catch (error) {
+      console.error('[UserActivityService] Error in updateLearningStats:', error);
+      throw error;
+    }
   }
 
   /**
@@ -385,33 +471,60 @@ export class UserActivityService {
    * Lấy báo cáo tiến độ của người dùng
    */
   static async getProgressReport(userId: string) {
-    const [userActivity, user] = await Promise.all([
-      prisma.userActivity.findUnique({
-        where: { userId }
-      }),
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: { firstName: true, lastName: true, email: true }
-      })
-    ]);
+    try {
+      const [userActivity, user] = await Promise.all([
+        prisma.userActivity.findUnique({
+          where: { userId }
+        }),
+        prisma.user.findUnique({
+          where: { id: userId },
+          select: { firstName: true, lastName: true, email: true }
+        })
+      ]);
 
-    if (!userActivity) throw new Error('User activity not found');
+      if (!userActivity) {
+        console.log('User activity not found in getProgressReport, initializing new one');
+        await this.initializeUserActivity(userId);
+        return {
+          user: {
+            name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+            email: user?.email
+          },
+          stats: {
+            totalInterviews: 0,
+            averageScore: 0.0,
+            studyStreak: 0,
+            totalStudyTime: 0
+          },
+          recentActivities: [],
+          skillProgress: [],
+          goals: [],
+          strengths: [],
+          weaknesses: [],
+          recommendations: [
+            'Start with a practice interview to assess your current level',
+            'Set up your learning goals in the dashboard',
+            'Review available learning resources'
+          ]
+        };
+      }
 
-    const activities = parseJsonField<IActivity[]>(userActivity.activities, []);
-    const learningStats = parseJsonField<ILearningStats>(userActivity.learningStats, {
-      totalStudyTime: 0,
-      weeklyStudyTime: 0,
-      monthlyStudyTime: 0,
-      streak: 0,
-      lastStudyDate: new Date().toISOString()
-    });
-    const skills = parseJsonField<ISkill[]>(userActivity.skills, []);
-    const progressHistory = parseJsonField<Array<{
-      date: string;
-      overallScore: number;
-      skillScores: Record<string, number>;
-    }>>(userActivity.progressHistory, []);
-    const goals = parseJsonField<IGoal[]>(userActivity.goals, []);
+      // Parse dữ liệu
+      const activities = parseJsonField<IActivity[]>(userActivity.activities, []);
+      const learningStats = parseJsonField<ILearningStats>(userActivity.learningStats, {
+        totalStudyTime: 0,
+        weeklyStudyTime: 0,
+        monthlyStudyTime: 0,
+        streak: 0,
+        lastStudyDate: new Date().toISOString()
+      });
+      const skills = parseJsonField<ISkill[]>(userActivity.skills, []);
+      const progressHistory = parseJsonField<Array<{
+        date: string;
+        overallScore: number;
+        skillScores: Record<string, number>;
+      }>>(userActivity.progressHistory, []);
+      const goals = parseJsonField<IGoal[]>(userActivity.goals, []);
 
     // Tính toán các chỉ số
     const totalInterviews = activities.filter(a => a.type === 'interview').length;
@@ -454,123 +567,283 @@ export class UserActivityService {
       weaknesses: userActivity.weaknesses as string[] || [],
       recommendations: userActivity.recommendations as string[] || []
     };
+    } catch (error) {
+      console.error('Error in getProgressReport:', error);
+      return {
+        user: {
+          name: '',
+          email: ''
+        },
+        stats: {
+          totalInterviews: 0,
+          averageScore: 0.0,
+          studyStreak: 0,
+          totalStudyTime: 0
+        },
+        recentActivities: [],
+        skillProgress: [],
+        goals: [],
+        strengths: [],
+        weaknesses: [],
+        recommendations: [
+          'Start with a practice interview to assess your current level',
+          'Set up your learning goals in the dashboard', 
+          'Review available learning resources'
+        ]
+      };
+    }
   }
 
   /**
    * Tạo recommendations dựa trên hoạt động người dùng
    */
   static async generateRecommendations(userId: string): Promise<string[]> {
-    const userActivity = await prisma.userActivity.findUnique({
-      where: { userId }
-    });
-    if (!userActivity) throw new Error('User activity not found');
+    try {
+      // Tìm hoặc tạo user activity
+      let userActivity = await prisma.userActivity.findUnique({
+        where: { userId }
+      });
 
-    const skills = userActivity.skills as unknown as ISkill[];
-    const weakSkills = skills.filter(skill => skill.score < 70).map(skill => skill.name);
-    const learningStats = userActivity.learningStats as unknown as ILearningStats;
-
-    const recommendations = [];
-    
-    if (weakSkills.length > 0) {
-      recommendations.push(
-        `Focus on improving: ${weakSkills.join(', ')}`,
-        'Schedule more practice interviews in these areas'
-      );
-    }
-
-    if (learningStats.streak < 3) {
-      recommendations.push(
-        'Try to maintain a consistent practice schedule',
-        'Set daily learning goals to build momentum'
-      );
-    }
-
-    // Cập nhật recommendations
-    await prisma.userActivity.update({
-      where: { userId },
-      data: {
-        recommendations: JSON.parse(JSON.stringify(recommendations)),
-        weaknesses: JSON.parse(JSON.stringify(weakSkills))
+      // Nếu không tồn tại, tạo mới user activity
+      if (!userActivity) {
+        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} during generateRecommendations`);
+        try {
+          userActivity = await this.initializeUserActivity(userId);
+          return [
+            'Start with a practice interview to assess your current level',
+            'Set up your learning goals in the dashboard',
+            'Review available learning resources'
+          ];
+        } catch (initError) {
+          console.error(`[UserActivityService] Error initializing UserActivity in generateRecommendations:`, initError);
+          // Check if it was created by another concurrent process
+          userActivity = await prisma.userActivity.findUnique({
+            where: { userId }
+          });
+          
+          if (!userActivity) {
+            throw new Error(`Failed to create UserActivity record for user ${userId} in generateRecommendations`);
+          }
+        }
       }
-    });
 
-    return recommendations;
+      const skills = parseJsonField<ISkill[]>(userActivity.skills, []);
+      const weakSkills = skills.filter(skill => skill.score < 70).map(skill => skill.name);
+      const learningStats = parseJsonField<ILearningStats>(userActivity.learningStats, {
+        totalStudyTime: 0,
+        weeklyStudyTime: 0,
+        monthlyStudyTime: 0,
+        streak: 0,
+        lastStudyDate: new Date().toISOString()
+      });
+
+      const recommendations = [];
+      
+      if (weakSkills.length > 0) {
+        recommendations.push(
+          `Focus on improving: ${weakSkills.join(', ')}`,
+          'Schedule more practice interviews in these areas'
+        );
+      }
+
+      if (learningStats.streak < 3) {
+        recommendations.push(
+          'Try to maintain a consistent practice schedule',
+          'Set daily learning goals to build momentum'
+        );
+      }
+
+      // Nếu không có recommendations cụ thể, thêm một số mặc định
+      if (recommendations.length === 0) {
+        recommendations.push(
+          'Complete more practice sessions to get personalized recommendations',
+          'Try different topics to broaden your skills'
+        );
+      }
+
+      // Cập nhật recommendations
+      try {
+        await prisma.userActivity.update({
+          where: { userId },
+          data: {
+            recommendations: JSON.parse(JSON.stringify(recommendations)),
+            weaknesses: JSON.parse(JSON.stringify(weakSkills))
+          }
+        });
+        console.log(`[UserActivityService] Successfully updated recommendations for user ${userId}`);
+      } catch (updateError) {
+        console.error(`[UserActivityService] Error updating recommendations for user ${userId}:`, updateError);
+        throw updateError;
+      }
+
+      return recommendations;
+    } catch (error) {
+      console.error('[UserActivityService] Error in generateRecommendations:', error);
+      return [
+        'Start with a practice interview to assess your current level',
+        'Set up your learning goals in the dashboard',
+        'Review available learning resources'
+      ];
+    }
   }
 
   /**
    * Thêm một hoạt động mới
    */
   static async addActivity(userId: string, activity: Omit<IActivity, 'timestamp'> & { timestamp: Date | string }): Promise<void> {
-    const formattedActivity = {
-      ...activity,
-      timestamp: typeof activity.timestamp === 'string' 
-        ? activity.timestamp 
-        : this.formatDate(activity.timestamp)
-    };
+    try {
+      console.log(`[UserActivityService] Adding activity of type "${activity.type}" for user ${userId}`);
+      
+      const formattedActivity = {
+        ...activity,
+        timestamp: typeof activity.timestamp === 'string' 
+          ? activity.timestamp 
+          : this.formatDate(activity.timestamp)
+      };
+      
+      console.log(`[UserActivityService] Formatted activity:`, JSON.stringify(formattedActivity));
 
-    const userActivity = await prisma.userActivity.findUnique({
-      where: { userId }
-    });
+      // Tìm user activity
+      let userActivity = await prisma.userActivity.findUnique({
+        where: { userId }
+      });
 
-    const currentActivities = parseJsonField<IActivity[]>(userActivity?.activities, []);
-
-    await prisma.userActivity.update({
-      where: { userId },
-      data: {
-        activities: [...currentActivities, formattedActivity] as unknown as Prisma.JsonArray
+      // Nếu không tồn tại, tạo mới user activity
+      if (!userActivity) {
+        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} in addActivity`);
+        try {
+          userActivity = await this.initializeUserActivity(userId);
+        } catch (initError) {
+          console.error(`[UserActivityService] Error initializing UserActivity in addActivity:`, initError);
+          // Check if it was created by another concurrent process
+          userActivity = await prisma.userActivity.findUnique({
+            where: { userId }
+          });
+          
+          if (!userActivity) {
+            throw new Error(`Failed to create UserActivity record for user ${userId}`);
+          }
+        }
+        
+        // Thêm hoạt động mới vào user activity vừa tạo
+        try {
+          await prisma.userActivity.update({
+            where: { userId },
+            data: {
+              activities: [formattedActivity] as unknown as Prisma.JsonArray
+            }
+          });
+        } catch (updateError) {
+          console.error(`[UserActivityService] Error updating UserActivity with first activity:`, updateError);
+          throw updateError;
+        }
+        return;
       }
-    });
+
+      // Nếu đã tồn tại, cập nhật với hoạt động mới
+      const currentActivities = parseJsonField<IActivity[]>(userActivity?.activities, []);
+      
+      try {
+        await prisma.userActivity.update({
+          where: { userId },
+          data: {
+            activities: [...currentActivities, formattedActivity] as unknown as Prisma.JsonArray
+          }
+        });
+        console.log(`[UserActivityService] Successfully added new activity for user ${userId}`);
+      } catch (updateError) {
+        console.error(`[UserActivityService] Error updating activities for user ${userId}:`, updateError);
+        throw updateError;
+      }
+    } catch (error) {
+      console.error('[UserActivityService] Error in addActivity:', error);
+      throw error;
+    }
   }
 
   /**
    * Cập nhật một kỹ năng
    */
   static async updateSkill(userId: string, skillData: Partial<ISkill>): Promise<void> {
-    const { name, score, lastAssessed } = skillData;
-    
-    // Xác định level dựa trên score
-    let level: SkillLevel = 'beginner';
-    if (score) {
-      if (score >= 90) level = 'expert';
-      else if (score >= 75) level = 'advanced';
-      else if (score >= 60) level = 'intermediate';
-    }
-
-    const userActivity = await prisma.userActivity.findUnique({
-      where: { userId }
-    });
-
-    const currentSkills = parseJsonField<ISkill[]>(userActivity?.skills, []);
-    const updatedSkills = currentSkills.map(s => 
-      s.name === name
-        ? { 
-            ...s, 
-            score: score || s.score, 
-            level, 
-            lastAssessed: lastAssessed 
-              ? typeof lastAssessed === 'string' 
-                ? lastAssessed 
-                : this.formatDate(lastAssessed)
-              : this.formatDate(new Date())
-          }
-        : s
-    );
-
-    if (name && !currentSkills.some(s => s.name === name)) {
-      updatedSkills.push({
-        name,
-        score: score || 0,
-        level,
-        lastAssessed: this.formatDate(new Date())
-      });
-    }
-
-    await prisma.userActivity.update({
-      where: { userId },
-      data: {
-        skills: updatedSkills as unknown as Prisma.JsonArray
+    try {
+      const { name, score, lastAssessed } = skillData;
+      
+      // Xác định level dựa trên score
+      let level: SkillLevel = 'beginner';
+      if (score) {
+        if (score >= 90) level = 'expert';
+        else if (score >= 75) level = 'advanced';
+        else if (score >= 60) level = 'intermediate';
       }
-    });
+
+      // Tìm hoặc tạo user activity
+      let userActivity = await prisma.userActivity.findUnique({
+        where: { userId }
+      });
+
+      // Nếu không tồn tại, tạo mới user activity
+      if (!userActivity) {
+        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} during updateSkill`);
+        try {
+          userActivity = await this.initializeUserActivity(userId);
+        } catch (initError) {
+          console.error(`[UserActivityService] Error initializing UserActivity in updateSkill:`, initError);
+          // Check if it was created by another concurrent process
+          userActivity = await prisma.userActivity.findUnique({
+            where: { userId }
+          });
+          
+          if (!userActivity) {
+            throw new Error(`Failed to create UserActivity record for user ${userId} in updateSkill`);
+          }
+        }
+      }
+
+      const currentSkills = parseJsonField<ISkill[]>(userActivity?.skills, []);
+      const updatedSkills = currentSkills.map(s => 
+        s.name === name
+          ? { 
+              ...s, 
+              score: score || s.score, 
+              level, 
+              lastAssessed: lastAssessed 
+                ? typeof lastAssessed === 'string' 
+                  ? lastAssessed 
+                  : this.formatDate(lastAssessed)
+                : this.formatDate(new Date())
+            }
+          : s
+      );
+
+      if (name && !currentSkills.some(s => s.name === name)) {
+        updatedSkills.push({
+          name,
+          score: score || 0,
+          level,
+          lastAssessed: lastAssessed 
+            ? typeof lastAssessed === 'string' 
+              ? lastAssessed 
+              : this.formatDate(lastAssessed)
+            : this.formatDate(new Date())
+        });
+      }
+
+      try {
+        await prisma.userActivity.update({
+          where: { userId },
+          data: {
+            skills: updatedSkills as unknown as Prisma.JsonArray
+          }
+        });
+        console.log(`[UserActivityService] Successfully updated skill ${name} for user ${userId}`);
+      } catch (updateError) {
+        console.error(`[UserActivityService] Error updating skills for user ${userId}:`, updateError);
+        throw updateError;
+      }
+    } catch (error) {
+      console.error('[UserActivityService] Error in updateSkill:', error);
+      throw error;
+    }
   }
 
   /**
@@ -587,7 +860,7 @@ export class UserActivityService {
     const timestamp = this.formatDate(now);
     
     await this.addActivity(userId, {
-      type: 'practice',
+      type: 'practice' as ActivityType,
       score,
       duration,
       timestamp

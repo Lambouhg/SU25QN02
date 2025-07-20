@@ -75,6 +75,8 @@ export async function GET(
       byType: {
         interview: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
         quiz: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
+        test: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
+        eq: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
         practice: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
         learning: filteredActivities.filter((a: Record<string, unknown>) => a.type === 'learning').length,
         goalCompleted: goals.filter((g: Record<string, unknown>) => g.status === 'completed').length,

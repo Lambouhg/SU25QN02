@@ -40,9 +40,34 @@ export async function GET() {
       });
     }
 
-    const progress = await TrackingIntegrationService.getProgressOverview(user.id);
-    
-    return NextResponse.json(progress);
+    try {
+      const progress = await TrackingIntegrationService.getProgressOverview(user.id);
+      console.log('Progress data fetched successfully:', progress);
+      return NextResponse.json(progress);
+    } catch (fetchError) {
+      console.error('Error in TrackingIntegrationService.getProgressOverview:', fetchError);
+      return NextResponse.json({
+        stats: {
+          totalInterviews: 0,
+          averageScore: 0.0,
+          studyStreak: 0,
+          totalStudyTime: 0
+        },
+        skillProgress: [],
+        currentFocus: ['Complete your first interview practice'],
+        nextMilestones: [
+          {
+            goal: 'Complete first interview practice',
+            targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          }
+        ],
+        recommendations: [
+          'Start with a practice interview to assess your current level',
+          'Set up your learning goals in the dashboard',
+          'Review available learning resources'
+        ]
+      });
+    }
   } catch (error) {
     console.error('Error fetching progress:', error);
     // Return a more detailed error message in development

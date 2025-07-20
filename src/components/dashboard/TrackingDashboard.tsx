@@ -52,10 +52,36 @@ export default function TrackingDashboard() {
     const fetchProgress = async () => {
       try {
         const response = await fetch('/api/tracking');
+        if (!response.ok) {
+          throw new Error('Failed to fetch tracking data');
+        }
         const data = await response.json();
+        console.log('Tracking data fetched:', data);
         setProgress(data);
       } catch (error) {
         console.error('Error fetching progress:', error);
+        // Cung cấp dữ liệu mặc định nếu có lỗi
+        setProgress({
+          stats: {
+            totalInterviews: 0,
+            averageScore: 0.0,
+            studyStreak: 0,
+            totalStudyTime: 0
+          },
+          skillProgress: [],
+          currentFocus: ['Complete your first interview practice'],
+          nextMilestones: [
+            {
+              goal: 'Complete first interview practice',
+              targetDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            }
+          ],
+          recommendations: [
+            'Start with a practice interview to assess your current level',
+            'Set up your learning goals in the dashboard',
+            'Review available learning resources'
+          ]
+        });
       } finally {
         setLoading(false);
       }
@@ -63,6 +89,8 @@ export default function TrackingDashboard() {
 
     if (isLoaded && user) {
       fetchProgress();
+    } else if (isLoaded) {
+      setLoading(false);
     }
   }, [isLoaded, user]);
 

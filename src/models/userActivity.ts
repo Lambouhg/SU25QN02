@@ -2,8 +2,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 // Interface định nghĩa cấu trúc của một hoạt động
 export interface IActivity {
-  type: 'interview' | 'quiz' | 'practice' | 'learning' | 'goal_completed' | 'goal_started';
-  referenceId?: mongoose.Types.ObjectId; // ID của interview/quiz liên quan
+  type: 'interview' | 'quiz' | 'test' | 'eq' | 'practice' | 'learning' | 'goal_completed' | 'goal_started';
+  referenceId?: mongoose.Types.ObjectId; // ID của interview/quiz/test liên quan
   score?: number;
   duration: number; // thời gian thực hiện (phút)
   timestamp: Date;
@@ -56,7 +56,7 @@ export interface IUserActivity extends Document {
 
 // Schema cho Activity
 const ActivitySchema = new Schema<IActivity>({
-  type: { type: String, required: true, enum: ['interview', 'quiz', 'practice', 'learning', 'goal_completed', 'goal_started'] },
+  type: { type: String, required: true, enum: ['interview', 'quiz', 'test', 'eq', 'practice', 'learning', 'goal_completed', 'goal_started'] },
   referenceId: { type: Schema.Types.ObjectId, required: false },
   score: { type: Number },
   duration: { type: Number, required: true },

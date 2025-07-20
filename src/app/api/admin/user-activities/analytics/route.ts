@@ -88,9 +88,13 @@ export async function GET(request: NextRequest) {
     const activityStats = {
       totalInterviews: allActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
       totalQuizzes: allActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
+      totalTests: allActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
+      totalEQs: allActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
       totalPractice: allActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
       recentInterviews: recentActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
       recentQuizzes: recentActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
+      recentTests: recentActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
+      recentEQs: recentActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
       recentPractice: recentActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
       averageScore: allActivities.length > 0
         ? allActivities.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.score) || 0), 0) / allActivities.length
@@ -187,6 +191,8 @@ export async function GET(request: NextRequest) {
         date: dayStart.toISOString().split('T')[0],
         interviews: dayActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
         quizzes: dayActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
+        tests: dayActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
+        eqs: dayActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
         practice: dayActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
         total: dayActivities.length,
         averageScore: dayActivities.length > 0

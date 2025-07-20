@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { AssessmentType } from '@prisma/client';
+import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
     const assessment = await prisma.assessment.create({
       data: {
         userId,
-        type,
+        type: type as AssessmentType,
         positionId, // Sử dụng positionId
         ...rest,
       },
@@ -38,6 +40,9 @@ export async function POST(request: NextRequest) {
         position: true, // Include position data trong response
       },
     });
+
+    // Track assessment completion
+    await TrackingIntegrationService.trackAssessmentCompletion(userId, assessment);
 
     return NextResponse.json(assessment, { status: 201 });
   } catch (error) {
@@ -57,12 +62,13 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type'); // 'test' hoặc 'eq'
+    const typeParam = searchParams.get('type'); // 'test' hoặc 'eq'
 
     // Nếu có type, filter theo type. Nếu không, lấy tất cả
-    const where = type && (type === 'test' || type === 'eq') 
-      ? { userId, type } 
-      : { userId };
+    const where = {
+      userId,
+      ...(typeParam === 'test' || typeParam === 'eq' ? { type: typeParam as AssessmentType } : {})
+    };
 
     const assessments = await prisma.assessment.findMany({
       where,

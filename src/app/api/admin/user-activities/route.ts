@@ -99,6 +99,8 @@ export async function GET(request: NextRequest) {
       
       const totalInterviews = activities.filter((a) => a.type === 'interview').length;
       const totalQuizzes = activities.filter((a) => a.type === 'quiz').length;
+      const totalTests = activities.filter((a) => a.type === 'test').length;
+      const totalEQs = activities.filter((a) => a.type === 'eq').length;
       const totalPractice = activities.filter((a) => a.type === 'practice').length;
       
       const averageScore = activities.length > 0 
@@ -121,6 +123,8 @@ export async function GET(request: NextRequest) {
         stats: {
           totalInterviews,
           totalQuizzes,
+          totalTests,
+          totalEQs,
           totalPractice,
           totalActivities: activities.length,
           averageScore: Math.round(averageScore * 100) / 100,
