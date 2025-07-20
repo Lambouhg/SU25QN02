@@ -12,7 +12,7 @@ const quizSchema = new mongoose.Schema({
   topic: { type: String, required: true },
   level: { 
     type: String, 
-    enum: ['intern', 'fresher', 'middle', 'junior', 'senior'],
+    enum: ['junior', 'middle', 'senior'],
     required: true 
   },
   questions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Question' }],

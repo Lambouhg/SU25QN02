@@ -20,7 +20,7 @@ export interface SaveQuestionSetRequest {
 }
 
 export class QuestionSetService {
-  private baseUrl = '/api/question-sets';
+  private baseUrl = '/api/jd/question-sets';
 
   // Lưu question set mới
   async saveQuestionSet(data: SaveQuestionSetRequest): Promise<QuestionSetData> {
@@ -43,28 +43,51 @@ export class QuestionSetService {
 
   // Lấy tất cả question sets của user
   async getAllQuestionSets(): Promise<QuestionSetData[]> {
-    const response = await fetch(this.baseUrl);
+    try {
+      const response = await fetch(this.baseUrl);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch question sets');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || `Failed to fetch question sets (${response.status})`);
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error('Invalid response format from server');
+      }
+      
+      return result.questionSets || [];
+    } catch (error) {
+      console.error('Error in getAllQuestionSets:', error);
+      throw error;
     }
-
-    const result = await response.json();
-    return result.questionSets;
   }
 
   // Lấy một question set cụ thể
   async getQuestionSet(id: string): Promise<QuestionSetData> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`);
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch question set');
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('Question set not found. It may have been deleted or you may not have access to it.');
+        }
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || `Failed to fetch question set (${response.status})`);
+      }
+
+      const result = await response.json();
+      
+      if (!result.success || !result.questionSet) {
+        throw new Error('Invalid response format from server');
+      }
+      
+      return result.questionSet;
+    } catch (error) {
+      console.error('Error in getQuestionSet:', error);
+      throw error;
     }
-
-    const result = await response.json();
-    return result.questionSet;
   }
 
   // Xóa question set

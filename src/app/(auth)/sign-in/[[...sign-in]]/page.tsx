@@ -1,20 +1,37 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
-import { useState } from "react";
+import { useSignIn, useUser } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function SignInPage() {
   const router = useRouter();
   const { signIn, setActive, isLoaded } = useSignIn();
+  const { user, isSignedIn } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
 
+  // Redirect if already signed in
+  useEffect(() => {
+    if (isSignedIn && user) {
+      router.replace('/dashboard');
+    }
+  }, [isSignedIn, user, router]);
+
   if (!isLoaded || !signIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render if user is signed in (will redirect)
+  if (isSignedIn) {
     return null;
   }
 
@@ -30,7 +47,7 @@ export default function SignInPage() {
       });      
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/");
+        router.replace("/dashboard");
       } else {
         console.error("Sign in failed", result);
         setErrorMessage("Sign in failed. Please check your credentials.");
@@ -49,7 +66,7 @@ export default function SignInPage() {
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/"
+        redirectUrlComplete: "/dashboard"
       });
     } catch (err) {
       console.error("Error signing in with Google:", err);

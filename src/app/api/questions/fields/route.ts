@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import Question from '@/models/question';
-import { connectDB } from '@/lib/mongodb';
+import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
-    await connectDB();
-    const fields = await Question.distinct('fields');
-    return NextResponse.json(fields);
+    // Lấy tất cả các fields từ question bank
+    const questions = await prisma.question.findMany({ select: { fields: true } });
+    // Flatten và lấy unique
+    const allFields = questions.flatMap(q => q.fields || []);
+    const uniqueFields = Array.from(new Set(allFields));
+    return NextResponse.json(uniqueFields);
   } catch (error) {
     console.error('Error fetching fields:', error);
     return NextResponse.json(

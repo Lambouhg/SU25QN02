@@ -17,6 +17,8 @@ export default function DashboardPage() {
           <p className="text-gray-600">Welcome back! Here&apos;s an overview of your interview activities.</p>
         </div>
 
+
+
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white rounded-lg border border-gray-200 p-6">

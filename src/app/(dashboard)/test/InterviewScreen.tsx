@@ -4,25 +4,16 @@ import ReactMarkdown from 'react-markdown';
 
 interface InterviewScreenProps {
   position: string;
-  isSpeechEnabled: boolean;
-  voiceLanguage: 'vi-VN' | 'en-US';
-  isListening: boolean;
-  isSpeakerOn: boolean;
-  isAiSpeaking: boolean;
   conversation: { role: string; content: string }[];
   message: string;
   isAiThinking: boolean;
-  onToggleLanguage: () => void;
-  onToggleSpeechRecognition: () => void;
-  onToggleSpeaker: () => void;
-  onSpeechToggle: () => void;
   onMessageChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSendMessage: () => void;
   messageListRef: React.RefObject<HTMLDivElement | null>;
   duration: number;
-  onEndInterview: () => void;
   realTimeScores: Record<string, number>;
   lastFeedback: string | null;
+  onEndInterview?: (timeLeft: number) => void;
 }
 
 const InterviewScreen: React.FC<InterviewScreenProps> = (props) => {
@@ -51,6 +42,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = (props) => {
         {...props} 
         conversation={chatMessages}
         realTimeScores={formattedScores}
+        onEndInterview={props.onEndInterview}
       />
       {props.lastFeedback && (
         <div className="mt-8 w-full flex justify-center">
@@ -71,4 +63,4 @@ const InterviewScreen: React.FC<InterviewScreenProps> = (props) => {
   );
 };
 
-export default InterviewScreen; 
+export default InterviewScreen;

@@ -4,7 +4,8 @@ import React from 'react';
 
 interface PersonalInfoFormProps {
   formData: {
-    fullName: string;
+    firstName: string;
+    lastName: string;
     email: string;
     phone: string;
     department: string;
@@ -13,7 +14,8 @@ interface PersonalInfoFormProps {
   };
   isEditing: boolean;
   onDataChange: (data: {
-    fullName: string;
+    firstName: string;
+    lastName: string;
     email: string;
     phone: string;
     department: string;
@@ -53,19 +55,37 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-gray-700">
-            Full Name
+            First Name
           </label>
           <input
             type="text"
-            value={formData.fullName}
-            onChange={(e) => handleFieldChange('fullName', e.target.value)}
+            value={formData.firstName}
+            onChange={(e) => handleFieldChange('firstName', e.target.value)}
             disabled={!isEditing}
             className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
               !isEditing 
                 ? 'bg-gray-50 border-gray-200 text-gray-600' 
                 : 'bg-white border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
             }`}
-            placeholder="Enter your full name"
+            placeholder="Enter your first name"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-gray-700">
+            Last Name
+          </label>
+          <input
+            type="text"
+            value={formData.lastName}
+            onChange={(e) => handleFieldChange('lastName', e.target.value)}
+            disabled={!isEditing}
+            className={`w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 ${
+              !isEditing 
+                ? 'bg-gray-50 border-gray-200 text-gray-600' 
+                : 'bg-white border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100'
+            }`}
+            placeholder="Enter your last name"
           />
         </div>
 

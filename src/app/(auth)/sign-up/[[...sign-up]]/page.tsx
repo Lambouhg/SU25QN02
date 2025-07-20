@@ -1,7 +1,7 @@
 "use client";
 
-import { useSignUp } from "@clerk/nextjs";
-import { useState } from "react";
+import { useSignUp, useUser } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from 'next/image';
@@ -9,18 +9,43 @@ import Image from 'next/image';
 export default function SignUpPage() {
   const router = useRouter();
   const { signUp, setActive, isLoaded } = useSignUp();
+  const { user, isSignedIn } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [pendingVerification, setPendingVerification] = useState(false);
   const [code, setCode] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Redirect if already signed in
+  useEffect(() => {
+    if (isSignedIn && user) {
+      router.replace('/dashboard');
+    }
+  }, [isSignedIn, user, router]);
+
   if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render if user is signed in (will redirect)
+  if (isSignedIn) {
     return null;
   }
 
-  const saveUserToDatabase = async (userData: { email: string, firstName: string, lastName: string, clerkId: string }) => {
+  const saveUserToDatabase = async (userData: { 
+    email: string, 
+    firstName: string, 
+    lastName: string, 
+    clerkId: string,
+    avatar?: string 
+  }) => {
     try {
       const response = await fetch('/api/user', {
         method: 'POST',
@@ -47,15 +72,27 @@ export default function SignUpPage() {
     setIsLoading(true);
     
     try {
-      // Tạo tài khoản với email và password
-      const result = await signUp.create({
+      // Tạo tài khoản với email, password, firstName, lastName
+      const signUpData = {
         emailAddress: email,
-        password
-      });
+        password,
+        firstName,
+        lastName
+      };
+
+      const result = await signUp.create(signUpData);
 
       if (result.status === "complete") {
+        // Lưu user data vào database
+        await saveUserToDatabase({
+          email: email,
+          firstName: firstName,
+          lastName: lastName,
+          clerkId: result.createdUserId as string,
+        });
+        
         await setActive({ session: result.createdSessionId });
-        router.push("/");
+        router.replace("/dashboard");
       } else {
         // Nếu cần xác thực email
         await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
@@ -92,16 +129,16 @@ export default function SignUpPage() {
       });
 
       if (result.status === "complete") {
-        // Save user data to MongoDB
+        // Save user data to database với thông tin đã nhập
         await saveUserToDatabase({
           email: email,
-          firstName: result.firstName || "",
-          lastName: result.lastName || "",
+          firstName: firstName || result.firstName || "",
+          lastName: lastName || result.lastName || "",
           clerkId: result.createdUserId as string,
         });
         
         await setActive({ session: result.createdSessionId });
-        router.push("/");
+        router.replace("/dashboard");
       } else {
         setErrorMessage("Verification failed. Please check the code and try again.");
       }
@@ -128,7 +165,7 @@ export default function SignUpPage() {
       await signUp.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/",
+        redirectUrlComplete: "/dashboard",
       });
       
       // Note: The actual user data saving will happen in the sso-callback page
@@ -185,6 +222,44 @@ export default function SignUpPage() {
           {!pendingVerification ? (
             // Form đăng ký
             <form className="space-y-6" onSubmit={handleSubmit}>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                    First Name
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="firstName"
+                      name="firstName"
+                      type="text"
+                      autoComplete="given-name"
+                      required
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                    Last Name
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="lastName"
+                      name="lastName"
+                      type="text"
+                      autoComplete="family-name"
+                      required
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                   Email address

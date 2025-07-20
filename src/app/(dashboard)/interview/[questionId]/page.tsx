@@ -3,18 +3,32 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import ScoreChart, { DetailedScores } from '@/components/ui/ScoreChart';
 import { questionSetService, QuestionSetData } from '@/services/questionSetService';
+
+interface AnalysisResult {
+  feedback: string;
+  detailedScores: DetailedScores;
+  strengths: string[];
+  improvements: string[];
+  suggestions: string[];
+  level: 'basic' | 'intermediate' | 'advanced';
+  recommendedNextLevel: 'basic' | 'intermediate' | 'advanced';
+  readinessScore: number;
+}
 
 export default function InterviewQuestionPage({ params }: { params: Promise<{ questionId: string }> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resolvedParams = React.use(params);
   const [answer, setAnswer] = useState('');
-  const [feedback, setFeedback] = useState<string | null>(null);  const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);  const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [availableQuestions, setAvailableQuestions] = useState<string[]>([]);
   const [questionSets, setQuestionSets] = useState<QuestionSetData[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [interviewQuestion, setInterviewQuestion] = useState({
     id: resolvedParams.questionId,
@@ -50,10 +64,44 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
         } else {
           setCurrentQuestionIndex(0);
         }
-      } catch (error) {        console.error('Error loading question sets:', error);
+      } catch (error) {
+        console.error('Error loading question sets:', error);
+        // Provide user-friendly error message
+        setErrorMessage('Failed to load questions. Please try again.');
+        setAvailableQuestions([]);
+        setQuestionSets([]);
+        // Show error toast or notification here if needed
       }
-    };    loadQuestionSets();
-  }, [setAvailableQuestions, setQuestionSets, searchParams]);  // Helper function to get the next question in order
+    };
+
+    // Load question set if questionSetId is provided
+    const loadQuestionSetFromId = async () => {
+      const questionSetId = searchParams.get('questionSetId');
+      if (questionSetId) {
+        try {
+          const questionSet = await questionSetService.getQuestionSet(questionSetId);
+          setQuestionSets([questionSet]);
+          setAvailableQuestions(questionSet.questions);
+          
+          // Set current question from URL
+          const questionFromURL = searchParams.get('question');
+          if (questionFromURL) {
+            const currentIndex = questionSet.questions.findIndex(q => q === questionFromURL);
+            setCurrentQuestionIndex(currentIndex >= 0 ? currentIndex : 0);
+          }
+        } catch (error) {
+          console.error('Error loading specific question set:', error);
+          setErrorMessage('Question set not found. It may have been deleted or you may not have access to it.');
+          // Fallback to loading all question sets
+          await loadQuestionSets();
+        }
+      } else {
+        await loadQuestionSets();
+      }
+    };
+
+    loadQuestionSetFromId();
+  }, [searchParams]);  // Helper function to get the next question in order
   const getNextQuestion = () => {
     if (availableQuestions.length === 0) {
       // Fallback to default question if no questions in DB
@@ -130,7 +178,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
     
     setIsLoading(true);
     try {
-      const response = await fetch('/api/analyze-answer', {
+      const response = await fetch('/api/jd/analyze-answer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -145,6 +193,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       const data = await response.json();
       if (data.success) {
         setFeedback(data.feedback);
+        setAnalysisResult(data);
         setIsSubmitted(true);
       } else {
         console.error('Error:', data.error);
@@ -180,291 +229,385 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Error Message Banner */}
+        {errorMessage && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-800">
+                  {errorMessage}
+                </p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={() => setErrorMessage(null)}
+                  className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-red-50 focus:ring-red-600"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="max-w-[1600px] mx-auto">
           {/* Main Content Area - 2 Column Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           
-          {/* Left Column - Interview Question & Answer Input */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Interview Question Box */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
-              <div className="flex items-center gap-2 mb-6">
-                <span className="bg-orange-500 text-white px-3 py-2 rounded-lg text-sm font-semibold">
-                  {interviewQuestion.type}
-                </span>
-              </div>
-              <h3 className="text-orange-600 font-semibold mb-6 text-2xl">
-                {interviewQuestion.title}
-              </h3>
-              <div className="text-gray-700 leading-relaxed mb-6 text-lg">
-                {interviewQuestion.description}
-              </div>
-              
-              {/* Tips */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
-                <h4 className="text-amber-600 font-semibold mb-4 text-lg flex items-center gap-2">
-                  <span>💡</span>
-                  Tips for a great answer:
-                </h4>
-                <ul className="text-gray-600 space-y-3">
-                  {interviewQuestion.tips.map((tip, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <span className="text-amber-600 text-lg">•</span>
-                      <span className="text-base">{tip}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {/* Answer Input Box */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
-              <div className="mb-6">
-                <h4 className="text-xl font-semibold text-gray-900 mb-2">Your Answer</h4>
-                <p className="text-gray-600">Write your response below. Be specific and use examples from your experience.</p>
-              </div>
-              
-              <textarea
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                className="w-full h-64 bg-white border-2 border-gray-300 rounded-xl p-6 text-gray-900 text-lg resize-none focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200"
-                placeholder="Type your answer here... Be specific and include examples from your experience."
-                disabled={isSubmitted}
-              />
-              
-              <div className="flex justify-between items-center mt-6">
-                <div className="text-sm text-gray-500">
-                  <span className="font-medium">{answer.length}</span> characters
-                  <span className="ml-4 text-gray-400">Recommended: 200-500 words</span>
-                </div>
-                
-                <div className="flex gap-3">
-  
-                  
-                  {!isSubmitted ? (
-                    <button
-                      onClick={handleSubmit}
-                      disabled={!answer.trim() || isLoading}
-                      className="flex items-center gap-2 px-8 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-xl transition-colors font-semibold text-white text-lg shadow-lg"
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>Submit Answer</>
-                      )}
-                    </button>                  ) : (
-                    <button
-                      onClick={() => {
-                        const returnUrl = searchParams.get('returnUrl');
-                        if (returnUrl) {
-                          router.push(decodeURIComponent(returnUrl));
-                        } else {
-                          router.push('/dashboard/interview');
-                        }
-                      }}
-                      className="flex items-center gap-2 px-8 py-3 bg-green-500 hover:bg-green-600 rounded-xl transition-colors font-semibold text-white text-lg shadow-lg"
-                    >
-                      Back to Questions
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>            {/* Navigation */}
-            <div className="flex justify-between items-center">
-              <button
-                onClick={handleQuit}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl transition-colors font-medium"
-              >
-                <span>←</span>
-                Back to Questions
-              </button>              {isSubmitted && (
-                <button
-                  onClick={() => {
-                    // Reset state for next question
-                    setAnswer('');
-                    setFeedback(null);
-                    setIsSubmitted(false);
-                    setIsLoading(false);                    // Get the next question in order
-                    const nextQuestion = getNextQuestion();
-                    
-                    if (nextQuestion) {
-                      const newQuestionId = Math.random().toString(36).substring(7);
-                      
-                      // Update the question state without navigation
-                      setInterviewQuestion({
-                        id: newQuestionId,
-                        ...nextQuestion
-                      });
-                      
-                      // Update the URL without navigation to reflect new question ID
-                      window.history.replaceState(null, '', `/dashboard/interview/${newQuestionId}`);
-                    }}}                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                  disabled={availableQuestions.length === 0 || currentQuestionIndex >= availableQuestions.length - 1}
-                  title={
-                    availableQuestions.length === 0 
-                      ? "No saved questions available. Please upload a job description first." 
-                      : currentQuestionIndex >= availableQuestions.length - 1
-                      ? "You've reached the last question in this set."
-                      : "Continue with next question"
-                  }                >
-                  <span>
-                    {availableQuestions.length === 0 
-                      ? "No Questions Available" 
-                      : currentQuestionIndex >= availableQuestions.length - 1
-                      ? "Last Question Completed"
-                      : "Continue Practice"
-                    }
+            {/* Left Column - Interview Question & Answer Input */}
+            <div className="lg:col-span-3 space-y-6">
+              {/* Interview Question Box */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="bg-orange-500 text-white px-3 py-2 rounded-lg text-sm font-semibold">
+                    {interviewQuestion.type}
                   </span>
-                  <span className="text-lg">→</span>
-                </button>
-              )}
-            </div>
-          </div>          {/* Right Column - AI Feedback */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* AI Feedback Box */}
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden sticky top-8">
-              <div className="p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-green-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <span className="text-white text-2xl">🤖</span>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-bold text-gray-900 text-xl">AI Feedback</h3>
-                    <p className="text-sm text-gray-500">Powered by advanced AI analysis</p>
-                  </div>
-                  {isSubmitted && (
-                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                      <span className="text-white text-lg font-bold">✓</span>
-                    </div>
-                  )}
+                </div>
+                <h3 className="text-orange-600 font-semibold mb-6 text-2xl">
+                  {interviewQuestion.title}
+                </h3>
+                <div className="text-gray-700 leading-relaxed mb-6 text-lg">
+                  {interviewQuestion.description}
                 </div>
                 
-                {!feedback && !isLoading && (
-                  <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-dashed border-blue-200 rounded-xl p-8 text-center">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-blue-600 text-2xl">📝</span>
-                    </div>
-                    <p className="text-lg text-gray-600 font-medium mb-2">Ready for Analysis</p>
-                    <p className="text-sm text-gray-500">Submit your answer to receive detailed AI feedback and personalized suggestions for improvement.</p>
-                  </div>
-                )}
+                {/* Tips */}
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+                  <h4 className="text-amber-600 font-semibold mb-4 text-lg flex items-center gap-2">
+                    <span>💡</span>
+                    Tips for a great answer:
+                  </h4>
+                  <ul className="text-gray-600 space-y-3">
+                    {interviewQuestion.tips.map((tip, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <span className="text-amber-600 text-lg">•</span>
+                        <span className="text-base">{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Answer Input Box */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
+                <div className="mb-6">
+                  <h4 className="text-xl font-semibold text-gray-900 mb-2">Your Answer</h4>
+                  <p className="text-gray-600">Write your response below. Be specific and use examples from your experience.</p>
+                </div>
                 
-                {isLoading && (
-                  <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl p-8">
-                    <div className="flex items-center justify-center gap-3 mb-4">
-                      <div className="animate-spin w-8 h-8 border-4 border-orange-400 border-t-transparent rounded-full"></div>
-                    </div>
-                    <div className="text-center">
-                      <p className="font-semibold text-orange-700 text-lg mb-2">AI is analyzing...</p>
-                      <p className="text-sm text-orange-600">Please wait while our AI reviews your answer and prepares personalized feedback.</p>
-                    </div>
-                  </div>
-                )}
+                <textarea
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  className="w-full h-64 bg-white border-2 border-gray-300 rounded-xl p-6 text-gray-900 text-lg resize-none focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200"
+                  placeholder="Type your answer here... Be specific and include examples from your experience."
+                  disabled={isSubmitted}
+                />
                 
-                {feedback && (
-                  <div className="bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-xl overflow-hidden shadow-lg">
-                    <div className="bg-gradient-to-r from-green-500 to-blue-500 p-4">
-                      <div className="flex items-center gap-2 text-white">
-                        <span className="text-xl">✨</span>
-                        <span className="font-semibold text-lg">Analysis Complete</span>
-                      </div>
-                    </div>
-                    <div className="p-6">
-                      <div className="prose prose-base max-w-none">                        <div 
-                          className="text-gray-700 leading-relaxed space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar"
-                          dangerouslySetInnerHTML={{
-                            __html: feedback
-                              .split('\n')
-                              .map((line, index) => {
-                                // Highlight strengths
-                                if (line.toLowerCase().includes('strength') || line.toLowerCase().includes('good') || line.toLowerCase().includes('well') || line.toLowerCase().includes('excellent') || line.toLowerCase().includes('strong')) {
-                                  return `<div class="bg-green-100 border-l-4 border-green-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
-                                    <span class="text-green-800 font-medium text-base">✅ ${line}</span>
-                                  </div>`;
-                                }
-                                // Highlight improvements
-                                if (line.toLowerCase().includes('improve') || line.toLowerCase().includes('consider') || line.toLowerCase().includes('suggestion') || line.toLowerCase().includes('recommend') || line.toLowerCase().includes('could') || line.toLowerCase().includes('should')) {
-                                  return `<div class="bg-blue-100 border-l-4 border-blue-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
-                                    <span class="text-blue-800 font-medium text-base">💡 ${line}</span>
-                                  </div>`;
-                                }
-                                // Highlight issues/concerns
-                                if (line.toLowerCase().includes('concern') || line.toLowerCase().includes('issue') || line.toLowerCase().includes('missing') || line.toLowerCase().includes('lack') || line.toLowerCase().includes('weak') || line.toLowerCase().includes('unclear')) {
-                                  return `<div class="bg-orange-100 border-l-4 border-orange-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
-                                    <span class="text-orange-800 font-medium text-base">⚠️ ${line}</span>
-                                  </div>`;
-                                }
-                                // Highlight scores or ratings
-                                if (line.toLowerCase().includes('score') || line.toLowerCase().includes('rating') || line.toLowerCase().includes('/10') || line.toLowerCase().includes('points')) {
-                                  return `<div class="bg-purple-100 border-l-4 border-purple-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
-                                    <span class="text-purple-800 font-medium text-base">📊 ${line}</span>
-                                  </div>`;
-                                }
-                                // Default styling for regular text
-                                return line.trim() ? `<p class="text-gray-700 mb-3 feedback-highlight text-base leading-relaxed" style="animation-delay: ${index * 0.1}s">${line}</p>` : '';
-                              })
-                              .join('')
-                          }}
-                        />
-                      </div>
+                <div className="flex justify-between items-center mt-6">
+                  <div className="text-sm text-gray-500">
+                    <span className="font-medium">{answer.length}</span> characters
+                    <span className="ml-4 text-gray-400">Recommended: 200-500 words</span>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    {!isSubmitted ? (
+                      <button
+                        onClick={handleSubmit}
+                        disabled={!answer.trim() || isLoading}
+                        className="flex items-center gap-2 px-8 py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-xl transition-colors font-semibold text-white text-lg shadow-lg"
+                      >
+                        {isLoading ? (
+                          <>
+                            <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                            Analyzing...
+                          </>
+                        ) : (
+                          <>Submit Answer</>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          const returnUrl = searchParams.get('returnUrl');
+                          if (returnUrl) {
+                            router.push(decodeURIComponent(returnUrl));
+                          } else {
+                            router.push('/dashboard/interview');
+                          }
+                        }}
+                        className="flex items-center gap-2 px-8 py-3 bg-green-500 hover:bg-green-600 rounded-xl transition-colors font-semibold text-white text-lg shadow-lg"
+                      >
+                        Back to Questions
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Navigation */}
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={handleQuit}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl transition-colors font-medium"
+                >
+                  <span>←</span>
+                  Back to Questions
+                </button>
+                
+                {isSubmitted && (
+                  <button
+                    onClick={() => {
+                      // Reset state for next question
+                      setAnswer('');
+                      setFeedback(null);
+                      setIsSubmitted(false);
+                      setIsLoading(false);
                       
-                      {/* Action buttons */}
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <div className="flex gap-3">
-                          <button 
-                            onClick={() => navigator.clipboard.writeText(feedback)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-xl transition-colors flex-1 justify-center"
-                          >
-                            <span>📋</span>
-                            Copy Feedback
-                          </button>
-                          <button 
-                            onClick={() => setFeedback(null)}
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex-1 justify-center"
-                          >
-                            <span>🔄</span>
-                            Clear
-                          </button>
+                      // Get the next question in order
+                      const nextQuestion = getNextQuestion();
+                      
+                      if (nextQuestion) {
+                        const newQuestionId = Math.random().toString(36).substring(7);
+                        
+                        // Update the question state without navigation
+                        setInterviewQuestion({
+                          id: newQuestionId,
+                          ...nextQuestion
+                        });
+                        
+                        // Update the URL without navigation to reflect new question ID
+                        window.history.replaceState(null, '', `/dashboard/interview/${newQuestionId}`);
+                      }
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    disabled={availableQuestions.length === 0 || currentQuestionIndex >= availableQuestions.length - 1}
+                    title={
+                      availableQuestions.length === 0 
+                        ? "No saved questions available. Please upload a job description first." 
+                        : currentQuestionIndex >= availableQuestions.length - 1
+                        ? "You've reached the last question in this set."
+                        : "Continue with next question"
+                    }
+                  >
+                    <span>
+                      {availableQuestions.length === 0 
+                        ? "No Questions Available" 
+                        : currentQuestionIndex >= availableQuestions.length - 1
+                        ? "Last Question Completed"
+                        : "Continue Practice"
+                      }
+                    </span>
+                    <span className="text-lg">→</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {/* Right Column - AI Feedback */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* AI Feedback Box */}
+              <div className="bg-white border border-gray-200 rounded-2xl shadow-lg overflow-hidden sticky top-8">
+                <div className="p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-green-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <span className="text-white text-2xl">🤖</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-gray-900 text-xl">AI Feedback</h3>
+                      <p className="text-sm text-gray-500">Powered by advanced AI analysis</p>
+                    </div>
+                    {isSubmitted && (
+                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                        <span className="text-white text-lg font-bold">✓</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {!feedback && !isLoading && (
+                    <div className="bg-gradient-to-r from-blue-50 to-green-50 border-2 border-dashed border-blue-200 rounded-xl p-8 text-center">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span className="text-blue-600 text-2xl">📝</span>
+                      </div>
+                      <p className="text-lg text-gray-600 font-medium mb-2">Ready for Analysis</p>
+                      <p className="text-sm text-gray-500">Submit your answer to receive detailed AI feedback and personalized suggestions for improvement.</p>
+                    </div>
+                  )}
+                  
+                  {isLoading && (
+                    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl p-8">
+                      <div className="flex items-center justify-center gap-3 mb-4">
+                        <div className="animate-spin w-8 h-8 border-4 border-orange-400 border-t-transparent rounded-full"></div>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-semibold text-orange-700 text-lg mb-2">AI is analyzing...</p>
+                        <p className="text-sm text-orange-600">Please wait while our AI reviews your answer and prepares personalized feedback.</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {feedback && (
+                    <div className="space-y-6">
+                      {/* Score Chart */}
+                      {analysisResult && analysisResult.detailedScores && (
+                        <ScoreChart 
+                          scores={analysisResult.detailedScores}
+                          level={analysisResult.level || 'intermediate'}
+                          readinessScore={analysisResult.readinessScore || 60}
+                        />
+                      )}
+                      
+                      {/* Detailed Feedback */}
+                      <div className="bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-xl overflow-hidden shadow-lg">
+                        <div className="bg-gradient-to-r from-green-500 to-blue-500 p-4">
+                          <div className="flex items-center gap-2 text-white">
+                            <span className="text-xl">✨</span>
+                            <span className="font-semibold text-lg">Detailed Analysis</span>
+                          </div>
+                        </div>
+                        <div className="p-6">
+                          {/* Strengths & Improvements Cards */}
+                          {analysisResult && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                              {/* Strengths */}
+                              {analysisResult.strengths && analysisResult.strengths.length > 0 && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                  <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                                    <span>✅</span> Strengths
+                                  </h4>
+                                  <ul className="space-y-2">
+                                    {analysisResult.strengths.map((strength, index) => (
+                                      <li key={index} className="text-green-700 text-sm">• {strength}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              
+                              {/* Improvements */}
+                              {analysisResult.improvements && analysisResult.improvements.length > 0 && (
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                  <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                                    <span>💡</span> Areas for Improvement
+                                  </h4>
+                                  <ul className="space-y-2">
+                                    {analysisResult.improvements.map((improvement, index) => (
+                                      <li key={index} className="text-blue-700 text-sm">• {improvement}</li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Full Feedback */}
+                          <div className="prose prose-base max-w-none">
+                            <div 
+                              className="text-gray-700 leading-relaxed space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar"
+                              dangerouslySetInnerHTML={{
+                                __html: feedback
+                                  .split('\n')
+                                  .map((line, index) => {
+                                    // Highlight strengths
+                                    if (line.toLowerCase().includes('strength') || line.toLowerCase().includes('good') || line.toLowerCase().includes('well') || line.toLowerCase().includes('excellent') || line.toLowerCase().includes('strong')) {
+                                      return `<div class="bg-green-100 border-l-4 border-green-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
+                                        <span class="text-green-800 font-medium text-base">✅ ${line}</span>
+                                      </div>`;
+                                    }
+                                    // Highlight improvements
+                                    if (line.toLowerCase().includes('improve') || line.toLowerCase().includes('consider') || line.toLowerCase().includes('suggestion') || line.toLowerCase().includes('recommend') || line.toLowerCase().includes('could') || line.toLowerCase().includes('should')) {
+                                      return `<div class="bg-blue-100 border-l-4 border-blue-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
+                                        <span class="text-blue-800 font-medium text-base">💡 ${line}</span>
+                                      </div>`;
+                                    }
+                                    // Highlight issues/concerns
+                                    if (line.toLowerCase().includes('concern') || line.toLowerCase().includes('issue') || line.toLowerCase().includes('missing') || line.toLowerCase().includes('lack') || line.toLowerCase().includes('weak') || line.toLowerCase().includes('unclear')) {
+                                      return `<div class="bg-orange-100 border-l-4 border-orange-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
+                                        <span class="text-orange-800 font-medium text-base">⚠️ ${line}</span>
+                                      </div>`;
+                                    }
+                                    // Highlight scores or ratings
+                                    if (line.toLowerCase().includes('score') || line.toLowerCase().includes('rating') || line.toLowerCase().includes('/10') || line.toLowerCase().includes('points')) {
+                                      return `<div class="bg-purple-100 border-l-4 border-purple-500 p-4 rounded-r-lg mb-3 feedback-highlight" style="animation-delay: ${index * 0.1}s">
+                                        <span class="text-purple-800 font-medium text-base">📊 ${line}</span>
+                                      </div>`;
+                                    }
+                                    // Default styling for regular text
+                                    return line.trim() ? `<p class="text-gray-700 mb-3 feedback-highlight text-base leading-relaxed" style="animation-delay: ${index * 0.1}s">${line}</p>` : '';
+                                  })
+                                  .join('')
+                              }}
+                            />
+                          </div>
+                          
+                          {/* Action buttons */}
+                          <div className="mt-6 pt-6 border-t border-gray-200">
+                            <div className="flex gap-3">
+                              <button 
+                                onClick={() => navigator.clipboard.writeText(feedback)}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded-xl transition-colors flex-1 justify-center"
+                              >
+                                <span>📋</span>
+                                Copy Feedback
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setFeedback(null);
+                                  setAnalysisResult(null);
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex-1 justify-center"
+                              >
+                                <span>🔄</span>
+                                Clear
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>            {/* Quick Stats */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
-              <h3 className="font-bold mb-4 text-gray-900 text-lg">Today&apos;s Progress</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4 text-center">
-                  <div className="w-12 h-12 bg-orange-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-2xl">📝</span>
-                  </div>                  <div className="text-xs text-gray-600 mb-1">Questions Answered</div>
-                  <div className="font-bold text-gray-900 text-xl">{questionsAnswered}</div>
-                </div>                <div className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 text-center">
-                  <div className="w-12 h-12 bg-purple-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-2xl">📋</span>
-                  </div>                  <div className="text-xs text-gray-600 mb-1">Question Progress</div>
-                  <div className="font-bold text-gray-900 text-xl">
-                    {availableQuestions.length > 0 
-                      ? `${currentQuestionIndex + 1}/${availableQuestions.length}`
-                      : "0/0"
-                    }
-                  </div>
+                  )}
                 </div>
               </div>
               
-              {questionSets.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600 text-center">
-                    From {questionSets.length} saved question sets
-                  </p>
+              {/* Quick Stats */}
+              <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
+                <h3 className="font-bold mb-4 text-gray-900 text-lg">Today&apos;s Progress</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-orange-50 to-red-50 border border-orange-200 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-orange-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-2xl">📝</span>
+                    </div>
+                    <div className="text-xs text-gray-600 mb-1">Questions Answered</div>
+                    <div className="font-bold text-gray-900 text-xl">{questionsAnswered}</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-xl p-4 text-center">
+                    <div className="w-12 h-12 bg-purple-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                      <span className="text-2xl">📋</span>
+                    </div>
+                    <div className="text-xs text-gray-600 mb-1">Question Progress</div>
+                    <div className="font-bold text-gray-900 text-xl">
+                      {availableQuestions.length > 0 
+                        ? `${currentQuestionIndex + 1}/${availableQuestions.length}`
+                        : "0/0"
+                      }
+                    </div>
+                  </div>
                 </div>
-              )}
+                
+                {questionSets.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600 text-center">
+                      From {questionSets.length} saved question sets
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>        </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

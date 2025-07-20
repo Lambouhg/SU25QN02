@@ -266,7 +266,7 @@ const UploadJDPageContent = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/process-pdf', {
+      const response = await fetch('/api/jd/process-pdf', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -373,7 +373,7 @@ const UploadJDPageContent = () => {
         }, 2000);
       } catch (saveError) {
         console.error('Error saving question set:', saveError);
-        showToastMessage('⚠️ Questions generated but failed to save to library', 'warning');
+        showToastMessage(' Questions generated but failed to save to library', 'warning');
       }    } catch (error) {
       console.error('Error processing file:', error);
       setMessage(error instanceof Error ? error.message : 'Error processing file. Please try again.');

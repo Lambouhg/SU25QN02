@@ -20,6 +20,7 @@ interface ResultsSummaryProps {
     };
     messages: unknown[];
     timestamp: string;
+    totalTime?: number; // Thêm trường totalTime ở đây
   };
   realTimeScores?: {
     fundamental: number;
@@ -36,9 +37,9 @@ interface ResultsSummaryProps {
 
 export function ResultsSummary({ results, realTimeScores, onReset }: Omit<ResultsSummaryProps, 'settings'>) {
   const categoryList = [
-    { key: 'fundamental', label: 'Kiến thức nền tảng', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
-    { key: 'logic', label: 'Tư duy logic', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
-    { key: 'language', label: 'Trình độ ngôn ngữ', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
+    { key: 'fundamental', label: 'Fundamental Knowledge', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
+    { key: 'logic', label: 'Logical Reasoning', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
+    { key: 'language', label: 'Language Proficiency', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
   ];
 
   // Nếu có realTimeScores thì dùng luôn, không tính lại từ messages
@@ -58,6 +59,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
     ? realTimeScores.suggestions
     : { fundamental: '', logic: '', language: '' };
 
+  // Fix: overall should be out of 100, not 1000
   const overall = Math.round(((scores.fundamental + scores.logic + scores.language) / 3) * 100);
 
   // Chuẩn hóa dữ liệu cho biểu đồ
@@ -74,25 +76,44 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
       };
 
   const radarChartData = [
-    { subject: 'Kiến thức nền tảng', A: chartScores.fundamental, fullMark: 100 },
-    { subject: 'Tư duy logic', A: chartScores.logic, fullMark: 100 },
-    { subject: 'Trình độ ngôn ngữ', A: chartScores.language, fullMark: 100 },
+    { subject: 'Fundamental Knowledge', A: chartScores.fundamental, fullMark: 100 },
+    { subject: 'Logical Reasoning', A: chartScores.logic, fullMark: 100 },
+    { subject: 'Language Proficiency', A: chartScores.language, fullMark: 100 },
   ];
 
   const barChartData = [
-    { name: 'Kiến thức nền tảng', score: chartScores.fundamental },
-    { name: 'Tư duy logic', score: chartScores.logic },
-    { name: 'Trình độ ngôn ngữ', score: chartScores.language },
+    { name: 'Fundamental Knowledge', score: chartScores.fundamental },
+    { name: 'Logical Reasoning', score: chartScores.logic },
+    { name: 'Language Proficiency', score: chartScores.language },
   ];
+
+  // Hàm tạo nhận xét tổng quan
+  function getOverallSummary(scores: Record<string, number>) {
+    const f = scores.fundamental * 100;
+    const l = scores.logic * 100;
+    const lang = scores.language * 100;
+    if (f >= 80 && l >= 80 && lang >= 80) return 'Excellent performance in all areas. You are well-prepared for interviews!';
+    if (f < 50 && l < 50 && lang < 50) return 'You need to improve in all areas. Focus on fundamental knowledge, logical reasoning, and language proficiency.';
+    if (f < 60 && l >= 70 && lang >= 70) return 'Your logic and language are strong, but you should review fundamental knowledge.';
+    if (l < 60 && f >= 70 && lang >= 70) return 'Your fundamental knowledge and language are good, but logical reasoning needs improvement.';
+    if (lang < 60 && f >= 70 && l >= 70) return 'Your fundamental knowledge and logic are good, but language proficiency needs improvement.';
+    if (f < 60) return 'You should focus on improving your fundamental knowledge.';
+    if (l < 60) return 'You should focus on improving your logical reasoning.';
+    if (lang < 60) return 'You should focus on improving your language proficiency.';
+    return 'Good effort! Keep practicing to improve further.';
+  }
 
   return (
     <Card className="w-full max-w-4xl mx-auto mt-10">
       <CardHeader>
         <div className="flex justify-between items-start">
           <div>
-            <CardTitle className="text-2xl">Kết quả phỏng vấn</CardTitle>
+            <CardTitle className="text-2xl">Interview Result</CardTitle>
             <CardDescription>
               {new Date(results.timestamp).toLocaleString()} • {results.position} ({results.level})
+              {typeof results.totalTime === 'number' && results.totalTime > 0 && (
+                <span className="ml-2 text-green-700 font-semibold">• Total time spent: {results.totalTime} minute{results.totalTime > 1 ? 's' : ''}</span>
+              )}
             </CardDescription>
           </div>
           <Badge variant="outline" className="text-lg px-3 py-1">
@@ -108,7 +129,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
                 {cat.icon}
                 <h3 className="font-medium">{cat.label}</h3>
                 <div className="text-3xl font-bold mt-2">
-                  {Math.round((scores[cat.key] || 0) * 100)}%
+                  {Math.round(scores[cat.key] * 100)}%
                 </div>
               </CardContent>
             </Card>
@@ -119,11 +140,12 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
             <CardTitle>Feedback & Recommendations</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-3 font-semibold text-blue-700">{getOverallSummary(scores)}</div>
             <ul className="space-y-2">
               {categoryList.map(cat => (
                 <li key={cat.key} className="flex flex-col gap-1">
                   <span className="font-semibold">{cat.label}:</span>
-                  <span>{suggestions[cat.key] || 'Không có gợi ý.'}</span>
+                  <span>{suggestions[cat.key] || 'No suggestion.'}</span>
                 </li>
               ))}
             </ul>
@@ -170,10 +192,10 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
         <div className="flex justify-end">
           <Button variant="outline" onClick={onReset} className="flex items-center gap-2">
             <RotateCcw className="w-4 h-4" />
-            Luyện tập lại
+            Practice again
           </Button>
         </div>
       </CardContent>
     </Card>
   );
-} 
+}

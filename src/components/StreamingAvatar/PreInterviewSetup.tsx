@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { SessionState } from './HeygenConfig';
 import { StartAvatarRequest } from '@heygen/streaming-avatar';
 
@@ -13,88 +13,18 @@ interface PreInterviewSetupProps {
   interviewLevel: string;
   onFieldChange: (field: string) => void;
   onLevelChange: (level: string) => void;
+  onPositionIdChange: (id: string) => void; // New prop for _id
+  positions: Position[]; // Add positions prop
 }
 
-const INTERVIEW_FIELDS = [
-  {
-    value: 'frontend',
-    label: 'Frontend Development',
-    subfields: ['React', 'Vue', 'Angular', 'NextJS']
-  },
-  {
-    value: 'backend',
-    label: 'Backend Development',
-    subfields: ['Node.js', 'Java', 'Python', 'Go']
-  },
-  {
-    value: 'fullstack',
-    label: 'Fullstack Development',
-    subfields: ['MERN', 'MEAN', 'Java Full-stack']
-  },
-  {
-    value: 'mobile',
-    label: 'Mobile Development',
-    subfields: ['React Native', 'Flutter', 'iOS', 'Android']
-  },
-  {
-    value: 'devops',
-    label: 'DevOps/Cloud',
-    subfields: ['AWS', 'Azure', 'GCP', 'Kubernetes']
-  },
-  {
-    value: 'data',
-    label: 'Data Engineering',
-    subfields: ['ETL', 'Data Warehouse', 'Big Data']
-  },
-  {
-    value: 'ai',
-    label: 'AI/ML Engineering',
-    subfields: ['Machine Learning', 'Deep Learning', 'NLP']
-  },
-  {
-    value: 'security',
-    label: 'Security Engineering',
-    subfields: ['Application Security', 'Network Security']
-  },
-  {
-    value: 'qa',
-    label: 'QA/Testing',
-    subfields: ['Automation Testing', 'Performance Testing']
-  }
-];
-
-const INTERVIEW_LEVELS = [
-  {
-    value: 'intern',
-    label: 'Intern/Fresher (0-1 năm)',
-    description: 'Kiến thức cơ bản, học việc thực tế'
-  },
-  {
-    value: 'junior',
-    label: 'Junior (1-2 năm)',
-    description: 'Làm việc độc lập với tasks đơn giản'
-  },
-  {
-    value: 'mid',
-    label: 'Mid-level (2-4 năm)',
-    description: 'Xử lý vấn đề phức tạp, mentor junior'
-  },
-  {
-    value: 'senior',
-    label: 'Senior (4-6 năm)',
-    description: 'Thiết kế giải pháp, lead dự án nhỏ'
-  },
-  {
-    value: 'lead',
-    label: 'Tech Lead (6+ năm)',
-    description: 'Kiến trúc hệ thống, quản lý team'
-  },
-  {
-    value: 'architect',
-    label: 'Solution Architect (8+ năm)',
-    description: 'Thiết kế kiến trúc, định hướng công nghệ'
-  }
-];
+interface Position {
+  id: string;  // Thay đổi từ _id sang id để phù hợp với Prisma
+  key: string;
+  positionName: string;
+  level: string;
+  displayName: string;
+  order: number;
+}
 
 const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   config,
@@ -104,10 +34,15 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   AVATARS,
   STT_LANGUAGE_LIST,
   interviewField,
-  interviewLevel,
   onFieldChange,
+  interviewLevel,
   onLevelChange,
+  onPositionIdChange,
+  positions // Sử dụng positions từ props
 }) => {
+  const [availableLevels, setAvailableLevels] = useState<string[]>([]);
+  const [selectedPositionName, setSelectedPositionName] = useState<string>('');
+
   const handleConfigChange = useCallback(<K extends keyof StartAvatarRequest>(
     key: K,
     value: StartAvatarRequest[K]
@@ -119,36 +54,33 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   return (
     <div className="min-h-screen  py-8 px-4">
       <div className="max-w-1xl mx-auto">
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Thiết lập phỏng vấn</h2>
-          <p className="text-gray-600 text-sm">Tùy chỉnh phiên phỏng vấn theo nhu cầu của bạn</p>
-        </div>
+       
 
         <div className="space-y-8">
           {/* Avatar Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-4">Chọn Avatar</label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Avatar</label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {AVATARS.map((avatar) => (
                 <div
                   key={avatar.avatar_id}
-                  className={`relative cursor-pointer rounded-lg border-2 p-4 transition-all duration-200 bg-white ${
+                  className={`relative cursor-pointer rounded-lg border-2 p-3 transition-all duration-200 bg-white ${
                     config.avatarName === avatar.avatar_id
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => handleConfigChange('avatarName', avatar.avatar_id)}
                 >
-                  <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                  <div className="aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
                     {/* Avatar placeholder - you can replace with actual avatar images */}
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                      <span className="text-2xl text-gray-400">👤</span>
+                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                      <span className="text-lg text-gray-400">👤</span>
                     </div>
                   </div>
-                  <p className="text-center text-sm font-medium text-gray-900">{avatar.name}</p>
+                  <p className="text-center text-xs font-medium text-gray-900 truncate">{avatar.name}</p>
                   {config.avatarName === avatar.avatar_id && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="absolute top-1 right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
@@ -182,19 +114,41 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
             </div>
           </div>
 
-          {/* Interview Field */}
+          {/* Position Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Lĩnh vực phỏng vấn</label>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Vị trí</label>
             <div className="relative">
               <select
-                value={interviewField}
-                onChange={(e) => onFieldChange(e.target.value)}
+                value={interviewField || ''} // Use empty string as default
+                onChange={(e) => {
+                  const selectedPosition = positions.find(pos => pos.positionName === e.target.value);
+                  if (selectedPosition) {
+                    setSelectedPositionName(selectedPosition.positionName);
+                    // Get all levels for this position
+                    const levels = positions
+                      .filter(p => p.positionName === selectedPosition.positionName)
+                      .map(p => p.level);
+                    setAvailableLevels(levels);
+                    // Update the field with selected position name
+                    onFieldChange(e.target.value);
+                    // Reset only the level and position ID
+                    onLevelChange('');
+                    onPositionIdChange('');
+                  } else {
+                    // Clear everything if no position is selected
+                    setSelectedPositionName('');
+                    setAvailableLevels([]);
+                    onFieldChange('');
+                    onLevelChange('');
+                    onPositionIdChange('');
+                  }
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
               >
-                <option value="">Chọn lĩnh vực</option>
-                {INTERVIEW_FIELDS.map((field) => (
-                  <option key={field.value} value={field.value}>
-                    {field.label}
+                <option value="">Chọn vị trí</option>
+                {Array.from(new Set(positions.map(p => p.positionName))).sort().map(positionName => (
+                  <option key={positionName} value={positionName}>
+                    {positionName}
                   </option>
                 ))}
               </select>
@@ -206,19 +160,33 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
             </div>
           </div>
 
-          {/* Experience Level */}
+          {/* Level Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Cấp độ kinh nghiệm</label>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Cấp độ</label>
             <div className="relative">
               <select
-                value={interviewLevel}
-                onChange={(e) => onLevelChange(e.target.value)}
+                value={interviewLevel || ''}
+                onChange={(e) => {
+                  const selectedLevel = e.target.value;
+                  onLevelChange(selectedLevel);
+                  
+                  // Find the position with matching name and level
+                  const matchingPosition = positions.find(
+                    p => p.positionName === selectedPositionName && p.level === selectedLevel
+                  );
+                  
+                  if (matchingPosition) {
+                    onFieldChange(matchingPosition.key);
+                    onPositionIdChange(matchingPosition.id);
+                  }
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                disabled={!selectedPositionName} // Disabled if no position is selected
               >
                 <option value="">Chọn cấp độ</option>
-                {INTERVIEW_LEVELS.map((level) => (
-                  <option key={level.value} value={level.value}>
-                    {level.label}
+                {availableLevels.sort().map(level => (
+                  <option key={level} value={level}>
+                    {level}
                   </option>
                 ))}
               </select>

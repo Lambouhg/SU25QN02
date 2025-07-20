@@ -9,7 +9,7 @@ type Answer = {
 };
 
 type Question = {
-  _id: string;
+  id: string;
   question: string;
   answers: Answer[];
   fields: string[];
@@ -184,7 +184,7 @@ export default function QuestionManager() {
 
     try {
       const url = editMode && currentQuestion 
-        ? `/api/questions/${currentQuestion._id}`
+        ? `/api/questions/${currentQuestion.id}`
         : '/api/questions';
       
       const method = editMode ? 'PUT' : 'POST';
@@ -205,7 +205,7 @@ export default function QuestionManager() {
       
       if (editMode) {
         setQuestions(questions.map(q => 
-          q._id === data._id ? data : q
+          q.id === data.id ? data : q
         ));
         toast.success('Question updated successfully');
       } else {
@@ -246,7 +246,7 @@ export default function QuestionManager() {
         throw new Error(res.statusText);
       }
 
-      setQuestions(questions.filter(q => q._id !== id));
+      setQuestions(questions.filter(q => q.id !== id));
       toast.success('Question deleted successfully');
     } catch (error) {
       console.error('Error deleting question:', error);
@@ -435,14 +435,14 @@ export default function QuestionManager() {
               Levels
             </label>
             <div className="space-y-2">
-              {['intern', 'fresher', 'middle', 'junior', 'senior'].map((level) => (
+              {['junior', 'middle', 'senior'].map((level) => (
                 <div key={level} className="flex items-center">
                   <input
                     type="checkbox"
                     id={`level-${level}`}
                     checked={formData.levels.includes(level)}
                     onChange={() => toggleLevel(level)}
-                      className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                   />
                   <label
                     htmlFor={`level-${level}`}
@@ -605,10 +605,8 @@ export default function QuestionManager() {
               onChange={(e) => setSearchParams({...searchParams, level: e.target.value})}
             >
               <option value="">All Levels</option>
-              <option value="intern">Intern</option>
-              <option value="fresher">Fresher</option>
-              <option value="middle">Middle</option>
               <option value="junior">Junior</option>
+              <option value="middle">Middle</option>
               <option value="senior">Senior</option>
             </select>
           </div>
@@ -650,7 +648,7 @@ export default function QuestionManager() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {questions.map((q) => (
-                    <tr key={q._id}>
+                    <tr key={q.id}>
                       <td className="px-6 py-4 whitespace-pre-wrap">
                         {q.question}
                       </td>
@@ -710,7 +708,7 @@ export default function QuestionManager() {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(q._id)}
+                          onClick={() => handleDelete(q.id)}
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete

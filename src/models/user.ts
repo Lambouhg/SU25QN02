@@ -42,11 +42,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-  },
-  clerkId: {
+  },  clerkId: {
     type: String,
     required: true,
     unique: true,
+  },
+  firstName: {
+    type: String,
+    default: ''
+  },
+  lastName: {
+    type: String,
+    default: ''
   },
   fullName: {
     type: String,
@@ -88,10 +95,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: 'Hoạt động'
   },
-  currentPosition: {
-    type: String,
-    default: ''
-  },
+  
   experienceLevel: {
     type: String,
     enum: ['junior', 'mid', 'senior'],
@@ -150,8 +154,8 @@ const userSchema = new mongoose.Schema({
     type: [evaluationSchema],
     default: []
   },  lastLogin: {
-    type: String,
-    default: "Hôm nay"
+    type: Date,
+    default: Date.now
   },
   createdAt: {
     type: Date,
@@ -168,13 +172,48 @@ const userSchema = new mongoose.Schema({
   quizHistory: {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' }],
     default: []
+  },
+  userActivityId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'UserActivity'
+  },
+  lastSignInAt: {
+    type: Date,
+    default: null
+  },
+  lastActivity: {
+    type: Date,
+    default: Date.now
+  },
+  isOnline: {
+    type: Boolean,
+    default: false
+  },
+  clerkSessionActive: {
+    type: Boolean,
+    default: false
   }
 });
 
-// Middleware to update the updatedAt field
+// Middleware to update the updatedAt field and fullName
 userSchema.pre('save', function(next) {
   this.updatedAt = new Date();
+  
+  // Ensure fullName is properly set
+  if (this.firstName || this.lastName) {
+    this.fullName = `${this.firstName || ''} ${this.lastName || ''}`.trim();
+  }
+  
   next();
 });
+
+// Virtual field for imageUrl (alias for avatar)
+userSchema.virtual('imageUrl').get(function() {
+  return this.avatar;
+});
+
+// Ensure virtual fields are included in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 export default mongoose.models.User || mongoose.model('User', userSchema);

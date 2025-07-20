@@ -1,16 +1,13 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import Quiz from '@/models/quiz';
-import { connectDB } from '@/lib/mongodb';
+import prisma from '@/lib/prisma';
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ quizId: string }> }
 ) {
   try {
-    await connectDB();
     const { userId } = await auth();
-    
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -18,29 +15,17 @@ export async function POST(
     const { userAnswers, score, timeUsed } = await req.json();
     const { quizId } = await params;
 
-    type UserAnswer = {
-      questionId: string;
-      answerIndex: number;
-      isCorrect: boolean;
-    };
-
-    // Sử dụng findOneAndUpdate thay vì findById và save
-    const updatedQuiz = await Quiz.findOneAndUpdate(
-      { _id: quizId },
-      {
-        $set: {
-          userAnswers: (userAnswers as UserAnswer[]).map((answer: UserAnswer) => ({
-            questionId: answer.questionId,
-            answerIndex: answer.answerIndex,
-            isCorrect: answer.isCorrect
-          })),
-          score: score,
-          timeUsed: timeUsed,
-          completedAt: new Date()
-        }
+    // Update quiz
+    const updatedQuiz = await prisma.quiz.update({
+      where: { id: quizId },
+      data: {
+        userAnswers,
+        score,
+        timeUsed,
+        completedAt: new Date(),
       },
-      { new: true } // Trả về document đã được cập nhật
-    );
+      include: { questions: true },
+    });
 
     if (!updatedQuiz) {
       return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });

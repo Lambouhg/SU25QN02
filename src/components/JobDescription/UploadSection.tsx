@@ -67,7 +67,7 @@ export default function UploadSection({
             <div className="space-y-4">
               <Cloud className="w-12 h-12 text-purple-500 mx-auto" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Drop your file here, or browse</h3>
-              <p className="text-gray-500 mb-4 text-sm">Supports PDF, DOC, DOCX, TXT files up to 10MB</p>
+              <p className="text-gray-500 mb-4 text-sm">Supports PDF files up to 10MB</p>
               <button
                 onClick={handleButtonClick}
                 type="button"
@@ -96,12 +96,11 @@ export default function UploadSection({
               </div>
               <p className="text-green-600 font-medium text-sm">File ready to process!</p>
             </div>
-          )}
-          <input
+          )}          <input
             ref={fileInputRef}
             type="file"
             onChange={handleFileChange}
-            accept=".pdf,.doc,.docx,.txt"
+            accept=".pdf,application/pdf"
             className="hidden"
           />
         </div>        <QuestionTypeSelector questionType={questionType} setQuestionType={setQuestionType} />

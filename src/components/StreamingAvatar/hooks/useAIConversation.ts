@@ -17,143 +17,150 @@ interface UseAIConversationProps {
   onError: (error: string) => void;
   onFollowUpQuestion?: (question: string) => void;
   onInterviewComplete?: (progress: number) => void;
-  // No maxQuestions parameter needed anymore
-  language?: 'en-US' | 'vi-VN';
+  language: 'en-US' | 'vi-VN';
 }
+
+// Initial state for interview metrics
+const initialInterviewState: InterviewState = {
+  coveredTopics: [],
+  skillAssessment: {
+    technical: 1,
+    communication: 1,
+    problemSolving: 1
+  },
+  progress: 0
+};
 
 export const useAIConversation = ({
   onAnswer,
   onError,
   onFollowUpQuestion,
-  onInterviewComplete,  language = 'en-US' as const
+  onInterviewComplete,
+  language
 }: UseAIConversationProps) => {
   const [isThinking, setIsThinking] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
-  const [questionCount, setQuestionCount] = useState(0);  const [interviewState, setInterviewState] = useState<InterviewState>({
-    coveredTopics: [],
-    skillAssessment: {
-      technical: 0,
-      communication: 0,
-      problemSolving: 0
-    },
-    progress: 0
-  });
+  const [questionCount, setQuestionCount] = useState(0);
+  const [interviewState, setInterviewState] = useState<InterviewState>(initialInterviewState);
 
   const updateInterviewState = useCallback((response: InterviewResponse) => {
-    if (response.completionDetails) {      setInterviewState(prev => ({
+    if (response.completionDetails) {
+      setInterviewState(prev => ({
         coveredTopics: response.completionDetails?.coveredTopics || prev.coveredTopics,
         skillAssessment: response.completionDetails?.skillAssessment || prev.skillAssessment,
         progress: response.interviewProgress
       }));
+
+      // Check if interview is complete
+      if (response.isInterviewComplete && onInterviewComplete) {
+        onInterviewComplete(response.interviewProgress);
+      }
     }
-  }, []);
+  }, [onInterviewComplete]);
 
   const startNewInterview = useCallback(async (field: string, level: string) => {
-    try {
-      setIsThinking(true);
-      setQuestionCount(0);      setInterviewState({
-        coveredTopics: [],
-        skillAssessment: {
-          technical: 0,
-          communication: 0,
-          problemSolving: 0
-        },
-        progress: 0
-      });
+    console.log('Starting new interview with:', { field, level });
+    setIsThinking(true);
 
+    try {
+      // Reset all states
+      setConversationHistory([]);
+      setQuestionCount(0);
+      setInterviewState(initialInterviewState);
+
+      // Set initial system context
       const systemMessage: ChatMessage = {
         role: 'system',
         content: `Position: ${field} at ${level} level\nLanguage: ${language}`
       };
-
       setConversationHistory([systemMessage]);
 
-      const initialResponse = await startInterview({
+      // Get initial question from AI
+      const response = await startInterview({
         field,
         level,
         language
       });
 
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: initialResponse.answer
-      };
-      setConversationHistory(prev => [...prev, assistantMessage]);
+      if (!response || !response.answer) {
+        throw new Error('Failed to get initial question');
+      }
 
-      updateInterviewState(initialResponse);
-      await onAnswer(initialResponse.answer);
-      
-      return initialResponse;
+      // Process initial response
+      updateInterviewState(response);
+      await onAnswer(response.answer);
+      setQuestionCount(1);
+
     } catch (error) {
       console.error('Error starting interview:', error);
-      onError('Failed to start interview: ' + (error instanceof Error ? error.message : String(error)));
-      throw error;
+      onError(language === 'vi-VN' 
+        ? 'Không thể bắt đầu phỏng vấn. Vui lòng thử lại.'
+        : 'Could not start the interview. Please try again.');
     } finally {
       setIsThinking(false);
     }
   }, [language, onAnswer, onError, updateInterviewState]);
-  const processMessage = useCallback(async (text: string) => {
+
+  const processMessage = useCallback(async (text: string): Promise<void> => {
+    if (!text.trim()) return;
+
+    setIsThinking(true);
     try {
-      setIsThinking(true);
-      
+      // Add user message to history
       const nextUserMessage: ChatMessage = {
         role: 'user',
         content: text
       };
-
       setConversationHistory(prev => [...prev, nextUserMessage]);
+
+      // Process response
       const response = await processInterviewResponse(text, conversationHistory, language);
 
+      if (!response || !response.answer) {
+        throw new Error('Failed to get AI response');
+      }
+
+      // Add AI response to history
       const nextAssistantMessage: ChatMessage = {
         role: 'assistant',
         content: response.answer
       };
       setConversationHistory(prev => [...prev, nextAssistantMessage]);
 
-      setQuestionCount(prev => prev + 1);
+      // Update interview state
       updateInterviewState(response);
+      await onAnswer(response.answer);
       
+      // Handle follow-up question if present
       if (response.followUpQuestion && onFollowUpQuestion) {
         onFollowUpQuestion(response.followUpQuestion);
       }
 
-      await onAnswer(response.answer);
+      // Update question count
+      setQuestionCount(prev => prev + 1);
 
-      if (response.isInterviewComplete && onInterviewComplete) {
-        onInterviewComplete(response.interviewProgress);
-      }
-
-      return response;
     } catch (error) {
       console.error('Error processing message:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      onError(errorMessage);
-      throw error;
+      onError(language === 'vi-VN'
+        ? 'Có lỗi xảy ra khi xử lý câu trả lời. Vui lòng thử lại.'
+        : 'Error processing your answer. Please try again.');
     } finally {
       setIsThinking(false);
     }
-  }, [conversationHistory, language, onAnswer, onError, onFollowUpQuestion, onInterviewComplete, updateInterviewState]);
-
-  const clearConversation = useCallback(() => {
-    setConversationHistory([]);
-    setQuestionCount(0);    setInterviewState({
-      coveredTopics: [],
-      skillAssessment: {
-        technical: 0,
-        communication: 0,
-        problemSolving: 0
-      },
-      progress: 0
-    });
-  }, []);
+  }, [
+    language,
+    conversationHistory,
+    onAnswer,
+    onError,
+    onFollowUpQuestion,
+    updateInterviewState
+  ]);
 
   return {
     isThinking,
-    conversationHistory,
-    questionCount,
-    interviewState,
-    startNewInterview,
     processMessage,
-    clearConversation
+    startNewInterview,
+    questionCount,
+    interviewState
   };
 };

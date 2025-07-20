@@ -1,9 +1,8 @@
 "use client";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { useState, useEffect, useCallback } from "react";
-import { useUser, useClerk } from "@clerk/nextjs";
-import ConfirmationModal from "@/components/ui/ConfirmationModal";
+import { useState, useEffect, useMemo } from "react";
+import { useUser } from "@clerk/nextjs";
 import Toast from "@/components/ui/Toast";
 import {
   PersonalInfoForm,
@@ -11,160 +10,185 @@ import {
   ProfileLoading
 } from "@/components/Profile";
 
-export default function ProfilePage() {  const { user, isLoaded, isSignedIn } = useUser();
-  const { signOut } = useClerk();
+
+
+export default function ProfilePage() {
+  const { user, isLoaded, isSignedIn } = useUser();
+  
+  // Simplified state
   const [isEditing, setIsEditing] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'error' | 'info' | 'warning' }>({ show: false, message: '', type: 'info' });
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
+  const [isLoading, setIsLoading] = useState(false);
+  const [toast, setToast] = useState<{ 
+    show: boolean; 
+    message: string; 
+    type: 'success' | 'error' | 'info' | 'warning' 
+  }>({ show: false, message: '', type: 'info' });
+  
+  const [profileData, setProfileData] = useState({
     phone: "",
     department: "",
     position: "",
-    bio: "",    skills: ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
-    joinDate: "05/15/2023",
-    lastLogin: "Today, 10:45 AM",
-    status: "Active"
-  });const [isLoading, setIsLoading] = useState(true);const fetchProfile = useCallback(async () => {
-    // Wait for Clerk to fully load and authenticate
-    if (!isLoaded) {
-      return;
-    }
+    bio: "",
+  });
 
-    if (!isSignedIn || !user) {
-      setIsLoading(false);
-      return;
-    }
+  // State for editable user info
+  const [editableUserInfo, setEditableUserInfo] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+  });
 
-    try {
-      const response = await fetch("/api/profile", {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-          // If it's a 401, the API auth isn't working, so use default values
-        if (response.status === 401) {
-          setFormData({
-            fullName: user?.fullName || "",
-            email: user?.emailAddresses?.[0]?.emailAddress || "",
-            phone: "",
-            department: "",
-            position: "",
-            bio: "",
-            skills: ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
-            joinDate: "05/15/2023",
-            lastLogin: "Today, 10:45 AM",
-            status: "Active"
-          });
-          setIsLoading(false);
+  // Update editable info when user changes
+  useEffect(() => {
+    setEditableUserInfo({
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      email: user?.emailAddresses?.[0]?.emailAddress || "",
+    });
+  }, [user?.firstName, user?.lastName, user?.emailAddresses]);
+
+  // Combined form data
+  const formData = useMemo(() => ({
+    ...profileData,
+    firstName: editableUserInfo.firstName,
+    lastName: editableUserInfo.lastName,
+    email: editableUserInfo.email,
+  }), [profileData, editableUserInfo]);
+
+  // Optimized profile fetch - only fetch additional data, not basic user info
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !user?.id) return;
+    
+    let isMounted = true;
+    
+    const fetchAdditionalProfile = async () => {
+      try {
+        setIsLoading(true);
+        
+        const response = await fetch("/api/profile", {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        
+        if (!response.ok) {
+          // Silently fail - use default empty values
           return;
         }
         
-        throw new Error(`HTTP ${response.status}: ${errorData}`);
-      }
-      
-      const data = await response.json();
-      
-      setFormData({
-        fullName: data.fullName || user?.fullName || "",
-        email: data.email || user?.emailAddresses?.[0]?.emailAddress || "",
-        phone: data.phone || "",
-        department: data.department || "",
-        position: data.position || "",
-        bio: data.bio || "",        skills: data.skills || ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
-        joinDate: data.joinDate || "05/15/2023",
-        lastLogin: data.lastLogin || "Today, 10:45 AM",
-        status: data.status || "Active"
-      });
-    } catch (error) {
-      console.error("Error fetching profile:", error);      // Set default values if fetch fails
-      setFormData({
-        fullName: user?.fullName || "",
-        email: user?.emailAddresses?.[0]?.emailAddress || "",
-        phone: "",
-        department: "",
-        position: "",
-        bio: "",
-        skills: ["React", "TypeScript", "Next.js", "JavaScript", "Node.js"],
-        joinDate: "05/15/2023",
-        lastLogin: "Today, 10:45 AM",
-        status: "Active"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, isLoaded, isSignedIn]);useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    if (isLoaded) {
-      // Add a small delay to ensure auth is fully settled
-      timeoutId = setTimeout(() => {
-        fetchProfile();
-      }, 100);
-    }
-    
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+        const data = await response.json();
+        
+        if (isMounted) {
+          setProfileData({
+            phone: data.phone || "",
+            department: data.department || "",
+            position: data.position || "",
+            bio: data.bio || "",
+          });
+          
+          // Also update editable user info with database values if they exist
+          if (data.firstName !== undefined || data.lastName !== undefined) {
+            setEditableUserInfo(prev => ({
+              ...prev,
+              firstName: data.firstName || prev.firstName,
+              lastName: data.lastName || prev.lastName,
+            }));
+          }
+        }
+      } catch (error) {
+        // Silently handle error - profile still works with basic data
+        console.warn("Could not fetch additional profile data:", error);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
-  }, [fetchProfile, isLoaded]);  const handleSubmit = async () => {
+
+    fetchAdditionalProfile();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoaded, isSignedIn, user?.id]);
+
+  const handleSubmit = async () => {
+    if (!user?.id) return;
+    
     try {
-      setToast({ show: true, message: 'Saving information...', type: 'info' });
+      setToast({ show: true, message: 'Saving...', type: 'info' });
       
       const response = await fetch("/api/profile", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...formData,
-          clerkId: user?.id,
+          ...profileData,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          clerkId: user.id,
         }),
       });
 
       if (response.ok) {
-        setIsEditing(false);        setToast({ show: true, message: 'Information saved successfully!', type: 'success' });
+        setIsEditing(false);
+        setToast({ show: true, message: 'Saved successfully!', type: 'success' });
+        
+        // Cập nhật thông tin user trong Clerk nếu firstName/lastName thay đổi
+        if (user.firstName !== formData.firstName || user.lastName !== formData.lastName) {
+          try {
+            await user.update({
+              firstName: formData.firstName,
+              lastName: formData.lastName
+            });
+            await user.reload();
+          } catch (clerkError) {
+            console.warn('Could not update Clerk user:', clerkError);
+          }
+        }
       } else {
-        setToast({ show: true, message: 'Error saving information. Please try again.', type: 'error' });
+        throw new Error('Save failed');
       }
     } catch (error) {
       console.error("Error updating profile:", error);
-      setToast({ show: true, message: 'Error saving information. Please try again.', type: 'error' });
-    }
-  };
-  // const handleLogout = () => {
-  //   setShowLogoutConfirm(true);
-  // };
-
-  const confirmLogout = async () => {
-    try {
-      setShowLogoutConfirm(false);
-      setToast({ show: true, message: 'Signing out...', type: 'info' });
-      await signOut();
-    } catch (error) {
-      console.error("Error signing out:", error);
-      setToast({ show: true, message: 'Error signing out. Please try again.', type: 'error' });
+      setToast({ show: true, message: 'Save failed. Try again.', type: 'error' });
     }
   };
 
-  // Handler for avatar changes
   const handleAvatarChange = async () => {
-    // Reload user data to get updated avatar
     if (user) {
       await user.reload();
-      setToast({ show: true, message: 'Profile picture updated successfully!', type: 'success' });
+      setToast({ show: true, message: 'Profile picture updated!', type: 'success' });
     }
-  };if (!isLoaded || isLoading) {
+  };
+
+  const updateProfileData = (data: Record<string, string>) => {
+    // Update profile fields
+    const profileFields = ['phone', 'department', 'position', 'bio'];
+    const profileUpdate: Partial<typeof profileData> = {};
+    const userInfoUpdate: Partial<typeof editableUserInfo> = {};
+    
+    Object.keys(data).forEach(key => {
+      if (profileFields.includes(key)) {
+        (profileUpdate as Record<string, string>)[key] = data[key];
+      } else if (['firstName', 'lastName', 'email'].includes(key)) {
+        (userInfoUpdate as Record<string, string>)[key] = data[key];
+      }
+    });
+    
+    if (Object.keys(profileUpdate).length > 0) {
+      setProfileData(prev => ({ ...prev, ...profileUpdate }));
+    }
+    
+    if (Object.keys(userInfoUpdate).length > 0) {
+      setEditableUserInfo(prev => ({ ...prev, ...userInfoUpdate }));
+    }
+  };
+
+  // Show loading only for auth, not for additional profile data
+  if (!isLoaded) {
     return (
       <DashboardLayout>
-        <ProfileLoading isAuthenticating={!isLoaded} />
+        <ProfileLoading isAuthenticating={true} />
       </DashboardLayout>
     );
   }
@@ -208,6 +232,7 @@ export default function ProfilePage() {  const { user, isLoaded, isSignedIn } = 
                 )}
               </div>
             </div>
+            
           </div>
 
           {/* Main Content Grid */}
@@ -218,40 +243,31 @@ export default function ProfilePage() {  const { user, isLoaded, isSignedIn } = 
               <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300 hover:scale-105">
                 <AvatarCard
                   user={user}
-                  fullName={formData.fullName}
+                  firstName={formData.firstName}
+                  lastName={formData.lastName}
                   onAvatarChange={handleAvatarChange}
                 />
               </div>
-              {/* Account Information
-              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300">
-                <AccountInfo
-                  accountData={{
-                    joinDate: formData.joinDate,
-                    lastLogin: formData.lastLogin,
-                    status: formData.status
-                  }}
-                />
-              </div> */}
-
-              {/* Quick Actions
-              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300">
-                <QuickActions
-                  onLogout={handleLogout}
-                />
-              </div> */}
             </div>
 
             {/* Right Column - Main Content */}
             <div className="xl:col-span-3 space-y-8">
               {/* Personal Information Card */}
               <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center mb-6">
+                <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">Personal Information</h2>
+                  {isLoading && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                      <span>Loading additional data...</span>
+                    </div>
+                  )}
                 </div>
                 
                 <PersonalInfoForm
                   formData={{
-                    fullName: formData.fullName,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
                     email: formData.email,
                     phone: formData.phone,
                     department: formData.department,
@@ -259,38 +275,15 @@ export default function ProfilePage() {  const { user, isLoaded, isSignedIn } = 
                     bio: formData.bio
                   }}
                   isEditing={isEditing}
-                  onDataChange={(data) => setFormData({ ...formData, ...data })}
+                  onDataChange={updateProfileData}
                   onEditToggle={() => setIsEditing(true)}
                   onSubmit={handleSubmit}
                 />
               </div>
-
-              {/* Skills Section
-              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Skills & Expertise</h2>
-                </div>
-                <SkillsManagement
-                  skills={formData.skills}
-                  isEditing={isEditing}
-                  onSkillsChange={(skills) => setFormData({ ...formData, skills })}
-                />
-              </div> */}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Confirmation Modal */}
-      <ConfirmationModal
-        isOpen={showLogoutConfirm}
-        onClose={() => setShowLogoutConfirm(false)}
-        onConfirm={confirmLogout}        title="Confirm Sign Out"
-        message="Are you sure you want to sign out of your account? You will need to sign in again to continue using the service."
-        confirmText="Sign Out"
-        cancelText="Cancel"
-        type="warning"
-      />
 
       {/* Toast Notifications */}
       <Toast

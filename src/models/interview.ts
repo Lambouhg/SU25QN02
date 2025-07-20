@@ -12,8 +12,7 @@ export interface IMessage {
 
 export interface IInterview extends Document {
   userId: mongoose.Types.ObjectId;
-  interviewField: string;
-  interviewLevel: string;
+  positionId: mongoose.Types.ObjectId;
   language: string;
   startTime: Date;
   endTime: Date;
@@ -41,16 +40,7 @@ export interface IInterview extends Document {
       currency: string;
     };
   };
-  avatarConfig: {
-    avatarId: string;
-    avatarName: string;
-    quality: string;
-    voiceSettings: {
-      rate: number;
-      emotion: string;
-      model: string;
-    };
-  };
+
   questionCount: number;
   coveredTopics: string[];
   skillAssessment: {
@@ -64,8 +54,7 @@ export interface IInterview extends Document {
 
 const InterviewSchema = new Schema<IInterview>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  interviewField: { type: String, required: true },
-  interviewLevel: { type: String, required: true },
+  positionId: { type: Schema.Types.ObjectId, ref: 'Position', required: true }, // Tham chiếu đến Position
   language: { type: String, required: true },
   startTime: { type: Date, required: true },
   endTime: { type: Date },
@@ -101,16 +90,7 @@ const InterviewSchema = new Schema<IInterview>({
       currency: String
     }
   },
-  avatarConfig: {
-    avatarId: { type: String, required: true },
-    avatarName: String,
-    quality: String,
-    voiceSettings: {
-      rate: Number,
-      emotion: String,
-      model: String
-    }
-  },
+
   questionCount: { type: Number, default: 0 },
   coveredTopics: [String],
   skillAssessment: {

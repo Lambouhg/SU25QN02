@@ -33,6 +33,15 @@ interface ConversationMessage extends Message {
   type: MessageType;
 }
 
+interface Position {
+  id: string;
+  key: string;
+  positionName: string;
+  level: string;
+  displayName: string;
+  order: number;
+}
+
 const DEFAULT_CONFIG: StartAvatarRequest = {
   quality: AvatarQuality.High,
   avatarName: AVATARS[0].avatar_id,
@@ -58,13 +67,38 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
   const router = useRouter();
   const { userId, isLoaded, isSignedIn, getToken } = useAuth();
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
-  const [interviewField, setInterviewField] = useState<string>('frontend');
-  const [interviewLevel, setInterviewLevel] = useState<string>('junior');
   const [connectionQuality, setConnectionQuality] = useState('UNKNOWN');
+  const [positions, setPositions] = useState<Position[]>([]);
   const [isAvatarTalking, setIsAvatarTalking] = useState(false);
   const [message, setMessage] = useState('');
   const [isInterviewComplete, setIsInterviewComplete] = useState(false);
   const [aiConversationHistory, setAiConversationHistory] = useState<ChatMessage[]>([]);
+  const [positionKey, setPositionKey] = useState<string>(''); // Store key for AI
+  const [positionType, setPositionType] = useState<string>(''); // Store type for AI
+  const [positionId, setPositionId] = useState<string>(''); // Store _id for backend
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasLoadedPositions, setHasLoadedPositions] = useState(false);
+
+  // Fetch positions once when component mounts
+  useEffect(() => {
+    const fetchPositions = async () => {
+      if (hasLoadedPositions) return; // Prevent multiple fetches
+      
+      try {
+        const response = await fetch('/api/positions');
+        if (!response.ok) {
+          throw new Error('Failed to fetch positions');
+        }
+        const data: Position[] = await response.json();
+        setPositions(data);
+        setHasLoadedPositions(true);
+      } catch (error) {
+        console.error('Error fetching positions:', error);
+      }
+    };
+
+    fetchPositions();
+  }, [hasLoadedPositions]); // Only depend on hasLoadedPositions
 
   // Add useEffect to handle auth state
   useEffect(() => {
@@ -135,20 +169,52 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
     setAiConversationHistory(convertedHistory);
   }, [conversation]);
 
+  // Ensure interviewField and interviewLevel are selected before starting the session
+  const initializeSession = useMemoizedFn(async () => {
+    if (!positionKey) {
+      console.error('Please select a position before starting the interview.');
+      return;
+    }
+
+    try {
+      setIsInterviewComplete(false);
+      // Start the avatar session
+      await startSession(config);
+
+      // Start interview with AI using field and level
+      await aiStartNewInterview(
+       positionKey, // Provide more context about the field
+        positionType // e.g., "Senior"
+      );
+    } catch (error) {
+      console.error('Error starting session:', error);
+      addMessage('Failed to start session: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
+    }
+  });
+
   const handleInterviewCompleteInternal = useCallback(async (progress: number) => {
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.log('Already submitting interview results, skipping...');
+      return;
+    }
+    
+    setIsSubmitting(true);
     setIsInterviewComplete(true);
     
     if (!isLoaded) {
       console.log('Auth state is still loading...');
+      setIsSubmitting(false);
       return;
     }
     
     if (!isSignedIn || !userId) {
       console.log('User not signed in. Auth state:', { isLoaded, isSignedIn, userId });
       router.push('/sign-in?redirect=/interview');
+      setIsSubmitting(false);
       return;
     }
-    
+
     const completionMessage = config.language === 'vi' 
       ? `Phỏng vấn đã hoàn thành với tiến độ ${progress}%. Cảm ơn bạn đã tham gia buổi phỏng vấn! Đang chuyển đến trang đánh giá...`
       : `Interview completed with progress ${progress}%. Thank you for participating in the interview! Redirecting to evaluation...`;
@@ -159,11 +225,12 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
 
       const evaluation = await generateInterviewEvaluation(
         aiConversationHistory,
-        interviewField,
-        interviewLevel,
+        positionKey,
+        positionId,
         config.language === 'vi' ? 'vi-VN' : 'en-US'
       );
 
+      // Transform conversation history
       const messages = conversation as unknown as ConversationMessage[];
       const apiConversation = messages.map(msg => ({
         role: msg.type === 'user' ? 'user' : msg.type === 'ai' ? 'assistant' : 'system',
@@ -171,47 +238,58 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         timestamp: msg.timestamp
       }));
 
-      // Get auth token for request
-      const token = await getToken();
-      console.log('Making API request with auth:', { hasUserId: !!userId, hasToken: !!token });
+      // Calculate interview duration in seconds
+      const startTime = new Date(messages[0].timestamp);
+      const endTime = new Date();
+      const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
 
+      // Get auth token
+      const token = await getToken();
+      
+      // Create request data
+      const requestData = {
+        positionId,
+        language: config.language === 'vi' ? 'vi-VN' : 'en-US',
+        startTime,
+        endTime,
+        duration,
+        conversationHistory: apiConversation,
+        evaluation,
+        questionCount: questionCount,
+        coveredTopics: interviewState.coveredTopics,
+        skillAssessment: interviewState.skillAssessment,
+        progress,
+        status: 'completed'  // Set status to completed
+      };
+      
+      // Save interview results
       const response = await fetch('/api/interviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          userId, // Include userId for validation
-          interviewField,
-          interviewLevel,
-          language: config.language === 'vi' ? 'vi-VN' : 'en-US',
-          startTime: new Date(conversation[0]?.timestamp || Date.now()),
-          endTime: new Date(),
-          conversationHistory: apiConversation,
-          evaluation,
-          progress,
-          avatarConfig: {
-            avatarId: config.avatarName,
-            avatarName: AVATARS.find(a => a.avatar_id === config.avatarName)?.name,
-            quality: config.quality,
-            voiceSettings: config.voice
-          },
-          questionCount,
-          coveredTopics: interviewState.coveredTopics,
-          skillAssessment: interviewState.skillAssessment,
-          status: 'completed' as const
-        }),
+        body: JSON.stringify(requestData)
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('API error:', { status: response.status, errorData });
-        throw new Error(`Failed to save interview data: ${errorData?.error || response.statusText}`);
+        console.error('API error:', {
+          status: response.status,
+          errorData,
+          requestData
+        });
+        throw new Error(
+          `Failed to save interview data: ${
+            errorData?.error || errorData?.details || response.statusText
+          }`
+        );
       }
 
       const savedInterview = await response.json();
-      localStorage.setItem('currentInterviewId', savedInterview._id);
+      console.log('Interview saved successfully:', savedInterview);
+      
+      localStorage.setItem('currentInterviewId', savedInterview.id); // Sử dụng .id thay vì ._id
       
       await endSession();
       setIsAvatarTalking(false);
@@ -227,6 +305,8 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         'system',
         true
       );
+    } finally {
+      setIsSubmitting(false);
     }
   }, [
     userId,
@@ -237,30 +317,16 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
     addMessage,
     speakText,
     aiConversationHistory,
-    interviewField,
-    interviewLevel,
+    positionKey,
+    positionId,
     conversation,
     endSession,
     onEndSession,
     router,
     questionCount,
-    interviewState
+    interviewState,
+    isSubmitting // Add isSubmitting to dependencies
   ]);
-
-  const initializeSession = useMemoizedFn(async () => {
-    try {
-      setIsInterviewComplete(false);
-      // Start the avatar session
-      await startSession(config);
-      
-      // Start interview with AI greeting
-      await aiStartNewInterview(interviewField, interviewLevel);
-      
-    } catch (error) {
-      console.error('Error starting session:', error);
-      addMessage('Failed to start session: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
-    }
-  });
 
   const handleEndSession = useCallback(async () => {
     try {
@@ -314,10 +380,15 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({
         sessionState={sessionState}
         AVATARS={AVATARS}
         STT_LANGUAGE_LIST={transformedLanguageList}
-        interviewField={interviewField}
-        interviewLevel={interviewLevel}
-        onFieldChange={setInterviewField}
-        onLevelChange={setInterviewLevel}
+        interviewField={positionKey}
+        interviewLevel={positionType}
+        onFieldChange={setPositionKey}
+        onLevelChange={setPositionType}
+        onPositionIdChange={(id) => {
+          console.log('Position ID changed:', id);
+          setPositionId(id);
+        }}
+        positions={positions}
       />
     );
   }
