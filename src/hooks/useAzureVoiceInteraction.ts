@@ -31,21 +31,26 @@ export const useAzureVoiceInteraction = ({
   }, []);
 
   const handleSpeechResult = useCallback((text: string, isFinal: boolean) => {
+    console.log('🔊 Voice hook received:', { text, isFinal, currentTranscript: transcriptRef.current });
+    
     clearSilenceTimeout();
 
     if (isFinal) {
       // Append to accumulated transcript
       transcriptRef.current = (transcriptRef.current + ' ' + text).trim();
+      console.log('📝 Updated transcript:', transcriptRef.current);
       
       // Set new timeout
       timeoutRef.current = setTimeout(() => {
         if (transcriptRef.current) {
+          console.log('⏰ Timeout triggered, sending to parent:', transcriptRef.current);
           onSpeechResult(transcriptRef.current);
           transcriptRef.current = '';
         }
       }, silenceTimeout);
     } else {
       // Update interim results
+      console.log('🔄 Interim result:', text);
       onInterimResult?.(text);
     }
   }, [onSpeechResult, onInterimResult, silenceTimeout, clearSilenceTimeout]);

@@ -51,20 +51,35 @@ export const startVoiceRecognition = async (
 
     // Setup all event handlers before starting recognition
     recognizer.recognized = (_, e) => {
+      console.log('🎯 Azure Speech recognized event:', { 
+        reason: e.result.reason, 
+        text: e.result.text,
+        confidence: e.result.properties?.getProperty('speech.confidence')
+      });
+      
       if (e.result.reason === sdk.ResultReason.RecognizedSpeech && e.result.text) {
         const text = e.result.text.trim();
         if (text) {
-          console.log('Recognition result:', text);
+          console.log('✅ Azure Speech final result:', text);
           onResult(text);
+        } else {
+          console.log('❌ Azure Speech result is empty after trim');
         }
+      } else {
+        console.log('❌ Azure Speech recognition failed or no speech detected');
       }
     };
 
     recognizer.recognizing = (_, e) => {
+      console.log('🔄 Azure Speech recognizing:', { 
+        reason: e.result.reason, 
+        text: e.result.text 
+      });
+      
       if (e.result.reason === sdk.ResultReason.NoMatch) {
-        console.log('No speech could be recognized');
+        console.log('🔍 No speech could be recognized');
       } else {
-        console.log('Recognizing:', e.result.text);
+        console.log('👂 Recognizing interim:', e.result.text);
       }
     };
 

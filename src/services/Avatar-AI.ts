@@ -87,6 +87,7 @@ export async function processInterviewResponse(
   language: 'vi-VN' | 'en-US' = 'en-US'
 ): Promise<InterviewResponse> {
   try {
+    
     // Extract field and level
     const systemMessage = conversationHistory.find(msg => msg.role === 'system');
     let field = 'software development';
@@ -109,6 +110,7 @@ export async function processInterviewResponse(
     const totalMessages = conversationHistory.filter(msg => msg.role === 'assistant');
     const questionsAsked = Math.max(0, totalMessages.length - 1); // Subtract 1 for greeting
     const currentProgress = Math.min(100, Math.round((questionsAsked / FIXED_QUESTIONS) * 100));
+    
     
     const messages: ChatMessage[] = [
       {
@@ -162,7 +164,9 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
       },
       ...conversationHistory,
       { role: 'user', content: userMessage }
-    ];    const response = await callOpenAI(messages);
+    ];
+    
+    const response = await callOpenAI(messages);
     
     if (!response.choices || !response.choices[0]?.message?.content) {
       throw new Error('Invalid response from AI');

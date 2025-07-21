@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import InterviewReviewPage from './InterviewReviewPage';
-import { InterviewEvaluation } from '@/services/Avatar-AI';
+import dynamic from 'next/dynamic';
+const InterviewReviewPage = dynamic(() => import('./InterviewReviewPage'), { ssr: false });
 import { CircularProgress, Box } from '@mui/material';
+import { useSearchParams } from 'next/navigation';
+import { InterviewEvaluation } from '@/services/Avatar-AI';
 
 interface Message {
   id: string;
@@ -14,32 +16,55 @@ interface Message {
   isThinking?: boolean;
 }
 
+// Đã import InterviewEvaluation từ services/Avatar-AI
+
 export default function ReviewPage() {
   const [evaluation, setEvaluation] = useState<InterviewEvaluation | null>(null);
   const [conversation, setConversation] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    try {
-      const savedEvaluation = localStorage.getItem('interviewEvaluation');
-      const savedConversation = localStorage.getItem('interviewConversation');
-
-      if (savedEvaluation && savedConversation) {
-        setEvaluation(JSON.parse(savedEvaluation));
-        setConversation(JSON.parse(savedConversation));
+    const fetchData = async () => {
+      try {
+        const interviewId = searchParams.get('id');
+        if (!interviewId) {
+          setError('Không tìm thấy buổi phỏng vấn.');
+          setLoading(false);
+          return;
+        }
+        const res = await fetch(`/api/interviews/${interviewId}`);
+        if (!res.ok) throw new Error('Không thể tải dữ liệu phỏng vấn.');
+        const data = await res.json();
+        console.log('API data:', data);
+        setEvaluation(data.evaluation);
+        setConversation(data.conversationHistory || []);
+        console.log('Set conversation:', data.conversationHistory || []);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message || 'Lỗi không xác định khi tải dữ liệu.');
+        } else {
+          setError('Lỗi không xác định khi tải dữ liệu.');
+        }
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading interview data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    };
+    fetchData();
+  }, [searchParams]);
 
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
       </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center', color: 'red' }}>{error}</Box>
     );
   }
 

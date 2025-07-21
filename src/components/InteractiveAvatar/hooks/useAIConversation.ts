@@ -59,7 +59,6 @@ export const useAIConversation = ({
   }, [onInterviewComplete]);
 
   const startNewInterview = useCallback(async (field: string, level: string) => {
-    console.log('Starting new interview with:', { field, level });
     setIsThinking(true);
 
     try {
@@ -101,60 +100,77 @@ export const useAIConversation = ({
     }
   }, [language, onAnswer, onError, updateInterviewState]);
 
-  const processMessage = useCallback(async (text: string): Promise<void> => {
-    if (!text.trim()) return;
+  
+  const processMessage = useCallback(
+    async (text: string, externalHistory?: ChatMessage[]): Promise<void> => {
+      if (!text.trim()) return;
 
-    setIsThinking(true);
-    try {
-      // Add user message to history
-      const nextUserMessage: ChatMessage = {
-        role: 'user',
-        content: text
-      };
-      setConversationHistory(prev => [...prev, nextUserMessage]);
+      // Use externalHistory if provided, otherwise use local state
+      const baseHistory = externalHistory ?? conversationHistory;
 
-      // Process response
-      const response = await processInterviewResponse(text, conversationHistory, language);
+      setIsThinking(true);
+      try {
+        // Add user message to history if not already present (only if using local state)
+        let updatedHistory: ChatMessage[];
+        if (externalHistory) {
+          updatedHistory = externalHistory;
+        } else {
+          const nextUserMessage: ChatMessage = {
+            role: 'user',
+            content: text
+          };
+          updatedHistory = [...baseHistory, nextUserMessage];
+        }
+        
+        setConversationHistory(updatedHistory);
 
-      if (!response || !response.answer) {
-        throw new Error('Failed to get AI response');
+        // Process response with updated history
+        const response = await processInterviewResponse(text, updatedHistory, language);
+
+        if (!response || !response.answer) {
+          throw new Error('Failed to get AI response');
+        }
+
+
+        // Add AI response to history
+        const nextAssistantMessage: ChatMessage = {
+          role: 'assistant',
+          content: response.answer
+        };
+        setConversationHistory(prev => [...prev, nextAssistantMessage]);
+
+        // Update interview state
+        updateInterviewState(response);
+        await onAnswer(response.answer);
+
+        // Handle follow-up question if present
+        if (response.followUpQuestion && onFollowUpQuestion) {
+          onFollowUpQuestion(response.followUpQuestion);
+        }
+
+        // Update question count
+        setQuestionCount(prev => prev + 1);
+
+      } catch (error) {
+        console.error('Error processing message:', error);
+        onError(
+          language === 'vi-VN'
+            ? 'Có lỗi xảy ra khi xử lý câu trả lời. Vui lòng thử lại.'
+            : 'Error processing your answer. Please try again.'
+        );
+      } finally {
+        setIsThinking(false);
       }
-
-      // Add AI response to history
-      const nextAssistantMessage: ChatMessage = {
-        role: 'assistant',
-        content: response.answer
-      };
-      setConversationHistory(prev => [...prev, nextAssistantMessage]);
-
-      // Update interview state
-      updateInterviewState(response);
-      await onAnswer(response.answer);
-      
-      // Handle follow-up question if present
-      if (response.followUpQuestion && onFollowUpQuestion) {
-        onFollowUpQuestion(response.followUpQuestion);
-      }
-
-      // Update question count
-      setQuestionCount(prev => prev + 1);
-
-    } catch (error) {
-      console.error('Error processing message:', error);
-      onError(language === 'vi-VN'
-        ? 'Có lỗi xảy ra khi xử lý câu trả lời. Vui lòng thử lại.'
-        : 'Error processing your answer. Please try again.');
-    } finally {
-      setIsThinking(false);
-    }
-  }, [
-    language,
-    conversationHistory,
-    onAnswer,
-    onError,
-    onFollowUpQuestion,
-    updateInterviewState
-  ]);
+    },
+    [
+      language,
+      conversationHistory,
+      onAnswer,
+      onError,
+      onFollowUpQuestion,
+      updateInterviewState
+    ]
+  );
 
   return {
     isThinking,

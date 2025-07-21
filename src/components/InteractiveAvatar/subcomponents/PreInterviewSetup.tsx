@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { SessionState } from './HeygenConfig';
+import { SessionState } from '../HeygenConfig';
 import { StartAvatarRequest } from '@heygen/streaming-avatar';
 
 interface PreInterviewSetupProps {
@@ -14,6 +14,7 @@ interface PreInterviewSetupProps {
   onFieldChange: (field: string) => void;
   onLevelChange: (level: string) => void;
   onPositionIdChange: (id: string) => void; // New prop for _id
+  onPositionKeyChange: (key: string) => void; // New prop for key
   positions: Position[]; // Add positions prop
 }
 
@@ -38,10 +39,15 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   interviewLevel,
   onLevelChange,
   onPositionIdChange,
+  onPositionKeyChange, // Add new prop
   positions // Sử dụng positions từ props
 }) => {
   const [availableLevels, setAvailableLevels] = useState<string[]>([]);
   const [selectedPositionName, setSelectedPositionName] = useState<string>('');
+  const [startError, setStartError] = useState('');
+  const [fieldError, setFieldError] = useState('');
+  const [levelError, setLevelError] = useState('');
+  const [languageError, setLanguageError] = useState('');
 
   const handleConfigChange = useCallback(<K extends keyof StartAvatarRequest>(
     key: K,
@@ -50,6 +56,34 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
     const newConfig = { ...config, [key]: value };
     onConfigChange(newConfig);
   }, [config, onConfigChange]);
+
+  const handleStartInterview = async () => {
+    let hasError = false;
+    if (!config.language) {
+      setLanguageError('Vui lòng chọn ngôn ngữ.');
+      hasError = true;
+    } else {
+      setLanguageError('');
+    }
+    if (!interviewField) {
+      setFieldError('Vui lòng chọn vị trí.');
+      hasError = true;
+    } else {
+      setFieldError('');
+    }
+    if (!interviewLevel) {
+      setLevelError('Vui lòng chọn cấp bậc.');
+      hasError = true;
+    } else {
+      setLevelError('');
+    }
+    if (hasError) {
+      setStartError('Vui lòng điền đầy đủ thông tin trước khi bắt đầu phỏng vấn.');
+      return;
+    }
+    setStartError('');
+    await onStartInterview();
+  };
 
   return (
     <div className="min-h-screen  py-8 px-4">
@@ -96,8 +130,11 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
             <div className="relative">
               <select
                 value={config.language || ''}
-                onChange={(e) => handleConfigChange('language', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                onChange={(e) => {
+                  handleConfigChange('language', e.target.value);
+                  setLanguageError('');
+                }}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white ${languageError ? 'border-red-400' : 'border-gray-300'}`}
               >
                 <option value="" disabled>Chọn ngôn ngữ</option>
                 {STT_LANGUAGE_LIST.map((lang) => (
@@ -112,6 +149,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                 </svg>
               </div>
             </div>
+            {languageError && <div className="text-red-600 text-xs mt-1">{languageError}</div>}
           </div>
 
           {/* Position Selection */}
@@ -119,31 +157,29 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
             <label className="block text-sm font-medium text-gray-700 mb-3">Chọn Vị trí</label>
             <div className="relative">
               <select
-                value={interviewField || ''} // Use empty string as default
+                value={interviewField || ''}
                 onChange={(e) => {
                   const selectedPosition = positions.find(pos => pos.positionName === e.target.value);
                   if (selectedPosition) {
                     setSelectedPositionName(selectedPosition.positionName);
-                    // Get all levels for this position
                     const levels = positions
                       .filter(p => p.positionName === selectedPosition.positionName)
                       .map(p => p.level);
                     setAvailableLevels(levels);
-                    // Update the field with selected position name
                     onFieldChange(e.target.value);
-                    // Reset only the level and position ID
                     onLevelChange('');
                     onPositionIdChange('');
+                    setFieldError('');
                   } else {
-                    // Clear everything if no position is selected
                     setSelectedPositionName('');
                     setAvailableLevels([]);
                     onFieldChange('');
                     onLevelChange('');
                     onPositionIdChange('');
+                    setFieldError('Vui lòng chọn vị trí.');
                   }
                 }}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white ${fieldError ? 'border-red-400' : 'border-gray-300'}`}
               >
                 <option value="">Chọn vị trí</option>
                 {Array.from(new Set(positions.map(p => p.positionName))).sort().map(positionName => (
@@ -158,6 +194,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                 </svg>
               </div>
             </div>
+            {fieldError && <div className="text-red-600 text-xs mt-1">{fieldError}</div>}
           </div>
 
           {/* Level Selection */}
@@ -169,19 +206,19 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                 onChange={(e) => {
                   const selectedLevel = e.target.value;
                   onLevelChange(selectedLevel);
-                  
-                  // Find the position with matching name and level
                   const matchingPosition = positions.find(
                     p => p.positionName === selectedPositionName && p.level === selectedLevel
                   );
-                  
                   if (matchingPosition) {
-                    onFieldChange(matchingPosition.key);
+                    onPositionKeyChange(matchingPosition.key);
                     onPositionIdChange(matchingPosition.id);
+                    setLevelError('');
+                  } else {
+                    setLevelError('Vui lòng chọn cấp bậc.');
                   }
                 }}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-                disabled={!selectedPositionName} // Disabled if no position is selected
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white ${levelError ? 'border-red-400' : 'border-gray-300'}`}
+                disabled={!selectedPositionName}
               >
                 <option value="">Chọn cấp độ</option>
                 {availableLevels.sort().map(level => (
@@ -196,12 +233,21 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                 </svg>
               </div>
             </div>
+            {levelError && <div className="text-red-600 text-xs mt-1">{levelError}</div>}
           </div>
 
           {/* Start Button */}
           <div className="pt-6">
+            {startError && (
+              <div className="mb-4 flex items-center bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-sm">
+                <svg className="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z" />
+                </svg>
+                <span>{startError}</span>
+              </div>
+            )}
             <button
-              onClick={() => onStartInterview()}
+              onClick={handleStartInterview}
               disabled={sessionState === SessionState.CONNECTING}
               className={`w-full py-4 px-6 rounded-lg font-medium text-white transition-all duration-200 ${
                 sessionState === SessionState.CONNECTING

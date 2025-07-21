@@ -58,16 +58,7 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Webpack configuration
-  webpack: (config) => {
-    // PDF.js configuration
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'pdfjs-dist': 'pdfjs-dist/legacy/build/pdf',
-    };
-
-    return config;
-  },
+  
 
   // External packages configuration
   serverExternalPackages: ['pdf2json'],

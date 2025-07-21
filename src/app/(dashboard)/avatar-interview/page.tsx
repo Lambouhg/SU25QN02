@@ -3,11 +3,12 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 // Use dynamic import with SSR disabled for the InteractiveAvatar component
 // since it depends on browser APIs
 const InteractiveAvatar = dynamic(
-  () => import("@/components/StreamingAvatar/InteractiveAvatar"),
+  () => import("@/components/InteractiveAvatar"),
   { ssr: false }
 );
 
@@ -22,6 +23,8 @@ export default function AvatarInterviewPage() {
     <DashboardLayout>
       <div className="min-h-screen bg-gray-50 py-8 px-4">
         <div className="max-w-1xl mx-auto">
+        
+          
           {isInterviewStarted ? (
             // Interview Session View
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
@@ -30,18 +33,23 @@ export default function AvatarInterviewPage() {
                   <h1 className="text-2xl font-semibold text-gray-900">AI Avatar Interview</h1>
                   <p className="text-gray-600 mt-1">Interview session in progress</p>
                 </div>
-                <button
-                  onClick={handleEndSession}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  End Session
-                </button>
+                  <button
+                    onClick={handleEndSession}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    End Session
+                  </button>
               </div>
               <InteractiveAvatar onEndSession={handleEndSession} />
             </div>
           ) : (
             // Welcome & Setup View
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+              <div className="flex justify-end mb-4">
+            <Link href="/avatar-interview/history">
+              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all">History</button>
+            </Link>
+          </div>
               <div className="text-center mb-8">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,9 +57,9 @@ export default function AvatarInterviewPage() {
                   </svg>
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Avatar Interview Practice</h1>
-                <p className="text-gray-600 text-lg">
-                  Practice your interview skills with our AI avatar interviewer and receive real-time feedback
-                </p>
+                  <p className="text-gray-600 text-lg">
+                    Practice your interview skills with our AI avatar interviewer and receive real-time feedback
+                  </p>
               </div>
 
               {/* Features Grid */}
