@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 // Types
 interface Message {
   id: string;
-  sender: string;
+  sender: 'user' | 'ai' | 'system'; // Use string literals for now
   text: string;
   timestamp: string;
   isError?: boolean;
@@ -20,7 +20,7 @@ const generateMessageId = () => {
 export const useConversation = () => {
   const [conversation, setConversation] = useState<Message[]>([]);
 
-  const addMessage = useCallback((text: string, sender: string, isError = false) => {
+  const addMessage = useCallback((text: string, sender: 'user' | 'ai' | 'system', isError = false) => {
     setConversation(prev => [...prev, {
       id: generateMessageId(),
       sender,
@@ -50,15 +50,31 @@ export const useConversation = () => {
 
   const finalizeTranscript = useCallback((text: string) => {
     if (text) {
-      setConversation(prev => [
-        ...prev.filter(msg => !msg.isPartial),
-        {
-          id: generateMessageId(),
-          sender: 'user',
-          text: text,
-          timestamp: new Date().toISOString()
+      setConversation(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg?.isPartial) {
+          // Replace the last partial message with a finalized one
+          return [
+            ...prev.slice(0, -1),
+            {
+              id: generateMessageId(),
+              sender: 'user',
+              text: text,
+              timestamp: new Date().toISOString()
+            }
+          ];
         }
-      ]);
+        // Otherwise, just append a new message
+        return [
+          ...prev,
+          {
+            id: generateMessageId(),
+            sender: 'user',
+            text: text,
+            timestamp: new Date().toISOString()
+          }
+        ];
+      });
     }
   }, []);
 

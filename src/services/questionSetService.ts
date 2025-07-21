@@ -1,6 +1,6 @@
 // services/questionSetService.ts
 export interface QuestionSetData {
-  _id?: string;
+  id?: string; // Prisma UUID
   jobTitle: string;
   questionType: 'technical' | 'behavioral';
   level: 'junior' | 'mid' | 'senior';
@@ -92,13 +92,18 @@ export class QuestionSetService {
 
   // Xóa question set
   async deleteQuestionSet(id: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/${id}`, {
-      method: 'DELETE',
-    });
+    try {
+      const response = await fetch(`${this.baseUrl}/${id}`, {
+        method: 'DELETE',
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to delete question set');
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || 'Failed to delete question set');
+      }
+    } catch (error) {
+      console.error('Error in deleteQuestionSet:', error);
+      throw error instanceof Error ? error : new Error('Failed to delete question set');
     }
   }
 

@@ -29,11 +29,14 @@ const VoiceInteraction: React.FC<VoiceInteractionProps> = ({
     startListening,
     stopListening
   } = useAzureVoiceInteraction({
-    onSpeechResult,
+    onSpeechResult: (text: string) => {
+      
+      onSpeechResult(text);
+    },
     onError: setError,
     onInterimResult: setInterimTranscript,
     language,
-    silenceTimeout: 2000 // 3 giây delay
+    silenceTimeout: 2000 // 2 giây delay
   });
 
   const toggleMicrophone = async () => {

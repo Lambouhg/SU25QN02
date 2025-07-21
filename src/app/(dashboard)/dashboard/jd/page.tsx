@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { getAIResponse } from '../../../services/azureAiservicesforJD';
+import { getAIResponse } from '../../../../services/azureAiservicesforJD';
 
 import UploadSection from '@/components/JobDescription/UploadSection';
 import QuestionsDisplay from '@/components/JobDescription/QuestionsDisplay';

@@ -3,10 +3,12 @@ import { Box, Typography, Paper, Rating, Chip, List, ListItem, ListItemText, Div
 import { InterviewEvaluation } from '@/services/Avatar-AI';
 
 interface Message {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: string;
+  id?: string;
+  sender?: string;
+  role?: string;
+  text?: string;
+  content?: string;
+  timestamp?: string;
   isError?: boolean;
   isThinking?: boolean;
 }
@@ -92,7 +94,7 @@ const InterviewReviewPage = ({ evaluation, conversation }: InterviewReviewPagePr
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
               {technicalStrengths.map((strength, index) => (
                 <Chip 
-                  key={index} 
+                  key={typeof strength === 'string' ? strength + '-' + index : index} 
                   label={strength} 
                   color="success" 
                   variant="outlined" 
@@ -106,7 +108,7 @@ const InterviewReviewPage = ({ evaluation, conversation }: InterviewReviewPagePr
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
               {technicalWeaknesses.map((weakness, index) => (
                 <Chip 
-                  key={index} 
+                  key={typeof weakness === 'string' ? weakness + '-' + index : index} 
                   label={weakness} 
                   color="warning" 
                   variant="outlined" 
@@ -119,7 +121,7 @@ const InterviewReviewPage = ({ evaluation, conversation }: InterviewReviewPagePr
             <Typography variant="subtitle1">Đề xuất cải thiện:</Typography>
             <List>
               {recommendations.map((recommendation, index) => (
-                <ListItem key={index}>
+                <ListItem key={typeof recommendation === 'string' ? recommendation + '-' + index : index}>
                   <ListItemText primary={recommendation} />
                 </ListItem>
               ))}
@@ -149,7 +151,7 @@ const InterviewReviewPage = ({ evaluation, conversation }: InterviewReviewPagePr
               Đề xuất mức lương:
             </Typography>
             <Typography>
-              {salary_range.min.toLocaleString()} - {salary_range.max.toLocaleString()} {salary_range.currency}
+              {salary_range.min.toLocaleString('en-US')} - {salary_range.max.toLocaleString('en-US')} {salary_range.currency}
             </Typography>
           </Box>
         )}
@@ -197,22 +199,27 @@ const InterviewReviewPage = ({ evaluation, conversation }: InterviewReviewPagePr
           Lịch sử cuộc trò chuyện
         </Typography>
         <List>
-          {conversation.map((message, index) => (
-            <React.Fragment key={message.id}>
-              {index > 0 && <Divider />}
-              <ListItem>
-                <ListItemText
-                  primary={message.sender === 'user' ? 'Bạn' : 'AI Interviewer'}
-                  secondary={message.text}
-                  sx={{
-                    '& .MuiListItemText-primary': {
-                      color: message.sender === 'user' ? 'primary.main' : 'secondary.main',
-                    },
-                  }}
-                />
-              </ListItem>
-            </React.Fragment>
-          ))}
+          {conversation.map((message, index) => {
+            // Support both 'sender' and 'role' fields, fallback to 'ai'/'user'/'assistant'
+            const role = (message.sender || message.role || '').toLowerCase();
+            const isUser = role === 'user' || role === 'me' || role === 'client';
+            return (
+              <React.Fragment key={message.id || index}>
+                {index > 0 && <Divider key={'divider-' + (message.id || index)} />}
+                <ListItem key={'listitem-' + (message.id || index)}>
+                  <ListItemText
+                    primary={isUser ? 'Bạn' : 'AI Interviewer'}
+                    secondary={message.text || message.content}
+                    sx={{
+                      '& .MuiListItemText-primary': {
+                        color: isUser ? 'primary.main' : 'secondary.main',
+                      },
+                    }}
+                  />
+                </ListItem>
+              </React.Fragment>
+            );
+          })}
         </List>
       </Paper>
     </Box>

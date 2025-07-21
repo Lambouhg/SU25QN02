@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { getAIResponse } from '../../services/azureAiservicesforJD';
+import { getAIResponse } from '../../../services/azureAiservicesforJD';
 import { questionSetService } from '@/services/questionSetService';
 
 import UploadSection from '@/components/JobDescription/UploadSection';
@@ -93,7 +93,7 @@ const UploadJDPageContent = () => {
       setQuestions(questionSet.questions);
       setQuestionType(questionSet.questionType);
       setLevel(questionSet.level);
-      setCurrentQuestionSetId(questionSet._id || null);
+      setCurrentQuestionSetId(questionSet.id || null);
       setMessage(`Loaded ${questionSet.questions.length} questions from "${questionSet.jobTitle}"`);
       setMessageType('success');
       
@@ -365,7 +365,6 @@ const UploadJDPageContent = () => {
           originalJDText: text,
           fileName: file.name
         });
-        console.log('Question set saved successfully');
         
         // Show save success toast after a delay
         setTimeout(() => {
@@ -386,7 +385,7 @@ const UploadJDPageContent = () => {
     setQuestions(questionSet.questions);
     setQuestionType(questionSet.questionType);
     setLevel(questionSet.level);
-    setCurrentQuestionSetId(questionSet._id || null);
+    setCurrentQuestionSetId(questionSet.id || null);
     setMessage(`Loaded ${questionSet.questions.length} questions from "${questionSet.jobTitle}"`);
     setMessageType('success');
     

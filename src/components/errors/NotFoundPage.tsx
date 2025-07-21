@@ -107,7 +107,7 @@ export const NotFoundPage: React.FC<NotFoundPageProps> = ({
               </Link>
               
               <Link
-                href="/interview"
+                href="/dashboard/job-description"
                 className="group flex flex-col items-center justify-center px-4 py-3 text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-all duration-200 transform hover:scale-105"
               >
                 <div className="w-3 h-3 bg-green-500 rounded-full mb-2 group-hover:animate-pulse"></div>

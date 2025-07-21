@@ -19,13 +19,14 @@ export default function QuestionsDisplay({ questions, copyQuestions, downloadQue
     } else {
       // Default behavior: navigate to interview page with question content
       const cleanQuestion = question.replace(/^(\d+\.\s*)+/, '').trim();
-      const url = `/interview/${index + 1}?question=${encodeURIComponent(cleanQuestion)}&type=JD-Generated`;
-      
+      const url = `/jd-interview/${index}?question=${encodeURIComponent(cleanQuestion)}&type=JD-Generated&questionIndex=${index}&context=jd`;
       // Add questionSetId to URL if available so we can return to the same state
       if (currentQuestionSetId) {
-        router.push(`${url}&questionSetId=${currentQuestionSetId}&returnUrl=${encodeURIComponent('/jd?questionSetId=' + currentQuestionSetId)}`);
+        const finalUrl = `${url}&questionSetId=${currentQuestionSetId}&returnUrl=${encodeURIComponent('/jd?questionSetId=' + currentQuestionSetId)}`;
+        router.push(finalUrl);
       } else {
-        router.push(`${url}&returnUrl=${encodeURIComponent('/jd')}`);
+        const finalUrl = `${url}&returnUrl=${encodeURIComponent('/jd')}`;
+        router.push(finalUrl);
       }
     }
   };

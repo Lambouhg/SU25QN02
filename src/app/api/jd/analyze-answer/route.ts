@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAIResponse } from '../../../services/azureAiservicesforJD';
+import { getAIResponse } from '../../../../services/azureAiservicesforJD';
 
 export async function POST(req: NextRequest) {
   try {

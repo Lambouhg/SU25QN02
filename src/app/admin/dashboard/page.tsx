@@ -5,7 +5,6 @@ import { Users, MessageSquare, Brain, FileDown, TrendingUp, Award, Clock, Target
 import AdminUserModal from '@/components/admin/AdminUserModal';
 import StatisticsChart from '@/components/admin/StatisticsChart';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
-import NotificationPanel from '@/components/admin/NotificationPanel';
 
 // Types
 interface UserStats {
@@ -496,11 +495,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Right Sidebar - Notifications */}
-            <div className="lg:col-span-2">
-              <NotificationPanel />
             </div>
           </div>
         </div>

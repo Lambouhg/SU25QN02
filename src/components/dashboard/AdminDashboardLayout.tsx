@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Users, Settings, Menu, X, Search, Bell, LogOut, Shield,
-  BarChart3, MessageSquare, Database, UserCheck, Activity,
+  BarChart3, MessageSquare, UserCheck,
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
@@ -13,7 +13,6 @@ import Image from 'next/image';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Toast from '@/components/ui/Toast';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
-import UserStatusDebug from '@/components/debug/UserStatusDebug';
 
 
 export default function AdminDashboardLayout({
@@ -98,9 +97,6 @@ export default function AdminDashboardLayout({
       subItems: [
         { label: 'All Users', href: '/admin/users' },
         { label: 'User Activities', href: '/admin/user-activities' },
-        { label: 'User Roles', href: '/admin/roles' },
-        { label: 'User Activity', href: '/admin/activity' },
-        { label: 'Permissions', href: '/admin/permissions' }
       ]
     },
     {
@@ -109,34 +105,8 @@ export default function AdminDashboardLayout({
       key: 'content',
       subItems: [
         { label: 'Questions', href: '/admin/questions' },
-        { label: 'Question Sets', href: '/admin/question-sets' },
-        { label: 'Interview Templates', href: '/admin/templates' },
-        { label: 'Categories', href: '/admin/categories' }
       ]
     },
-    {
-      icon: Database,
-      label: 'System Management',
-      key: 'system',
-      subItems: [
-        { label: 'Database', href: '/admin/database' },
-        { label: 'API Logs', href: '/admin/logs' },
-        { label: 'System Health', href: '/admin/health' },
-        { label: 'Backups', href: '/admin/backups' }
-      ]
-    },
-    { 
-      icon: Activity, 
-      label: 'Monitoring', 
-      href: '/admin/monitoring',
-      key: 'monitoring'
-    },
-    { 
-      icon: Settings, 
-      label: 'Settings', 
-      href: '/admin/settings',
-      key: 'settings'
-    }
   ];
 
   // Auto-expand menus that have active sub-items
@@ -397,9 +367,6 @@ export default function AdminDashboardLayout({
         onClose={() => setToast({ ...toast, show: false })}
         duration={3000}
       />
-
-      {/* Debug Component - chỉ hiển thị trong development */}
-      <UserStatusDebug />
     </div>
   );
 }

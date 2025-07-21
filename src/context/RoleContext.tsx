@@ -84,9 +84,18 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
   // Optimized fetch role function with faster endpoint
   const fetchRole = useCallback(async (userId: string): Promise<string> => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // Increase to 8s timeout
+    let timeoutId: NodeJS.Timeout | null = null;
     
     try {
+      // Only set timeout if signal is not already aborted
+      if (!controller.signal.aborted) {
+        timeoutId = setTimeout(() => {
+          if (!controller.signal.aborted) {
+            controller.abort();
+          }
+        }, 8000); // 8s timeout
+      }
+      
       // Use the faster role-only endpoint
       const response = await fetch(`/api/user/${userId}/role`, {
         method: 'GET',
@@ -94,7 +103,11 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
+      // Clear timeout only if it was set
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
 
       if (response.ok) {
         const userData = await response.json();
@@ -108,9 +121,14 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       console.warn(`Role API returned ${response.status}, defaulting to user role`);
       return 'user';
     } catch (error) {
-      clearTimeout(timeoutId);
+      // Clear timeout in catch block as well
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      
       if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('Role fetch timeout - defaulting to user role');
+        console.warn('Role fetch was aborted (timeout or cancelled) - defaulting to user role');
       } else {
         console.warn('Role fetch error:', error);
       }
@@ -146,7 +164,10 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         loading: false
       });
     } catch (error) {
-      console.error('Error refreshing role:', error);
+      // Don't log abort errors as they are expected during cleanup
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error refreshing role:', error);
+      }
       
       // Try to use cached role as fallback
       const cachedRole = getCachedRole(user.id);
@@ -172,22 +193,27 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
 
   // Main effect to check user role with improved error handling
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+    
     const checkUserRole = async () => {
-      if (!isLoaded) return;
+      if (!isLoaded || !isMounted) return;
 
       if (!user) {
-        setUserRole({
-          isAdmin: false,
-          isUser: false,
-          role: null,
-          loading: false
-        });
+        if (isMounted) {
+          setUserRole({
+            isAdmin: false,
+            isUser: false,
+            role: null,
+            loading: false
+          });
+        }
         return;
       }
 
       // Try cache first
       const cachedRole = getCachedRole(user.id);
-      if (cachedRole) {
+      if (cachedRole && isMounted) {
         setUserRole({
           isAdmin: cachedRole === 'admin',
           isUser: cachedRole === 'user',
@@ -196,52 +222,74 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         });
         
         // Still fetch in background to update cache, but don't wait
-        fetchRole(user.id).then(freshRole => {
-          if (freshRole !== cachedRole) {
-            setCachedRole(user.id, freshRole);
-            setUserRole({
-              isAdmin: freshRole === 'admin',
-              isUser: freshRole === 'user',
-              role: freshRole as 'admin' | 'user',
-              loading: false
-            });
-          }
-        }).catch(error => {
-          console.log('Background role fetch failed, keeping cached role:', error.message);
-        });
+        if (!abortController.signal.aborted) {
+          fetchRole(user.id).then(freshRole => {
+            if (freshRole !== cachedRole && isMounted && !abortController.signal.aborted) {
+              setCachedRole(user.id, freshRole);
+              setUserRole({
+                isAdmin: freshRole === 'admin',
+                isUser: freshRole === 'user',
+                role: freshRole as 'admin' | 'user',
+                loading: false
+              });
+            }
+          }).catch(error => {
+            if (!abortController.signal.aborted) {
+              console.log('Background role fetch failed, keeping cached role:', error.message);
+            }
+          });
+        }
         
         return;
       }
 
       // No cache, fetch from API with timeout protection
-      setUserRole(prev => ({ ...prev, loading: true }));
+      if (isMounted) {
+        setUserRole(prev => ({ ...prev, loading: true }));
+      }
       
       try {
+        // Check if we should still proceed
+        if (!isMounted || abortController.signal.aborted) return;
+        
         // Use fetchRole which already has proper timeout handling
         const role = await fetchRole(user.id);
         
-        setCachedRole(user.id, role);
-        
-        setUserRole({
-          isAdmin: role === 'admin',
-          isUser: role === 'user',
-          role: role as 'admin' | 'user',
-          loading: false
-        });
+        // Check again before setting state
+        if (isMounted && !abortController.signal.aborted) {
+          setCachedRole(user.id, role);
+          
+          setUserRole({
+            isAdmin: role === 'admin',
+            isUser: role === 'user',
+            role: role as 'admin' | 'user',
+            loading: false
+          });
+        }
       } catch (error) {
-        console.error('Error checking role:', error);
-        
-        // Default to user role but don't show loading forever
-        setUserRole({
-          isAdmin: false,
-          isUser: true,
-          role: 'user',
-          loading: false
-        });
+        if (!abortController.signal.aborted) {
+          console.error('Error checking role:', error);
+          
+          // Default to user role but don't show loading forever
+          if (isMounted) {
+            setUserRole({
+              isAdmin: false,
+              isUser: true,
+              role: 'user',
+              loading: false
+            });
+          }
+        }
       }
     };
 
     checkUserRole();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [user, isLoaded, getCachedRole, fetchRole, setCachedRole]);
 
   // Listen to storage events for role updates and invalidation signals

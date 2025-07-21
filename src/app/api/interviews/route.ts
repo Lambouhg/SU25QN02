@@ -2,24 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
-import type {  Interview } from '@prisma/client';
+import { InterviewStatus } from '@prisma/client';
 
 type PrismaError = Error & { code?: string };
 
 interface InterviewStats {
   totalInterviews: number;
   [key: string]: number;
-}
-
-interface InterviewWithPosition extends Interview {
-  position: {
-    id: string;
-    key: string;
-    positionName: string;
-    level: string;
-    displayName: string;
-    order: number;
-  };
 }
 
 
@@ -47,7 +36,7 @@ interface CreateInterviewRequest {
   coveredTopics?: string[];
   skillAssessment?: Record<string, number>;
   progress?: number;
-  status?: 'in_progress' | 'completed';  // Add status field
+  status?: 'in_progress' | 'completed' | 'interrupted';  // Add status field
 }
 
 // Validate interview data
@@ -212,7 +201,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     const clerkId = session?.userId;
@@ -236,17 +225,86 @@ export async function GET() {
       );
     }
 
+    // Get query parameters for filtering
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get('status');
+    const days = searchParams.get('days');
+
+    // Build filter conditions
+    const where: {
+      userId: string;
+      status?: InterviewStatus;
+      startTime?: { gte: Date };
+    } = { userId: user.id };
+    
+    if (status && status !== 'all') {
+      // Type cast the status to InterviewStatus enum
+      where.status = status as InterviewStatus;
+    }
+    
+    if (days && days !== 'all') {
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(days));
+      where.startTime = { gte: daysAgo };
+    }
+
     // Get interviews for the user
-    const interviews: InterviewWithPosition[] = await prisma.interview.findMany({
-      where: { userId: user.id },
+    const interviews = await prisma.interview.findMany({
+      where,
       orderBy: { startTime: 'desc' },
-      take: 10,
       include: {
         position: true
       }
     });
 
-    return NextResponse.json(interviews);
+    // Calculate stats
+    const stats = {
+      totalInterviews: interviews.length,
+      completedInterviews: interviews.filter(i => i.status === 'completed').length,
+      inProgressInterviews: interviews.filter(i => i.status === 'in_progress').length,
+      interruptedInterviews: interviews.filter(i => i.status === 'interrupted').length,
+      averageScore: 0,
+      byField: {} as Record<string, number>,
+      byLevel: {} as Record<string, number>,
+      recentInterviews: 0
+    };
+
+    // Calculate average score
+    const completedWithScores = interviews.filter(i => 
+      i.status === 'completed' && 
+      i.evaluation && 
+      typeof i.evaluation === 'object' && 
+      'overallRating' in i.evaluation
+    );
+    
+    if (completedWithScores.length > 0) {
+      const totalScore = completedWithScores.reduce((sum, interview) => {
+        const evaluation = interview.evaluation as { overallRating: number };
+        return sum + (evaluation.overallRating || 0);
+      }, 0);
+      stats.averageScore = totalScore / completedWithScores.length;
+    }
+
+    // Group by field and level
+    interviews.forEach(interview => {
+      const fieldKey = interview.position.key.split('_')[0] || 'other';
+      const levelKey = interview.position.level || 'unknown';
+      
+      stats.byField[fieldKey] = (stats.byField[fieldKey] || 0) + 1;
+      stats.byLevel[levelKey] = (stats.byLevel[levelKey] || 0) + 1;
+    });
+
+    // Count recent interviews (last 7 days)
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    stats.recentInterviews = interviews.filter(i => 
+      new Date(i.startTime) >= weekAgo
+    ).length;
+
+    return NextResponse.json({
+      interviews,
+      stats
+    });
   } catch (error) {
     console.error('Error in GET /api/interviews:', error);
     return NextResponse.json(

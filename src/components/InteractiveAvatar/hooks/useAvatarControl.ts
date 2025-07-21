@@ -33,8 +33,12 @@ export const useAvatarControl = ({
   onError
 }: UseAvatarControlProps) => {
   const [sessionState, setSessionState] = useState<SessionState>(SessionState.INACTIVE);
+  const [isInterrupting, setIsInterrupting] = useState(false);
   const avatarRef = useRef<StreamingAvatar>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  
+  // Store event handlers for cleanup reference
+  const eventHandlers = useRef<Record<string, unknown>>({});
 
   const fetchAccessToken = async () => {
     try {
@@ -61,7 +65,7 @@ export const useAvatarControl = ({
         token,
         basePath: process.env.NEXT_PUBLIC_BASE_API_URL || 'https://api.heygen.com'
       });      avatar.on(StreamingEvents.STREAM_READY, (event: StreamReadyEvent) => {
-        console.log('>>>>> Stream ready:', event.detail);
+        
         if (videoRef.current && event.detail) {
           videoRef.current.srcObject = event.detail;
           setSessionState(SessionState.CONNECTED);
@@ -69,7 +73,7 @@ export const useAvatarControl = ({
       });
 
       avatar.on(StreamingEvents.STREAM_DISCONNECTED, () => {
-        console.log('>>>>> Stream disconnected');
+        
         if (videoRef.current) {
           videoRef.current.srcObject = null;
           setSessionState(SessionState.INACTIVE);
@@ -135,7 +139,7 @@ export const useAvatarControl = ({
       const token = await fetchAccessToken();
       const avatar = await initAvatar(token);
       
-      console.log('Starting avatar with config:', config);
+     
       await avatar.createStartAvatar(config);
       
       // Don't return avatar instance since we manage it internally
@@ -149,23 +153,49 @@ export const useAvatarControl = ({
 
   const endSession = useCallback(async () => {
     try {
-      if (avatarRef.current) {
-        await avatarRef.current.stopAvatar();
-        avatarRef.current = null;
-      }
+      
+      onAvatarTalkingChange(false);
 
+      // Step 2: Clean up media stream before stopping avatar
       if (videoRef.current && videoRef.current.srcObject) {
+        
         const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach(track => {
+          track.stop();
+          
+        });
         videoRef.current.srcObject = null;
       }
 
+      // Step 3: Stop avatar properly (like in sample code)
+      if (avatarRef.current) {
+        
+        try {
+          await avatarRef.current.stopAvatar();
+        
+        } catch (stopError) {
+          console.warn('Error stopping avatar, but continuing cleanup:', stopError);
+        }
+        
+        // Clear the reference (like in sample code)
+        avatarRef.current = null;
+      }
+
+      // Step 4: Clear event handlers reference
+      eventHandlers.current = {};
+
+      // Step 5: Set session state to inactive (like in sample code)
       setSessionState(SessionState.INACTIVE);
+      
+      
     } catch (error) {
       console.error('Error ending session:', error);
+      // Even if there's an error, ensure we reset the session state
+      setSessionState(SessionState.INACTIVE);
+      onAvatarTalkingChange(false);
       throw error;
     }
-  }, []);
+  }, [onAvatarTalkingChange]);
 
   const speakText = useCallback(async (text: string) => {
     if (avatarRef.current) {
@@ -176,11 +206,117 @@ export const useAvatarControl = ({
     }
   }, []);
 
+  const interruptAvatar = useCallback(async () => {
+    // Prevent multiple interruptions
+    if (isInterrupting) {
+      
+      return;
+    }
+
+    try {
+      setIsInterrupting(true);
+      
+      if (avatarRef.current) {
+        
+        
+        // First, try to use the interrupt method
+        try {
+          await avatarRef.current.interrupt();
+          
+        } catch (interruptError) {
+          console.warn('Interrupt method failed, trying alternative approach:', interruptError);
+          
+          // Alternative: Force stop by manually triggering avatar stop event
+          onAvatarTalkingChange(false);
+          
+          // Try to speak empty text to stop current speech
+          try {
+            await avatarRef.current.speak({
+              text: '',
+              taskType: TaskType.REPEAT
+            });
+          } catch (speakError) {
+            console.warn('Fallback speak method also failed:', speakError);
+          }
+        }
+        
+        // Ensure avatar talking state is reset
+        onAvatarTalkingChange(false);
+        
+        
+      } else {
+        
+        onError('Cannot interrupt avatar: not connected');
+      }
+    } catch (error) {
+      
+      onError('Failed to interrupt avatar speech: ' + (error instanceof Error ? error.message : String(error)));
+      
+      // Ensure state is reset even on error
+      onAvatarTalkingChange(false);
+      throw error;
+    } finally {
+      setIsInterrupting(false);
+    }
+  }, [isInterrupting, onAvatarTalkingChange, onAvatarMessage, onError]);
+
+  // Convenient method specifically for stopping avatar speech
+  const stopAvatarSpeaking = useCallback(async () => {
+    try {
+      
+      await interruptAvatar();
+      
+    } catch (error) {
+      console.error('Hook: Error stopping avatar speech:', error);
+      // Don't re-throw to prevent breaking the UI
+    }
+  }, [interruptAvatar]);
+
+  // Check if avatar can be interrupted
+  const canInterrupt = useCallback(() => {
+    return avatarRef.current !== null && !isInterrupting && sessionState === SessionState.CONNECTED;
+  }, [isInterrupting, sessionState]);
+
+  // Force stop avatar speech with immediate effect
+  const forceStopSpeaking = useCallback(async () => {
+    try {
+      
+      
+      // Immediately set avatar talking to false
+      onAvatarTalkingChange(false);
+      
+      if (avatarRef.current) {
+        // Try interrupt first
+        try {
+          await avatarRef.current.interrupt();
+        } catch (error) {
+          console.warn('Force interrupt failed, using empty speak:', error);
+          // Fallback: speak empty text
+          await avatarRef.current.speak({
+            text: '',
+            taskType: TaskType.REPEAT
+          });
+        }
+      }
+      
+      
+    } catch (error) {
+      console.error('Hook: Error force stopping avatar speech:', error);
+      // Ensure state is reset
+      onAvatarTalkingChange(false);
+    }
+  }, [onAvatarTalkingChange]);
+
   return {
     sessionState,
     videoRef,
     startSession,
     endSession,
-    speakText
+    speakText,
+    interruptAvatar,
+    stopAvatarSpeaking,
+    forceStopSpeaking,
+    canInterrupt,
+    isInterrupting
   };
 };

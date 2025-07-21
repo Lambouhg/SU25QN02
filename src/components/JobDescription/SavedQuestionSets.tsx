@@ -35,7 +35,8 @@ const SavedQuestionSets: React.FC<SavedQuestionSetsProps> = ({ onQuestionSetSele
 
     try {
       await questionSetService.deleteQuestionSet(id);
-      setQuestionSets(prev => prev.filter(set => set._id !== id));
+      // Filter by id (Prisma UUID)
+      setQuestionSets(prev => prev.filter(set => set.id !== id));
       
       // Show success toast
       if (onShowToast) {
@@ -134,9 +135,9 @@ const SavedQuestionSets: React.FC<SavedQuestionSetsProps> = ({ onQuestionSetSele
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {questionSets.map((questionSet) => (
+            {questionSets.map((questionSet, index) => (
               <div
-                key={questionSet._id}
+                key={questionSet.id || `questionset-${index}`}
                 onClick={() => onQuestionSetSelect(questionSet)}
                 className="p-4 hover:bg-gray-50 cursor-pointer transition-colors group"
               >
@@ -173,9 +174,10 @@ const SavedQuestionSets: React.FC<SavedQuestionSetsProps> = ({ onQuestionSetSele
                       )}
                     </div>
                   </div>                  <button
-                    onClick={(e) => handleDelete(questionSet._id!, questionSet.jobTitle, e)}
+                    onClick={(e) => handleDelete(questionSet.id || `questionset-${index}`, questionSet.jobTitle, e)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded transition-all"
                     title="Delete question set"
+                    disabled={!questionSet.id}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
