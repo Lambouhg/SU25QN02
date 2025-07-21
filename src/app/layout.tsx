@@ -33,7 +33,10 @@ export default function RootLayout({
       <UserSyncProvider>
         <RoleProvider>
           <html lang="en" className="h-full">
-            <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}>
+            <body 
+              className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}
+              suppressHydrationWarning={true}
+            >
               {children}
               <UserSync />
               <AuthRedirect />

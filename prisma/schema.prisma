@@ -66,18 +66,7 @@ enum ActivityType {
   goal_completed
   goal_started
 }
-enum NotificationType {
-  USER_REGISTRATION
-  USER_LOGIN
-  INTERVIEW_COMPLETED
-  QUIZ_COMPLETED
-  SYSTEM_ALERT
-}
-enum NotificationStatus {
-  UNREAD
-  READ
-  ARCHIVED
-}
+
 enum AssessmentType {
   test
   eq
@@ -129,8 +118,8 @@ model User {
   quizHistory       Quiz[]     @relation("QuizHistory")
   userActivity      UserActivity?
   quizzes           Quiz[]
-  notifications     Notification[]
 }
+
 
 model Interview {
   id                String   @id @default(uuid())
@@ -250,30 +239,4 @@ model Assessment {
   updatedAt        DateTime?    @updatedAt
 
   @@index([positionId])
-}
-
-model Settings {
-  id              String   @id @default(uuid())
-  key             String   @unique
-  value           Json
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model Notification {
-  id          String             @id @default(uuid())
-  type        NotificationType
-  title       String
-  message     String
-  status      NotificationStatus @default(UNREAD)
-  userId      String?            // User ID liên quan (nếu có)
-  metadata    Json?              // Dữ liệu bổ sung
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  
-  // Optional relation to User
-  user        User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-ta    Json?              // Dữ liệu bổ sung
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
 }

@@ -184,7 +184,6 @@ const createMessage = (sender: 'user' | 'ai', text: string, isError = false): Co
 });
 
 export default function TestPanel() {
-  console.log('[DEBUG] TestPanel component rendered');
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [interviewing, setInterviewing] = useState(false);
@@ -246,10 +245,7 @@ export default function TestPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interviewing]);
 
-  // Debug: log mỗi khi showResult hoặc interviewing thay đổi
-  useEffect(() => {
-    console.log('[DEBUG] showResult:', showResult, '| interviewing:', interviewing);
-  }, [showResult, interviewing]);
+
 
   const startInterview = () => {
     setShowResult(false);
@@ -529,7 +525,6 @@ export default function TestPanel() {
     setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>
   ) => {
-    console.log('[DEBUG] endInterview called');
     setInterviewState((prev: InterviewState) => ({
       ...prev,
       phase: 'completed'
@@ -551,8 +546,7 @@ export default function TestPanel() {
 
     // Gọi API lưu kết quả xuống DB
     try {
-      console.log('Calling API to save result');
-      const response = await fetch('/api/test-mode/test', {
+      await fetch('/api/test-mode/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -565,7 +559,6 @@ export default function TestPanel() {
           totalTime,
         })
       });
-      console.log('API response:', response);
     } catch (error) {
       console.error('Error saving interview result:', error);
     }
@@ -573,7 +566,6 @@ export default function TestPanel() {
 
   // Hàm luyện tập lại
   const handleReset = () => {
-    console.log('[DEBUG] handleReset called');
     setShowResult(false);
     setInterviewing(false);
     setConversation([]);
@@ -654,12 +646,10 @@ export default function TestPanel() {
 
   // Callback nhận thời gian còn lại từ InterviewScreen/InterviewChat
   const handleEndInterviewWithTime = (minutesLeft: number) => {
-    console.log('[DEBUG] handleEndInterviewWithTime called with minutesLeft:', minutesLeft);
     setRemainingTime(minutesLeft);
     const totalTime = Math.ceil(duration - minutesLeft);
     // Lưu kết quả
     try {
-      console.log('[DEBUG] Calling API from handleEndInterviewWithTime');
       fetch('/api/test-mode/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -672,8 +662,6 @@ export default function TestPanel() {
           realTimeScores,
           totalTime,
         })
-      }).then(response => {
-        console.log('[DEBUG] API response from handleEndInterviewWithTime:', response);
       }).catch(error => {
         console.error('[DEBUG] API error from handleEndInterviewWithTime:', error);
       });

@@ -33,6 +33,23 @@ export default function AdminUsersPage() {
   const { refreshRole } = useRole();
   const { broadcastRoleInvalidation } = useRoleInvalidation();
 
+  // Helper function to get user initials
+  const getUserInitials = (fullName: string | undefined): string => {
+    if (!fullName) return 'U';
+    const names = fullName.split(' ').slice(0, 2);
+    return (names[0]?.[0] || '') + (names[1]?.[0] || '');
+  };
+
+  // Helper function to parse name parts
+  const parseNameParts = (fullName: string | undefined) => {
+    if (!fullName) return { firstName: '', lastName: '' };
+    const parts = fullName.split(' ');
+    return {
+      firstName: parts[0] || '',
+      lastName: parts.slice(1).join(' ') || ''
+    };
+  };
+
   const [users, setUsers] = useState<User[]>([]);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
@@ -229,7 +246,7 @@ export default function AdminUsersPage() {
                           ) : (
                             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                               <span className="text-white text-sm font-bold">
-                                {user.fullName?.split(' ').map(n => n[0]).join('') || 'U'}
+                                {getUserInitials(user.fullName)}
                               </span>
                             </div>
                           )}
@@ -327,8 +344,10 @@ export default function AdminUsersPage() {
         <EditUserModal
           user={editingUser ? {
             ...editingUser,
-            firstName: editingUser.firstName || editingUser.fullName?.split(' ')[0] || '',
-            lastName: editingUser.lastName || editingUser.fullName?.split(' ').slice(1).join(' ') || ''
+            ...(!editingUser.firstName || !editingUser.lastName ? parseNameParts(editingUser.fullName) : {
+              firstName: editingUser.firstName,
+              lastName: editingUser.lastName
+            })
           } : null}
           isOpen={!!editingUser}
           onClose={() => setEditingUser(null)}
@@ -338,8 +357,10 @@ export default function AdminUsersPage() {
         <ConfirmDeleteModal
           user={deletingUser ? {
             ...deletingUser,
-            firstName: deletingUser.firstName || deletingUser.fullName?.split(' ')[0] || '',
-            lastName: deletingUser.lastName || deletingUser.fullName?.split(' ').slice(1).join(' ') || ''
+            ...(!deletingUser.firstName || !deletingUser.lastName ? parseNameParts(deletingUser.fullName) : {
+              firstName: deletingUser.firstName,
+              lastName: deletingUser.lastName
+            })
           } : null}
           isOpen={!!deletingUser}
           onClose={() => setDeletingUser(null)}

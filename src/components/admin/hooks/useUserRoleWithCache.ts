@@ -119,7 +119,7 @@ export function useUserRoleWithCache(): UserRole {
             loading: false
           });
         } else {
-          console.log('❌ API error, defaulting to user');
+          
           const defaultRole = 'user';
           setCachedRole(user.id, defaultRole);
           

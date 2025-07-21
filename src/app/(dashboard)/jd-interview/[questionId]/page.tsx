@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import ScoreChart, { DetailedScores } from '@/components/ui/ScoreChart';
 import { questionSetService, QuestionSetData } from '@/services/questionSetService';
@@ -18,90 +18,182 @@ interface AnalysisResult {
 }
 
 export default function InterviewQuestionPage({ params }: { params: Promise<{ questionId: string }> }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const resolvedParams = React.use(params);
+  
+  // Initialize currentQuestionIndex from URL if available
+  const getInitialQuestionIndex = () => {
+    const questionIndexFromURL = searchParams.get('questionIndex');
+    if (questionIndexFromURL && !isNaN(Number(questionIndexFromURL))) {
+      return Number(questionIndexFromURL);
+    }
+    return 0;
+  };
+  
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);  const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [availableQuestions, setAvailableQuestions] = useState<string[]>([]);
   const [questionSets, setQuestionSets] = useState<QuestionSetData[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(getInitialQuestionIndex);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
-  const [interviewQuestion, setInterviewQuestion] = useState({
-    id: resolvedParams.questionId,
-    title: "Tell me about your experience with React and modern frontend development",
-    type: "Technical Experience",
-    description: "The interviewer wants to understand your hands-on experience with React, your knowledge of modern frontend practices, and how you have applied these skills in real projects. Focus on specific examples and technologies you have used.",
-    tips: [
-      "Mention specific React features you have used (hooks, context, etc.)",
-      "Include examples of projects you have worked on",
-      "Discuss challenges you have faced and how you solved them",
-      "Show knowledge of the React ecosystem and best practices"
-    ]
-  });
+  // Initialize interview question from URL if available
+  const getInitialInterviewQuestion = () => {
+    const questionFromURL = searchParams.get('question');
+    const typeFromURL = searchParams.get('type');
+    
+    if (questionFromURL && typeFromURL) {
+      return {
+        id: resolvedParams.questionId,
+        title: questionFromURL,
+        type: typeFromURL,
+        description: "This question is generated based on the job description you uploaded. Focus on demonstrating relevant skills and experiences that match the requirements.",
+        tips: [
+          "Be specific about your relevant experience",
+          "Use concrete examples and metrics when possible",
+          "Connect your answer to the job requirements",
+          "Show your understanding of the role and company needs"
+        ]
+      };
+    }
+    
+    // Fallback to default question
+    return {
+      id: resolvedParams.questionId,
+      title: "Tell me about your experience with React and modern frontend development",
+      type: "Technical Experience",
+      description: "The interviewer wants to understand your hands-on experience with React, your knowledge of modern frontend practices, and how you have applied these skills in real projects. Focus on specific examples and technologies you have used.",
+      tips: [
+        "Mention specific React features you have used (hooks, context, etc.)",
+        "Include examples of projects you have worked on",
+        "Discuss challenges you have faced and how you solved them",
+        "Show knowledge of the React ecosystem and best practices"
+      ]
+    };
+  };
+
+  const [interviewQuestion, setInterviewQuestion] = useState(getInitialInterviewQuestion);
 
   // Load question sets from database
   useEffect(() => {
-    const loadQuestionSets = async () => {
+    const loadQuestionData = async () => {
       try {
-        const sets = await questionSetService.getAllQuestionSets();
-        setQuestionSets(sets);
-          // Flatten all questions from all sets
-        const allQuestions: string[] = [];
-        sets.forEach(set => {
-          allQuestions.push(...set.questions);
-        });
-        setAvailableQuestions(allQuestions);
-        
-        // Set current question index based on current question
+        const questionSetId = searchParams.get('questionSetId');
         const questionFromURL = searchParams.get('question');
-        if (questionFromURL) {
-          const currentIndex = allQuestions.findIndex(q => q === questionFromURL);
-          setCurrentQuestionIndex(currentIndex >= 0 ? currentIndex : 0);
+        const typeFromURL = searchParams.get('type');
+        // const questionIndexFromURL = searchParams.get('questionIndex');
+        
+        let questionsToUse: string[] = [];
+        let setsToUse: QuestionSetData[] = [];
+        
+        if (questionSetId) {
+          // Load specific question set - keep questions separate
+          try {
+            const questionSet = await questionSetService.getQuestionSet(questionSetId);
+            setsToUse = [questionSet];
+            questionsToUse = questionSet.questions; // Only questions from this specific set
+          } catch (error) {
+            console.error('Error loading specific question set:', error);
+            setErrorMessage('Question set not found. Please try again or go back to question sets.');
+            // Don't fallback - keep the error state so user knows what happened
+            setAvailableQuestions([]);
+            setQuestionSets([]);
+            return;
+          }
         } else {
-          setCurrentQuestionIndex(0);
+          // No questionSetId provided - this should not happen in normal flow
+          // Instead of using fallback, redirect user to select a question set
+          console.warn('No questionSetId provided in URL - redirecting to question sets');
+          setErrorMessage('No question set selected. Please go back and select a specific question set to continue.');
+          setAvailableQuestions([]);
+          setQuestionSets([]);
+          return;
         }
-      } catch (error) {
-        console.error('Error loading question sets:', error);
-        // Provide user-friendly error message
+        
+        // Set the question sets and available questions
+        setQuestionSets(setsToUse);
+        setAvailableQuestions(questionsToUse);
+        
+        // Handle question from URL (only when not navigating)
+        if (!isNavigating) {
+          if (questionFromURL && typeFromURL) {
+            // Coming from JD question - check if we need to update currentQuestionIndex
+            const questionIndexFromURL = searchParams.get('questionIndex');
+            let questionIndex = 0;
+            
+            if (questionIndexFromURL && !isNaN(Number(questionIndexFromURL))) {
+              questionIndex = Number(questionIndexFromURL);
+              setCurrentQuestionIndex(questionIndex);
+            } else {
+              setCurrentQuestionIndex(0);
+            }
+            
+            // Use question at correct index from questionsToUse
+            const actualQuestion = questionsToUse[questionIndex] || questionFromURL;
+            
+            setInterviewQuestion({
+              id: resolvedParams.questionId,
+              title: actualQuestion,
+              type: typeFromURL || "Job Description Question",
+              description: "This question is generated based on the job description you uploaded. Focus on demonstrating relevant skills and experiences that match the requirements.",
+              tips: [
+                "Be specific about your relevant experience",
+                "Use concrete examples and metrics when possible",
+                "Connect your answer to the job requirements",
+                "Show your understanding of the role and company needs"
+              ]
+            });
+          } else if (questionFromURL) {
+            // Coming from saved questions - find its index in the current question list
+            let currentIndex = questionsToUse.findIndex(q => q === questionFromURL);
+            
+            // If exact match not found, try partial match for truncated questions
+            if (currentIndex < 0) {
+              currentIndex = questionsToUse.findIndex(q => 
+                q.toLowerCase().includes(questionFromURL.toLowerCase()) || 
+                questionFromURL.toLowerCase().includes(q.toLowerCase())
+              );
+            }
+            
+            if (currentIndex >= 0) {
+              setCurrentQuestionIndex(currentIndex);
+              // Use the full question from database, not the truncated one from URL
+              const fullQuestion = questionsToUse[currentIndex];
+              setInterviewQuestion({
+                id: resolvedParams.questionId,
+                title: fullQuestion,
+                type: "Saved Question",
+                description: "This question is from your saved question sets. Focus on demonstrating relevant skills and experiences that match the requirements.",
+                tips: [
+                  "Be specific about your relevant experience",
+                  "Use concrete examples and metrics when possible",
+                  "Connect your answer to the job requirements",
+                  "Show your understanding of the role and company needs"
+                ]
+              });
+            } else {
+              setCurrentQuestionIndex(0);
+            }
+          } else {
+            // Default to first question if no URL params
+            setCurrentQuestionIndex(0);
+          }
+        }
+        
+      } catch {
         setErrorMessage('Failed to load questions. Please try again.');
         setAvailableQuestions([]);
         setQuestionSets([]);
-        // Show error toast or notification here if needed
       }
     };
 
-    // Load question set if questionSetId is provided
-    const loadQuestionSetFromId = async () => {
-      const questionSetId = searchParams.get('questionSetId');
-      if (questionSetId) {
-        try {
-          const questionSet = await questionSetService.getQuestionSet(questionSetId);
-          setQuestionSets([questionSet]);
-          setAvailableQuestions(questionSet.questions);
-          
-          // Set current question from URL
-          const questionFromURL = searchParams.get('question');
-          if (questionFromURL) {
-            const currentIndex = questionSet.questions.findIndex(q => q === questionFromURL);
-            setCurrentQuestionIndex(currentIndex >= 0 ? currentIndex : 0);
-          }
-        } catch (error) {
-          console.error('Error loading specific question set:', error);
-          setErrorMessage('Question set not found. It may have been deleted or you may not have access to it.');
-          // Fallback to loading all question sets
-          await loadQuestionSets();
-        }
-      } else {
-        await loadQuestionSets();
-      }
-    };
+    loadQuestionData();
+  }, [searchParams, resolvedParams.questionId, isNavigating]); // Remove currentQuestionIndex to avoid loop
 
-    loadQuestionSetFromId();
-  }, [searchParams]);  // Helper function to get the next question in order
+  // Helper function to get the next question in order
   const getNextQuestion = () => {
     if (availableQuestions.length === 0) {
       // Fallback to default question if no questions in DB
@@ -128,8 +220,15 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
     
     const nextQuestion = availableQuestions[nextIndex];
     
-    // Update current question index
-    setCurrentQuestionIndex(nextIndex);
+    // CRITICAL: Always ensure we're staying within current question set
+    // This should always be true now since we never merge questions
+    if (questionSets.length > 0) {
+      const currentSet = questionSets[0]; // We only ever have one set loaded
+      if (!currentSet.questions.includes(nextQuestion)) {
+        console.error('CRITICAL ERROR: Next question not in current set - this should never happen!');
+        return null;
+      }
+    }
 
     return {
       title: nextQuestion,
@@ -143,30 +242,45 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       ]
     };
   };
+
+  // Helper function to get the previous question in order
+  const getPreviousQuestion = () => {
+    if (availableQuestions.length === 0 || currentQuestionIndex <= 0) {
+      return null;
+    }
+
+    const prevIndex = currentQuestionIndex - 1;
+    const prevQuestion = availableQuestions[prevIndex];
+    
+    // CRITICAL: Always ensure we're staying within current question set
+    // This should always be true now since we never merge questions
+    if (questionSets.length > 0) {
+      const currentSet = questionSets[0]; // We only ever have one set loaded
+      if (!currentSet.questions.includes(prevQuestion)) {
+        console.error('CRITICAL ERROR: Previous question not in current set - this should never happen!');
+        return null;
+      }
+    }
+
+    return {
+      title: prevQuestion,
+      type: "Saved Question",
+      description: "This question is from your saved question sets. Focus on demonstrating relevant skills and experiences that match the requirements.",
+      tips: [
+        "Be specific about your relevant experience",
+        "Use concrete examples and metrics when possible",
+        "Connect your answer to the job requirements",
+        "Show your understanding of the role and company needs"
+      ]
+    };
+  };
   useEffect(() => {
-    // Load questions answered count from localStorage
+    // Load questions answered count from localStorage only once
     const savedCount = localStorage.getItem('questionsAnsweredToday');
     if (savedCount) {
       setQuestionsAnswered(parseInt(savedCount, 10));
     }
-
-    const questionFromURL = searchParams.get('question');
-    const typeFromURL = searchParams.get('type');
-      if (questionFromURL) {
-      setInterviewQuestion({
-        id: resolvedParams.questionId,
-        title: questionFromURL,
-        type: typeFromURL || "Job Description Question",
-        description: "This question is generated based on the job description you uploaded. Focus on demonstrating relevant skills and experiences that match the requirements.",
-        tips: [
-          "Be specific about your relevant experience",
-          "Use concrete examples and metrics when possible",
-          "Connect your answer to the job requirements",
-          "Show your understanding of the role and company needs"
-        ]
-      });
-    }
-  }, [searchParams, resolvedParams.questionId]);
+  }, []); // Only run once on mount
 
   // Save questions answered count to localStorage whenever it changes
   useEffect(() => {
@@ -209,22 +323,6 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
     // Increment questions answered when submitting
     setQuestionsAnswered(prev => prev + 1);
   };
-    const handleQuit = () => {
-    // Check if there's a returnUrl parameter
-    const returnUrl = searchParams.get('returnUrl');
-    if (returnUrl) {
-      router.push(decodeURIComponent(returnUrl));
-      return;
-    }
-    
-    // Navigate back to JD page if question came from JD, otherwise use router.back()
-    const questionType = searchParams.get('type');
-    if (questionType === 'JD-Generated') {
-      router.push('/dashboard/jd');
-    } else {
-      router.back();
-    }
-  };
 
   return (
     <DashboardLayout>
@@ -238,10 +336,20 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <p className="text-sm text-red-800">
                   {errorMessage}
                 </p>
+                {errorMessage.includes('No question set selected') && (
+                  <div className="mt-3">
+                    <button
+                      onClick={() => window.location.href = '/dashboard/job-description'}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                      Go to Question Sets
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="ml-auto pl-3">
                 <button
@@ -331,81 +439,130 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                           <>Submit Answer</>
                         )}
                       </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          const returnUrl = searchParams.get('returnUrl');
-                          if (returnUrl) {
-                            router.push(decodeURIComponent(returnUrl));
-                          } else {
-                            router.push('/dashboard/interview');
-                          }
-                        }}
-                        className="flex items-center gap-2 px-8 py-3 bg-green-500 hover:bg-green-600 rounded-xl transition-colors font-semibold text-white text-lg shadow-lg"
-                      >
-                        Back to Questions
-                      </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </div>
               
-              {/* Navigation */}
+              {/* Navigation - Always visible */}
               <div className="flex justify-between items-center">
-                <button
-                  onClick={handleQuit}
-                  className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl transition-colors font-medium"
-                >
-                  <span>←</span>
-                  Back to Questions
-                </button>
                 
-                {isSubmitted && (
-                  <button
-                    onClick={() => {
-                      // Reset state for next question
+                <button
+                  onClick={() => {
+                    const prevQuestion = getPreviousQuestion();
+                    if (prevQuestion) {
+                      // Reset state for previous question
                       setAnswer('');
                       setFeedback(null);
+                      setAnalysisResult(null);
                       setIsSubmitted(false);
                       setIsLoading(false);
                       
-                      // Get the next question in order
-                      const nextQuestion = getNextQuestion();
+                      // Tạo ID deterministic dựa trên index thay vì Math.random()
+                      const prevIndex = currentQuestionIndex - 1;
+                      const newQuestionId = `q${prevIndex}-prev`;
                       
-                      if (nextQuestion) {
-                        const newQuestionId = Math.random().toString(36).substring(7);
-                        
-                        // Update the question state without navigation
-                        setInterviewQuestion({
-                          id: newQuestionId,
-                          ...nextQuestion
-                        });
-                        
-                        // Update the URL without navigation to reflect new question ID
-                        window.history.replaceState(null, '', `/dashboard/interview/${newQuestionId}`);
-                      }
-                    }}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                    disabled={availableQuestions.length === 0 || currentQuestionIndex >= availableQuestions.length - 1}
-                    title={
-                      availableQuestions.length === 0 
-                        ? "No saved questions available. Please upload a job description first." 
-                        : currentQuestionIndex >= availableQuestions.length - 1
-                        ? "You've reached the last question in this set."
-                        : "Continue with next question"
+                      // Set navigation flag
+                      setIsNavigating(true);
+                      
+                      // Update the question state and index
+                      setCurrentQuestionIndex(prevIndex);
+                      setInterviewQuestion({
+                        id: newQuestionId,
+                        title: prevQuestion.title,
+                        type: prevQuestion.type,
+                        description: prevQuestion.description,
+                        tips: prevQuestion.tips
+                      });
+                      
+                      // Update the URL with preserved questionSetId and question params
+                      const questionSetId = searchParams.get('questionSetId');
+                      const returnUrl = searchParams.get('returnUrl');
+                      const context = searchParams.get('context');
+                      
+                      let newUrl = `/jd-interview/${newQuestionId}?question=${encodeURIComponent(prevQuestion.title)}&type=JD-Generated&questionIndex=${prevIndex}`;
+                      if (context) newUrl += `&context=${context}`;
+                      if (questionSetId) newUrl += `&questionSetId=${questionSetId}`;
+                      if (returnUrl) newUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
+                      
+                      console.log('Updating URL for previous question:', newUrl);
+                      window.history.replaceState(null, '', newUrl);
+                      
+                      // Reset navigation flag after a delay
+                      setTimeout(() => setIsNavigating(false), 100);
                     }
-                  >
-                    <span>
-                      {availableQuestions.length === 0 
-                        ? "No Questions Available" 
-                        : currentQuestionIndex >= availableQuestions.length - 1
-                        ? "Last Question Completed"
-                        : "Continue Practice"
-                      }
-                    </span>
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded-xl transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={availableQuestions.length === 0 || currentQuestionIndex <= 0 || !getPreviousQuestion()}
+                >
+                  <span>←</span>
+                  Previous Question (Question {currentQuestionIndex + 1} → {currentQuestionIndex})
+                </button>
+                
+                <button
+                  onClick={() => {
+                    // Reset state for next question
+                    setAnswer('');
+                    setFeedback(null);
+                    setAnalysisResult(null);
+                    setIsSubmitted(false);
+                    setIsLoading(false);
+                    
+                    // Get the next question in order
+                    const nextQuestion = getNextQuestion();
+                    
+                    if (nextQuestion) {
+                      // Update current question index first
+                      const nextIndex = currentQuestionIndex + 1;
+                      // Tạo ID deterministic dựa trên index thay vì Math.random()
+                      const newQuestionId = `q${nextIndex}-next`;
+                      
+                      // Set navigation flag
+                      setIsNavigating(true);
+                      
+                      setCurrentQuestionIndex(nextIndex);
+                      
+                      // Update the question state without navigation
+                      setInterviewQuestion({
+                        id: newQuestionId,
+                        title: nextQuestion.title,
+                        type: nextQuestion.type,
+                        description: nextQuestion.description,
+                        tips: nextQuestion.tips
+                      });
+                      
+                      // Update the URL without navigation to reflect new question ID with preserved questionSetId and question params
+                      const questionSetId = searchParams.get('questionSetId');
+                      const returnUrl = searchParams.get('returnUrl');
+                      const context = searchParams.get('context');
+                      
+                      let newUrl = `/jd-interview/${newQuestionId}?question=${encodeURIComponent(nextQuestion.title)}&type=JD-Generated&questionIndex=${nextIndex}`;
+                      if (context) newUrl += `&context=${context}`;
+                      if (questionSetId) newUrl += `&questionSetId=${questionSetId}`;
+                      if (returnUrl) newUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
+                      
+                      console.log('Updating URL for skip to next question:', newUrl);
+                      window.history.replaceState(null, '', newUrl);
+                      
+                      // Reset navigation flag after a delay
+                      setTimeout(() => setIsNavigating(false), 100);
+                    }
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={availableQuestions.length === 0 || !getNextQuestion()}
+                >
+                  <span>
+                    {availableQuestions.length === 0 
+                      ? "No Questions Available" 
+                      : !getNextQuestion()
+                      ? "Last Question in Set"
+                      : "Skip to Next"
+                    }
+                  </span>
+                  {availableQuestions.length > 0 && getNextQuestion() && (
                     <span className="text-lg">→</span>
-                  </button>
-                )}
+                  )}
+                </button>
               </div>
             </div>
             
@@ -563,6 +720,67 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                               >
                                 <span>🔄</span>
                                 Clear
+                              </button>
+                            </div>
+                            
+                            {/* Next Question Button */}
+                            <div className="mt-4">
+                              <button
+                                onClick={() => {
+                                  // Reset state for next question
+                                  setAnswer('');
+                                  setFeedback(null);
+                                  setAnalysisResult(null);
+                                  setIsSubmitted(false);
+                                  setIsLoading(false);
+                                  
+                                  // Get the next question in order
+                                  const nextQuestion = getNextQuestion();
+                                  
+                                  if (nextQuestion) {
+                                    // Update current question index first
+                                    const nextIndex = currentQuestionIndex + 1;
+                                    // Tạo ID deterministic dựa trên index thay vì Math.random()
+                                    const newQuestionId = `q${nextIndex}-feedback`;
+                                    setCurrentQuestionIndex(nextIndex);
+                                    
+                                    // Update the question state without navigation
+                                    setInterviewQuestion({
+                                      id: newQuestionId,
+                                      title: nextQuestion.title,
+                                      type: nextQuestion.type,
+                                      description: nextQuestion.description,
+                                      tips: nextQuestion.tips
+                                    });
+                                    
+                                    // Update the URL without navigation to reflect new question ID with preserved questionSetId and question params
+                                    const questionSetId = searchParams.get('questionSetId');
+                                    const returnUrl = searchParams.get('returnUrl');
+                                    const context = searchParams.get('context');
+                                    
+                                    let newUrl = `/jd-interview/${newQuestionId}?question=${encodeURIComponent(nextQuestion.title)}&type=JD-Generated&questionIndex=${nextIndex}`;
+                                    if (context) newUrl += `&context=${context}`;
+                                    if (questionSetId) newUrl += `&questionSetId=${questionSetId}`;
+                                    if (returnUrl) newUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
+                                    
+                                    console.log('Updating URL for next question:', newUrl);
+                                    window.history.replaceState(null, '', newUrl);
+                                  }
+                                }}
+                                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                disabled={availableQuestions.length === 0 || !getNextQuestion()}
+                              >
+                                <span>
+                                  {availableQuestions.length === 0 
+                                    ? "No Questions Available" 
+                                    : !getNextQuestion()
+                                    ? "Last Question in Set Completed"
+                                    : "Next Question"
+                                  }
+                                </span>
+                                {availableQuestions.length > 0 && getNextQuestion() && (
+                                  <span className="text-lg">→</span>
+                                )}
                               </button>
                             </div>
                           </div>

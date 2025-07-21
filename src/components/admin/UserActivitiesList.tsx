@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,36 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+// Helper component for avatar with fallback
+const UserAvatar = ({ user }: { user: UserActivity['user'] }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  const getUserInitials = (firstName: string, lastName: string) => {
+    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  };
+
+  if (!user.avatar || imageError) {
+    return (
+      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
+        {getUserInitials(user.firstName, user.lastName)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium overflow-hidden">
+      <Image 
+        src={user.avatar} 
+        alt={`${user.firstName} ${user.lastName}`}
+        width={40}
+        height={40}
+        className="w-full h-full object-cover rounded-full"
+        onError={() => setImageError(true)}
+      />
+    </div>
+  );
+};
+
 interface UserActivity {
   id: string;
   userId: string;
@@ -31,10 +62,10 @@ interface UserActivity {
     id: string;
     firstName: string;
     lastName: string;
-    emailAddress: string;
+    email: string;
+    avatar?: string;
     role: string;
-    isOnline: boolean;
-    lastActivity: string;
+    status: string;
   };
   stats: {
     totalActivities: number;
@@ -149,23 +180,15 @@ export default function UserActivitiesList({
   };
 
   const getStatusBadge = (user: UserActivity['user']) => {
-    if (user.isOnline) {
+    if (user.status === 'online') {
       return <Badge className="bg-green-100 text-green-800">Online</Badge>;
     }
     
-    const lastActivity = new Date(user.lastActivity);
-    const now = new Date();
-    const diffHours = (now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60);
-    
-    if (diffHours < 24) {
-      return <Badge className="bg-yellow-100 text-yellow-800">Recent</Badge>;
+    if (user.status === 'active') {
+      return <Badge className="bg-yellow-100 text-yellow-800">Active</Badge>;
     }
     
     return <Badge className="bg-gray-100 text-gray-800">Offline</Badge>;
-  };
-
-  const getUserInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase();
   };
 
   if (loading && activities.length === 0) {
@@ -337,9 +360,7 @@ export default function UserActivitiesList({
                 className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center space-x-4 flex-1">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
-                    {getUserInitials(activity.user.firstName, activity.user.lastName)}
-                  </div>
+                  <UserAvatar user={activity.user} />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -352,7 +373,7 @@ export default function UserActivitiesList({
                       )}
                     </div>
                     <p className="text-sm text-gray-500 truncate">
-                      {activity.user.emailAddress}
+                      {activity.user.email}
                     </p>
                   </div>
 

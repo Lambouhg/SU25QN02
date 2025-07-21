@@ -83,19 +83,27 @@ export async function DELETE(
       );
     }
 
-    const questionSet = await prisma.jdQuestions.delete({ 
+    // First check if the question set exists and belongs to the user
+    const existingQuestionSet = await prisma.jdQuestions.findFirst({
       where: { 
         id,
         userId 
       }
     });
 
-    if (!questionSet) {
+    if (!existingQuestionSet) {
       return NextResponse.json(
-        { error: 'Question set not found' },
+        { error: 'Question set not found or you do not have permission to delete it' },
         { status: 404 }
       );
     }
+
+    // Delete the question set
+    await prisma.jdQuestions.delete({ 
+      where: { 
+        id
+      }
+    });
 
     return NextResponse.json({ 
       success: true, 
@@ -104,6 +112,17 @@ export async function DELETE(
 
   } catch (error) {
     console.error('Error deleting question set:', error);
+    
+    // Handle Prisma specific errors
+    if (error instanceof Error) {
+      if (error.message.includes('Record to delete does not exist')) {
+        return NextResponse.json(
+          { error: 'Question set not found' },
+          { status: 404 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
