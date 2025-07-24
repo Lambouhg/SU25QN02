@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withCORS, corsOptionsResponse } from '@/lib/utils';
 
 type PrismaError = Error & { code?: string };
 
@@ -18,6 +19,10 @@ type PositionUpdateInput = {
   displayName?: string;
   order?: number;
 };
+
+export function OPTIONS() {
+  return corsOptionsResponse();
+}
 
 // Get all positions or filter by level
 export async function GET(req: NextRequest) {
@@ -56,10 +61,10 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return NextResponse.json(positions, { status: 200 });
+    return withCORS(NextResponse.json(positions, { status: 200 }));
   } catch (error) {
     console.error('Error fetching positions:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }
 
@@ -94,18 +99,18 @@ export async function POST(req: NextRequest) {
       skipDuplicates: true,
     });
 
-    return NextResponse.json(result, { status: 201 });
+    return withCORS(NextResponse.json(result, { status: 201 }));
   } catch (error) {
     console.error('Bulk insert error:', error);
     
     if (error instanceof Error && (error as PrismaError).code === 'P2002') {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Some positions already exist (duplicate key)' },
         { status: 409 }
-      );
+      ));
     }
 
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }
 
@@ -116,10 +121,10 @@ export async function PATCH(req: NextRequest) {
     const { id, positionName, level, order } = body;
 
     if (!id) {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Position ID is required' },
         { status: 400 }
-      );
+      ));
     }
 
     const existingPosition = await prisma.position.findUnique({
@@ -127,10 +132,10 @@ export async function PATCH(req: NextRequest) {
     });
 
     if (!existingPosition) {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Position not found' },
         { status: 404 }
-      );
+      ));
     }
 
     const updates: PositionUpdateInput = {};
@@ -159,21 +164,21 @@ export async function PATCH(req: NextRequest) {
       data: updates
     });
 
-    return NextResponse.json(updatedPosition, { status: 200 });
+    return withCORS(NextResponse.json(updatedPosition, { status: 200 }));
   } catch (error) {
     console.error('Error updating position:', error);
 
     if (error instanceof Error && (error as PrismaError).code === 'P2002') {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'This position and level combination already exists' },
         { status: 409 }
-      );
+      ));
     }
 
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    );
+    ));
   }
 }
 
@@ -184,10 +189,10 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Position ID is required' },
         { status: 400 }
-      );
+      ));
     }
 
     const deletedPosition = await prisma.position.delete({
@@ -195,29 +200,29 @@ export async function DELETE(req: NextRequest) {
     });
 
     if (!deletedPosition) {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Position not found' },
         { status: 404 }
-      );
+      ));
     }
 
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { message: 'Position deleted successfully' },
       { status: 200 }
-    );
+    ));
   } catch (error) {
     console.error('Error deleting position:', error);
 
     if (error instanceof Error && (error as PrismaError).code === 'P2025') {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Position not found' },
         { status: 404 }
-      );
+      ));
     }
 
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    );
+    ));
   }
 }

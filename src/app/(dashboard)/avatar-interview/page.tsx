@@ -4,7 +4,6 @@ import { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Interview } from "@/components/InteractiveAvatar/InteractiveAvatar";
 
 // Use dynamic import with SSR disabled for the InteractiveAvatar component
 // since it depends on browser APIs
@@ -16,10 +15,6 @@ const InteractiveAvatar = dynamic(
 export default function AvatarInterviewPage() {
   const [isInterviewStarted, setIsInterviewStarted] = useState(false);
 
-  const handleEndSession = (data: Interview) => {
-    console.log('Interview ended:', data);
-    setIsInterviewStarted(false);
-  };
 
   const handleEndSessionClick = () => {
     setIsInterviewStarted(false);
@@ -39,14 +34,9 @@ export default function AvatarInterviewPage() {
                   <h1 className="text-2xl font-semibold text-gray-900">AI Avatar Interview</h1>
                   <p className="text-gray-600 mt-1">Interview session in progress</p>
                 </div>
-                  <button
-                    onClick={handleEndSessionClick}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    End Session
-                  </button>
+                  
               </div>
-              <InteractiveAvatar onEndSession={handleEndSession} />
+              <InteractiveAvatar onEndSession={handleEndSessionClick}/>
             </div>
           ) : (
             // Welcome & Setup View

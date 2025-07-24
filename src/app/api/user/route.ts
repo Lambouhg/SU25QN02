@@ -7,7 +7,12 @@ import {
   getUserCache, 
   USER_LIST_CACHE_DURATION 
 } from "../../../lib/userCache";
+import { withCORS, corsOptionsResponse } from "@/lib/utils";
 // import NotificationService from "../../../services/notificationService";
+
+export async function OPTIONS() {
+  return corsOptionsResponse();
+}
 
 export async function GET() {
   try {
@@ -15,7 +20,7 @@ export async function GET() {
     const now = Date.now();
     const currentCache = getUserListCache();
     if (currentCache && (now - currentCache.timestamp) < USER_LIST_CACHE_DURATION) {
-      return NextResponse.json(currentCache.data);
+      return withCORS(NextResponse.json(currentCache.data));
     }
     
     // Select specific fields including activity tracking fields
@@ -64,13 +69,13 @@ export async function GET() {
     // Update cache
     setUserListCache(responseData);
     
-    return NextResponse.json(responseData);
+    return withCORS(NextResponse.json(responseData));
   } catch (error) {
     console.error("Error fetching users:", error);
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ));
   }
 }
 
@@ -80,7 +85,7 @@ export async function POST(request: Request) {
     const { email, firstName, lastName, clerkId, avatar } = body;
 
     if (!email || !clerkId) {
-      return NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 });
+      return withCORS(NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 }));
     }
 
     // Check if user was recently updated (within last hour) to avoid unnecessary updates
@@ -94,11 +99,11 @@ export async function POST(request: Request) {
       const userCache = getUserCache();
       const cachedUser = userCache.get(clerkId);
       if (cachedUser) {
-        return NextResponse.json({ 
+        return withCORS(NextResponse.json({ 
           message: "User data is current (cached)", 
           user: cachedUser,
           action: "cached"
-        });
+        }));
       }
     }
 
@@ -140,12 +145,12 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(user);
+    return withCORS(NextResponse.json(user));
   } catch (error) {
     console.error("Error in user API:", error);
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ));
   }
 }
