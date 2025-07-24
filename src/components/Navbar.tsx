@@ -18,7 +18,7 @@ export default function Navbar() {
               <path d="M8 12C8 9.79086 9.79086 8 12 8H14C16.2091 8 18 9.79086 18 12C18 14.2091 16.2091 16 14 16H12C9.79086 16 8 14.2091 8 12Z" fill="#7C3AED" />
             </svg>
           </div>
-          <span className="text-white font-bold text-2xl ml-3">InterviewAI</span>
+          <span className="text-white font-bold text-2xl ml-3">F.AI Interview</span>
         </div>
       </div>
 
