@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { withCORS, corsOptionsResponse } from '@/lib/utils';
+import { withCORS } from '@/lib/utils';
 
 type PrismaError = Error & { code?: string };
 

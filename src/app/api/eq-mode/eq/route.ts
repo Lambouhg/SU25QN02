@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { AssessmentType } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
@@ -197,7 +196,7 @@ export async function GET(request: NextRequest) {
 
     // Nếu có type, filter theo type. Nếu không, lấy tất cả
     const where = typeParam && (typeParam === 'test' || typeParam === 'eq')
-      ? { userId, type: typeParam as AssessmentType }
+      ? { userId, type: typeParam as 'test' | 'eq' }
       : { userId };
 
     const assessments = await prisma.assessment.findMany({

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
-import { InterviewStatus } from '@prisma/client';
-import { withCORS, corsOptionsResponse } from '@/lib/utils';
+import { withCORS } from '@/lib/utils';
 
 type PrismaError = Error & { code?: string };
 
@@ -101,9 +100,30 @@ function validateInterviewData(data: unknown): data is CreateInterviewRequest {
   return true;
 }
 
-export function OPTIONS() {
-  return corsOptionsResponse();
-}
+// Định nghĩa type Interview cho các callback
+type Interview = {
+  id: string;
+  userId: string;
+  positionId: string;
+  position: {
+    key: string;
+    level: string;
+  };
+  language: string;
+  startTime: Date | string;
+  endTime?: Date | string;
+  duration?: number | null;
+  conversationHistory: unknown;
+  evaluation?: unknown;
+  questionCount: number;
+  coveredTopics: string[];
+  skillAssessment: unknown;
+  progress: number;
+  status: 'in_progress' | 'completed' | 'interrupted';
+};
+
+// Type for Prisma interview result (endTime and duration can be null)
+type InterviewPrisma = Omit<Interview, 'endTime' | 'duration'> & { endTime?: string | Date | null; duration?: number | null };
 
 export async function POST(req: NextRequest) {
   try {
@@ -238,13 +258,13 @@ export async function GET(req: NextRequest) {
     // Build filter conditions
     const where: {
       userId: string;
-      status?: InterviewStatus;
+      status?: 'in_progress' | 'completed' | 'interrupted';
       startTime?: { gte: Date };
     } = { userId: user.id };
     
     if (status && status !== 'all') {
-      // Type cast the status to InterviewStatus enum
-      where.status = status as InterviewStatus;
+      // Type cast the status to string union type
+      where.status = status as 'in_progress' | 'completed' | 'interrupted';
     }
     
     if (days && days !== 'all') {
@@ -265,9 +285,9 @@ export async function GET(req: NextRequest) {
     // Calculate stats
     const stats = {
       totalInterviews: interviews.length,
-      completedInterviews: interviews.filter(i => i.status === 'completed').length,
-      inProgressInterviews: interviews.filter(i => i.status === 'in_progress').length,
-      interruptedInterviews: interviews.filter(i => i.status === 'interrupted').length,
+      completedInterviews: interviews.filter((i: InterviewPrisma) => i.status === 'completed').length,
+      inProgressInterviews: interviews.filter((i: InterviewPrisma) => i.status === 'in_progress').length,
+      interruptedInterviews: interviews.filter((i: InterviewPrisma) => i.status === 'interrupted').length,
       averageScore: 0,
       byField: {} as Record<string, number>,
       byLevel: {} as Record<string, number>,
@@ -275,7 +295,7 @@ export async function GET(req: NextRequest) {
     };
 
     // Calculate average score
-    const completedWithScores = interviews.filter(i => 
+    const completedWithScores = interviews.filter((i: InterviewPrisma) => 
       i.status === 'completed' && 
       i.evaluation && 
       typeof i.evaluation === 'object' && 
@@ -283,7 +303,7 @@ export async function GET(req: NextRequest) {
     );
     
     if (completedWithScores.length > 0) {
-      const totalScore = completedWithScores.reduce((sum, interview) => {
+      const totalScore = completedWithScores.reduce((sum: number, interview: InterviewPrisma) => {
         const evaluation = interview.evaluation as { overallRating: number };
         return sum + (evaluation.overallRating || 0);
       }, 0);
@@ -291,7 +311,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Group by field and level
-    interviews.forEach(interview => {
+    interviews.forEach((interview: InterviewPrisma) => {
       const fieldKey = interview.position.key.split('_')[0] || 'other';
       const levelKey = interview.position.level || 'unknown';
       
@@ -302,7 +322,7 @@ export async function GET(req: NextRequest) {
     // Count recent interviews (last 7 days)
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    stats.recentInterviews = interviews.filter(i => 
+    stats.recentInterviews = interviews.filter((i: InterviewPrisma) => 
       new Date(i.startTime) >= weekAgo
     ).length;
 

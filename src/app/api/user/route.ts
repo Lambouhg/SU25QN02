@@ -7,7 +7,7 @@ import {
   getUserCache, 
   USER_LIST_CACHE_DURATION 
 } from "../../../lib/userCache";
-import { withCORS, corsOptionsResponse } from "@/lib/utils";
+import { withCORS } from '../../../lib/utils';
 // import NotificationService from "../../../services/notificationService";
 
 export async function OPTIONS() {
@@ -49,7 +49,7 @@ export async function GET() {
     });
     
     // Transform the users to ensure fullName and imageUrl are properly set
-    const transformedUsers = users.map(user => {
+    const transformedUsers = users.map((user: { [key: string]: unknown }) => {
       // Calculate fullName from firstName and lastName
       const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
       
