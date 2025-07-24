@@ -82,7 +82,14 @@ export async function GET() {
       }
     });
     
-    const adminsWithFullName = admins.map(admin => ({
+    const adminsWithFullName = admins.map((admin: {
+      id: string;
+      email: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      role: string;
+      createdAt: Date;
+    }) => ({
       ...admin,
       fullName: `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
     }));

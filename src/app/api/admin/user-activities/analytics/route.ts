@@ -2,6 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
+type ProcessedUserActivity = {
+  activities: Record<string, unknown>[];
+  skills: Record<string, unknown>[];
+  goals: Record<string, unknown>[];
+  learningStats: Record<string, unknown>;
+  userId?: string;
+  user?: {
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    role?: string | null;
+    createdAt?: Date;
+  };
+};
+
 export async function GET(request: NextRequest) {
   try {
     // Verify admin permission
@@ -46,11 +62,26 @@ export async function GET(request: NextRequest) {
 
     // Process activities data
     const allActivities: Record<string, unknown>[] = [];
-    const processedUserActivities = userActivities.map(ua => {
+    const processedUserActivities = userActivities.map((ua: {
+      activities?: unknown;
+      skills?: unknown;
+      goals?: unknown;
+      learningStats?: unknown;
+      userId?: string;
+      user?: {
+        id: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        email?: string | null;
+        role?: string | null;
+        createdAt?: Date;
+      };
+      [key: string]: unknown;
+    }) => {
       const activities = Array.isArray(ua.activities) ? ua.activities as Record<string, unknown>[] : [];
       const skills = Array.isArray(ua.skills) ? ua.skills as Record<string, unknown>[] : [];
       const goals = Array.isArray(ua.goals) ? ua.goals as Record<string, unknown>[] : [];
-      const learningStats = ua.learningStats as Record<string, unknown> || {};
+      const learningStats = (ua.learningStats ?? {}) as Record<string, unknown>;
       
       // Add user info to activities for global stats
       const activitiesWithUser = activities.map(activity => ({
@@ -69,10 +100,10 @@ export async function GET(request: NextRequest) {
         goals,
         learningStats
       };
-    });
+    }) as ProcessedUserActivity[];
 
     // Calculate active users (users with activities in timeframe)
-    const activeUsers = processedUserActivities.filter(ua => 
+    const activeUsers = processedUserActivities.filter((ua) => 
       ua.activities.some((a: Record<string, unknown>) => {
         const timestamp = a.timestamp as string;
         return timestamp && new Date(timestamp) >= startDate;
@@ -103,19 +134,19 @@ export async function GET(request: NextRequest) {
 
     // User engagement metrics
     const engagementMetrics = {
-      dailyActiveUsers: processedUserActivities.filter(ua => 
+      dailyActiveUsers: processedUserActivities.filter((ua) => 
         ua.activities.some((a: Record<string, unknown>) => {
           const timestamp = a.timestamp as string;
           return timestamp && new Date(timestamp) >= new Date(Date.now() - 24 * 60 * 60 * 1000);
         })
       ).length,
-      weeklyActiveUsers: processedUserActivities.filter(ua => 
+      weeklyActiveUsers: processedUserActivities.filter((ua) => 
         ua.activities.some((a: Record<string, unknown>) => {
           const timestamp = a.timestamp as string;
           return timestamp && new Date(timestamp) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         })
       ).length,
-      monthlyActiveUsers: processedUserActivities.filter(ua =>
+      monthlyActiveUsers: processedUserActivities.filter((ua) =>
         ua.activities.some((a: Record<string, unknown>) => {
           const timestamp = a.timestamp as string;
           return timestamp && new Date(timestamp) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -125,24 +156,24 @@ export async function GET(request: NextRequest) {
 
     // Learning statistics
     const learningStats = {
-      totalStudyTime: processedUserActivities.reduce((sum, ua) => 
+      totalStudyTime: processedUserActivities.reduce((sum: number, ua) => 
         sum + (Number(ua.learningStats.totalStudyTime) || 0), 0
       ),
       averageStreak: processedUserActivities.length > 0
-        ? processedUserActivities.reduce((sum, ua) => 
+        ? processedUserActivities.reduce((sum: number, ua) => 
             sum + (Number(ua.learningStats.streak) || 0), 0
           ) / processedUserActivities.length
         : 0,
-      totalGoals: processedUserActivities.reduce((sum, ua) => 
+      totalGoals: processedUserActivities.reduce((sum: number, ua) => 
         sum + ua.goals.length, 0
       ),
-      completedGoals: processedUserActivities.reduce((sum, ua) => 
+      completedGoals: processedUserActivities.reduce((sum: number, ua) => 
         sum + ua.goals.filter((g: Record<string, unknown>) => g.status === 'completed').length, 0
       )
     };
 
     // Skill distribution
-    const allSkills = processedUserActivities.flatMap(ua => ua.skills);
+    const allSkills = processedUserActivities.flatMap((ua) => ua.skills);
     const skillDistribution = allSkills.reduce((acc: Record<string, Record<string, unknown>>, skill: Record<string, unknown>) => {
       const skillName = skill?.name as string;
       if (!skillName) return acc;
@@ -166,12 +197,15 @@ export async function GET(request: NextRequest) {
     }, {});
 
     // Calculate averages and convert to array
-    const skillDistributionArray = Object.entries(skillDistribution).map(([name, data]: [string, Record<string, unknown>]) => ({
-      name,
-      userCount: data.count as number,
-      averageScore: (data.count as number) > 0 ? Math.round((data.averageScore as number) / (data.count as number)) : 0,
-      levelDistribution: data.levels
-    })).sort((a, b) => b.userCount - a.userCount);
+    const skillDistributionArray = Object.entries(skillDistribution).map(([name, data]) => {
+      const skillData = data as Record<string, unknown>;
+      return {
+        name,
+        userCount: skillData.count as number,
+        averageScore: (skillData.count as number) > 0 ? Math.round((skillData.averageScore as number) / (skillData.count as number)) : 0,
+        levelDistribution: skillData.levels
+      };
+    }).sort((a: { userCount: number }, b: { userCount: number }) => b.userCount - a.userCount);
 
     // Activity trends (daily for the past timeframe)
     const activityTrends = [];
@@ -203,7 +237,7 @@ export async function GET(request: NextRequest) {
 
     // Top performers
     const topPerformers = processedUserActivities
-      .map(ua => {
+      .map((ua) => {
         const avgScore = ua.activities.length > 0
           ? ua.activities.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.score) || 0), 0) / ua.activities.length
           : 0;
@@ -218,13 +252,13 @@ export async function GET(request: NextRequest) {
           totalStudyTime: Number(ua.learningStats.totalStudyTime) || 0
         };
       })
-      .filter(user => user.totalActivities > 0)
-      .sort((a, b) => b.averageScore - a.averageScore)
+      .filter((user: { totalActivities: number }) => user.totalActivities > 0)
+      .sort((a: { averageScore: number }, b: { averageScore: number }) => b.averageScore - a.averageScore)
       .slice(0, 10);
 
     // Most active users
     const mostActiveUsers = processedUserActivities
-      .map(ua => ({
+      .map((ua) => ({
         userId: ua.userId,
         userName: ua.user ? `${ua.user.firstName || ''} ${ua.user.lastName || ''}`.trim() || ua.user.email : 'Unknown',
         email: ua.user?.email || 'N/A',
@@ -235,8 +269,8 @@ export async function GET(request: NextRequest) {
         }).length,
         studyStreak: Number(ua.learningStats.streak) || 0
       }))
-      .filter(user => user.totalActivities > 0)
-      .sort((a, b) => b.totalActivities - a.totalActivities)
+      .filter((user: { totalActivities: number }) => user.totalActivities > 0)
+      .sort((a: { totalActivities: number }, b: { totalActivities: number }) => b.totalActivities - a.totalActivities)
       .slice(0, 10);
 
     // Goal completion insights
@@ -257,13 +291,13 @@ export async function GET(request: NextRequest) {
         const timestamp = a.timestamp as string;
         return timestamp && new Date(timestamp) >= startDate;
       })
-      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+      .sort((a, b) => {
         const timestampA = new Date(a.timestamp as string).getTime();
         const timestampB = new Date(b.timestamp as string).getTime();
         return timestampB - timestampA;
       })
       .slice(0, 5)
-      .map((activity: Record<string, unknown>) => ({
+      .map((activity) => ({
         type: activity.type,
         score: activity.score,
         timestamp: activity.timestamp,
