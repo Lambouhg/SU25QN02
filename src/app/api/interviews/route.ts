@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 import { InterviewStatus } from '@prisma/client';
+import { withCORS, corsOptionsResponse } from '@/lib/utils';
 
 type PrismaError = Error & { code?: string };
 
@@ -100,15 +101,19 @@ function validateInterviewData(data: unknown): data is CreateInterviewRequest {
   return true;
 }
 
+export function OPTIONS() {
+  return corsOptionsResponse();
+}
+
 export async function POST(req: NextRequest) {
   try {
     // Get user from auth
     const session = await auth();
     const userId = session?.userId;
     if (!userId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return withCORS(new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-      });
+      }));
     }
 
     // Get user from database
@@ -117,17 +122,17 @@ export async function POST(req: NextRequest) {
     });
 
     if (!dbUser) {
-      return new Response(JSON.stringify({ error: 'User not found' }), {
+      return withCORS(new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404,
-      });
+      }));
     }
 
     // Get request data
     const data = await req.json() as CreateInterviewRequest;
     if (!validateInterviewData(data)) {
-      return new Response(JSON.stringify({ error: 'Invalid request data' }), {
+      return withCORS(new Response(JSON.stringify({ error: 'Invalid request data' }), {
         status: 400,
-      });
+      }));
     }
 
     // Create new interview
@@ -177,27 +182,27 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return new Response(
+    return withCORS(new Response(
       JSON.stringify({ 
         message: 'Interview created successfully', 
         interviewId: newInterview.id 
       }), 
       { status: 201 }
-    );
+    ));
   } catch (error) {
     console.error('Error in POST /api/interviews:', error);
     
     if (error instanceof Error && (error as PrismaError).code === 'P2002') {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Duplicate interview entry' },
         { status: 409 }
-      );
+      ));
     }
     
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: 'Internal server error', details: (error as Error).message },
       { status: 500 }
-    );
+    ));
   }
 }
 
@@ -207,10 +212,10 @@ export async function GET(req: NextRequest) {
     const clerkId = session?.userId;
     
     if (!clerkId) {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      );
+      ));
     }
     
     // Find user by clerkId
@@ -219,10 +224,10 @@ export async function GET(req: NextRequest) {
     });
     
     if (!user) {
-      return NextResponse.json(
+      return withCORS(NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
-      );
+      ));
     }
 
     // Get query parameters for filtering
@@ -301,15 +306,15 @@ export async function GET(req: NextRequest) {
       new Date(i.startTime) >= weekAgo
     ).length;
 
-    return NextResponse.json({
+    return withCORS(NextResponse.json({
       interviews,
       stats
-    });
+    }));
   } catch (error) {
     console.error('Error in GET /api/interviews:', error);
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    );
+    ));
   }
 }

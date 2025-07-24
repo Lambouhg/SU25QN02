@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
+import { invalidateUserListCache } from "../../../../lib/userCache";
 
 // This endpoint is used to invalidate the user list cache from other routes
 export async function POST() {
   try {
-    // Import the invalidation function dynamically to avoid circular dependencies
-    const userRoute = await import("../route");
-    if (userRoute.invalidateUserListCache) {
-      userRoute.invalidateUserListCache();
-    }
+    invalidateUserListCache();
     
     return NextResponse.json({
       success: true,

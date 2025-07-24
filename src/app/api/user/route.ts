@@ -1,32 +1,26 @@
 import { NextResponse } from "next/server";
 import prisma from "../../../lib/prisma";
+import { 
+  getUserListCache, 
+  setUserListCache, 
+  getUserUpdateCache, 
+  getUserCache, 
+  USER_LIST_CACHE_DURATION 
+} from "../../../lib/userCache";
+import { withCORS, corsOptionsResponse } from "@/lib/utils";
 // import NotificationService from "../../../services/notificationService";
 
-// Cache for user list to prevent frequent database queries
-interface UserListCacheData {
-  success: boolean;
-  users: object[];
-  totalCount: number;
-}
-
-let userListCache: { data: UserListCacheData; timestamp: number } | null = null;
-const USER_LIST_CACHE_DURATION = 30000; // 30 seconds
-
-// Simple in-memory cache for user updates
-const userUpdateCache = new Map<string, number>();
-const userCache = new Map<string, object>();
-
-// Function to invalidate the cache
-export function invalidateUserListCache() {
-  userListCache = null;
+export async function OPTIONS() {
+  return corsOptionsResponse();
 }
 
 export async function GET() {
   try {
     // Check cache first
     const now = Date.now();
-    if (userListCache && (now - userListCache.timestamp) < USER_LIST_CACHE_DURATION) {
-      return NextResponse.json(userListCache.data);
+    const currentCache = getUserListCache();
+    if (currentCache && (now - currentCache.timestamp) < USER_LIST_CACHE_DURATION) {
+      return withCORS(NextResponse.json(currentCache.data));
     }
     
     // Select specific fields including activity tracking fields
@@ -73,15 +67,15 @@ export async function GET() {
     };
 
     // Update cache
-    userListCache = { data: responseData, timestamp: now };
+    setUserListCache(responseData);
     
-    return NextResponse.json(responseData);
+    return withCORS(NextResponse.json(responseData));
   } catch (error) {
     console.error("Error fetching users:", error);
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ));
   }
 }
 
@@ -91,23 +85,25 @@ export async function POST(request: Request) {
     const { email, firstName, lastName, clerkId, avatar } = body;
 
     if (!email || !clerkId) {
-      return NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 });
+      return withCORS(NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 }));
     }
 
     // Check if user was recently updated (within last hour) to avoid unnecessary updates
     const recentUpdateKey = `user_update_${clerkId}`;
+    const userUpdateCache = getUserUpdateCache();
     const lastUpdate = userUpdateCache.get(recentUpdateKey);
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
     
     if (lastUpdate && lastUpdate > oneHourAgo) {
       // Return cached user data if recently updated
+      const userCache = getUserCache();
       const cachedUser = userCache.get(clerkId);
       if (cachedUser) {
-        return NextResponse.json({ 
+        return withCORS(NextResponse.json({ 
           message: "User data is current (cached)", 
           user: cachedUser,
           action: "cached"
-        });
+        }));
       }
     }
 
@@ -149,12 +145,12 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(user);
+    return withCORS(NextResponse.json(user));
   } catch (error) {
     console.error("Error in user API:", error);
-    return NextResponse.json(
+    return withCORS(NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
-    );
+    ));
   }
 }

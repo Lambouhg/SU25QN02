@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 const InterviewReviewPage = dynamic(() => import('./InterviewReviewPage'), { ssr: false });
 import { CircularProgress, Box } from '@mui/material';
@@ -18,7 +18,7 @@ interface Message {
 
 // Đã import InterviewEvaluation từ services/Avatar-AI
 
-export default function ReviewPage() {
+function ReviewPageContent() {
   const [evaluation, setEvaluation] = useState<InterviewEvaluation | null>(null);
   const [conversation, setConversation] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,4 +77,16 @@ export default function ReviewPage() {
   }
 
   return <InterviewReviewPage evaluation={evaluation} conversation={conversation} />;
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <ReviewPageContent />
+    </Suspense>
+  );
 }

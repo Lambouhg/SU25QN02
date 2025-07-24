@@ -5,17 +5,19 @@ import prisma from '@/lib/prisma';
 // Lấy chi tiết một Assessment
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
+
   try {
     const assessment = await prisma.assessment.findFirst({
       where: {
-        id: params.id,
+        id,
         userId, // Đảm bảo user chỉ lấy được assessment của mình
       },
     });
@@ -37,12 +39,14 @@ export async function GET(
 // Cập nhật Assessment
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const { id } = await params;
 
   try {
     const body = await request.json();
@@ -55,7 +59,7 @@ export async function PUT(
 
     const assessment = await prisma.assessment.updateMany({
       where: {
-        id: params.id,
+        id,
         userId, // Đảm bảo user chỉ cập nhật được assessment của mình
       },
       data: {
@@ -82,17 +86,19 @@ export async function PUT(
 // Xóa Assessment
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const { id } = await params;
+
   try {
     const assessment = await prisma.assessment.deleteMany({
       where: {
-        id: params.id,
+        id,
         userId, // Đảm bảo user chỉ xóa được assessment của mình
       },
     });
