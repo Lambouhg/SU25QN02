@@ -20,9 +20,7 @@ type PositionUpdateInput = {
   order?: number;
 };
 
-export function OPTIONS() {
-  return corsOptionsResponse();
-}
+
 
 // Get all positions or filter by level
 export async function GET(req: NextRequest) {
