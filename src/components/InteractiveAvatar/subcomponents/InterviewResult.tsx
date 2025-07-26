@@ -106,20 +106,24 @@ export default function InterviewResult({ interview, onBack }: InterviewResultPr
           </div>
         </>
       )}
-      {interview.conversationHistory && interview.conversationHistory.length > 0 && (
+      {Array.isArray(interview.conversationHistory) && interview.conversationHistory.length > 0 && (
         <>
           <Separator className="my-4" />
           <h3 className="text-lg font-semibold mb-2">Lịch sử hội thoại</h3>
           <div className="space-y-3 max-h-[250px] overflow-y-auto border rounded-md p-3 bg-gray-50">
-            {interview.conversationHistory.map((msg: {role: string; content: string; timestamp: string}, idx: number) => (
-              <div key={idx} className={`text-sm p-2 rounded-md ${msg.role === 'user' ? 'bg-blue-50 text-blue-900' : msg.role === 'ai' ? 'bg-green-50 text-green-900' : 'bg-gray-100 text-gray-700'}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium">{msg.role === 'user' ? 'Bạn' : msg.role === 'ai' ? 'AI' : 'Khác'}:</span>
-                  <span className="text-xs text-gray-400">{msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ''}</span>
+            {interview.conversationHistory.map((msg: { role: string; content: string; timestamp: string }, idx: number) => {
+              if (!msg) return null;
+              const safeTimestamp = typeof msg.timestamp === 'string' ? msg.timestamp : '';
+              return (
+                <div key={idx} className={`text-sm p-2 rounded-md ${msg.role === 'user' ? 'bg-blue-50 text-blue-900' : msg.role === 'ai' ? 'bg-green-50 text-green-900' : 'bg-gray-100 text-gray-700'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium">{msg.role === 'user' ? 'Bạn' : msg.role === 'ai' ? 'AI' : 'Khác'}:</span>
+                    <span className="text-xs text-gray-400">{safeTimestamp ? new Date(safeTimestamp).toLocaleString() : ''}</span>
+                  </div>
+                  <div>{msg.content}</div>
                 </div>
-                <div>{msg.content}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
