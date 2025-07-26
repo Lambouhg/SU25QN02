@@ -12,11 +12,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type = 'test', positionId, position, ...rest } = body; // Nhận cả positionId và position
+    const { type = 'test', positionId, position, topic, ...rest } = body; // Nhận positionId/position và topic
 
     // Kiểm tra type hợp lệ
     if (type !== 'test' && type !== 'eq') {
       return NextResponse.json({ error: 'Invalid type. Must be "test" or "eq"' }, { status: 400 });
+    }
+    
+    // Yêu cầu có position hoặc positionId
+    if (!positionId && !position) {
+      return NextResponse.json({ error: 'Position or positionId is required' }, { status: 400 });
     }
 
     // Xây dựng data object
@@ -25,6 +30,20 @@ export async function POST(request: NextRequest) {
       type: type as AssessmentType,
       ...rest,
     };
+    
+    // Lưu topic vào realTimeScores nếu có
+    if (topic) {
+      // Nếu đã có realTimeScores, thêm topic vào đó
+      if (data.realTimeScores) {
+        data.realTimeScores = {
+          ...JSON.parse(JSON.stringify(data.realTimeScores)),
+          topic
+        };
+      } else {
+        // Nếu chưa có realTimeScores, tạo mới với topic
+        data.realTimeScores = { topic };
+      }
+    }
 
     // Nếu có positionId, sử dụng positionId
     if (positionId) {
@@ -89,6 +108,12 @@ export async function POST(request: NextRequest) {
       clerkId: userId, // Explicitly labeled Clerk ID
       dbUserId         // The database user ID
     };
+
+    // Log position và topic information
+    console.log(`[API] Assessment created with position: ${assessment.position?.positionName || 'Unknown'}, level: ${assessment.position?.level || 'Unknown'}`);
+    if (topic) {
+      console.log(`[API] Assessment includes topic: ${topic}`);
+    }
 
     // Track assessment completion
     try {

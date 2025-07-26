@@ -29,6 +29,7 @@ interface ISkill {
   name: string;
   score: number;
   level: SkillLevel;
+  category?: string; // Thêm category để lưu trữ thông tin phân loại kỹ năng
   lastAssessed: string; // Changed from Date to string
 }
 
@@ -87,7 +88,6 @@ export class UserActivityService {
         });
         
         if (existingActivity) {
-          console.log(`[UserActivityService] UserActivity already exists for user ${userId}, returning existing record`);
           return existingActivity;
         }
       } catch (findError) {
@@ -136,7 +136,6 @@ export class UserActivityService {
           }
         });
         
-        console.log(`[UserActivityService] Successfully created UserActivity for user ${userId}`);
         return userActivity;
       } catch (createError) {
         // Handle specific error cases
@@ -363,7 +362,6 @@ export class UserActivityService {
       
       // Nếu không tồn tại, tạo mới user activity
       if (!userActivity) {
-        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} during updateLearningStats`);
         try {
           userActivity = await this.initializeUserActivity(userId);
           // Đã khởi tạo stats trong initializeUserActivity, không cần cập nhật thêm
@@ -406,7 +404,6 @@ export class UserActivityService {
             }))
           }
         });
-        console.log(`[UserActivityService] Successfully updated learning stats for user ${userId}`);
       } catch (updateError) {
         console.error(`[UserActivityService] Error updating learning stats for user ${userId}:`, updateError);
         throw updateError;
@@ -483,7 +480,6 @@ export class UserActivityService {
       ]);
 
       if (!userActivity) {
-        console.log('User activity not found in getProgressReport, initializing new one');
         await this.initializeUserActivity(userId);
         return {
           user: {
@@ -606,7 +602,6 @@ export class UserActivityService {
 
       // Nếu không tồn tại, tạo mới user activity
       if (!userActivity) {
-        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} during generateRecommendations`);
         try {
           userActivity = await this.initializeUserActivity(userId);
           return [
@@ -670,7 +665,6 @@ export class UserActivityService {
             weaknesses: JSON.parse(JSON.stringify(weakSkills))
           }
         });
-        console.log(`[UserActivityService] Successfully updated recommendations for user ${userId}`);
       } catch (updateError) {
         console.error(`[UserActivityService] Error updating recommendations for user ${userId}:`, updateError);
         throw updateError;
@@ -692,16 +686,23 @@ export class UserActivityService {
    */
   static async addActivity(userId: string, activity: Omit<IActivity, 'timestamp'> & { timestamp: Date | string }): Promise<void> {
     try {
-      console.log(`[UserActivityService] Adding activity of type "${activity.type}" for user ${userId}`);
+      // Tính toán điểm tổng thể từ skillScores nếu có
+      const updatedActivity = {...activity};
+      if (updatedActivity.skillScores && (!updatedActivity.score || updatedActivity.score === 0)) {
+        const skillScoreValues = Object.values(updatedActivity.skillScores);
+        if (skillScoreValues.length > 0) {
+          const totalScore = skillScoreValues.reduce((sum, score) => sum + score, 0);
+          const averageScore = Math.round(totalScore / skillScoreValues.length);
+          updatedActivity.score = averageScore;
+        }
+      }
       
       const formattedActivity = {
-        ...activity,
-        timestamp: typeof activity.timestamp === 'string' 
-          ? activity.timestamp 
-          : this.formatDate(activity.timestamp)
+        ...updatedActivity,
+        timestamp: typeof updatedActivity.timestamp === 'string' 
+          ? updatedActivity.timestamp 
+          : this.formatDate(updatedActivity.timestamp)
       };
-      
-      console.log(`[UserActivityService] Formatted activity:`, JSON.stringify(formattedActivity));
 
       // Tìm user activity
       let userActivity = await prisma.userActivity.findUnique({
@@ -710,7 +711,6 @@ export class UserActivityService {
 
       // Nếu không tồn tại, tạo mới user activity
       if (!userActivity) {
-        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} in addActivity`);
         try {
           userActivity = await this.initializeUserActivity(userId);
         } catch (initError) {
@@ -750,7 +750,6 @@ export class UserActivityService {
             activities: [...currentActivities, formattedActivity] as unknown as Prisma.JsonArray
           }
         });
-        console.log(`[UserActivityService] Successfully added new activity for user ${userId}`);
       } catch (updateError) {
         console.error(`[UserActivityService] Error updating activities for user ${userId}:`, updateError);
         throw updateError;
@@ -783,7 +782,6 @@ export class UserActivityService {
 
       // Nếu không tồn tại, tạo mới user activity
       if (!userActivity) {
-        console.log(`[UserActivityService] Creating new UserActivity for user ${userId} during updateSkill`);
         try {
           userActivity = await this.initializeUserActivity(userId);
         } catch (initError) {
@@ -835,7 +833,6 @@ export class UserActivityService {
             skills: updatedSkills as unknown as Prisma.JsonArray
           }
         });
-        console.log(`[UserActivityService] Successfully updated skill ${name} for user ${userId}`);
       } catch (updateError) {
         console.error(`[UserActivityService] Error updating skills for user ${userId}:`, updateError);
         throw updateError;
