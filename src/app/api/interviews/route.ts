@@ -1,3 +1,8 @@
+import { corsOptionsResponse } from '@/lib/utils';
+// Handler for CORS preflight
+export async function OPTIONS() {
+  return corsOptionsResponse();
+}
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';

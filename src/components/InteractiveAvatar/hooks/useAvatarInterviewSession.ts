@@ -92,7 +92,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
   const [positionType, setPositionType] = useState<string>('');
   const [positionId, setPositionId] = useState<string>('');
   const [positionName, setPositionName] = useState<string>('');
-  const [pendingInterviewEnd, setPendingInterviewEnd] = useState<null | number>(null);
+  const [pendingInterviewEnd, setPendingInterviewEnd] = useState<null | { progress: number; reason?: string }>(null);
   const [isSavingInterview, setIsSavingInterview] = useState(false);
   const [isInitializingInterview, setIsInitializingInterview] = useState(false);
   const isPositionsFetching = useRef(false);
@@ -160,12 +160,20 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
     onError: (message) => addMessage(message, 'system', true)
   });
 
+
+
   const {
     isThinking,
     processMessage: aiProcessMessage,
     startNewInterview: aiStartNewInterview,
     questionCount,
-    interviewState
+    interviewState,
+    autoPromptCount,
+    isAutoPromptActive,
+    resetAutoPrompt,
+    startAutoPromptTimer,
+    clearAutoPromptTimer,
+    resetInterviewSession
   } = useAIConversation({
     onAnswer: async (text: string) => {
       addMessage(text, 'ai');
@@ -178,11 +186,36 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
     onFollowUpQuestion: (question: string) => {
       addMessage(question, 'system');
     },
-    onInterviewComplete: (progress) => {
-      setPendingInterviewEnd(progress);
+    onInterviewComplete: (result) => {
+      // Nếu kết thúc do auto-prompt timeout thì thêm reason
+      if (result && typeof result === 'object' && result.progress === 100 && !result.reason) {
+        setPendingInterviewEnd({ ...result, reason: 'timeout' });
+      } else {
+        setPendingInterviewEnd(result);
+      }
     },
     language: config.language === 'vi' ? 'vi-VN' : 'en-US'
   });
+
+
+  // Effect: Start auto-prompt timer only after avatar stops talking
+  const prevIsAvatarTalking = useRef(isAvatarTalking);
+
+  // Đặt handleEndSession lên trước để tránh lỗi hoisting
+
+  useEffect(() => {
+    // Khi avatar vừa chuyển từ nói sang im lặng, bắt đầu auto-prompt timer
+    if (prevIsAvatarTalking.current && !isAvatarTalking && !isThinking && !isInterviewComplete) {
+      startAutoPromptTimer();
+    }
+    // Nếu avatar bắt đầu nói lại, clear timer
+    if (isAvatarTalking) {
+      clearAutoPromptTimer();
+    }
+    prevIsAvatarTalking.current = isAvatarTalking;
+  }, [isAvatarTalking, isThinking, isInterviewComplete, startAutoPromptTimer, clearAutoPromptTimer]);
+
+  // Reset auto-prompt timer khi user trả lời (gọi resetAutoPrompt như cũ)
 
   useEffect(() => {
     const messages = conversation as unknown as ConversationMessage[];
@@ -239,12 +272,21 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         config.language === 'vi' ? 'vi-VN' : 'en-US'
       );
       const messages = conversation as unknown as ConversationMessage[];
+      // Ensure every message has a valid timestamp string
       const apiConversation: ApiConversationMessage[] = messages.map(msg => ({
         role: msg.sender,
         content: msg.text,
-        timestamp: msg.timestamp
+        timestamp: (msg.timestamp && typeof msg.timestamp === 'string') ? msg.timestamp : new Date().toISOString()
       }));
-      const startTime = interviewStartTime || new Date(messages[0].timestamp);
+      // Fallback for startTime if missing or invalid
+      let startTime: Date;
+      if (interviewStartTime) {
+        startTime = interviewStartTime;
+      } else if (messages[0] && messages[0].timestamp && !isNaN(Date.parse(messages[0].timestamp))) {
+        startTime = new Date(messages[0].timestamp);
+      } else {
+        startTime = new Date();
+      }
       const endTime = new Date();
       const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
       const token = await getToken();
@@ -304,32 +346,22 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       setIsSubmitting(false);
       setIsSavingInterview(false); // Kết thúc loading lưu kết quả
     }
-  }, [isSubmitting, setIsSubmitting, setIsInterviewComplete, isLoaded, isSignedIn, userId, router, aiConversationHistory, positionKey, positionId, config, conversation, interviewStartTime, getToken, saveInterview, questionCount, interviewState, endSession, setIsAvatarTalking, setMessage, onEndSession, positionName, positionType]);
+  }, [isSubmitting, setIsSubmitting, setIsInterviewComplete, isLoaded, isSignedIn, userId, router, aiConversationHistory, positionKey, positionId, config, conversation, interviewStartTime, getToken, saveInterview, questionCount, interviewState, endSession, setIsAvatarTalking, setMessage, onEndSession, positionName, positionType, addMessage]);
 
-  useEffect(() => {
-    if (pendingInterviewEnd !== null && !isAvatarTalking) {
-      // Thêm delay nhỏ trước khi lưu kết quả
-      const timeout = setTimeout(() => {
-        handleInterviewCompleteInternal(pendingInterviewEnd);
-        setPendingInterviewEnd(null);
-      }, 500); // 800ms hoặc điều chỉnh theo thực tế UI
 
-      return () => clearTimeout(timeout);
-    }
-  }, [pendingInterviewEnd, isAvatarTalking, handleInterviewCompleteInternal]);
-
-  const handleInterruptAvatar = useCallback(async () => {
-    try {
-      if (isAvatarTalking && canInterrupt()) {
-        await stopAvatarSpeaking();
-      }
-    } catch (error) {
-      console.error('Error interrupting avatar:', error);
-    }
-  }, [isAvatarTalking, canInterrupt, stopAvatarSpeaking]);
+  // Đặt handleEndSession lên trước để tránh lỗi hoisting
+  const isEndingSession = useRef(false);
 
   const handleEndSession = useCallback(async () => {
+    if (isEndingSession.current) return;
+    isEndingSession.current = true;
     try {
+      if (isAvatarTalking && stopAvatarSpeaking) {
+        await stopAvatarSpeaking();
+        // Đợi một chút để đảm bảo avatar đã dừng hoàn toàn
+        await new Promise(res => setTimeout(res, 300));
+      }
+      resetInterviewSession();
       setIsAvatarTalking(false);
       setMessage('');
       await endSession();
@@ -366,7 +398,32 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       setInterviewStartTime(null);
       setElapsedTime(0);
     }
-  }, [endSession, onEndSession, addMessage, clearConversation, userId, config.language, setElapsedTime, setInterviewStartTime]);
+  }, [isAvatarTalking, stopAvatarSpeaking, resetInterviewSession, endSession, onEndSession, addMessage, clearConversation, userId, config.language, setElapsedTime, setInterviewStartTime]);
+
+  useEffect(() => {
+    if (pendingInterviewEnd !== null && !isAvatarTalking) {
+      const timeout = setTimeout(async () => {
+        if (pendingInterviewEnd.reason === 'timeout') {
+          // Gọi handleEndSession để reset toàn bộ UI và state như khi nhấn nút End Session
+          await handleEndSession();
+        } else {
+          handleInterviewCompleteInternal(pendingInterviewEnd.progress);
+        }
+        setPendingInterviewEnd(null);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [pendingInterviewEnd, isAvatarTalking, handleInterviewCompleteInternal, handleEndSession]);
+
+  const handleInterruptAvatar = useCallback(async () => {
+    try {
+      if (isAvatarTalking && canInterrupt()) {
+        await stopAvatarSpeaking();
+      }
+    } catch (error) {
+      console.error('Error interrupting avatar:', error);
+    }
+  }, [isAvatarTalking, canInterrupt, stopAvatarSpeaking]);
 
   const handleSendMessage = useCallback(async () => {
     if (!message.trim() || isAvatarTalking || isThinking || isInterviewComplete) return;
@@ -445,5 +502,9 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
     isInterrupting,
     isSavingInterview,
     isInitializingInterview,
-  };
+    // Auto-prompt states
+    autoPromptCount,
+    isAutoPromptActive,
+    resetAutoPrompt,
+  }; 
 } 

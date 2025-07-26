@@ -42,7 +42,9 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
     { key: 'language', label: 'Language Proficiency', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
   ];
 
+
   // Nếu có realTimeScores thì dùng luôn, không tính lại từ messages
+  // Tất cả đều là phần trăm (0-100)
   const scores: Record<string, number> = realTimeScores
     ? {
         fundamental: realTimeScores.fundamental,
@@ -50,30 +52,21 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
         language: realTimeScores.language,
       }
     : {
-        fundamental: results.scores.fundamentalKnowledge / 10,
-        logic: results.scores.logicalReasoning / 10,
-        language: results.scores.languageFluency / 10,
+        fundamental: results.scores.fundamentalKnowledge,
+        logic: results.scores.logicalReasoning,
+        language: results.scores.languageFluency,
       };
 
   const suggestions: Record<string, string> = realTimeScores
     ? realTimeScores.suggestions
     : { fundamental: '', logic: '', language: '' };
 
-  // Fix: overall should be out of 100, not 1000
-  const overall = Math.round(((scores.fundamental + scores.logic + scores.language) / 3) * 100);
+  // overall là trung bình cộng 3 tiêu chí, làm tròn
+  const overall = Math.round((scores.fundamental + scores.logic + scores.language) / 3);
 
   // Chuẩn hóa dữ liệu cho biểu đồ
-  const chartScores = realTimeScores
-    ? {
-        fundamental: realTimeScores.fundamental * 10,
-        logic: realTimeScores.logic * 10,
-        language: realTimeScores.language * 10,
-      }
-    : {
-        fundamental: results.scores.fundamentalKnowledge,
-        logic: results.scores.logicalReasoning,
-        language: results.scores.languageFluency,
-      };
+  // Dữ liệu cho biểu đồ (0-100)
+  const chartScores = scores;
 
   const radarChartData = [
     { subject: 'Fundamental Knowledge', A: chartScores.fundamental, fullMark: 100 },
@@ -89,9 +82,9 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
 
   // Hàm tạo nhận xét tổng quan
   function getOverallSummary(scores: Record<string, number>) {
-    const f = scores.fundamental * 100;
-    const l = scores.logic * 100;
-    const lang = scores.language * 100;
+    const f = scores.fundamental;
+    const l = scores.logic;
+    const lang = scores.language;
     if (f >= 80 && l >= 80 && lang >= 80) return 'Excellent performance in all areas. You are well-prepared for interviews!';
     if (f < 50 && l < 50 && lang < 50) return 'You need to improve in all areas. Focus on fundamental knowledge, logical reasoning, and language proficiency.';
     if (f < 60 && l >= 70 && lang >= 70) return 'Your logic and language are strong, but you should review fundamental knowledge.';
@@ -129,7 +122,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
                 {cat.icon}
                 <h3 className="font-medium">{cat.label}</h3>
                 <div className="text-3xl font-bold mt-2">
-                  {Math.round(scores[cat.key] * 100)}%
+                  {Math.round(scores[cat.key])}%
                 </div>
               </CardContent>
             </Card>

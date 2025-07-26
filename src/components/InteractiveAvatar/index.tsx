@@ -5,17 +5,27 @@ import ChatControls from './subcomponents/ChatControls';
 import PreInterviewSetup from './subcomponents/PreInterviewSetup';
 import VoiceInteraction from './subcomponents/VoiceInteraction';
 import InterviewResult from './subcomponents/InterviewResult';
+import AutoPromptIndicator from './subcomponents/AutoPromptIndicator';
 import { AVATARS, STT_LANGUAGE_LIST, SessionState } from './HeygenConfig';
 import { useAvatarInterviewSession, Interview } from './hooks/useAvatarInterviewSession';
 
 const transformedLanguageList = STT_LANGUAGE_LIST;
 
-const InteractiveAvatar: React.FC = () => {
+interface InteractiveAvatarProps {
+  onEndSession?: () => void;
+}
+
+const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) => {
   const [interviewResult, setInterviewResult] = React.useState<Interview | null>(null);
 
-  const handleEndSession = (data: Interview) => {
+
+
+  // UI callback khi nhận kết quả phỏng vấn
+  const handleEndSessionUI = (data: Interview) => {
     setInterviewResult(data);
-    // Nếu muốn callback cha, gọi onEndSession(data);
+    if (onEndSession) {
+      onEndSession();
+    }
   };
 
   const handleBackToInterview = () => {
@@ -24,10 +34,25 @@ const InteractiveAvatar: React.FC = () => {
   };
 
   // Handler for VideoPlayer onStopSession (no-arg)
-  const handleStopSession = () => {
+  const handleStopSession = async () => {
     // Reset UI or state as needed when user stops session manually
     setInterviewResult(null);
-    // Optionally: reset other states if needed
+    resetAutoPrompt(); // Reset auto-prompt when stopping session
+    await handleEndSession(); // cleanup Heygen/avatar session đúng chuẩn
+    if (onEndSession) {
+      onEndSession();
+    }
+  };
+
+  // Enhanced handlers that reset auto-prompt
+  const handleSendMessageWithReset = async () => {
+    resetAutoPrompt(); // Reset auto-prompt when user sends message
+    await handleSendMessage();
+  };
+
+  const handleSpeechResultWithReset = (text: string) => {
+    resetAutoPrompt(); // Reset auto-prompt when user speaks
+    handleSpeechResult(text);
   };
 
   const {
@@ -56,8 +81,12 @@ const InteractiveAvatar: React.FC = () => {
     setPositionKey,
     setPositionId,
     isSavingInterview,
-    isInitializingInterview
-  } = useAvatarInterviewSession({ onEndSession: handleEndSession });
+    isInitializingInterview,
+    autoPromptCount,
+    isAutoPromptActive,
+    resetAutoPrompt,
+    handleEndSession
+  } = useAvatarInterviewSession({ onEndSession: handleEndSessionUI });
 
   return (
     <>
@@ -124,7 +153,7 @@ const InteractiveAvatar: React.FC = () => {
             />
             <Box sx={{ p: 2 }}>
               <VoiceInteraction
-                onSpeechResult={handleSpeechResult}
+                onSpeechResult={handleSpeechResultWithReset}
                 disabled={sessionState !== SessionState.CONNECTED || isInterviewComplete || isSubmitting}
                 language={config.language === 'en' ? 'en-US' : 'vi-VN'}
                 isAvatarTalking={isAvatarTalking}
@@ -136,13 +165,50 @@ const InteractiveAvatar: React.FC = () => {
               setInputText={setMessage}
               isAvatarTalking={isAvatarTalking}
               conversation={conversation}
-              onSendMessage={handleSendMessage}
+              onSendMessage={handleSendMessageWithReset}
               isThinking={isThinking}
               isInterviewComplete={isInterviewComplete}
               questionCount={questionCount}
               skillAssessment={interviewState.skillAssessment}
               coveredTopics={interviewState.coveredTopics}
               progress={interviewState.progress || 0}
+            />
+            
+            {/* Auto-prompt indicator with remaining prompts info */}
+            {isAutoPromptActive && !isAvatarTalking && !isThinking && !isInterviewComplete && (
+              <Box
+                sx={{
+                  position: 'fixed',
+                  bottom: '80px',
+                  right: '20px',
+                  background: 'rgba(33, 150, 243, 0.9)',
+                  borderRadius: '8px',
+                  padding: '8px 12px',
+                  zIndex: 999,
+                  border: '1px solid #2196f3',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }}
+              >
+                <div style={{ color: 'white', fontSize: '0.8rem', textAlign: 'center' }}>
+                  {config.language === 'en' 
+                    ? `AI auto-prompts remaining: ${3 - autoPromptCount}`
+                    : `AI sẽ nhắc lại: ${3 - autoPromptCount} lần`
+                  }
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.7rem', textAlign: 'center', marginTop: '2px' }}>
+                  {config.language === 'en' 
+                    ? 'AI will generate contextual prompts'
+                    : 'AI sẽ tạo lời nhắc phù hợp'
+                  }
+                </div>
+              </Box>
+            )}
+            
+            <AutoPromptIndicator
+              isActive={isAutoPromptActive && !isAvatarTalking && !isThinking && !isInterviewComplete}
+              duration={10000} // 10 seconds to match AUTO_PROMPT_DELAY
+              onTimeout={() => {}} // Timer được handle trong useAIConversation
+              language={config.language === 'en' ? 'en-US' : 'vi-VN'}
             />
           </Box>
         )}

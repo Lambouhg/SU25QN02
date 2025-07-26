@@ -88,6 +88,14 @@ export async function processInterviewResponse(
 ): Promise<InterviewResponse> {
   try {
     
+    // Check if this is an instruction message (auto-prompt or ending)
+    const isInstruction = userMessage.startsWith('INSTRUCTION:');
+    const isEndingInstruction = isInstruction && (
+      userMessage.includes('kết thúc phỏng vấn') || 
+      userMessage.includes('end the interview') ||
+      userMessage.includes('conclude the interview')
+    );
+    
     // Extract field and level
     const systemMessage = conversationHistory.find(msg => msg.role === 'system');
     let field = 'software development';
@@ -135,7 +143,14 @@ ${structure.topics.map(t => `   - ${t}`).join('\n')}
    - Keep questions focused and relevant to the level
    - Each question should have clear evaluation criteria
 
-5. Evaluation:
+5. Auto-Prompt Handling:
+   - If the user message starts with "INSTRUCTION:", treat it as a special system instruction
+   - For auto-prompt instructions: Generate ONE brief, contextual reminder (not a new question)
+   - For ending instructions: Provide a professional conclusion and mark interview as complete
+   - Adjust tone based on the prompt number (gentle → encouraging → final warning)
+   - Keep prompts short and focused on encouraging response to the current question
+
+6. Evaluation:
    - Score each answer on a scale of 1-10
    - Track topic coverage
    - Assess both technical knowledge and communication
@@ -223,7 +238,7 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
       };
     }
 
-    const isComplete = questionsAsked >= FIXED_QUESTIONS || result.isInterviewComplete;
+    const isComplete = questionsAsked >= FIXED_QUESTIONS || result.isInterviewComplete || isEndingInstruction;
 
     return {
       answer: result.answer || '',
@@ -231,7 +246,7 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
       nextTopic: result.nextTopic,
       shouldMoveToNewTopic: Boolean(result.shouldMoveToNewTopic),
       followUpQuestion: result.followUpQuestion,
-      interviewProgress: currentProgress,
+      interviewProgress: isEndingInstruction ? 100 : currentProgress,
       isInterviewComplete: isComplete,
       currentScore: result.currentScore || 5,
       completionDetails: result.completionDetails || {
