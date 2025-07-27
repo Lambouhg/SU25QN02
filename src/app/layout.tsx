@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Interview",
+  title: "F.AI Interview",
   description: "Improve your interview skills with our AI-powered platform",
 };
 

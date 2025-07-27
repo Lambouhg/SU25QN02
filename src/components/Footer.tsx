@@ -13,10 +13,10 @@ const Footer = () => {
                   <path d="M8 12C8 9.79086 9.79086 8 12 8H14C16.2091 8 18 9.79086 18 12C18 14.2091 16.2091 16 14 16H12C9.79086 16 8 14.2091 8 12Z" fill="currentColor"/>
                 </svg>
               </div>
-              <span className="text-white font-bold text-xl">InterviewAI</span>
+              <span className="text-white font-bold text-xl">F.AI Interview</span>
             </div>
             <p className="text-gray-400 mb-6">
-              Nâng cao kỹ năng phỏng vấn của bạn với AI thông minh
+              Enhance your interview skills with intelligent AI
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">
@@ -39,34 +39,34 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-white font-semibold mb-6">Sản phẩm</h3>
+            <h3 className="text-white font-semibold mb-6">Product</h3>
             <ul className="space-y-4">
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Tổng quan</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Tính năng</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Bảng giá</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Overview</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Features</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Pricing</a></li>
               <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Roadmap</a></li>
             </ul>
           </div>
 
           {/* Resources */}
           <div>
-            <h3 className="text-white font-semibold mb-6">Tài nguyên</h3>
+            <h3 className="text-white font-semibold mb-6">Resources</h3>
             <ul className="space-y-4">
               <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Blog</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Hướng dẫn</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Guides</a></li>
               <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">FAQ</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Hỗ trợ</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Support</a></li>
             </ul>
           </div>
 
           {/* Company */}
           <div>
-            <h3 className="text-white font-semibold mb-6">Công ty</h3>
+            <h3 className="text-white font-semibold mb-6">Company</h3>
             <ul className="space-y-4">
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Về chúng tôi</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">About Us</a></li>
               <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Careers</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Đối tác</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Liên hệ</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Partners</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-purple-400 transition-colors">Contact</a></li>
             </ul>
           </div>
         </div>
@@ -75,7 +75,7 @@ const Footer = () => {
         <div className="mt-12 pt-8 border-t border-gray-800">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2025 InterviewAI. All rights reserved.
+              © 2025 F.AI Interview. All rights reserved.
             </p>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <a href="#" className="text-gray-400 hover:text-purple-400 text-sm transition-colors">Privacy Policy</a>

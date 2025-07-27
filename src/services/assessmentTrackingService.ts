@@ -246,8 +246,10 @@ export class AssessmentTrackingService {
       const timestamp = this.formatDate(new Date());
       
       if (assessment.type === 'test') {
-        // Lấy kỹ năng từ position nếu có
+        // Lấy kỹ năng từ position và topic
         let skillName = 'Technical Test';
+        let skillCategory = '';
+        
         if (assessment.positionId) {
           // Tìm position từ positionId
           const position = await prisma.position.findUnique({
@@ -255,7 +257,15 @@ export class AssessmentTrackingService {
           });
           if (position) {
             skillName = position.positionName;
+            skillCategory = position.level; // Sử dụng level từ position
           }
+        }
+        
+        // Sử dụng topic từ metadata nếu có
+        const metadata = assessment.realTimeScores as Record<string, unknown> || {};
+        const topic = metadata.topic as string | undefined;
+        if (topic) {
+          skillName = `${skillName}: ${topic}`; // Kết hợp position và topic
         }
         
         // Điểm từ bài test
@@ -265,6 +275,7 @@ export class AssessmentTrackingService {
         await UserActivityService.updateSkill(userId, {
           name: skillName,
           score,
+          category: skillCategory, // Thêm category dựa trên level của position
           lastAssessed: timestamp
         });
       } else if (assessment.type === 'eq') {

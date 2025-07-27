@@ -8,7 +8,7 @@ import Link from "next/link";
 // Use dynamic import with SSR disabled for the InteractiveAvatar component
 // since it depends on browser APIs
 const InteractiveAvatar = dynamic(
-  () => import("@/components/InteractiveAvatar/InteractiveAvatar"),
+  () => import("@/components/InteractiveAvatar"),
   { ssr: false }
 );
 

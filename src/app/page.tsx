@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
+import WhyChooseSection from '@/components/WhyChooseSection';
+import HowItWorksSection from '@/components/HowItWorksSection';
 import PricingSection from '@/components/PricingSection';
 import Footer from '@/components/Footer';
 
@@ -32,18 +34,21 @@ export default function Home() {
     return null;
   }
   return (
-    <div className="bg-gray-50">
-    <div className="flex flex-col min-h-screen">
-      <div className="bg-black -to-br from-purple-700 via-purple-600 to-purple-500 md:m-3 md:rounded-[20px]">
+    <div className="min-h-screen">
+      {/* Hero Section with Dark Background */}
+      <div className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 md:m-3 md:rounded-3xl overflow-hidden">
         <Navbar />
         <HeroSection />
       </div>
-      <div className="flex-1 bg-white">
-        <PricingSection />
-      </div>
       
+      {/* Main Content */}
+      <main>
+        <WhyChooseSection />
+        <HowItWorksSection />
+        <PricingSection />
+      </main>
+      
+      <Footer />
     </div>
-    <Footer />
-     </div>
   );
 }

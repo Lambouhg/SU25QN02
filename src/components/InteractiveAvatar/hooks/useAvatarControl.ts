@@ -258,7 +258,7 @@ export const useAvatarControl = ({
     } finally {
       setIsInterrupting(false);
     }
-  }, [isInterrupting, onAvatarTalkingChange, onAvatarMessage, onError]);
+  }, [isInterrupting, onAvatarTalkingChange, onError]);
 
   // Convenient method specifically for stopping avatar speech
   const stopAvatarSpeaking = useCallback(async () => {
