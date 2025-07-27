@@ -1,63 +1,277 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
+model User {
+  id                      String           @id @default(uuid())
+  email                   String           @unique
+  clerkId                 String           @unique
+  firstName               String?
+  lastName                String?
+  avatar                  String?
+  location                String?
+  aboutMe                 String?
+  bio                     String?
+  phone                   String?
+  department              String?
+  position                String?
+  joinDate                String?
+  status                  String?          @default("Hoạt động")
+  experienceLevel         ExperienceLevel? @default(mid)
+  preferredInterviewTypes String[]
+  cvUrl                   String?
+  socialLinks             Json?
+  role                    UserRole         @default(user)
+  companyId               String?
+  skills                  String[]
+  appliedJobs             String[]
+  interviewPractices      String[]
+  interviewStats          Json?
+  experience              Json?
+  education               Json?
+  languages               String[]
+  evaluations             Json?
+  lastLogin               DateTime?
+  lastSignInAt            DateTime?
+  lastActivity            DateTime?
+  isOnline                Boolean          @default(false)
+  clerkSessionActive      Boolean          @default(false)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  userActivityId          String?          @unique
+  interviews              Interview[]
+  questionsCreated        Question[]       @relation("QuestionsCreated")
+  quizHistory             Quiz[]           @relation("QuizHistory")
+  quizzes                 Quiz[]
+  userActivity            UserActivity?
+  userPackages            UserPackage[]
+  savedQuestions          Question[]       @relation("SavedQuestions")
 }
 
-// -------------------- ENUMS --------------------
+model Interview {
+  id                  String          @id @default(uuid())
+  userId              String
+  positionId          String
+  language            String
+  startTime           DateTime
+  endTime             DateTime?
+  duration            Int?
+  conversationHistory Json
+  evaluation          Json
+  questionCount       Int             @default(0)
+  coveredTopics       String[]
+  skillAssessment     Json
+  progress            Int             @default(0)
+  status              InterviewStatus @default(in_progress)
+  position            Position        @relation(fields: [positionId], references: [id])
+  user                User            @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([positionId])
+}
+
+model Quiz {
+  id                String     @id @default(uuid())
+  userId            String
+  field             String
+  topic             String
+  level             QuizLevel
+  userAnswers       Json?
+  score             Int
+  totalQuestions    Int
+  timeLimit         Int
+  timeUsed          Int
+  completedAt       DateTime?
+  retryCount        Int?       @default(0)
+  quizHistoryUserId String?
+  quizHistoryUser   User?      @relation("QuizHistory", fields: [quizHistoryUserId], references: [id])
+  user              User       @relation(fields: [userId], references: [id])
+  questions         Question[] @relation("QuizQuestions")
+  savedQuestions    Question[] @relation("QuizSavedQuestions")
+}
+
+model Question {
+  id           String      @id @default(uuid())
+  question     String
+  answers      Json?
+  fields       String[]
+  topics       String[]
+  levels       QuizLevel[]
+  explanation  String?
+  createdAt    DateTime?   @default(now())
+  updatedAt    DateTime?   @updatedAt
+  createdById  String?
+  createdBy    User?       @relation("QuestionsCreated", fields: [createdById], references: [id])
+  quizzes      Quiz[]      @relation("QuizQuestions")
+  quizzesSaved Quiz[]      @relation("QuizSavedQuestions")
+  usersSaved   User[]      @relation("SavedQuestions")
+}
+
+model Position {
+  id           String       @id @default(uuid())
+  key          String       @unique
+  positionName String
+  level        String
+  displayName  String
+  order        Int          @default(0)
+  assessments  Assessment[]
+  interviews   Interview[]
+
+  @@index([key])
+}
+
+model UserActivity {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  activities      Json?
+  skills          Json?
+  goals           Json?
+  learningStats   Json?
+  strengths       String[]
+  weaknesses      String[]
+  recommendations String[]
+  lastActive      DateTime? @default(now())
+  progressHistory Json?
+  user            User      @relation(fields: [userId], references: [id])
+}
+
+model JdQuestions {
+  id             String          @id @default(uuid())
+  userId         String
+  jobTitle       String
+  questionType   QuestionType
+  level          ExperienceLevel
+  questions      String[]
+  originalJDText String?
+  fileName       String?
+  createdAt      DateTime?       @default(now())
+  updatedAt      DateTime?       @updatedAt
+}
+
+model Assessment {
+  id               String         @id @default(uuid())
+  userId           String
+  type             AssessmentType
+  positionId       String?
+  selectedCategory String?
+  level            String
+  duration         Int
+  totalTime        Int
+  history          Json?
+  realTimeScores   Json?
+  finalScores      Json?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime?      @updatedAt
+  position         Position?      @relation(fields: [positionId], references: [id])
+
+  @@index([positionId])
+}
+
+model ServicePackage {
+  id                   String        @id @default(uuid())
+  name                 String
+  price                Int
+  duration             Int
+  avatarInterviewLimit Int           @default(0)
+  testQuizEQLimit      Int           @default(0)
+  jdUploadLimit        Int           @default(0)
+  description          String?
+  highlight            Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  isActive             Boolean       @default(true)
+  updatedAt            DateTime      @updatedAt
+  userPackages         UserPackage[]
+
+  @@index([name])
+  @@index([price])
+}
+
+model UserPackage {
+  id                  String         @id @default(uuid())
+  userId              String
+  servicePackageId    String
+  startDate           DateTime       @default(now())
+  endDate             DateTime
+  avatarInterviewUsed Int            @default(0)
+  testQuizEQUsed      Int            @default(0)
+  jdUploadUsed        Int            @default(0)
+  isActive            Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  servicePackage      ServicePackage @relation(fields: [servicePackageId], references: [id])
+  user                User           @relation(fields: [userId], references: [id])
+
+  @@unique([userId, servicePackageId])
+  @@index([userId])
+  @@index([servicePackageId])
+  @@index([isActive])
+}
+
 enum ExperienceLevel {
   junior
   mid
   senior
 }
+
 enum UserRole {
   user
   admin
 }
+
 enum InterviewStatus {
   completed
   interrupted
   in_progress
 }
+
 enum InterviewMessageRole {
   user
   ai
   system
 }
+
 enum HiringRecommendation {
   strong_hire
   hire
   consider
   reject
 }
+
 enum QuizLevel {
   junior
   middle
   senior
 }
+
 enum QuestionType {
   technical
   behavioral
 }
+
 enum GoalStatus {
   pending
   in_progress
   completed
 }
+
 enum GoalType {
   skill
   interview
   certification
 }
+
 enum SkillLevel {
   beginner
   intermediate
   advanced
   expert
 }
+
 enum ActivityType {
   interview
   quiz
@@ -70,173 +284,4 @@ enum ActivityType {
 enum AssessmentType {
   test
   eq
-}
-
-// -------------------- MODELS --------------------
-model User {
-  id                String    @id @default(uuid())
-  email             String    @unique
-  clerkId           String    @unique
-  firstName         String?
-  lastName          String?
-  avatar            String?
-  location          String?
-  aboutMe           String?
-  bio               String?
-  phone             String?
-  department        String?
-  position          String?
-  joinDate          String?
-  status            String?   @default("Hoạt động")
-  experienceLevel   ExperienceLevel? @default(mid)
-  preferredInterviewTypes String[]
-  cvUrl             String?
-  socialLinks       Json?
-  role              UserRole  @default(user)
-  companyId         String?
-  skills            String[]
-  appliedJobs       String[]
-  interviewPractices String[]
-  interviewStats    Json?
-  experience        Json?
-  education         Json?
-  languages         String[]
-  evaluations       Json?
-  lastLogin         DateTime?
-  lastSignInAt      DateTime?
-  lastActivity      DateTime?
-  isOnline          Boolean   @default(false)
-  clerkSessionActive Boolean  @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  userActivityId    String?   @unique
-  
-  // Relations
-  interviews        Interview[]
-  questionsCreated  Question[] @relation("QuestionsCreated")
-  savedQuestions    Question[] @relation("SavedQuestions")
-  quizHistory       Quiz[]     @relation("QuizHistory")
-  userActivity      UserActivity?
-  quizzes           Quiz[]
-}
-
-
-model Interview {
-  id                String   @id @default(uuid())
-  userId            String
-  user              User     @relation(fields: [userId], references: [id])
-  positionId        String
-  position          Position @relation(fields: [positionId], references: [id])
-  language          String
-  startTime         DateTime
-  endTime           DateTime?
-  duration          Int?
-  conversationHistory Json    // Array of IMessage
-  evaluation        Json    // Contains all evaluation metrics
-  questionCount     Int      @default(0)
-  coveredTopics     String[]
-  skillAssessment   Json    // Contains technical, communication, problemSolving scores
-  progress          Int      @default(0)
-  status            InterviewStatus @default(in_progress)
-
-  @@index([userId])
-  @@index([positionId])
-}
-
-model Quiz {
-  id             String   @id @default(uuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id])
-  field          String
-  topic          String
-  level          QuizLevel
-  questions      Question[] @relation("QuizQuestions")
-  userAnswers    Json?
-  score          Int
-  totalQuestions Int
-  timeLimit      Int
-  timeUsed       Int
-  completedAt    DateTime?
-  savedQuestions Question[] @relation("QuizSavedQuestions")
-  retryCount     Int? @default(0)
-  quizHistoryUser   User?      @relation("QuizHistory", fields: [quizHistoryUserId], references: [id])
-  quizHistoryUserId String?
-}
-
-model Question {
-  id          String   @id @default(uuid())
-  question    String
-  answers     Json?
-  fields      String[]
-  topics      String[]
-  levels      QuizLevel[]
-  explanation String?
-  createdAt   DateTime? @default(now())
-  updatedAt   DateTime? @updatedAt
-  createdById String?
-  createdBy   User?     @relation("QuestionsCreated", fields: [createdById], references: [id])
-  quizzes     Quiz[]    @relation("QuizQuestions")
-  usersSaved  User[]    @relation("SavedQuestions")
-  quizzesSaved Quiz[]   @relation("QuizSavedQuestions")
-}
-
-model Position {
-  id          String @id @default(uuid())
-  key         String @unique    // Unique identifier (e.g., frontend_junior)
-  positionName String          // e.g., Frontend Developer
-  level       String          // e.g., Junior, Middle, Senior
-  displayName String          // Full display name
-  order       Int    @default(0)
-  interviews  Interview[]
-  assessments Assessment[]     // relation với Assessment
-
-  @@index([key])
-}
-
-model UserActivity {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id])
-  activities     Json?
-  skills         Json?
-  goals          Json?
-  learningStats  Json?
-  strengths      String[]
-  weaknesses     String[]
-  recommendations String[]
-  lastActive     DateTime? @default(now())
-  progressHistory Json?
-}
-
-model JdQuestions {
-  id            String   @id @default(uuid())
-  userId        String
-  jobTitle      String
-  questionType  QuestionType
-  level         ExperienceLevel
-  questions     String[]
-  originalJDText String?
-  fileName      String?
-  createdAt     DateTime? @default(now())
-  updatedAt     DateTime? @updatedAt
-}
-
-// New unified Assessment model
-model Assessment {
-  id               String   @id @default(uuid())
-  userId           String
-  type             AssessmentType
-  positionId       String?      // relation với Position
-  position         Position?    @relation(fields: [positionId], references: [id])
-  selectedCategory String?      // chỉ dùng cho EQ
-  level            String
-  duration         Int
-  totalTime        Int
-  history          Json?
-  realTimeScores   Json?
-  finalScores      Json?        // chỉ dùng cho EQ
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime?    @updatedAt
-
-  @@index([positionId])
 }

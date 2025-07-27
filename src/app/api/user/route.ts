@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import prisma from "../../../lib/prisma";
-import { 
-  getUserListCache, 
-  setUserListCache, 
-  getUserUpdateCache, 
-  getUserCache, 
-  USER_LIST_CACHE_DURATION 
+import {
+  getUserListCache,
+  setUserListCache,
+  getUserUpdateCache,
+  getUserCache,
+  USER_LIST_CACHE_DURATION
 } from "../../../lib/userCache";
 import { withCORS } from '../../../lib/utils';
 // import NotificationService from "../../../services/notificationService";
 
 export async function OPTIONS() {
-  return corsOptionsResponse();
+  return withCORS(new NextResponse(null, { status: 200 }));
 }
 
 export async function GET() {
@@ -22,7 +22,7 @@ export async function GET() {
     if (currentCache && (now - currentCache.timestamp) < USER_LIST_CACHE_DURATION) {
       return withCORS(NextResponse.json(currentCache.data));
     }
-    
+
     // Select specific fields including activity tracking fields
     const users = await prisma.user.findMany({
       select: {
@@ -47,19 +47,19 @@ export async function GET() {
         { lastLogin: 'desc' }
       ]
     });
-    
+
     // Transform the users to ensure fullName and imageUrl are properly set
     const transformedUsers = users.map((user: { [key: string]: unknown }) => {
       // Calculate fullName from firstName and lastName
       const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
-      
+
       return {
         ...user,
         fullName,
         imageUrl: user.avatar // Add imageUrl as alias for avatar
       };
     });
-    
+
     const responseData = {
       success: true,
       users: transformedUsers,
@@ -68,7 +68,7 @@ export async function GET() {
 
     // Update cache
     setUserListCache(responseData);
-    
+
     return withCORS(NextResponse.json(responseData));
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -93,14 +93,14 @@ export async function POST(request: Request) {
     const userUpdateCache = getUserUpdateCache();
     const lastUpdate = userUpdateCache.get(recentUpdateKey);
     const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    
+
     if (lastUpdate && lastUpdate > oneHourAgo) {
       // Return cached user data if recently updated
       const userCache = getUserCache();
       const cachedUser = userCache.get(clerkId);
       if (cachedUser) {
-        return withCORS(NextResponse.json({ 
-          message: "User data is current (cached)", 
+        return withCORS(NextResponse.json({
+          message: "User data is current (cached)",
           user: cachedUser,
           action: "cached"
         }));
