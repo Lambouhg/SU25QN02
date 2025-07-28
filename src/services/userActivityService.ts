@@ -359,7 +359,6 @@ export class UserActivityService {
       let userActivity = await prisma.userActivity.findUnique({
         where: { userId }
       });
-      
       // Nếu không tồn tại, tạo mới user activity
       if (!userActivity) {
         try {
@@ -372,26 +371,41 @@ export class UserActivityService {
           userActivity = await prisma.userActivity.findUnique({
             where: { userId }
           });
-          
           if (!userActivity) {
             throw new Error(`Failed to create UserActivity record for user ${userId} in updateLearningStats`);
           }
         }
       }
 
+      const activities = parseJsonField<IActivity[]>(userActivity.activities, []);
       const learningStats = userActivity.learningStats as unknown as ILearningStats;
-      const lastStudyDate = new Date(learningStats.lastStudyDate);
       const today = new Date();
-      const diffDays = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
+      today.setHours(0, 0, 0, 0);
 
+      // Tính streak: nếu có activity hợp lệ trong ngày và streak = 0 thì set = 1
+      const todayActivities = activities.filter(a => {
+        const d = new Date(a.timestamp);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime() === today.getTime() && (a.duration || 0) > 0;
+      });
       let streak = learningStats.streak;
-      if (diffDays === 1) {
-        // Người dùng học liên tiếp
-        streak += 1;
-      } else if (diffDays > 1) {
-        // Reset streak nếu bỏ lỡ ngày
+      if (todayActivities.length > 0 && streak === 0) {
         streak = 1;
       }
+      // Nếu đã có streak, giữ logic cũ
+      const lastStudyDate = new Date(learningStats.lastStudyDate);
+      lastStudyDate.setHours(0, 0, 0, 0);
+      const diffDays = Math.floor((today.getTime() - lastStudyDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (streak > 0) {
+        if (diffDays === 1) {
+          streak += 1;
+        } else if (diffDays > 1) {
+          streak = 1;
+        }
+      }
+
+      // Tính totalStudyTime dựa trên tất cả activity có duration > 0
+      const totalStudyTime = activities.reduce((sum, a) => sum + ((a.duration && a.duration > 0) ? a.duration : 0), 0);
 
       try {
         await prisma.userActivity.update({
@@ -400,6 +414,7 @@ export class UserActivityService {
             learningStats: JSON.parse(JSON.stringify({
               ...learningStats,
               streak,
+              totalStudyTime,
               lastStudyDate: today
             }))
           }
@@ -523,7 +538,9 @@ export class UserActivityService {
       const goals = parseJsonField<IGoal[]>(userActivity.goals, []);
 
     // Tính toán các chỉ số
-    const totalInterviews = activities.filter(a => a.type === 'interview').length;
+    const totalInterviews = activities.filter(a => 
+      a.type === 'interview' || a.type === 'quiz').length;
+    
     const averageScore = activities.length > 0
       ? activities.reduce((sum, act) => sum + (act.score || 0), 0) / activities.length
       : 0;
@@ -561,7 +578,8 @@ export class UserActivityService {
       goals,
       strengths: userActivity.strengths as string[] || [],
       weaknesses: userActivity.weaknesses as string[] || [],
-      recommendations: userActivity.recommendations as string[] || []
+      recommendations: userActivity.recommendations as string[] || [],
+      allQuizActivities: activities.filter(a => (a.type as string) === 'quiz' || (a.type as string) === 'test')
     };
     } catch (error) {
       console.error('Error in getProgressReport:', error);
@@ -733,6 +751,8 @@ export class UserActivityService {
               activities: [formattedActivity] as unknown as Prisma.JsonArray
             }
           });
+          // Gọi updateLearningStats để streak nhảy thành 1 ngay khi có activity đầu tiên
+          await this.updateLearningStats(userId);
         } catch (updateError) {
           console.error(`[UserActivityService] Error updating UserActivity with first activity:`, updateError);
           throw updateError;
@@ -922,3 +942,4 @@ export class UserActivityService {
     });
   }
 }
+

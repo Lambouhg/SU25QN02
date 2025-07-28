@@ -45,7 +45,7 @@ interface QuizPanelProps {
 }
 
 export default function QuizPanel({ quizId }: QuizPanelProps) {
-  const { userId } = useAuth();
+
   const router = useRouter();
   const [step, setStep] = useState<'config' | 'session' | 'result'>('config');
   const [quizConfig, setQuizConfig] = useState<QuizConfig>({
@@ -56,29 +56,11 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
     timeLimit: 15,
   });
   const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [fields, setFields] = useState<string[]>([]);
-  const [topics, setTopics] = useState<string[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch available fields and topics
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [fieldsRes, topicsRes] = await Promise.all([
-          fetch('/api/questions/fields'),
-          fetch('/api/questions/topics')
-        ]);
-        const fieldsData = await fieldsRes.json();
-        const topicsData = await topicsRes.json();
-        setFields(fieldsData);
-        setTopics(topicsData);
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-      }
-    };
-    fetchData();
-  }, []);
+
 
   useEffect(() => {
     if (quizId) {
@@ -90,7 +72,9 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
             throw new Error("Failed to fetch quiz");
           }
           const data = await response.json();
-          setQuiz(data);
+          const quizWithId = { ...data, id: data.id || data._id };
+          setQuiz(quizWithId);
+          localStorage.setItem('currentQuizId', quizWithId.id); // Lưu lại quizId
           setStep("session");
         } catch (err: unknown) {
           if (err instanceof Error) {
@@ -110,41 +94,7 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
     }
   }, [quizId]);
 
-  const startQuiz = async () => {
-    if (!quizConfig.field || !quizConfig.topic || !userId) return;
-    
-    setLoading(true);
-    setError(null);
 
-    try {
-      const res = await fetch('/api/quizzes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          field: quizConfig.field,
-          topic: quizConfig.topic,
-          level: quizConfig.level,
-          count: quizConfig.questionCount,
-          timeLimit: quizConfig.timeLimit,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to start quiz');
-      }
-
-      const data = await res.json();
-      setQuiz(data);
-      setStep('session');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start quiz');
-      console.error('Quiz start error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleQuizComplete = async (result: {
     userAnswers: { questionId: string; answerIndex: number[]; isCorrect: boolean }[];
@@ -222,10 +172,11 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
       {step === 'config' && (
         <QuizStart
           config={quizConfig}
-          fields={fields}
-          topics={topics}
           onChange={setQuizConfig}
-          onStart={startQuiz}
+          onStart={(quizData) => {
+            setQuiz(quizData);
+            setStep('session');
+          }}
           isLoading={loading}
           error={error}
         />

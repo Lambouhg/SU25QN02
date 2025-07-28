@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
-import { Brain, Clock, Target, Trophy, Eye, RotateCcw, Calendar, CheckCircle2, XCircle, BookOpen, TrendingUp, Award, Sparkles, History, Filter, Search, } from "lucide-react"
+import { Brain, Clock, Target, Trophy, Eye, RotateCcw, Calendar, CheckCircle2, XCircle, BookOpen, TrendingUp, Award, History, Filter, Search, } from "lucide-react"
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 
 interface Quiz {
-    _id: string
+    id: string
     field: string
     topic: string
     level: string
@@ -26,7 +26,7 @@ interface Quiz {
 }
 
 interface Question {
-    _id: string
+    id: string
     question: string
     answers: { content: string; isCorrect: boolean }[]
     explanation?: string
@@ -61,12 +61,18 @@ export default function QuizHistoryPage() {
         fetchQuizHistory()
     }, [fetchQuizHistory])
 
+    useEffect(() => {
+        // Log dữ liệu để debug
+        console.log("quizHistory", quizHistory)
+        console.log("selectedQuiz", selectedQuiz)
+    }, [quizHistory, selectedQuiz])
+
     const handleViewQuizDetails = async (quiz: Quiz) => {
-        if (selectedQuiz?._id === quiz._id) {
+        if (selectedQuiz?.id === quiz.id) {
             setSelectedQuiz(null)
         } else {
             try {
-                const response = await fetch(`/api/quizzes/${quiz._id}`)
+                const response = await fetch(`/api/quizzes/${quiz.id}`)
                 if (!response.ok) throw new Error("Failed to fetch quiz details")
                 const quizDetails = await response.json()
                 setSelectedQuiz(quizDetails)
@@ -78,12 +84,12 @@ export default function QuizHistoryPage() {
 
     const handleRetryQuiz = async (quiz: Quiz) => {
         try {
-            const response = await fetch(`/api/quizzes/${quiz._id}/retry`, {
+            const response = await fetch(`/api/quizzes/${quiz.id}/retry`, {
                 method: "POST",
             })
             if (!response.ok) throw new Error("Failed to retry quiz")
             const newQuiz = await response.json()
-            router.push(`/quiz/${newQuiz._id}`)
+            router.push(`/quiz/${newQuiz.id}`)
         } catch (error) {
             console.error("Error retrying quiz:", error)
         }
@@ -110,18 +116,19 @@ export default function QuizHistoryPage() {
     }
 
     const filteredQuizzes = quizHistory.filter((quiz) => {
-        if (!quiz || !quiz.field || !quiz.topic) return false;
+        if (!quiz || !quiz.field || !quiz.topic || !quiz.completedAt) return false;
         const matchesSearch =
-            quiz.field.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            quiz.topic.toLowerCase().includes(searchTerm.toLowerCase());
+            (quiz.field?.toLowerCase?.().includes(searchTerm.toLowerCase()) || false) ||
+            (quiz.topic?.toLowerCase?.().includes(searchTerm.toLowerCase()) || false);
         const matchesLevel = filterLevel === "all" || quiz.level === filterLevel;
         return matchesSearch && matchesLevel;
     })
 
-    const totalQuizzes = quizHistory.length
+    const completedQuizzes = quizHistory.filter(quiz => quiz.completedAt)
+    const totalQuizzes = completedQuizzes.length
     const averageScore =
-        totalQuizzes > 0 ? Math.round(quizHistory.reduce((sum, quiz) => sum + quiz.score, 0) / totalQuizzes) : 0
-    const highestScore = totalQuizzes > 0 ? Math.max(...quizHistory.map((quiz) => quiz.score)) : 0
+        totalQuizzes > 0 ? Math.round(completedQuizzes.reduce((sum, quiz) => sum + (quiz.score || 0), 0) / totalQuizzes) : 0
+    const highestScore = totalQuizzes > 0 ? Math.max(...completedQuizzes.map((quiz) => quiz.score || 0)) : 0
 
     if (isLoading) {
         return (
@@ -152,29 +159,7 @@ export default function QuizHistoryPage() {
                 </div>
 
                 <div className="relative z-10 container mx-auto px-4 py-8">
-                    {/* Header */}
-                    <div className="text-center mb-12">
-                        <div className="inline-flex items-center gap-3 mb-6">
-                            <div className="relative">
-                                <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-purple-500/25">
-                                    <History className="w-8 h-8 text-white" />
-                                </div>
-                                <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full flex items-center justify-center animate-bounce">
-                                    <Sparkles className="w-3 h-3 text-white" />
-                                </div>
-                            </div>
-                            <div className="text-left">
-                                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                                    Quiz History
-                                </h1>
-                                <p className="text-purple-600 font-medium">Your Learning Journey</p>
-                            </div>
-                        </div>
 
-                        <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-                            Track your progress and review your quiz performance over time
-                        </p>
-                    </div>
 
                     <div className="grid lg:grid-cols-4 gap-8">
                         {/* Main Content */}
@@ -281,49 +266,49 @@ export default function QuizHistoryPage() {
                             ) : (
                                 <div className="space-y-6">
                                     {filteredQuizzes.map((quiz) => (
-                                        <Card key={quiz._id} className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
+                                        <Card key={quiz.id || quiz.id || Math.random()} className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
                                             <CardContent className="p-6">
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div className="flex-1">
                                                         <div className="flex items-center gap-3 mb-2">
                                                             <div
-                                                                className={`w-10 h-10 bg-gradient-to-r ${getScoreColor(quiz.score)} rounded-xl flex items-center justify-center`}
+                                                                className={`w-10 h-10 bg-gradient-to-r ${getScoreColor(quiz.score || 0)} rounded-xl flex items-center justify-center`}
                                                             >
                                                                 <Brain className="w-5 h-5 text-white" />
                                                             </div>
                                                             <div>
                                                                 <h3 className="text-xl font-bold text-gray-800">
-                                                                    {quiz.field} - {quiz.topic}
+                                                                    {(quiz.field || "Unknown Field")} - {(quiz.topic || "Unknown Topic")}
                                                                 </h3>
-                                                                <p className="text-gray-600 capitalize">{quiz.level} Level</p>
+                                                                <p className="text-gray-600 capitalize">{quiz.level ? `${quiz.level} Level` : "Unknown Level"}</p>
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-center gap-4 text-sm text-gray-600">
                                                             <div className="flex items-center gap-1">
                                                                 <Calendar className="w-4 h-4" />
-                                                                {new Date(quiz.completedAt).toLocaleDateString()}
+                                                                {quiz.completedAt ? new Date(quiz.completedAt).toLocaleDateString() : "N/A"}
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <Clock className="w-4 h-4" />
-                                                                {formatTime(quiz.timeUsed)}
+                                                                {formatTime(quiz.timeUsed || 0)}
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <Target className="w-4 h-4" />
-                                                                {quiz.userAnswers.filter((a) => a.isCorrect).length}/{quiz.totalQuestions} correct
+                                                                {(quiz.userAnswers?.filter((a) => a.isCorrect).length || 0)}/{quiz.totalQuestions || 0} correct
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div className="flex items-center gap-4">
-                                                        <div className={`px-4 py-2 rounded-xl border-2 font-bold ${getScoreBadgeColor(quiz.score)}`}>
-                                                            {quiz.score}%
+                                                        <div className={`px-4 py-2 rounded-xl border-2 font-bold ${getScoreBadgeColor(quiz.score || 0)}`}> 
+                                                            {(quiz.score ?? 0)}%
                                                         </div>
 
                                                         <div className="flex gap-2">
                                                             <button
                                                                 onClick={() => handleViewQuizDetails(quiz)}
-                                                                className={`p-3 rounded-xl transition-all duration-300 ${selectedQuiz?._id === quiz._id
+                                                                className={`p-3 rounded-xl transition-all duration-300 ${(selectedQuiz?.id === (quiz.id || quiz.id))
                                                                         ? "bg-blue-100 text-blue-600 border-2 border-blue-200"
                                                                         : "bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600 border-2 border-transparent hover:border-blue-200"
                                                                     }`}
@@ -343,7 +328,7 @@ export default function QuizHistoryPage() {
                                                     </div>
                                                 </div>
 
-                                                {selectedQuiz?._id === quiz._id && (
+                                                {selectedQuiz?.id === (quiz.id || quiz.id) && (
                                                     <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200">
                                                         <div className="grid md:grid-cols-2 gap-6">
                                                             <div>
@@ -354,15 +339,15 @@ export default function QuizHistoryPage() {
                                                                 <div className="space-y-2 text-sm">
                                                                     <div className="flex justify-between">
                                                                         <span className="text-gray-600">Time Used:</span>
-                                                                        <span className="font-medium">{formatTime(quiz.timeUsed)}</span>
+                                                                        <span className="font-medium">{formatTime(selectedQuiz.timeUsed || 0)}</span>
                                                                     </div>
                                                                     <div className="flex justify-between">
                                                                         <span className="text-gray-600">Time Limit:</span>
-                                                                        <span className="font-medium">{quiz.timeLimit}m</span>
+                                                                        <span className="font-medium">{selectedQuiz.timeLimit ? `${selectedQuiz.timeLimit}m` : "N/A"}</span>
                                                                     </div>
                                                                     <div className="flex justify-between">
                                                                         <span className="text-gray-600">Retry Count:</span>
-                                                                        <span className="font-medium">{quiz.retryCount}</span>
+                                                                        <span className="font-medium">{selectedQuiz.retryCount ?? 0}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -374,16 +359,16 @@ export default function QuizHistoryPage() {
                                                                 </h4>
                                                                 <div className="space-y-3 max-h-64 overflow-y-auto">
                                                                     {selectedQuiz.questions?.map((question, index) => (
-                                                                        <div key={question._id} className="p-3 bg-white rounded-lg border border-blue-100">
+                                                                        <div key={question.id || question.id || index} className="p-3 bg-white rounded-lg border border-blue-100">
                                                                             <p className="font-medium text-sm mb-2">
-                                                                                {index + 1}. {question.question}
+                                                                                {index + 1}. {question.question || "No question text"}
                                                                             </p>
                                                                             <div className="space-y-1">
-                                                                                {question.answers.map((answer, aIndex) => {
-                                                                                    const userAnswer = selectedQuiz.userAnswers.find(
-                                                                                        (ua) => ua.questionId === question._id
+                                                                                {question.answers?.map((answer, aIndex) => {
+                                                                                    const userAnswer = selectedQuiz.userAnswers?.find(
+                                                                                        (ua) => ua.questionId === (question.id || question.id)
                                                                                     );
-                                                                                    const isSelected = userAnswer?.answerIndex.includes(aIndex) || false;
+                                                                                    const isSelected = userAnswer?.answerIndex?.includes(aIndex) || false;
                                                                                     const isCorrect = answer.isCorrect;
 
                                                                                     const baseClass = "p-3 rounded-lg border flex items-center gap-3 font-medium";
@@ -406,7 +391,7 @@ export default function QuizHistoryPage() {
                                                                                     return (
                                                                                         <div key={aIndex} className={`${baseClass} ${answerClass}`}>
                                                                                             {icon}
-                                                                                            <span>{answer.content}</span>
+                                                                                            <span>{answer.content || "No answer text"}</span>
                                                                                         </div>
                                                                                     );
                                                                                 })}
@@ -448,7 +433,7 @@ export default function QuizHistoryPage() {
                                         </button>
 
                                         <button
-                                            onClick={() => router.push("/saved/quizSaveQuestion")}
+                                            onClick={() => router.push("/saved")}
                                             className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-lg border border-green-200 transition-all duration-300"
                                         >
                                             <BookOpen className="w-5 h-5 text-green-600" />

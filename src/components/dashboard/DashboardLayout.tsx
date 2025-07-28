@@ -55,7 +55,6 @@ export default function DashboardLayout({
       label: 'Practice Modes', 
       key: 'practice',
       subItems: [
-        { label: 'Mock Interview (AI)', href: '/interview' },
         { label: 'Avatar Interview', href: '/avatar-interview' },
         { label: 'Quiz Mode', href: '/quiz' },
         { label: 'Test Mode', href: '/test' },
@@ -76,7 +75,7 @@ export default function DashboardLayout({
     },
     { 
       icon: History, 
-      label: 'Practice History', 
+      label: 'History Quiz', 
       href: '/history',
       key: 'history'
     },

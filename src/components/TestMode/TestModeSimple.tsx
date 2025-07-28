@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * TestMode.tsx
  * Simplified component for the test mode interview flow

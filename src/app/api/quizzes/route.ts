@@ -29,14 +29,18 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { field, topic, level, count, timeLimit } = body;
 
-    // Lấy tất cả câu hỏi phù hợp
-    const allQuestions = await prisma.question.findMany({
-      where: {
-        fields: { has: field },
-        topics: { has: topic },
-        levels: { has: level },
-      },
-    });
+    // Chuẩn hóa field, topic, level để so sánh không phân biệt hoa thường/khoảng trắng
+    const norm = (str: string) => str.trim().toLowerCase();
+    const normField = norm(field);
+    const normTopic = norm(topic);
+    const normLevel = norm(level);
+
+    // Lấy tất cả câu hỏi phù hợp (không phân biệt hoa thường/khoảng trắng)
+    const allQuestions = (await prisma.question.findMany({})).filter(q =>
+      q.fields.some(f => norm(f) === normField) &&
+      q.topics.some(t => norm(t) === normTopic) &&
+      q.levels.some(l => norm(l) === normLevel)
+    );
 
     if (!allQuestions || allQuestions.length === 0) {
       return NextResponse.json({ error: 'No questions found' }, { status: 404 });
@@ -57,9 +61,10 @@ export async function POST(req: Request) {
           connect: questions.map(q => ({ id: q.id })),
         },
         totalQuestions: questions.length,
-        timeLimit,
+        timeLimit: parseInt(timeLimit), // Đảm bảo là Int
         score: 0,
         timeUsed: 0,
+        // Đã xóa progressStatus
       },
       include: { questions: true },
     });

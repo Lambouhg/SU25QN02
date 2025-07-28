@@ -37,7 +37,7 @@ export default function ServicePackages() {
             } else {
                 setError(data.error || 'Failed to fetch packages');
             }
-        } catch (err) {
+        } catch {
             setError('Network error');
         } finally {
             setLoading(false);
@@ -62,7 +62,7 @@ export default function ServicePackages() {
             } else {
                 alert(data.error || 'Mua gói thất bại');
             }
-        } catch (err) {
+        } catch {
             alert('Lỗi mạng');
         }
     };

@@ -14,11 +14,9 @@ import {
   CheckCircle2,
   XCircle,
   Brain,
-  Sparkles,
   Target,
   TrendingUp,
   RotateCcw,
-  Star,
   Clock,
   CreditCard,
   ChevronLeft,
@@ -29,7 +27,7 @@ import {
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 
 interface Question {
-  _id: string;
+  id: string;
   question: string;
   answers: { content: string; isCorrect: boolean }[];
   explanation?: string;
@@ -80,13 +78,13 @@ export default function QuizSaveQuestionPage() {
 
   const handleUnsaveQuestion = async (questionId: string) => {
     try {
-      const response = await fetch("/api/users/toggle-saved-question", {
+      const response = await fetch("/api/users/saved-questions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionId }),
       });
       if (!response.ok) throw new Error("Failed to unsave question");
-      setSavedQuestions(savedQuestions.filter((q) => q._id !== questionId));
+      setSavedQuestions(savedQuestions.filter((q) => q.id !== questionId));
       toast.success("Question removed from saved list!");
     } catch (error) {
       console.error("Error unsaving question:", error);
@@ -121,14 +119,14 @@ export default function QuizSaveQuestionPage() {
     try {
       await Promise.all(
         Array.from(selectedQuestions).map((id) =>
-          fetch("/api/users/toggle-saved-question", {
+          fetch("/api/users/saved-questions", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ questionId: id }),
           }),
         ),
       );
-      setSavedQuestions(savedQuestions.filter((q) => !selectedQuestions.has(q._id)));
+      setSavedQuestions(savedQuestions.filter((q) => !selectedQuestions.has(q.id)));
       setSelectedQuestions(new Set());
       toast.success(`${selectedQuestions.size} questions removed!`);
     } catch (error) {
@@ -140,7 +138,7 @@ export default function QuizSaveQuestionPage() {
   // Flash Card Functions
   const startFlashCards = () => {
     const questionsToStudy =
-      selectedQuestions.size > 0 ? savedQuestions.filter((q) => selectedQuestions.has(q._id)) : filteredQuestions;
+      selectedQuestions.size > 0 ? savedQuestions.filter((q) => selectedQuestions.has(q.id)) : filteredQuestions;
 
     if (questionsToStudy.length === 0) {
       toast.error("No questions available for flash cards");
@@ -201,22 +199,7 @@ export default function QuizSaveQuestionPage() {
     }
   };
 
-  const getLevelColor = (level?: string) => {
-    switch (level) {
-      case "intern":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "fresher":
-        return "bg-cyan-100 text-cyan-800 border-cyan-200";
-      case "junior":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "middle":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "senior":
-        return "bg-red-100 text-red-800 border-red-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
+
 
   const filteredQuestions = savedQuestions.filter((question) => {
     const matchesSearch =
@@ -233,6 +216,29 @@ export default function QuizSaveQuestionPage() {
   const fields = Array.from(new Set(savedQuestions.flatMap(q => q.fields || [])));
   const levels = Array.from(new Set(savedQuestions.flatMap(q => q.levels || [])));
   const topics = Array.from(new Set(savedQuestions.flatMap(q => q.topics || [])));
+
+  // Calculate best field and topic
+  const fieldCounts = savedQuestions.reduce((acc, q) => {
+    q.fields?.forEach(field => {
+      acc[field] = (acc[field] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+
+  const topicCounts = savedQuestions.reduce((acc, q) => {
+    q.topics?.forEach(topic => {
+      acc[topic] = (acc[topic] || 0) + 1;
+    });
+    return acc;
+  }, {} as Record<string, number>);
+
+  const bestField = Object.keys(fieldCounts).length > 0 
+    ? Object.entries(fieldCounts).reduce((a, b) => fieldCounts[a[0]] > fieldCounts[b[0]] ? a : b)[0]
+    : "None";
+
+  const bestTopic = Object.keys(topicCounts).length > 0
+    ? Object.entries(topicCounts).reduce((a, b) => topicCounts[a[0]] > topicCounts[b[0]] ? a : b)[0]
+    : "None";
 
   const currentCard = flashCardQuestions[currentCardIndex];
 
@@ -264,35 +270,13 @@ export default function QuizSaveQuestionPage() {
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl animate-pulse delay-1000" />
         </div>
         <div className="relative z-10 container mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-3 mb-6">
-              <div className="relative">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-orange-500/25">
-                  <Bookmark className="w-8 h-8 text-white" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full flex items-center justify-center animate-bounce">
-                  <Sparkles className="w-3 h-3 text-white" />
-                </div>
-              </div>
-              <div className="text-left">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                  Saved Questions
-                </h1>
-                <p className="text-orange-600 font-medium">Your Learning Collection</p>
-              </div>
-            </div>
 
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-              Review and practice with your saved questions to reinforce your learning
-            </p>
-          </div>
 
           <div className="grid lg:grid-cols-4 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-3">
               {/* Stats Cards */}
-              <div className="grid md:grid-cols-4 gap-6 mb-8">
+              <div className="grid md:grid-cols-3 gap-6 mb-8">
                 <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
@@ -310,17 +294,33 @@ export default function QuizSaveQuestionPage() {
                 <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                        <Star className="w-6 h-6 text-white" />
-                </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-800">{selectedQuestions.size}</div>
-                      <div className="text-sm text-gray-600">Selected</div>
+                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                        <Target className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-gray-800 truncate">{bestField}</div>
+                        <div className="text-sm text-gray-600">Best Field</div>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                        <BookOpen className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-gray-800 truncate">{bestTopic}</div>
+                        <div className="text-sm text-gray-600">Best Topic</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+
+              </div>
 
             {/* Search and Filter */}
             <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl mb-8">
@@ -381,18 +381,30 @@ export default function QuizSaveQuestionPage() {
                   {/* Action Buttons Row */}
                   <div className="flex flex-wrap gap-3 pt-2">
                     <button
-                      onClick={() => setSelectedQuestions(new Set(filteredQuestions.map((q) => q._id)))}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all duration-300"
+                      onClick={() => {
+                        if (selectedQuestions.size === filteredQuestions.length) {
+                          setSelectedQuestions(new Set());
+                        } else {
+                          setSelectedQuestions(new Set(filteredQuestions.map((q) => q.id)));
+                        }
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+                        selectedQuestions.size === filteredQuestions.length
+                          ? "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                          : "bg-blue-100 hover:bg-blue-200 text-blue-700"
+                      }`}
                     >
-                      <CheckCircle2 className="w-4 h-4" />
-                      Select All
-                    </button>
-                    <button
-                      onClick={() => setSelectedQuestions(new Set())}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-all duration-300"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      Clear Selection
+                      {selectedQuestions.size === filteredQuestions.length ? (
+                        <>
+                          <XCircle className="w-4 h-4" />
+                          Clear
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          Select All
+                        </>
+                      )}
                     </button>
                     {selectedQuestions.size > 0 && (
                       <button
@@ -438,15 +450,15 @@ export default function QuizSaveQuestionPage() {
               </Card>
             ) : (
               <div className="space-y-6">
-                {filteredQuestions.map((question) => (
-                  <Card key={question._id} className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
+                {filteredQuestions.map((question, index) => (
+                  <Card key={question.id || index} className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-start gap-4 flex-1">
                           <input
                             type="checkbox"
-                            checked={selectedQuestions.has(question._id)}
-                            onChange={() => toggleQuestionSelection(question._id)}
+                            checked={selectedQuestions.has(question.id)}
+                            onChange={() => toggleQuestionSelection(question.id)}
                             className="mt-1 w-5 h-5 text-orange-600 border-2 border-gray-300 rounded focus:ring-orange-500"
                           />
                           <div className="flex-1">
@@ -454,19 +466,17 @@ export default function QuizSaveQuestionPage() {
                               <div className="flex gap-2">
                                 {question.fields && question.fields[0] && (
                                   <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-lg border border-blue-200">
-                                    📚 {question.fields[0]}
+                                    {question.fields[0]}
                                   </span>
                                 )}
                                 {question.topics && question.topics[0] && (
-                                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-lg border border-green-200">
-                                    🎯 {question.topics[0]}
+                                  <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-lg border border-purple-200">
+                                    {question.topics[0]}
                                   </span>
                                 )}
                                 {question.levels && question.levels[0] && (
-                                  <span
-                                    className={`px-2 py-1 text-xs font-medium rounded-lg border ${getLevelColor(question.levels[0])}`}
-                                  >
-                                    ⭐ {question.levels[0]}
+                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-lg border border-orange-200">
+                                    {question.levels[0]}
                                   </span>
                                 )}
                                 {question.difficulty && (
@@ -484,22 +494,22 @@ export default function QuizSaveQuestionPage() {
 
                         <div className="flex gap-2">
                           <button
-                            onClick={() => toggleAnswerVisibility(question._id)}
+                            onClick={() => toggleAnswerVisibility(question.id)}
                             className={`p-2 rounded-lg transition-all duration-300 ${
-                              showAnswers.has(question._id)
+                              showAnswers.has(question.id)
                                 ? "bg-blue-100 text-blue-600"
                                 : "bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-600"
                             }`}
-                            title={showAnswers.has(question._id) ? "Hide Answers" : "Show Answers"}
+                            title={showAnswers.has(question.id) ? "Hide Answers" : "Show Answers"}
                           >
-                            {showAnswers.has(question._id) ? (
+                            {showAnswers.has(question.id) ? (
                               <EyeOff className="w-4 h-4" />
                             ) : (
                               <Eye className="w-4 h-4" />
                             )}
                           </button>
                           <button
-                            onClick={() => handleUnsaveQuestion(question._id)}
+                            onClick={() => handleUnsaveQuestion(question.id)}
                             className="p-2 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-all duration-300"
                             title="Remove from Saved"
                           >
@@ -512,9 +522,9 @@ export default function QuizSaveQuestionPage() {
                       <div className="space-y-3 mb-4">
                         {question.answers.map((answer, aIndex) => (
                           <div
-                            key={aIndex}
+                            key={answer.content + aIndex}
                             className={`p-4 rounded-lg border-2 transition-all duration-300 ${
-                              showAnswers.has(question._id)
+                              showAnswers.has(question.id)
                                 ? answer.isCorrect
                                   ? "border-green-300 bg-green-50 text-green-800"
                                   : "border-red-300 bg-red-50 text-red-800"
@@ -522,7 +532,7 @@ export default function QuizSaveQuestionPage() {
                             }`}
                           >
                             <div className="flex items-center gap-3">
-                              {showAnswers.has(question._id) && (
+                              {showAnswers.has(question.id) && (
                                 <>
                                   {answer.isCorrect ? (
                                     <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -532,7 +542,7 @@ export default function QuizSaveQuestionPage() {
                                 </>
                               )}
                               <span
-                                className={`${showAnswers.has(question._id) && answer.isCorrect ? "font-bold" : ""}`}
+                                className={`${showAnswers.has(question.id) && answer.isCorrect ? "font-bold" : ""}`}
                               >
                                 {answer.content}
                               </span>
@@ -542,7 +552,7 @@ export default function QuizSaveQuestionPage() {
                       </div>
 
                       {/* Explanation */}
-                      {question.explanation && showAnswers.has(question._id) && (
+                      {question.explanation && showAnswers.has(question.id) && (
                         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                           <div className="flex items-start gap-2">
                             <BookOpen className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -598,19 +608,30 @@ export default function QuizSaveQuestionPage() {
                   </button>
 
                   <button
-                    onClick={() => setShowAnswers(new Set(filteredQuestions.map((q) => q._id)))}
-                    className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 rounded-lg border border-blue-200 transition-all duration-300"
+                    onClick={() => {
+                      if (showAnswers.size === filteredQuestions.length) {
+                        setShowAnswers(new Set());
+                      } else {
+                        setShowAnswers(new Set(filteredQuestions.map((q) => q.id)));
+                      }
+                    }}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-all duration-300 ${
+                      showAnswers.size === filteredQuestions.length
+                        ? "bg-gradient-to-r from-gray-50 to-slate-50 hover:from-gray-100 hover:to-slate-100 border-gray-200"
+                        : "bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border-blue-200"
+                    }`}
                   >
-                    <Eye className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium text-gray-800">Show All Answers</span>
-                  </button>
-
-                  <button
-                    onClick={() => setShowAnswers(new Set())}
-                    className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-gray-50 to-slate-50 hover:from-gray-100 hover:to-slate-100 rounded-lg border border-gray-200 transition-all duration-300"
-                  >
-                    <EyeOff className="w-5 h-5 text-gray-600" />
-                    <span className="font-medium text-gray-800">Hide All Answers</span>
+                    {showAnswers.size === filteredQuestions.length ? (
+                      <>
+                        <EyeOff className="w-5 h-5 text-gray-600" />
+                        <span className="font-medium text-gray-800">Hide All Answers</span>
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-5 h-5 text-blue-600" />
+                        <span className="font-medium text-gray-800">Show All Answers</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </CardContent>
@@ -717,26 +738,24 @@ export default function QuizSaveQuestionPage() {
               <div className="flex items-center gap-2 mb-6 flex-wrap">
                 {currentCard.fields && currentCard.fields[0] && (
                   <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full border border-blue-200">
-                    📚 {currentCard.fields[0]}
+                    {currentCard.fields[0]}
                   </span>
                 )}
                 {currentCard.topics && currentCard.topics[0] && (
-                  <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full border border-green-200">
-                    🎯 {currentCard.topics[0]}
+                  <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full border border-purple-200">
+                    {currentCard.topics[0]}
                   </span>
                 )}
                 {currentCard.levels && currentCard.levels[0] && (
-                  <span
-                    className={`px-3 py-1 text-sm font-medium rounded-full border ${getLevelColor(currentCard.levels[0])}`}
-                  >
-                    ⭐ {currentCard.levels[0]}
+                  <span className="px-3 py-1 bg-orange-100 text-orange-800 text-sm font-medium rounded-full border border-orange-200">
+                    {currentCard.levels[0]}
                   </span>
                 )}
               </div>
 
               {/* Flash Card */}
               <div
-                className={`relative w-full h-[28rem] cursor-pointer transition-transform duration-700 transform-style-preserve-3d ${
+                className={`relative w-full h-[24rem] cursor-pointer transition-transform duration-700 transform-style-preserve-3d ${
                   isFlipped ? "rotate-y-180" : ""
                 }`}
                 onClick={flipCard}
@@ -754,8 +773,8 @@ export default function QuizSaveQuestionPage() {
                   ) : (
                     <h3 className="w-full font-bold text-gray-800 mt-8 mb-4 leading-relaxed text-center break-words text-xl">{currentCard.question}</h3>
                   )}
-                  <div className="w-full flex-1 max-h-56 overflow-y-auto bg-gradient-to-br from-purple-50 to-blue-50 rounded-none p-0 shadow-none">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-8 py-4">
+                  <div className="w-full flex-1 max-h-48 overflow-y-auto bg-gradient-to-br from-purple-50 to-blue-50 rounded-none p-0 shadow-none">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-6 py-3">
                       {currentCard.answers.map((answer, idx) => (
                         <div key={idx} className="p-2 bg-gray-200 border border-gray-300 rounded-lg text-gray-800 w-full">
                           {answer.content}
@@ -773,18 +792,18 @@ export default function QuizSaveQuestionPage() {
                   }`}
                   style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                 >
-                  <div className="h-full w-full flex flex-col items-center justify-start">
-                    <div className="flex items-center gap-2 mt-8 mb-4">
+                  <div className="h-full w-full flex flex-col items-start justify-start">
+                    <div className="flex items-center gap-2 mt-8 mb-4 w-full px-4">
                       <CheckCircle2 className="w-6 h-6 text-green-600" />
                       <h4 className="text-lg font-bold text-gray-800">Correct Answers:</h4>
                     </div>
-                    <div className="w-full flex-1 max-h-56 overflow-y-auto bg-gradient-to-br from-green-50 to-emerald-50 rounded-none p-0 shadow-none mb-6">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-8 py-4">
+                    <div className="w-full flex-1 max-h-48 overflow-y-auto bg-gradient-to-br from-green-50 to-emerald-50 rounded-none p-0 shadow-none mb-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-6 py-3">
                         {currentCard.answers
                           .filter((answer) => answer.isCorrect)
                           .map((answer, index) => (
                             <div
-                              key={index}
+                              key={answer.content + index}
                               className="p-4 bg-green-200 border border-green-300 rounded-lg text-green-800 font-medium w-full"
                             >
                               ✓ {answer.content}
@@ -793,12 +812,12 @@ export default function QuizSaveQuestionPage() {
                       </div>
                     </div>
                     {currentCard.explanation && (
-                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <div className="flex items-start gap-2">
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg w-full max-h-32 overflow-y-auto">
+                        <div className="flex items-start gap-2 w-full">
                           <BookOpen className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <span className="font-semibold text-blue-800">Explanation:</span>
-                            <p className="text-blue-700 mt-1">{currentCard.explanation}</p>
+                            <p className="text-blue-700 mt-1 break-words">{currentCard.explanation}</p>
                           </div>
                         </div>
                       </div>

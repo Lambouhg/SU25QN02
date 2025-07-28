@@ -7,7 +7,7 @@ import {
   getUserCache,
   USER_LIST_CACHE_DURATION
 } from "../../../lib/userCache";
-import { withCORS, corsOptionsResponse } from '../../../lib/utils';
+import { withCORS } from '../../../lib/utils';
 // import NotificationService from "../../../services/notificationService";
 
 export async function OPTIONS() {

@@ -47,7 +47,7 @@ export class TrackingIntegrationService {
       
       // Tạo activity mới
       const activity: Activity = {
-        type: 'test' as ActivityType,
+        type: 'quiz' as ActivityType,
         score,
         duration: timeSpent,
         timestamp: this.formatDate(new Date())

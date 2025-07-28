@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * TestMode.tsx
  * Simplified component for the test mode interview flow
@@ -5,49 +7,14 @@
 
 import React, { useState } from 'react';
 
-// Interface for topic data
-interface TopicData {
-  name: string;
-  selected: boolean;
-}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <h3 className="font-semibold mb-1">Technical Strengths</h3>
-          <ul className="list-disc pl-5">
-            {props.assessment?.technicalStrengths.map((s: string, i: number) => (
-              <li key={i}>{s}</li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h3 className="font-semibold mb-1">Development Areas</h3>
-          <ul className="list-disc pl-5">
-            {props.assessment?.developmentAreas.map((area: string, i: number) => (
-              <li key={i}>{area}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-      <div className="bg-gray-50 p-3 rounded border">
-        <div className="font-semibold mb-1">Feedback for Candidate:</div>
-        <div>{props.assessment?.feedbackForCandidate}</div>
-      </div>
-      <button 
-        className="bg-blue-500 text-white p-2 rounded w-full"
-        onClick={props.onReset}
-      >
-        Start New Interview
-      </button>
-    </div>
-  </div>
-);
+
 
 export default function TestMode() {
   const [jobDescription, setJobDescription] = useState('');
   const [candidateName, setCandidateName] = useState('');
   const [positionLevel, setPositionLevel] = useState('Mid-level');
   const [step, setStep] = useState<'input' | 'topics' | 'interview' | 'feedback' | 'complete'>('input');
-  const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
   // Simple mock topics for demonstration

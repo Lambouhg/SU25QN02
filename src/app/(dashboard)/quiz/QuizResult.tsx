@@ -16,6 +16,8 @@ interface QuizResultProps {
 export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
   const router = useRouter()
   const [savedQuestionIds, setSavedQuestionIds] = useState<string[]>([])
+  const [showSaveWarning, setShowSaveWarning] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchSavedQuestions = async () => {
@@ -23,7 +25,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
         const response = await fetch("/api/users/saved-questions")
         if (!response.ok) throw new Error("Failed to fetch saved questions")
         const data = await response.json()
-        setSavedQuestionIds(data.map((q: { _id: string }) => q._id))
+        setSavedQuestionIds(data.map((q: { id: string }) => q.id))
       } catch (error) {
         console.error("Error fetching saved questions:", error)
         toast.error("Failed to load saved questions.")
@@ -31,6 +33,30 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
     }
     fetchSavedQuestions()
   }, [])
+
+  // Get incorrect questions that haven't been saved
+  const getUnsavedIncorrectQuestions = () => {
+    const unsaved = quiz.userAnswers.filter(answer => {
+      const isIncorrect = !answer.isCorrect
+      const isNotSaved = !savedQuestionIds.includes(answer.questionId)
+      
+      console.log(`Question ${answer.questionId}:`, {
+        isIncorrect,
+        isNotSaved,
+        answerIndex: answer.answerIndex,
+        isCorrect: answer.isCorrect
+      })
+      
+      return (isIncorrect) && isNotSaved
+    })
+    
+    console.log('Quiz userAnswers:', quiz.userAnswers)
+    console.log('Saved question IDs:', savedQuestionIds)
+    console.log('Unsaved incorrect questions:', unsaved)
+    return unsaved
+  }
+
+  const unsavedIncorrectCount = getUnsavedIncorrectQuestions().length
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -74,12 +100,77 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
       });
       if (!response.ok) throw new Error('Failed to retry quiz');
       const newQuiz = await response.json();
-      router.push(`/quiz/${newQuiz._id}`);
+      router.push(`/quiz/${newQuiz.id || newQuiz._id}`);
     } catch (error) {
       console.error('Error retrying quiz:', error);
       toast.error('Failed to retry quiz');
     }
   };
+
+  // Handle navigation with warning
+  const handleNavigation = (action: string, callback: () => void) => {
+    console.log('handleNavigation called with action:', action)
+    console.log('unsavedIncorrectCount:', unsavedIncorrectCount)
+    if (unsavedIncorrectCount > 0) {
+      console.log('Showing save warning popup')
+      setShowSaveWarning(true)
+      setPendingNavigation(action)
+    } else {
+      console.log('No unsaved questions, proceeding with navigation')
+      callback()
+    }
+  }
+
+  const handleConfirmNavigation = () => {
+    setShowSaveWarning(false)
+    if (pendingNavigation === 'newQuiz') {
+      onNewQuiz()
+    } else if (pendingNavigation === 'history') {
+      router.push("/history/quizHistory")
+    } else if (pendingNavigation === 'saved') {
+      router.push("/saved/quizSaveQuestion")
+    } else if (pendingNavigation === 'retry') {
+      handleRetryQuiz()
+    }
+    setPendingNavigation(null)
+  }
+
+  const handleCancelNavigation = () => {
+    setShowSaveWarning(false)
+    setPendingNavigation(null)
+  }
+
+  // Save all incorrect questions at once
+  const handleSaveAllIncorrect = async () => {
+    const unsavedIncorrect = getUnsavedIncorrectQuestions()
+    let savedCount = 0
+
+    for (const answer of unsavedIncorrect) {
+      try {
+        const response = await fetch("/api/users/saved-questions", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ questionId: answer.questionId }),
+        })
+        if (response.ok) {
+          savedCount++
+          setSavedQuestionIds(prev => [...prev, answer.questionId])
+        }
+      } catch (error) {
+        console.error("Error saving question:", error)
+      }
+    }
+
+    if (savedCount > 0) {
+      toast.success(`Successfully saved ${savedCount} questions for later study!`)
+      setShowSaveWarning(false)
+      setPendingNavigation(null)
+    } else {
+      toast.error("Failed to save questions. Please try again.")
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
@@ -106,7 +197,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
             </div>
             <div className="text-left">
               <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                {isPassingScore ? "Congratulations! 🎉" : "Quiz Completed!"}
+                {isPassingScore ? "Congratulations!!!" : "Quiz Completed!"}
               </h1>
               <p className="text-purple-600 font-medium">Your Results</p>
             </div>
@@ -156,7 +247,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                   <div className="relative">
                     <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl blur-lg opacity-30 animate-pulse" />
                     <button
-                      onClick={onNewQuiz}
+                      onClick={() => handleNavigation('newQuiz', onNewQuiz)}
                       className="relative w-full flex items-center justify-center gap-3 h-14 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-bold text-white shadow-lg transition-all duration-300 transform hover:scale-105"
                     >
                       <RotateCcw className="w-5 h-5" />
@@ -165,7 +256,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                   </div>
 
                   <button
-                    onClick={() => router.push("/history/quizHistory")}
+                    onClick={() => handleNavigation('history', () => router.push("/history/quizHistory"))}
                     className="w-full flex items-center justify-center gap-3 h-14 bg-white/70 hover:bg-white/90 border-2 border-gray-200 hover:border-purple-300 rounded-xl font-semibold text-gray-700 hover:text-purple-700 shadow-lg transition-all duration-300 transform hover:scale-105"
                   >
                     <History className="w-5 h-5" />
@@ -173,7 +264,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                   </button>
 
                   <button
-                    onClick={() => router.push("/saved/quizSaveQuestion")}
+                    onClick={() => handleNavigation('saved', () => router.push("/saved/quizSaveQuestion"))}
                     className="w-full flex items-center justify-center gap-3 h-14 bg-white/70 hover:bg-white/90 border-2 border-gray-200 hover:border-orange-300 rounded-xl font-semibold text-gray-700 hover:text-orange-700 shadow-lg transition-all duration-300 transform hover:scale-105"
                   >
                     <Bookmark className="w-5 h-5" />
@@ -237,10 +328,12 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
                           <button
                             onClick={() => handleSaveQuestion(question.id)}
-                            className={`p-2 rounded-full transition-all duration-300 ${
+                            className={`p-2 rounded-lg transition-all duration-300 ${
                               isSaved
-                                ? "bg-orange-100 text-orange-600 hover:bg-orange-200"
-                                : "bg-gray-100 text-gray-400 hover:bg-orange-100 hover:text-orange-600"
+                                ? "bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200"
+                                : isCorrect
+                                ? "bg-green-100 text-green-700 border border-green-300 hover:bg-green-200"
+                                : "bg-red-100 text-red-700 border border-red-300 hover:bg-red-200"
                             }`}
                             title={isSaved ? "Unsave Question" : "Save Question"}
                           >
@@ -248,7 +341,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                           </button>
                         </div>
 
-                        <div className="space-y-3 ml-11">
+                        <div className="ml-11 space-y-3">
                           {question.answers.map((answer, aIndex) => {
                             const userSelectedThisAnswer = userAnswer?.answerIndex.includes(aIndex)
                             const isThisAnswerCorrect = answer.isCorrect
@@ -364,7 +457,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                       </div>
                       {!isPassingScore && (
                         <button
-                          onClick={handleRetryQuiz}
+                          onClick={() => handleNavigation('retry', handleRetryQuiz)}
                           className="mt-3 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-semibold shadow transition"
                         >
                           Try Again
@@ -407,21 +500,62 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                      <History className="w-4 h-4 text-white" />
+                  {unsavedIncorrectCount > 0 && (
+                    <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                      <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                        <Bookmark className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="text-sm">
+                        <div className="text-gray-800 font-medium">Save incorrect questions</div>
+                        <div className="text-gray-600 text-xs">{unsavedIncorrectCount} questions to save</div>
+                      </div>
                     </div>
-                    <div className="text-sm">
-                      <div className="text-gray-800 font-medium">Track your progress</div>
-                      <div className="text-gray-600 text-xs">Monitor improvement</div>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
+
+      {/* Save Warning Modal */}
+      {showSaveWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Bookmark className="w-8 h-8 text-white" />
+              </div>
+                             <h3 className="text-xl font-bold text-gray-800 mb-2">Save Your Progress?</h3>
+               <p className="text-gray-600 mb-6">
+                 We noticed you haven't saved {unsavedIncorrectCount} question{unsavedIncorrectCount > 1 ? 's' : ''} (incorrect). 
+                 Would you like to save them for later study?
+               </p>
+               
+               <div className="space-y-3">
+                 <button
+                   onClick={handleSaveAllIncorrect}
+                   className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
+                 >
+                   Save All & Continue
+                 </button>
+                <button
+                  onClick={handleConfirmNavigation}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-all duration-300"
+                >
+                  Continue Without Saving
+                </button>
+                <button
+                  onClick={handleCancelNavigation}
+                  className="w-full text-gray-500 hover:text-gray-700 font-medium py-2 px-6 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

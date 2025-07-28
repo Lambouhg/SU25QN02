@@ -43,6 +43,26 @@ export async function GET() {
     try {
       const progress = await TrackingIntegrationService.getProgressOverview(user.id);
       console.log('Progress data fetched successfully:', progress);
+      // Nếu có allQuizActivities thì recentActivities sẽ là allQuizActivities (ưu tiên cho tracking quiz đầy đủ)
+      if (
+        progress &&
+        typeof progress === 'object' &&
+        'allQuizActivities' in progress &&
+        Array.isArray((progress as any).allQuizActivities)
+      ) {
+        (progress as any).recentActivities = (progress as any).allQuizActivities;
+      } else if (
+        progress &&
+        typeof progress === 'object' &&
+        'activities' in progress &&
+        Array.isArray((progress as any).activities) &&
+        !('recentActivities' in progress)
+      ) {
+        const activities = (progress as any).activities as Array<{ timestamp: string }>;
+        (progress as any).recentActivities = activities
+          .sort((a: { timestamp: string }, b: { timestamp: string }) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 20);
+      }
       return NextResponse.json(progress);
     } catch (fetchError) {
       console.error('Error in TrackingIntegrationService.getProgressOverview:', fetchError);
