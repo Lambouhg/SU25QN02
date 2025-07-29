@@ -1,13 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { AssessmentType } from '@prisma/client';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
+import { corsOptionsResponse, withCORS } from '@/lib/utils';
+
+// Helper function to create CORS-enabled JSON response
+function corsJsonResponse(data: unknown, init?: ResponseInit) {
+  const response = NextResponse.json(data, init);
+  return withCORS(response);
+}
+
+// Define AssessmentType enum locally
+enum AssessmentType {
+  test = 'test',
+  eq = 'eq'
+}
+
+// Handle preflight requests
+export async function OPTIONS() {
+  return corsOptionsResponse();
+}
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const response = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return withCORS(response);
   }
 
   try {
@@ -129,10 +147,10 @@ export async function POST(request: NextRequest) {
       // Continue and return results, just log the error
     }
 
-    return NextResponse.json(responseData, { status: 201 });
+    return corsJsonResponse(responseData, { status: 201 });
   } catch (error) {
     console.error('Error creating assessment:', error);
-    return NextResponse.json({ 
+    return corsJsonResponse({ 
       error: 'Lưu kết quả thất bại', 
       detail: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
@@ -142,7 +160,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return corsJsonResponse({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -162,10 +180,10 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json(assessments);
+    return corsJsonResponse(assessments);
   } catch (error) {
     console.error('Error fetching assessments:', error);
-    return NextResponse.json({ 
+    return corsJsonResponse({ 
       error: 'Lấy kết quả thất bại', 
       detail: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
