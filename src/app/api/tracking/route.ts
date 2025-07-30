@@ -43,15 +43,8 @@ export async function GET() {
     try {
       const progress = await TrackingIntegrationService.getProgressOverview(user.id);
       console.log('Progress data fetched successfully:', progress);
-      // Nếu có allQuizActivities thì recentActivities sẽ là allQuizActivities (ưu tiên cho tracking quiz đầy đủ)
+      // Đảm bảo recentActivities có sẵn từ activities nếu chưa có
       if (
-        progress &&
-        typeof progress === 'object' &&
-        'allQuizActivities' in progress &&
-        Array.isArray((progress as any).allQuizActivities)
-      ) {
-        (progress as any).recentActivities = (progress as any).allQuizActivities;
-      } else if (
         progress &&
         typeof progress === 'object' &&
         'activities' in progress &&

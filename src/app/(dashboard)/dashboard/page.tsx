@@ -119,7 +119,7 @@ export default function DashboardPage() {
 
   // Lấy số ngày streak thực tế từ progress.stats.studyStreak
   const currentStreak = progress?.stats?.studyStreak || 0;
-  const totalActivities = progress?.recentActivities?.length || 0;
+  const totalActivities = (progress?.stats?.totalInterviews || 0) + (progress?.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0);
 
   // Tính level và evolution của pet dựa vào tổng số activities
   let petLevel = 1;
@@ -212,13 +212,13 @@ export default function DashboardPage() {
     const fetchProgress = async () => {
       if (!isLoaded || !user) return;
       
-      try {
+            try {
         const response = await fetch('/api/tracking');
         if (response.ok) {
           const data = await response.json();
-          
-          // API trả về data trực tiếp, không có .progress
-          setProgress(data);
+        
+        // API trả về data trực tiếp, không có .progress
+        setProgress(data);
         }
       } catch (error) {
         console.error('Error fetching progress:', error);
@@ -237,6 +237,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!progress || !progress.recentActivities) return;
     const activities = progress.recentActivities;
+    const totalInterviews = progress.stats?.totalInterviews || 0;
+    
+    console.log('=== Progress by Day Debug ===');
+    console.log('Activities count:', activities.length);
+    console.log('Activities:', activities);
+    console.log('Total interviews from stats:', totalInterviews);
+    
     const groupKey = (date: Date): string => {
       if (viewMode === 'day') return date.toISOString().slice(0, 10);
       if (viewMode === 'month') return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
@@ -254,6 +261,7 @@ export default function DashboardPage() {
       if (a.type === 'test' || a.type === 'eq') grouped[key].test.push(a.score || 0);
       if (a.type === 'interview') grouped[key].interview.push(a.score || 0);
     });
+    
     const chartData = Object.entries(grouped).map(([period, vals]) => {
       if (lineMode === 'score') {
         return {
@@ -263,6 +271,7 @@ export default function DashboardPage() {
           interview: vals.interview.length ? (vals.interview.reduce((a, b) => a + b, 0) / vals.interview.length) : 0,
         };
       } else {
+        // Sử dụng số lượng thực tế từ recentActivities
         return {
           period,
           quiz: vals.quiz.length,
@@ -271,23 +280,36 @@ export default function DashboardPage() {
         };
       }
     }).sort((a, b) => a.period.localeCompare(b.period));
+    
+    console.log('Grouped data:', grouped);
+    console.log('Chart data:', chartData);
     setLineChartData(chartData);
   }, [progress, viewMode, lineMode]);
 
   // Tính toán dữ liệu spider chart mỗi khi progress thay đổi
   useEffect(() => {
-    if (!progress || !progress.recentActivities) return;
-    const activities = progress.recentActivities;
-    const totalCount = activities.length;
-    const avgScore = activities.reduce((sum, a) => sum + (a.score || 0), 0) / (activities.length || 1);
+    if (!progress) return;
+    
+    // Sử dụng totalInterviews + quiz/test count để tính tổng activities
+    const totalCount = (progress.stats?.totalInterviews || 0) + (progress.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0);
+    const avgScore = progress.stats?.averageScore || 0;
     // Study time chuyển sang giờ, làm tròn 1 số thập phân
-    const totalStudyTimeRaw = activities.reduce((sum, a) => sum + (a.duration || 0), 0);
+    const totalStudyTimeRaw = progress.stats?.totalStudyTime || 0;
     const totalStudyTime = +(totalStudyTimeRaw / 60).toFixed(1); // giờ
-    const completionRate = activities.filter(a => a.score !== undefined).length / (activities.length || 1) * 100;
-    // Tần suất học: số lần trong 30 ngày gần nhất
-    const now = new Date();
-    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const frequency = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo).length;
+    
+    // Tính completion rate và frequency từ recentActivities nếu có
+    let completionRate = 0;
+    let frequency = 0;
+    
+    if (progress.recentActivities && progress.recentActivities.length > 0) {
+      const activities = progress.recentActivities;
+      completionRate = activities.filter(a => a.score !== undefined).length / activities.length * 100;
+      
+      // Tần suất học: số lần trong 30 ngày gần nhất
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      frequency = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo).length;
+    }
     setOverallSpiderData([
       {
         subject: 'Total Activities', A: Math.min(totalCount, 100), fullMark: 100, target: personalTargets.totalActivities, unit: 'times'
@@ -490,7 +512,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">              <div>
                 <p className="text-sm text-gray-600 mb-1">Total Activities</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : progress?.recentActivities?.length || 0}
+                  {loading ? '...' : (progress?.stats?.totalInterviews || 0) + (progress?.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0)}
                 </p>
                 <p className="text-sm text-green-600">Recent activities</p>
               </div>
