@@ -11,6 +11,22 @@ function shuffleArray<T>(array: T[]): T[] {
   return array;
 }
 
+// Hàm shuffle answers và trả về mapping
+function shuffleAnswers(answers: any[]): { shuffledAnswers: any[], mapping: number[] } {
+  const originalIndexes = answers.map((_, index) => index);
+  const shuffledIndexes = shuffleArray([...originalIndexes]);
+  
+  const shuffledAnswers = shuffledIndexes.map(index => answers[index]);
+  
+  // Tạo mapping từ vị trí gốc về vị trí mới: mapping[originalIndex] = newIndex
+  const mapping = new Array(answers.length);
+  shuffledIndexes.forEach((originalIndex, newIndex) => {
+    mapping[originalIndex] = newIndex;
+  });
+  
+  return { shuffledAnswers, mapping };
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
@@ -50,22 +66,41 @@ export async function POST(req: Request) {
     const shuffled = shuffleArray([...allQuestions]);
     const questions = shuffled.slice(0, parseInt(count));
 
+    // Tạo answer mapping cho từng câu hỏi
+    const answerMapping: Record<string, number[]> = {};
+    const questionsWithShuffledAnswers = questions.map(question => {
+      const answers = question.answers as any[];
+      if (answers && answers.length > 0) {
+        const { shuffledAnswers, mapping } = shuffleAnswers(answers);
+        answerMapping[question.id] = mapping;
+        return {
+          ...question,
+          answers: shuffledAnswers
+        };
+      }
+      return question;
+    });
+
     // Tạo quiz mới
+    const quizData = {
+      userId: user.id,
+      field,
+      topic,
+      level,
+      questions: {
+        connect: questions.map(q => ({ id: q.id })),
+      },
+      totalQuestions: questions.length,
+      timeLimit: parseInt(timeLimit), // Đảm bảo là Int
+      score: 0,
+      timeUsed: 0,
+    };
+
     const quiz = await prisma.quiz.create({
       data: {
-        userId: user.id,
-        field,
-        topic,
-        level,
-        questions: {
-          connect: questions.map(q => ({ id: q.id })),
-        },
-        totalQuestions: questions.length,
-        timeLimit: parseInt(timeLimit), // Đảm bảo là Int
-        score: 0,
-        timeUsed: 0,
-        // Đã xóa progressStatus
-      },
+        ...quizData,
+        answerMapping,
+      } as any,
       include: { questions: true },
     });
 
@@ -79,7 +114,13 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json(quiz, { status: 201 });
+    // Trả về quiz với câu trả lời đã được shuffle
+    const quizWithShuffledAnswers = {
+      ...quiz,
+      questions: questionsWithShuffledAnswers
+    };
+
+    return NextResponse.json(quizWithShuffledAnswers, { status: 201 });
   } catch (error) {
     console.error('Error creating quiz:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

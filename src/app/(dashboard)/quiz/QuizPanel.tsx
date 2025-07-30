@@ -38,6 +38,7 @@ export type Quiz = {
   score: number;
   totalQuestions: number;
   timeUsed: number;
+  answerMapping?: Record<string, number[]>; // Mapping vị trí câu trả lời
 };
 
 interface QuizPanelProps {

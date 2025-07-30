@@ -126,9 +126,9 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
     if (pendingNavigation === 'newQuiz') {
       onNewQuiz()
     } else if (pendingNavigation === 'history') {
-      router.push("/history/quizHistory")
+      router.push("/history")
     } else if (pendingNavigation === 'saved') {
-      router.push("/saved/quizSaveQuestion")
+      router.push("/saved")
     } else if (pendingNavigation === 'retry') {
       handleRetryQuiz()
     }
@@ -256,7 +256,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                   </div>
 
                   <button
-                    onClick={() => handleNavigation('history', () => router.push("/history/quizHistory"))}
+                    onClick={() => handleNavigation('history', () => router.push("/history"))}
                     className="w-full flex items-center justify-center gap-3 h-14 bg-white/70 hover:bg-white/90 border-2 border-gray-200 hover:border-purple-300 rounded-xl font-semibold text-gray-700 hover:text-purple-700 shadow-lg transition-all duration-300 transform hover:scale-105"
                   >
                     <History className="w-5 h-5" />
@@ -264,7 +264,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                   </button>
 
                   <button
-                    onClick={() => handleNavigation('saved', () => router.push("/saved/quizSaveQuestion"))}
+                    onClick={() => handleNavigation('saved', () => router.push("/saved"))}
                     className="w-full flex items-center justify-center gap-3 h-14 bg-white/70 hover:bg-white/90 border-2 border-gray-200 hover:border-orange-300 rounded-xl font-semibold text-gray-700 hover:text-orange-700 shadow-lg transition-all duration-300 transform hover:scale-105"
                   >
                     <Bookmark className="w-5 h-5" />
@@ -343,35 +343,51 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
                         <div className="ml-11 space-y-3">
                           {question.answers.map((answer, aIndex) => {
-                            const userSelectedThisAnswer = userAnswer?.answerIndex.includes(aIndex)
-                            const isThisAnswerCorrect = answer.isCorrect
+                            // Lấy mapping cho câu hỏi này nếu có
+                            const questionMapping = quiz.answerMapping?.[question.id];
+                            const originalIndex = questionMapping ? questionMapping[aIndex] : aIndex;
+                            
+                            const userSelectedThisAnswer = userAnswer?.answerIndex.includes(originalIndex);
+                            const isThisAnswerCorrect = answer.isCorrect;
+                            const isQuestionCorrect = userAnswer?.isCorrect;
 
                             let answerClass = "p-3 rounded-lg border "
                             let iconClass = ""
 
-                            if (userSelectedThisAnswer && isThisAnswerCorrect) {
-                              answerClass += "border-green-300 bg-green-100 text-green-800"
-                              iconClass = "text-green-600"
-                            } else if (userSelectedThisAnswer && !isThisAnswerCorrect) {
-                              answerClass += "border-red-300 bg-red-100 text-red-800"
-                              iconClass = "text-red-600"
-                            } else if (!userSelectedThisAnswer && isThisAnswerCorrect) {
-                              answerClass += "border-green-300 bg-green-50 text-green-700"
-                              iconClass = "text-green-500"
+                            // Logic hiển thị màu sắc mới:
+                            // - Nếu user đúng: chỉ hiện xanh cho đáp án user chọn
+                            // - Nếu user sai: hiện đỏ cho đáp án user chọn sai, xanh cho đáp án đúng
+                            if (isQuestionCorrect) {
+                              // User trả lời đúng - chỉ hiện xanh cho đáp án user chọn
+                              if (userSelectedThisAnswer) {
+                                answerClass += "border-green-300 bg-green-100 text-green-800"
+                                iconClass = "text-green-600"
+                              } else {
+                                answerClass += "border-gray-200 bg-gray-50 text-gray-600"
+                              }
                             } else {
-                              answerClass += "border-gray-200 bg-gray-50 text-gray-600"
+                              // User trả lời sai - hiện đỏ cho đáp án user chọn sai, xanh cho đáp án đúng
+                              if (userSelectedThisAnswer && !isThisAnswerCorrect) {
+                                answerClass += "border-red-300 bg-red-100 text-red-800"
+                                iconClass = "text-red-600"
+                              } else if (isThisAnswerCorrect) {
+                                answerClass += "border-green-300 bg-green-50 text-green-700"
+                                iconClass = "text-green-500"
+                              } else {
+                                answerClass += "border-gray-200 bg-gray-50 text-gray-600"
+                              }
                             }
 
                             return (
                               <div key={aIndex} className={answerClass}>
                                 <div className="flex items-center gap-3">
-                                  {userSelectedThisAnswer && isThisAnswerCorrect && (
+                                  {isQuestionCorrect && userSelectedThisAnswer && (
                                     <CheckCircle2 className={`w-5 h-5 ${iconClass}`} />
                                   )}
-                                  {userSelectedThisAnswer && !isThisAnswerCorrect && (
+                                  {!isQuestionCorrect && userSelectedThisAnswer && !isThisAnswerCorrect && (
                                     <XCircle className={`w-5 h-5 ${iconClass}`} />
                                   )}
-                                  {!userSelectedThisAnswer && isThisAnswerCorrect && (
+                                  {!isQuestionCorrect && isThisAnswerCorrect && (
                                     <CheckCircle2 className={`w-5 h-5 ${iconClass}`} />
                                   )}
                                   <span className="font-medium">{answer.content}</span>

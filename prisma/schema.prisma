@@ -88,6 +88,7 @@ model Quiz {
   timeUsed          Int
   completedAt       DateTime?
   retryCount        Int?       @default(0)
+  answerMapping     Json?      // Lưu mapping vị trí câu trả lời: { questionId: [newIndexes] }
   quizHistoryUserId String?
   quizHistoryUser   User?      @relation("QuizHistory", fields: [quizHistoryUserId], references: [id])
   user              User       @relation(fields: [userId], references: [id])
