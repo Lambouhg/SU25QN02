@@ -160,7 +160,27 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    // Create new interview
+    // Luôn kiểm tra hạn mức trước khi tạo interview
+    const activeUserPackage = await prisma.userPackage.findFirst({
+      where: {
+        userId: dbUser.id,
+        isActive: true,
+        endDate: { gte: new Date() }
+      },
+      include: { servicePackage: true }
+    });
+
+    if (!activeUserPackage) {
+      return withCORS(new Response(JSON.stringify({ error: 'No active service package found for user' }), { status: 403 }));
+    }
+
+    const used = activeUserPackage.avatarInterviewUsed;
+    const limit = activeUserPackage.servicePackage.avatarInterviewLimit;
+    if (used >= limit) {
+      return withCORS(new Response(JSON.stringify({ error: `Avatar interview usage exceeded: ${used}/${limit}` }), { status: 403 }));
+    }
+
+    // Tạo interview
     const newInterview = await prisma.interview.create({
       data: {
         userId: dbUser.id,
@@ -189,12 +209,9 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Only track if interview is completed
+    // Nếu là completed thì trừ lượt và tracking
     if (data.status === 'completed') {
-      // Tracking hoạt động phỏng vấn
       await TrackingIntegrationService.trackInterviewCompletion(dbUser.id, newInterview);
-
-      // Update user's interview stats
       const currentStats = dbUser.interviewStats as InterviewStats || { totalInterviews: 0 };
       await prisma.user.update({
         where: { id: dbUser.id },
@@ -203,6 +220,13 @@ export async function POST(req: NextRequest) {
             ...currentStats,
             totalInterviews: currentStats.totalInterviews + 1
           }
+        }
+      });
+      await prisma.userPackage.update({
+        where: { id: activeUserPackage.id },
+        data: {
+          avatarInterviewUsed: used + 1,
+          updatedAt: new Date()
         }
       });
     }

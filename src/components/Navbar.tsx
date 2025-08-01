@@ -40,7 +40,7 @@ export default function Navbar() {
             <Link href="#" className="block px-4 py-2 text-gray-700 hover:bg-purple-50">Feature 3</Link>
           </div>
         </div>
-        <Link href="#" className="text-white font-medium hover:text-white/80 transition-colors">
+        <Link href="/Pricing" className="text-white font-medium hover:text-white/80 transition-colors">
           Pricing
         </Link>
         <div className="relative group">

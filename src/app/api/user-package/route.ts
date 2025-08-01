@@ -13,8 +13,27 @@ export async function GET(req: NextRequest) {
             );
         }
 
+        // Tìm user trong database
+        let user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!user) {
+            // Thử tìm theo clerkId
+            user = await prisma.user.findFirst({
+                where: { clerkId: userId }
+            });
+        }
+
+        if (!user) {
+            return NextResponse.json(
+                { error: 'User not found in database' },
+                { status: 404 }
+            );
+        }
+
         const userPackages = await prisma.userPackage.findMany({
-            where: { userId },
+            where: { userId: user.id },
             include: { servicePackage: true },
             orderBy: { createdAt: 'desc' }
         });
@@ -50,71 +69,69 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Check if user already has an active package of this type
-        const existingActivePackage = await prisma.userPackage.findFirst({
-            where: {
-                userId,
-                servicePackageId,
-                isActive: true
-            }
-        });
-
-        if (existingActivePackage) {
-            return NextResponse.json(
-                { error: 'You already have an active package of this type' },
-                { status: 409 }
-            );
-        }
-
-        // Check if user exists in database, if not create one
+        // Tìm user trong database
         let user = await prisma.user.findUnique({
             where: { id: userId }
         });
 
         if (!user) {
-            // Also check by clerkId
+            // Thử tìm theo clerkId
             user = await prisma.user.findFirst({
                 where: { clerkId: userId }
             });
+        }
 
-            if (!user) {
-                // Auto-create user if not exists
-                try {
-                    user = await prisma.user.create({
-                        data: {
-                            id: userId,
-                            email: '', // Will be updated later
-                            clerkId: userId,
-                            firstName: '',
-                            lastName: '',
-                            role: 'user'
-                        }
-                    });
-                    console.log('Auto-created user:', userId);
-                } catch (createError) {
-                    console.error('Error auto-creating user:', createError);
-                    return NextResponse.json(
-                        { error: 'Failed to create user account. Please try again.' },
-                        { status: 500 }
-                    );
-                }
-            } else {
-                // User exists with different id, update the id
-                try {
-                    user = await prisma.user.update({
-                        where: { clerkId: userId },
-                        data: { id: userId }
-                    });
-                    console.log('Updated user id:', userId);
-                } catch (updateError) {
-                    console.error('Error updating user id:', updateError);
-                    return NextResponse.json(
-                        { error: 'Failed to update user account. Please try again.' },
-                        { status: 500 }
-                    );
-                }
+        if (!user) {
+            // Auto-create user if not exists
+            try {
+                user = await prisma.user.create({
+                    data: {
+                        id: userId,
+                        email: '', // Will be updated later
+                        clerkId: userId,
+                        firstName: '',
+                        lastName: '',
+                        role: 'user'
+                    }
+                });
+                console.log('Auto-created user:', userId);
+            } catch (createError) {
+                console.error('Error auto-creating user:', createError);
+                return NextResponse.json(
+                    { error: 'Failed to create user account. Please try again.' },
+                    { status: 500 }
+                );
             }
         }
+
+        // Check if user already has any active package
+        const existingActivePackage = await prisma.userPackage.findFirst({
+            where: {
+                userId: user.id,
+                isActive: true,
+                endDate: { gte: new Date() }
+            },
+            include: { servicePackage: true }
+        });
+
+        if (existingActivePackage) {
+            // Nếu gói mới khác gói cũ, thực hiện nâng cấp
+            if (existingActivePackage.servicePackageId !== servicePackageId) {
+                // Deactivate gói cũ
+                await prisma.userPackage.update({
+                    where: { id: existingActivePackage.id },
+                    data: { isActive: false }
+                });
+                // Có thể lưu lịch sử nâng cấp tại đây nếu cần
+            } else {
+                return NextResponse.json(
+                    { error: 'You already have an active package of this type' },
+                    { status: 409 }
+                );
+            }
+        }
+
+
 
         // Get service package details
         const servicePackage = await prisma.servicePackage.findUnique({
@@ -134,7 +151,7 @@ export async function POST(req: NextRequest) {
 
         const newUserPackage = await prisma.userPackage.create({
             data: {
-                userId,
+                userId: user.id,
                 servicePackageId,
                 startDate,
                 endDate,

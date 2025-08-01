@@ -41,7 +41,6 @@ CREATE TABLE "User" (
     "clerkId" TEXT NOT NULL,
     "firstName" TEXT,
     "lastName" TEXT,
-    "fullName" TEXT,
     "avatar" TEXT,
     "location" TEXT,
     "aboutMe" TEXT,
@@ -162,7 +161,7 @@ CREATE TABLE "UserActivity" (
 );
 
 -- CreateTable
-CREATE TABLE "QuestionSet" (
+CREATE TABLE "JdQuestions" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "jobTitle" TEXT NOT NULL,
@@ -174,7 +173,7 @@ CREATE TABLE "QuestionSet" (
     "createdAt" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3),
 
-    CONSTRAINT "QuestionSet_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "JdQuestions_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -197,6 +196,42 @@ CREATE TABLE "Assessment" (
 );
 
 -- CreateTable
+CREATE TABLE "ServicePackage" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "price" INTEGER NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "avatarInterviewLimit" INTEGER NOT NULL DEFAULT 0,
+    "testQuizEQLimit" INTEGER NOT NULL DEFAULT 0,
+    "jdUploadLimit" INTEGER NOT NULL DEFAULT 0,
+    "description" TEXT,
+    "highlight" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ServicePackage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserPackage" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "servicePackageId" TEXT NOT NULL,
+    "orderCode" TEXT,
+    "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "endDate" TIMESTAMP(3) NOT NULL,
+    "avatarInterviewUsed" INTEGER NOT NULL DEFAULT 0,
+    "testQuizEQUsed" INTEGER NOT NULL DEFAULT 0,
+    "jdUploadUsed" INTEGER NOT NULL DEFAULT 0,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserPackage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_QuizQuestions" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
@@ -205,19 +240,19 @@ CREATE TABLE "_QuizQuestions" (
 );
 
 -- CreateTable
-CREATE TABLE "_SavedQuestions" (
-    "A" TEXT NOT NULL,
-    "B" TEXT NOT NULL,
-
-    CONSTRAINT "_SavedQuestions_AB_pkey" PRIMARY KEY ("A","B")
-);
-
--- CreateTable
 CREATE TABLE "_QuizSavedQuestions" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
 
     CONSTRAINT "_QuizSavedQuestions_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateTable
+CREATE TABLE "_SavedQuestions" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_SavedQuestions_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -248,25 +283,46 @@ CREATE UNIQUE INDEX "UserActivity_userId_key" ON "UserActivity"("userId");
 CREATE INDEX "Assessment_positionId_idx" ON "Assessment"("positionId");
 
 -- CreateIndex
-CREATE INDEX "_QuizQuestions_B_index" ON "_QuizQuestions"("B");
+CREATE INDEX "ServicePackage_name_idx" ON "ServicePackage"("name");
 
 -- CreateIndex
-CREATE INDEX "_SavedQuestions_B_index" ON "_SavedQuestions"("B");
+CREATE INDEX "ServicePackage_price_idx" ON "ServicePackage"("price");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserPackage_orderCode_key" ON "UserPackage"("orderCode");
+
+-- CreateIndex
+CREATE INDEX "UserPackage_userId_idx" ON "UserPackage"("userId");
+
+-- CreateIndex
+CREATE INDEX "UserPackage_servicePackageId_idx" ON "UserPackage"("servicePackageId");
+
+-- CreateIndex
+CREATE INDEX "UserPackage_isActive_idx" ON "UserPackage"("isActive");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserPackage_userId_servicePackageId_key" ON "UserPackage"("userId", "servicePackageId");
+
+-- CreateIndex
+CREATE INDEX "_QuizQuestions_B_index" ON "_QuizQuestions"("B");
 
 -- CreateIndex
 CREATE INDEX "_QuizSavedQuestions_B_index" ON "_QuizSavedQuestions"("B");
 
--- AddForeignKey
-ALTER TABLE "Interview" ADD CONSTRAINT "Interview_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+-- CreateIndex
+CREATE INDEX "_SavedQuestions_B_index" ON "_SavedQuestions"("B");
 
 -- AddForeignKey
 ALTER TABLE "Interview" ADD CONSTRAINT "Interview_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Quiz" ADD CONSTRAINT "Quiz_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Interview" ADD CONSTRAINT "Interview_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Quiz" ADD CONSTRAINT "Quiz_quizHistoryUserId_fkey" FOREIGN KEY ("quizHistoryUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Quiz" ADD CONSTRAINT "Quiz_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Question" ADD CONSTRAINT "Question_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -278,19 +334,25 @@ ALTER TABLE "UserActivity" ADD CONSTRAINT "UserActivity_userId_fkey" FOREIGN KEY
 ALTER TABLE "Assessment" ADD CONSTRAINT "Assessment_positionId_fkey" FOREIGN KEY ("positionId") REFERENCES "Position"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "UserPackage" ADD CONSTRAINT "UserPackage_servicePackageId_fkey" FOREIGN KEY ("servicePackageId") REFERENCES "ServicePackage"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserPackage" ADD CONSTRAINT "UserPackage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "_QuizQuestions" ADD CONSTRAINT "_QuizQuestions_A_fkey" FOREIGN KEY ("A") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_QuizQuestions" ADD CONSTRAINT "_QuizQuestions_B_fkey" FOREIGN KEY ("B") REFERENCES "Quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "_SavedQuestions" ADD CONSTRAINT "_SavedQuestions_A_fkey" FOREIGN KEY ("A") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "_SavedQuestions" ADD CONSTRAINT "_SavedQuestions_B_fkey" FOREIGN KEY ("B") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "_QuizSavedQuestions" ADD CONSTRAINT "_QuizSavedQuestions_A_fkey" FOREIGN KEY ("A") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_QuizSavedQuestions" ADD CONSTRAINT "_QuizSavedQuestions_B_fkey" FOREIGN KEY ("B") REFERENCES "Quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_SavedQuestions" ADD CONSTRAINT "_SavedQuestions_A_fkey" FOREIGN KEY ("A") REFERENCES "Question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_SavedQuestions" ADD CONSTRAINT "_SavedQuestions_B_fkey" FOREIGN KEY ("B") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

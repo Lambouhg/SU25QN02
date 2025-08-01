@@ -3,6 +3,12 @@ import { TrackingIntegrationService } from '@/services/trackingIntegrationServic
 import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
+interface ProgressData {
+  activities?: Array<{ timestamp: string }>;
+  recentActivities?: Array<{ timestamp: string }>;
+  [key: string]: unknown;
+}
+
 export async function GET() {
   try {
     const { userId: clerkId } = await auth();
@@ -41,19 +47,19 @@ export async function GET() {
     }
 
     try {
-      const progress = await TrackingIntegrationService.getProgressOverview(user.id);
-      console.log('Progress data fetched successfully:', progress);
+      const progress = await TrackingIntegrationService.getProgressOverview(user.id) as ProgressData;
+      
       // Đảm bảo recentActivities có sẵn từ activities nếu chưa có
       if (
         progress &&
         typeof progress === 'object' &&
         'activities' in progress &&
-        Array.isArray((progress as any).activities) &&
+        Array.isArray(progress.activities) &&
         !('recentActivities' in progress)
       ) {
-        const activities = (progress as any).activities as Array<{ timestamp: string }>;
-        (progress as any).recentActivities = activities
-          .sort((a: { timestamp: string }, b: { timestamp: string }) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        const activities = progress.activities;
+        progress.recentActivities = activities
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
           .slice(0, 20);
       }
       return NextResponse.json(progress);

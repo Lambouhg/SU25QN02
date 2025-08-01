@@ -310,6 +310,16 @@ export default function InterviewHistoryPage() {
                       <Button variant="outline" size="sm" onClick={() => handleViewDetail(i.id)}>
                         Xem chi tiết
                       </Button>
+                      {i.evaluation && (
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={() => window.location.href = `/avatar-interview/evaluation?id=${i.id}`}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Xem đánh giá
+                        </Button>
+                      )}
                       <Button variant="destructive" size="sm" onClick={() => handleDelete(i.id)}>
                         Xóa
                       </Button>

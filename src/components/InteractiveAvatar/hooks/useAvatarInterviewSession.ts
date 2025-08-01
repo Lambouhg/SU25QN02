@@ -187,6 +187,8 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       addMessage(question, 'system');
     },
     onInterviewComplete: (result) => {
+      // Set interview as complete
+      setIsInterviewComplete(true);
       // Nếu kết thúc do auto-prompt timeout thì thêm reason
       if (result && typeof result === 'object' && result.progress === 100 && !result.reason) {
         setPendingInterviewEnd({ ...result, reason: 'timeout' });
@@ -194,7 +196,8 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         setPendingInterviewEnd(result);
       }
     },
-    language: config.language === 'vi' ? 'vi-VN' : 'en-US'
+    language: config.language === 'vi' ? 'vi-VN' : 'en-US',
+    isInterviewComplete: isInterviewComplete
   });
 
 
@@ -206,10 +209,15 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
   useEffect(() => {
     // Khi avatar vừa chuyển từ nói sang im lặng, bắt đầu auto-prompt timer
     if (prevIsAvatarTalking.current && !isAvatarTalking && !isThinking && !isInterviewComplete) {
+      // Chỉ start auto-prompt timer nếu phỏng vấn chưa kết thúc
       startAutoPromptTimer();
     }
     // Nếu avatar bắt đầu nói lại, clear timer
     if (isAvatarTalking) {
+      clearAutoPromptTimer();
+    }
+    // Nếu phỏng vấn đã kết thúc, clear timer
+    if (isInterviewComplete) {
       clearAutoPromptTimer();
     }
     prevIsAvatarTalking.current = isAvatarTalking;
@@ -306,13 +314,30 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       };
       setIsSavingInterview(true); 
       if (!token) throw new Error('No auth token');
+      console.log('Saving interview with data:', requestData);
       const savedInterview = await saveInterview(requestData, token);
+      console.log('Saved interview response:', savedInterview);
       const interviewId = savedInterview.id || savedInterview._id || savedInterview.interviewId;
-      if (!interviewId) throw new Error('Không lấy được id buổi phỏng vấn!');
+      if (!interviewId) {
+        console.error('Interview response:', savedInterview);
+        throw new Error('Không lấy được id buổi phỏng vấn!');
+      }
       await endSession();
       setIsAvatarTalking(false);
       setMessage('');
-      onEndSession({
+      
+      // Tự động chuyển đến trang evaluation sau khi lưu thành công
+      // Thêm delay ngắn để người dùng thấy thông báo "Đã lưu thành công"
+      console.log('Redirecting to evaluation page with interviewId:', interviewId);
+      setTimeout(() => {
+        const evaluationUrl = `/avatar-interview/evaluation?id=${interviewId}`;
+        console.log('Navigating to:', evaluationUrl);
+        // Sử dụng window.location.href để đảm bảo chuyển hướng hoạt động
+        window.location.href = evaluationUrl;
+      }, 1000);
+      
+      // Gọi onEndSession sau khi đã setup chuyển hướng
+      const interviewData = {
         id: interviewId || '',
         userId: userId || '',
         positionId: positionId || '',
@@ -332,7 +357,10 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         conversationHistory: apiConversation ?? [],
         evaluation: evaluation,
         skillAssessment: interviewState.skillAssessment
-      });
+      };
+      
+      // Gọi onEndSession với data để component cha có thể xử lý
+      onEndSession(interviewData);
     } catch (error) {
       console.error('Error during interview completion:', error);
       addMessage(

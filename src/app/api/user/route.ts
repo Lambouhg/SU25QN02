@@ -107,12 +107,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // // Kiểm tra xem user đã tồn tại chưa
-    // const existingUser = await prisma.user.findUnique({
-    //   where: { clerkId }
-    // });
+    // Kiểm tra xem user đã tồn tại chưa
+    const existingUser = await prisma.user.findUnique({
+      where: { clerkId },
+      include: {
+        userPackages: {
+          where: { isActive: true },
+          include: { servicePackage: true }
+        }
+      }
+    });
 
-    // const isNewUser = !existingUser;
+    const isNewUser = !existingUser;
+    
+    console.log(`User check - isNewUser: ${isNewUser}, existingUserPackages: ${existingUser?.userPackages?.length || 0}`);
 
     // Sử dụng upsert để tránh race condition
     const user = await prisma.user.upsert({
@@ -144,6 +152,85 @@ export async function POST(request: Request) {
         lastLogin: true
       }
     });
+
+    // Sau khi upsert, kiểm tra lại xem user có gói active không
+    const userWithPackages = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        userPackages: {
+          where: { 
+            isActive: true,
+            endDate: { gte: new Date() } // Chỉ tính gói còn hạn
+          }
+        }
+      }
+    });
+
+    const hasActivePackage = userWithPackages && userWithPackages.userPackages.length > 0;
+    const shouldAssignFreePackage = isNewUser || !hasActivePackage;
+    
+    console.log(`User check - isNewUser: ${isNewUser}, hasActivePackage: ${hasActivePackage}, shouldAssignFreePackage: ${shouldAssignFreePackage}`);
+    console.log(`User packages count: ${userWithPackages?.userPackages?.length || 0}`);
+    
+    if (shouldAssignFreePackage) {
+      try {
+        // Tìm gói free (giá = 0 hoặc tên chứa "free")
+        console.log('Đang tìm gói free...');
+        const freePackage = await prisma.servicePackage.findFirst({
+          where: {
+            OR: [
+              { price: 0 },
+              { 
+                name: {
+                  contains: 'free',
+                  mode: 'insensitive' // Không phân biệt hoa thường
+                }
+              }
+            ],
+            isActive: true
+          }
+        });
+
+        console.log('Gói free tìm được:', freePackage ? `${freePackage.name} (${freePackage.price})` : 'Không tìm thấy');
+
+        if (freePackage) {
+          // Kiểm tra xem user đã có gói free này chưa
+          const existingFreePackage = await prisma.userPackage.findFirst({
+            where: {
+              userId: user.id,
+              servicePackageId: freePackage.id,
+              isActive: true
+            }
+          });
+
+          if (existingFreePackage) {
+            console.log(`User ${user.email} đã có gói free "${freePackage.name}" rồi`);
+          } else {
+            // Tạo user package với gói free
+            const endDate = new Date();
+            endDate.setFullYear(endDate.getFullYear() + 1); // Gói free có thời hạn 1 năm
+
+            await prisma.userPackage.create({
+              data: {
+                userId: user.id,
+                servicePackageId: freePackage.id,
+                startDate: new Date(),
+                endDate: endDate,
+                isActive: true
+              }
+            });
+
+            const userType = isNewUser ? 'mới' : 'chưa có gói';
+            console.log(`Đã tự động gán gói free "${freePackage.name}" cho user ${userType}: ${user.email}`);
+          }
+        } else {
+          console.log('Không tìm thấy gói free trong hệ thống');
+        }
+      } catch (packageError) {
+        console.error('Lỗi khi gán gói free:', packageError);
+        // Không throw error để không ảnh hưởng đến việc tạo user
+      }
+    }
 
     return withCORS(NextResponse.json(user));
   } catch (error) {

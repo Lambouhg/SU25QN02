@@ -37,6 +37,7 @@ export interface Interview {
 interface InterviewResultProps {
   interview: Interview;
   onBack: () => void;
+  onViewEvaluation?: () => void;
 }
 
 function getStatusColor(status: string) {
@@ -55,7 +56,7 @@ function getStatusColor(status: string) {
   }
 }
 
-export default function InterviewResult({ interview, onBack }: InterviewResultProps) {
+export default function InterviewResult({ interview, onBack, onViewEvaluation }: InterviewResultProps) {
   if (!interview) return null;
   return (
     <div className="w-full h-full min-h-[400px] max-w-2xl mx-auto bg-white rounded-xl shadow-lg flex flex-col p-6 mt-4 mb-4">
@@ -127,12 +128,22 @@ export default function InterviewResult({ interview, onBack }: InterviewResultPr
           </div>
         </>
       )}
-      <button
-        onClick={onBack}
-        className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold self-center shadow"
-      >
-        Quay lại
-      </button>
+      <div className="flex gap-4 mt-6 justify-center">
+        <button
+          onClick={onBack}
+          className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-semibold shadow"
+        >
+          Quay lại
+        </button>
+        {onViewEvaluation && (
+          <button
+            onClick={onViewEvaluation}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow"
+          >
+            Xem đánh giá chi tiết
+          </button>
+        )}
+      </div>
     </div>
   );
 } 

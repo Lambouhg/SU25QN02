@@ -12,7 +12,7 @@ import { useAvatarInterviewSession, Interview } from './hooks/useAvatarInterview
 const transformedLanguageList = STT_LANGUAGE_LIST;
 
 interface InteractiveAvatarProps {
-  onEndSession?: () => void;
+  onEndSession?: (data?: Interview) => void;
 }
 
 const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) => {
@@ -22,9 +22,18 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
 
   // UI callback khi nhận kết quả phỏng vấn
   const handleEndSessionUI = (data: Interview) => {
+    console.log('handleEndSessionUI called with data:', data);
     setInterviewResult(data);
+    // Gọi onEndSession từ component cha nếu có
     if (onEndSession) {
-      onEndSession();
+      onEndSession(data);
+    }
+  };
+
+  // Handler để chuyển đến trang evaluation
+  const handleViewEvaluation = () => {
+    if (interviewResult?.id) {
+      window.location.href = `/avatar-interview/evaluation?id=${interviewResult.id}`;
     }
   };
 
@@ -119,7 +128,11 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
           </div>
         )}
         {interviewResult ? (
-          <InterviewResult interview={interviewResult} onBack={handleBackToInterview} />
+          <InterviewResult 
+            interview={interviewResult} 
+            onBack={handleBackToInterview} 
+            onViewEvaluation={handleViewEvaluation}
+          />
         ) : sessionState === SessionState.INACTIVE ? (
           <PreInterviewSetup
             config={config}

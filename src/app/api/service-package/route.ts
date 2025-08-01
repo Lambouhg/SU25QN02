@@ -1,15 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from '@clerk/nextjs/server';
-import { prisma } from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 
-// GET - Get all service packages
+// GET - Get all service packages and user's current package
 export async function GET(req: NextRequest) {
     try {
         const packages = await prisma.servicePackage.findMany({
             orderBy: { price: 'asc' }
         });
 
-        return NextResponse.json(packages);
+        // Lấy userPackage nếu có user đăng nhập
+        let userPackage = null;
+        try {
+            const { userId } = await getAuth(req);
+            if (userId) {
+                // Tìm user trong database theo clerkId
+                const user = await prisma.user.findUnique({
+                    where: { clerkId: userId }
+                });
+                
+                if (user) {
+                    // Tìm gói active còn hạn
+                    const active = await prisma.userPackage.findFirst({
+                        where: {
+                            userId: user.id,
+                            isActive: true,
+                            endDate: { gte: new Date() }
+                        },
+                        include: { servicePackage: true }
+                    });
+                    userPackage = active || null;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching user package:', error);
+        }
+
+        return NextResponse.json({ packages, userPackage });
     } catch (error) {
         console.error('Error fetching service packages:', error);
         return NextResponse.json(
@@ -33,7 +61,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { name, description, price, duration, avatarInterviewLimit, testQuizEQLimit, jdUploadLimit, highlight } = body;
 
-        if (!name || !price || !duration) {
+        if (!name || price === undefined || price === null || duration === undefined || duration === null) {
             return NextResponse.json(
                 { error: 'Name, price, and duration are required' },
                 { status: 400 }

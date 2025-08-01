@@ -50,6 +50,7 @@ model User {
   quizzes                 Quiz[]
   userActivity            UserActivity?
   userPackages            UserPackage[]
+  paymentHistory          PaymentHistory[]
   savedQuestions          Question[]       @relation("SavedQuestions")
 }
 
@@ -187,6 +188,7 @@ model ServicePackage {
   isActive             Boolean       @default(true)
   updatedAt            DateTime      @updatedAt
   userPackages         UserPackage[]
+  paymentHistory       PaymentHistory[]
 
   @@index([name])
   @@index([price])
@@ -196,6 +198,7 @@ model UserPackage {
   id                  String         @id @default(uuid())
   userId              String
   servicePackageId    String
+  orderCode           String?        @unique
   startDate           DateTime       @default(now())
   endDate             DateTime
   avatarInterviewUsed Int            @default(0)
@@ -285,4 +288,39 @@ enum ActivityType {
 enum AssessmentType {
   test
   eq
+}
+
+enum PaymentStatus {
+  pending
+  success
+  failed
+  cancelled
+}
+
+model PaymentHistory {
+  id                String           @id @default(uuid())
+  userId            String
+  servicePackageId  String
+  orderCode         String           @unique
+  amount            Int              // Số tiền thanh toán
+  refundAmount      Int              @default(0) // Số tiền hoàn
+  description       String
+  status            PaymentStatus    @default(pending)
+  paymentMethod     String?          // Phương thức thanh toán
+  transactionId     String?          // ID giao dịch từ PayOS
+  checkoutUrl       String?          // URL thanh toán
+  qrCode            String?          // QR code
+  returnUrl         String?          // URL return
+  cancelUrl         String?          // URL cancel
+  paidAt            DateTime?        // Thời gian thanh toán thành công
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  user              User             @relation(fields: [userId], references: [id])
+  servicePackage    ServicePackage   @relation(fields: [servicePackageId], references: [id])
+
+  @@index([userId])
+  @@index([servicePackageId])
+  @@index([status])
+  @@index([orderCode])
 }
