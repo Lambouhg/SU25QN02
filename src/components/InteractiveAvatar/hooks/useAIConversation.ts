@@ -24,10 +24,11 @@ interface UseAIConversationProps {
   onInterviewComplete?: (result: InterviewCompleteResult) => void;
   onEndSession?: () => void; // callback cleanup Heygen/avatar session khi auto-prompt kết thúc
   language: 'en-US' | 'vi-VN';
+  isInterviewComplete?: boolean; // Trạng thái phỏng vấn từ bên ngoài
 }
 
 // Constants for auto-prompt feature
-const AUTO_PROMPT_DELAY = 5000; // 30 seconds
+const AUTO_PROMPT_DELAY = 20000; // 30 seconds
 const MAX_AUTO_PROMPTS = 3; // Maximum number of auto prompts before ending interview
 
 // Initial state for interview metrics
@@ -47,7 +48,8 @@ export const useAIConversation = ({
   onFollowUpQuestion,
   onInterviewComplete,
   onEndSession,
-  language
+  language,
+  isInterviewComplete = false
 }: UseAIConversationProps) => {
   const [isThinking, setIsThinking] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
@@ -90,6 +92,14 @@ export const useAIConversation = ({
     clearAutoPromptTimer();
     autoPromptTimerRef.current = setTimeout(async () => {
       const currentCount = autoPromptCountRef.current;
+      
+      // Check if interview is already complete - if so, don't send auto-prompt
+      if (isInterviewComplete || interviewState.progress >= 100) {
+        clearAutoPromptTimer();
+        setAutoPromptCount(0);
+        return;
+      }
+      
       // Check if maximum auto prompts reached
       if (currentCount >= MAX_AUTO_PROMPTS) {
         // Khi hết auto-prompt, cleanup session như nút End Session, không lưu kết quả
@@ -158,7 +168,7 @@ export const useAIConversation = ({
         }
       }
     }, AUTO_PROMPT_DELAY);
-  }, [language, onAnswer, onInterviewComplete, clearAutoPromptTimer, conversationHistory, onEndSession, resetInterviewSession, autoPromptCountRef]);
+  }, [language, onAnswer, onInterviewComplete, clearAutoPromptTimer, conversationHistory, onEndSession, resetInterviewSession, autoPromptCountRef, interviewState.progress, isInterviewComplete]);
 
   // Reset auto-prompt when user responds
   const resetAutoPrompt = useCallback(() => {
@@ -188,6 +198,7 @@ export const useAIConversation = ({
         clearAutoPromptTimer(); // Clear timer when interview completes
         setAutoPromptCount(0); // Reset auto prompt count
         onInterviewComplete({ progress: response.interviewProgress });
+        return; // Exit early to prevent further processing
       }
     }
   }, [onInterviewComplete, clearAutoPromptTimer]);

@@ -11,7 +11,7 @@ type TopicType = {
   selected: boolean;
 }
 
-export default function TestMode() {
+export default function TestModeSimple() {
   // State management
   const [jobDescription, setJobDescription] = useState('');
   const [candidateName, setCandidateName] = useState('');

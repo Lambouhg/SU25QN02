@@ -5,6 +5,10 @@
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Target } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -13,6 +17,12 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
 } from 'recharts';
 
 interface ProgressStats {
@@ -43,10 +53,73 @@ interface ProgressData {
   recommendations: string[];
 }
 
+interface Activity {
+  type: string;
+  score?: number;
+  duration?: number;
+  timestamp?: string | Date;
+  skillScores?: Record<string, number>;
+}
+
+interface SpiderChartData {
+  subject: string;
+  A: number;
+  B: number;
+  C: number;
+  D: number;
+  E: number;
+  fullMark: number;
+  target?: number; // Mục tiêu cá nhân
+  unit?: string; // 'min', '%', 'points', 'times'
+}
+
 export default function TrackingDashboard() {
   const { isLoaded, user } = useUser();
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [quizStats, setQuizStats] = useState<{ totalQuiz: number; averageQuizScore: number }>({ totalQuiz: 0, averageQuizScore: 0 });
+  const [overallSpiderData, setOverallSpiderData] = useState<SpiderChartData[]>([]);
+
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [personalTargets, setPersonalTargets] = useState({
+    totalActivities: 50,
+    averageScore: 80,
+    studyTime: 200,
+    completionRate: 90,
+    learningFrequency: 15,
+    numberOfTests: 20,
+    logicScore: 85,
+    languageScore: 85,
+    fundamentalScore: 85,
+    testAverageTime: 25,
+    numberOfInterviews: 10,
+    technicalScore: 85,
+    communicationScore: 85,
+    problemSolvingScore: 85,
+    interviewAverageTime: 60,
+    numberOfQuizzes: 30,
+    quizAverageScore: 85,
+    quizAccuracyRate: 85,
+    quizAverageTime: 20,
+    quizFrequency: 10
+  });
+  const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day');
+  const [lineMode, setLineMode] = useState<'score' | 'total'>('score');
+  const [lineChartData, setLineChartData] = useState<any[]>([]);
+  const [targetUpdateTrigger, setTargetUpdateTrigger] = useState(0);
+
+  // Load personal targets from localStorage on mount
+  useEffect(() => {
+    const savedTargets = localStorage.getItem('personalTargets');
+    if (savedTargets) {
+      try {
+        const parsedTargets = JSON.parse(savedTargets);
+        setPersonalTargets(prev => ({ ...prev, ...parsedTargets }));
+      } catch (error) {
+        console.error('Error loading personal targets:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const fetchProgress = async () => {
@@ -57,7 +130,276 @@ export default function TrackingDashboard() {
         }
         const data = await response.json();
         console.log('Tracking data fetched:', data);
+        
+        // Tổng hợp quiz từ recentActivities nếu có
+        const quizStats = { totalQuiz: 0, averageQuizScore: 0 };
+        if (data.recentActivities && Array.isArray(data.recentActivities)) {
+          const quizActivities = data.recentActivities.filter((a: Activity) => a.type === 'quiz' || a.type === 'test');
+          quizStats.totalQuiz = quizActivities.length;
+          quizStats.averageQuizScore = quizActivities.length
+            ? quizActivities.reduce((sum: number, a: Activity) => sum + (a.score || 0), 0) / quizActivities.length
+            : 0;
+        }
+        setQuizStats(quizStats);
         setProgress(data);
+
+        // Tính toán dữ liệu cho spider charts
+        if (data.recentActivities && Array.isArray(data.recentActivities)) {
+          const activities = data.recentActivities as Activity[];
+          
+          // Tách activities theo type
+          const assessmentActivities = activities.filter(a => a.type === 'test' || a.type === 'eq');
+          const interviewActivities = activities.filter(a => a.type === 'interview');
+          const quizActivities = activities.filter(a => a.type === 'quiz');
+
+          // Tính toán metrics tổng quan
+          const calculateOverallMetrics = (activities: Activity[]) => {
+            if (activities.length === 0) {
+              return [
+                { subject: 'Tổng hoạt động', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+                { subject: 'Điểm trung bình', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+                { subject: 'Thời gian học', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 300 },
+                { subject: 'Tỷ lệ hoàn thành', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+                { subject: 'Tần suất học', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 20 }
+              ];
+            }
+
+            const totalCount = activities.length;
+            const avgScore = activities.reduce((sum, a) => sum + (a.score || 0), 0) / activities.length;
+            const totalStudyTime = activities.reduce((sum, a) => sum + (a.duration || 0), 0);
+            const completionRate = activities.filter(a => a.score !== undefined).length / activities.length * 100;
+            
+            // Tính tần suất (số lần/tháng)
+            const now = new Date();
+            const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            const recentActivities = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo);
+            const frequency = recentActivities.length;
+
+            return [
+              { 
+                subject: 'Total Activities', 
+                A: Math.min(totalCount, 100), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 100,
+                target: personalTargets.totalActivities,
+                unit: 'times'
+              },
+              { 
+                subject: 'Average Score', 
+                A: Math.round(avgScore), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 100,
+                target: personalTargets.averageScore,
+                unit: '%'
+              },
+              { 
+                subject: 'Study Time', 
+                A: Math.min(totalStudyTime, 300), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 300,
+                target: personalTargets.studyTime,
+                unit: 'min'
+              },
+              { 
+                subject: 'Completion Rate', 
+                A: Math.round(completionRate), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 100,
+                target: personalTargets.completionRate,
+                unit: '%'
+              },
+              { 
+                subject: 'Learning Frequency', 
+                A: Math.min(frequency, 20), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 20,
+                target: personalTargets.learningFrequency,
+                unit: 'times/month'
+              }
+            ];
+          };
+
+          // Tính toán metrics chi tiết cho Assessment
+          const calculateAssessmentMetrics = (activities: Activity[]) => {
+            if (activities.length === 0) {
+                          return [
+              { subject: 'Number of Tests', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 50 },
+              { subject: 'Logic Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Language Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Fundamental Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Average Time', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 60 }
+            ];
+            }
+
+            const totalTests = activities.length;
+            const avgLogicScore = activities.reduce((sum, a) => {
+              const skillScores = a.skillScores || {};
+              return sum + (skillScores.logic || 0);
+            }, 0) / activities.length;
+            const avgLanguageScore = activities.reduce((sum, a) => {
+              const skillScores = a.skillScores || {};
+              return sum + (skillScores.language || 0);
+            }, 0) / activities.length;
+            const avgFundamentalScore = activities.reduce((sum, a) => {
+              const skillScores = a.skillScores || {};
+              return sum + (skillScores.fundamental || 0);
+            }, 0) / activities.length;
+            const avgDuration = activities.reduce((sum, a) => sum + (a.duration || 0), 0) / activities.length;
+
+            return [
+              { 
+                subject: 'Number of Tests', 
+                A: Math.min(totalTests, 50), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 50,
+                target: personalTargets.numberOfTests,
+                unit: 'tests'
+              },
+              { 
+                subject: 'Logic Score', 
+                A: Math.round(avgLogicScore), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 100,
+                target: personalTargets.logicScore,
+                unit: 'points'
+              },
+              { 
+                subject: 'Language Score', 
+                A: Math.round(avgLanguageScore), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 100,
+                target: personalTargets.languageScore,
+                unit: 'points'
+              },
+              { 
+                subject: 'Fundamental Score', 
+                A: Math.round(avgFundamentalScore), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 100,
+                target: personalTargets.fundamentalScore,
+                unit: 'points'
+              },
+              { 
+                subject: 'Average Time', 
+                A: Math.min(Math.round(avgDuration), 60), 
+                B: 0, C: 0, D: 0, E: 0, 
+                fullMark: 60,
+                target: personalTargets.testAverageTime,
+                unit: 'min'
+              }
+            ];
+          };
+
+          // Tính toán metrics chi tiết cho Interview
+          const calculateInterviewMetrics = (activities: Activity[]) => {
+            if (activities.length === 0) {
+                          return [
+              { subject: 'Number of Interviews', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 30 },
+              { subject: 'Technical Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Communication Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Problem Solving Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Average Time', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 120 }
+            ];
+            }
+
+            const totalInterviews = activities.length;
+            const avgTechnicalScore = activities.reduce((sum, a) => {
+              const skillScores = a.skillScores || {};
+              return sum + (skillScores.technical || 0);
+            }, 0) / activities.length;
+            const avgCommunicationScore = activities.reduce((sum, a) => {
+              const skillScores = a.skillScores || {};
+              return sum + (skillScores.communication || 0);
+            }, 0) / activities.length;
+            const avgProblemSolvingScore = activities.reduce((sum, a) => {
+              const skillScores = a.skillScores || {};
+              return sum + (skillScores.problemSolving || 0);
+            }, 0) / activities.length;
+            const avgDuration = activities.reduce((sum, a) => sum + (a.duration || 0), 0) / activities.length;
+
+            return [
+              { subject: 'Number of Interviews', A: Math.min(totalInterviews, 30), B: 0, C: 0, D: 0, E: 0, fullMark: 30 },
+              { subject: 'Technical Score', A: Math.round(avgTechnicalScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Communication Score', A: Math.round(avgCommunicationScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Problem Solving Score', A: Math.round(avgProblemSolvingScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Average Time', A: Math.min(Math.round(avgDuration), 120), B: 0, C: 0, D: 0, E: 0, fullMark: 120 }
+            ];
+          };
+
+          // Tính toán metrics chi tiết cho Quiz
+          const calculateQuizMetrics = (activities: Activity[]) => {
+            if (activities.length === 0) {
+                          return [
+              { subject: 'Number of Quizzes', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Average Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Accuracy Rate', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Average Time', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 60 },
+              { subject: 'Completion Frequency', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 15 }
+            ];
+            }
+
+            const totalQuizzes = activities.length;
+            const avgScore = activities.reduce((sum, a) => sum + (a.score || 0), 0) / activities.length;
+            const avgDuration = activities.reduce((sum, a) => sum + (a.duration || 0), 0) / activities.length;
+            
+            // Tính tần suất (số lần/tháng)
+            const now = new Date();
+            const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            const recentQuizzes = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo);
+            const frequency = recentQuizzes.length;
+
+            return [
+              { subject: 'Number of Quizzes', A: Math.min(totalQuizzes, 100), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Average Score', A: Math.round(avgScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Accuracy Rate', A: Math.round(avgScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
+              { subject: 'Average Time', A: Math.min(Math.round(avgDuration), 60), B: 0, C: 0, D: 0, E: 0, fullMark: 60 },
+              { subject: 'Completion Frequency', A: Math.min(frequency, 15), B: 0, C: 0, D: 0, E: 0, fullMark: 15 }
+            ];
+          };
+
+          setOverallSpiderData(calculateOverallMetrics(activities));
+        }
+        // Group activities by period for the new chart
+        if (data.recentActivities && Array.isArray(data.recentActivities)) {
+          const activities = data.recentActivities as Activity[];
+          // Group activities by period
+          const groupKey = (date: Date): string => {
+            if (viewMode === 'day') return date.toISOString().slice(0, 10);
+            if (viewMode === 'month') return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+            if (viewMode === 'year') return String(date.getFullYear());
+            return '';
+          };
+          const grouped: Record<string, { quiz: number[]; test: number[]; interview: number[] }> = {};
+          activities.forEach(a => {
+            if (!a.timestamp) return;
+            const date = new Date(a.timestamp);
+            const key = groupKey(date);
+            if (!key) return;
+            if (!grouped[key]) grouped[key] = { quiz: [], test: [], interview: [] };
+            if (a.type === 'quiz') grouped[key].quiz.push(a.score || 0);
+            if (a.type === 'test' || a.type === 'eq') grouped[key].test.push(a.score || 0);
+            if (a.type === 'interview') grouped[key].interview.push(a.score || 0);
+          });
+          // Convert to array for chart
+          const chartData = Object.entries(grouped).map(([period, vals]) => {
+            if (lineMode === 'score') {
+              return {
+                period,
+                quiz: vals.quiz.length ? (vals.quiz.reduce((a, b) => a + b, 0) / vals.quiz.length) : 0,
+                test: vals.test.length ? (vals.test.reduce((a, b) => a + b, 0) / vals.test.length) : 0,
+                interview: vals.interview.length ? (vals.interview.reduce((a, b) => a + b, 0) / vals.interview.length) : 0,
+              };
+            } else {
+              return {
+                period,
+                quiz: vals.quiz.length,
+                test: vals.test.length,
+                interview: vals.interview.length,
+              };
+            }
+          }).sort((a, b) => a.period.localeCompare(b.period));
+          setLineChartData(chartData);
+        }
       } catch (error) {
         console.error('Error fetching progress:', error);
         // Cung cấp dữ liệu mặc định nếu có lỗi
@@ -89,41 +431,139 @@ export default function TrackingDashboard() {
 
     if (isLoaded && user) {
       fetchProgress();
-    } else if (isLoaded) {
-      setLoading(false);
     }
-  }, [isLoaded, user]);
+  }, [isLoaded, user, viewMode, lineMode, targetUpdateTrigger]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (!progress) {
     return (
-      <div className="text-center py-10">
-        <p className="text-gray-500">No progress data available yet. Start practicing to see your progress!</p>
+      <div className="text-center py-8">
+        <p className="text-gray-500">No progress data available</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
+      {/* Overall RadarChart (spider chart) */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold">Overall Progress</h2>
+          <Button 
+            onClick={() => setShowTargetModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Target className="w-4 h-4" />
+            Set Targets
+          </Button>
+        </div>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadarChart data={overallSpiderData}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="subject" />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} />
+              <Tooltip 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload;
+                    const currentValue = payload[0].value as number;
+                    const targetValue = data.target || 0;
+                    const unit = data.unit || '';
+                    return (
+                      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                        <p className="font-semibold text-gray-800 mb-1">{label}</p>
+                        <div className="space-y-1">
+                          <p className="text-blue-600 font-medium">
+                            Current: {currentValue}{unit}
+                          </p>
+                          {targetValue > 0 && (
+                            <p className="text-sm text-gray-600">
+                              Target: {targetValue}{unit}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Legend />
+              <Radar
+                name="Current"
+                dataKey="A"
+                stroke="#2563eb"
+                fill="#2563eb"
+                fillOpacity={0.3}
+              />
+              <Radar
+                name="Target"
+                dataKey="target"
+                stroke="#f59e0b"
+                fill="#f59e0b"
+                fillOpacity={0.1}
+                strokeDasharray="5 5"
+              />
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+      {/* Multi-Line Chart */}
+      <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold">Progress by {viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} ({lineMode === 'score' ? 'Average Score' : 'Total Count'})</h2>
+          <div className="flex items-center gap-4">
+            <span className="font-medium">View by:</span>
+            <select
+              className="border rounded px-2 py-1"
+              value={viewMode}
+              onChange={e => setViewMode(e.target.value as any)}
+            >
+              <option value="day">Day</option>
+              <option value="month">Month</option>
+              <option value="year">Year</option>
+            </select>
+            <span className="font-medium ml-6">Mode:</span>
+            <select
+              className="border rounded px-2 py-1"
+              value={lineMode}
+              onChange={e => setLineMode(e.target.value as any)}
+            >
+              <option value="score">Score</option>
+              <option value="total">Total</option>
+            </select>
+          </div>
+        </div>
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={lineChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="period" />
+              <YAxis domain={[0, lineMode === 'score' ? 100 : 'auto']} />
+              <Tooltip formatter={(value: number) => lineMode === 'score' ? value.toFixed(1) + '%' : value} />
+              <Legend />
+              <Line type="monotone" dataKey="quiz" name="Quiz" stroke="#7c3aed" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="test" name="Test" stroke="#dc2626" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="interview" name="Interview" stroke="#059669" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-6">
-          <h3 className="text-sm font-medium text-gray-500">Study Streak</h3>
-          <p className="mt-2 text-3xl font-semibold">
-            {progress.stats.studyStreak} days
-          </p>
-        </Card>
-        <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Total Interviews</h3>
           <p className="mt-2 text-3xl font-semibold">
-            {progress.stats.totalInterviews}
+            {progress.stats.totalInterviews + quizStats.totalQuiz}
           </p>
         </Card>
         <Card className="p-6">
@@ -133,11 +573,17 @@ export default function TrackingDashboard() {
           </p>
         </Card>
         <Card className="p-6">
+          <h3 className="text-sm font-medium text-gray-500">Study Streak</h3>
+          <p className="mt-2 text-3xl font-semibold">
+            {progress.stats.studyStreak} days
+          </p>
+        </Card>
+        <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Study Time</h3>
           <p className="mt-2 text-3xl font-semibold">
             {(() => {
               const total = progress.stats.totalStudyTime;
-              if (total < 60) return `${total} phút`;
+              if (total < 60) return `${total} min`;
               const hours = Math.floor(total / 60);
               const minutes = total % 60;
               return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`;
@@ -219,7 +665,7 @@ export default function TrackingDashboard() {
                 key={index}
                 className="flex items-center text-gray-700"
               >
-                <span className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                <span className="w-2 h-2 bg-primary rounded-full mr-2" />
                 {recommendation}
               </li>
             ))}
@@ -244,6 +690,96 @@ export default function TrackingDashboard() {
           ))}
         </div>
       </Card>
+
+      {/* Target Setting Modal */}
+      {showTargetModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold">Set Overall Progress Targets</h3>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowTargetModal(false)}
+              >
+                ✕
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="totalActivities">Total Activities</Label>
+                <Input
+                  id="totalActivities"
+                  type="number"
+                  value={personalTargets.totalActivities}
+                  onChange={(e) => setPersonalTargets(prev => ({...prev, totalActivities: parseInt(e.target.value) || 0}))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="averageScore">Average Score (%)</Label>
+                <Input
+                  id="averageScore"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={personalTargets.averageScore}
+                  onChange={(e) => setPersonalTargets(prev => ({...prev, averageScore: parseInt(e.target.value) || 0}))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="studyTime">Study Time (minutes)</Label>
+                <Input
+                  id="studyTime"
+                  type="number"
+                  value={personalTargets.studyTime}
+                  onChange={(e) => setPersonalTargets(prev => ({...prev, studyTime: parseInt(e.target.value) || 0}))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="completionRate">Completion Rate (%)</Label>
+                <Input
+                  id="completionRate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={personalTargets.completionRate}
+                  onChange={(e) => setPersonalTargets(prev => ({...prev, completionRate: parseInt(e.target.value) || 0}))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="learningFrequency">Learning Frequency (times/month)</Label>
+                <Input
+                  id="learningFrequency"
+                  type="number"
+                  value={personalTargets.learningFrequency}
+                  onChange={(e) => setPersonalTargets(prev => ({...prev, learningFrequency: parseInt(e.target.value) || 0}))}
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <Button 
+                variant="outline"
+                onClick={() => setShowTargetModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => {
+                  // Save targets to localStorage or API
+                  localStorage.setItem('personalTargets', JSON.stringify(personalTargets));
+                  setShowTargetModal(false);
+                  // Trigger recalculation of spider chart data
+                  setTargetUpdateTrigger(prev => prev + 1);
+                }}
+              >
+                Save Targets
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -106,6 +106,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
   };
 
   const checkAnswer = (selectedIndexes: number[]) => {
+    // Lấy câu trả lời đúng từ câu hỏi hiện tại (đã được shuffle)
     const correctIndexes = currentQuestion.answers
       .map((answer, index) => answer.isCorrect ? index : -1)
       .filter(index => index !== -1);

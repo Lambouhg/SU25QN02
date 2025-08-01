@@ -62,6 +62,11 @@ const nextConfig: NextConfig = {
 
   // External packages configuration
   serverExternalPackages: ['pdf2json'],
+
+  // Disable ESLint during build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

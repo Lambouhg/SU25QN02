@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { SessionState } from '../HeygenConfig';
 import { StartAvatarRequest } from '@heygen/streaming-avatar';
+import { useRouter } from 'next/navigation';
 
 interface PreInterviewSetupProps {
   config: StartAvatarRequest;
@@ -42,12 +43,19 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   onPositionKeyChange, // Add new prop
   positions // Sử dụng positions từ props
 }) => {
+  const router = useRouter();
   const [availableLevels, setAvailableLevels] = useState<string[]>([]);
   const [selectedPositionName, setSelectedPositionName] = useState<string>('');
   const [startError, setStartError] = useState('');
   const [fieldError, setFieldError] = useState('');
   const [levelError, setLevelError] = useState('');
   const [languageError, setLanguageError] = useState('');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [packageLimitInfo, setPackageLimitInfo] = useState<{
+    currentUsage: number;
+    totalLimit: number;
+    packageName: string;
+  } | null>(null);
 
   const handleConfigChange = useCallback(<K extends keyof StartAvatarRequest>(
     key: K,
@@ -81,6 +89,43 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       setStartError('Vui lòng điền đầy đủ thông tin trước khi bắt đầu phỏng vấn.');
       return;
     }
+
+    // Kiểm tra hạn mức avatarInterview bằng API check-active
+    try {
+      const res = await fetch('/api/user-package/check-active', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await res.json();
+      
+      if (!data.hasActivePackage) {
+        setPackageLimitInfo({
+          currentUsage: 0,
+          totalLimit: 0,
+          packageName: 'Chưa có gói'
+        });
+        setShowUpgradeModal(true);
+        return;
+      }
+      
+      if (!data.canUse.avatarInterview) {
+        // Lấy thông tin gói hiện tại để hiển thị
+        setPackageLimitInfo({
+          currentUsage: data.currentUsage?.avatarInterview || 0,
+          totalLimit: data.totalLimit?.avatarInterview || 0,
+          packageName: data.packageName || 'Gói hiện tại'
+        });
+        setShowUpgradeModal(true);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking package limits:', error);
+      setStartError('Không kiểm tra được hạn mức. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+      return;
+    }
+
     setStartError('');
     await onStartInterview();
   };
@@ -265,6 +310,95 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
               </div>
             </button>
           </div>
+
+          {/* Upgrade Modal */}
+          {showUpgradeModal && packageLimitInfo && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+                <div className="text-center">
+                  {/* Icon */}
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 mb-4">
+                    <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  
+                  {/* Title */}
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    Nâng cấp gói dịch vụ
+                  </h3>
+                  
+                  {/* Message */}
+                  <p className="text-gray-600 mb-4">
+                    {packageLimitInfo.packageName === 'Chưa có gói' 
+                      ? 'Bạn chưa có gói dịch vụ hoặc gói đã hết hạn.'
+                      : `Bạn đã sử dụng hết ${packageLimitInfo.currentUsage}/${packageLimitInfo.totalLimit} lượt phỏng vấn avatar của gói ${packageLimitInfo.packageName}.`
+                    }
+                  </p>
+                  
+                  {/* Usage Progress */}
+                  {packageLimitInfo.packageName !== 'Chưa có gói' && (
+                    <div className="mb-4">
+                      <div className="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Lượt sử dụng</span>
+                        <span>{packageLimitInfo.currentUsage}/{packageLimitInfo.totalLimit}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min((packageLimitInfo.currentUsage / packageLimitInfo.totalLimit) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Benefits */}
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6">
+                    <h4 className="font-semibold text-gray-900 mb-2">Lợi ích khi nâng cấp:</h4>
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      <li className="flex items-center">
+                        <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Nhiều lượt phỏng vấn avatar hơn
+                      </li>
+                      <li className="flex items-center">
+                        <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Truy cập tất cả tính năng premium
+                      </li>
+                      <li className="flex items-center">
+                        <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Hỗ trợ ưu tiên
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowUpgradeModal(false)}
+                      className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200"
+                    >
+                      Để sau
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUpgradeModal(false);
+                        router.push('/Pricing');
+                      }}
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                      Nâng cấp ngay
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

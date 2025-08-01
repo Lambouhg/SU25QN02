@@ -32,6 +32,12 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    const { questionId } = await req.json();
+    if (!questionId) {
+      return NextResponse.json({ error: 'Question ID is required' }, { status: 400 });
+    }
+
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
       include: { savedQuestions: true },
@@ -39,12 +45,16 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    const { questionId } = await req.json();
+    
     const alreadySaved = user.savedQuestions.some(q => q.id === questionId);
     if (!alreadySaved) {
       await prisma.user.update({
         where: { id: user.id },
-        data: { savedQuestions: { connect: { id: questionId } } },
+        data: { 
+          savedQuestions: { 
+            connect: [{ id: questionId }] 
+          } 
+        },
       });
     }
     return NextResponse.json({ message: 'Question saved successfully' }, { status: 200 });
@@ -61,6 +71,16 @@ export async function PATCH(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    
+    const body = await req.json();
+    console.log('PATCH request body:', body);
+    
+    const { questionId } = body;
+    if (!questionId) {
+      console.log('QuestionId is missing or undefined:', questionId);
+      return NextResponse.json({ error: 'Question ID is required', received: body }, { status: 400 });
+    }
+
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
       include: { savedQuestions: true },
@@ -68,22 +88,34 @@ export async function PATCH(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    const { questionId } = await req.json();
+
     const alreadySaved = user.savedQuestions.some(q => q.id === questionId);
     let message = '';
+    
     if (alreadySaved) {
+      // Remove question from saved list
       await prisma.user.update({
         where: { id: user.id },
-        data: { savedQuestions: { disconnect: { id: questionId } } },
+        data: { 
+          savedQuestions: { 
+            disconnect: [{ id: questionId }] 
+          } 
+        },
       });
       message = 'Question unsaved successfully';
     } else {
+      // Add question to saved list
       await prisma.user.update({
         where: { id: user.id },
-        data: { savedQuestions: { connect: { id: questionId } } },
+        data: { 
+          savedQuestions: { 
+            connect: [{ id: questionId }] 
+          } 
+        },
       });
       message = 'Question saved successfully';
     }
+    
     return NextResponse.json({ message }, { status: 200 });
   } catch (error) {
     console.error('Error toggling saved question:', error);

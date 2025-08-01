@@ -1,8 +1,6 @@
 "use client";
 
 import { useUser } from '@clerk/nextjs';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import WhyChooseSection from '@/components/WhyChooseSection';
@@ -11,14 +9,7 @@ import PricingSection from '@/components/PricingSection';
 import Footer from '@/components/Footer';
 
 export default function Home() {
-  const { isSignedIn, isLoaded } = useUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (isLoaded && isSignedIn) {
-      router.replace('/dashboard');
-    }
-  }, [isLoaded, isSignedIn, router]);
+  const { isLoaded } = useUser();
 
   // Show loading while checking auth status
   if (!isLoaded) {
@@ -29,10 +20,6 @@ export default function Home() {
     );
   }
 
-  // Don't render the landing page if user is signed in (will redirect)
-  if (isSignedIn) {
-    return null;
-  }
   return (
     <div className="min-h-screen">
       {/* Hero Section with Dark Background */}

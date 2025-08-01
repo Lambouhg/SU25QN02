@@ -47,7 +47,7 @@ export class TrackingIntegrationService {
       
       // Tạo activity mới
       const activity: Activity = {
-        type: 'test' as ActivityType,
+        type: 'quiz' as ActivityType,
         score,
         duration: timeSpent,
         timestamp: this.formatDate(new Date())
@@ -69,6 +69,52 @@ export class TrackingIntegrationService {
 
       // Cập nhật streak
       await UserActivityService.updateLearningStats(userId);
+    } catch (error) {
+      console.error('Error tracking quiz completion:', error);
+    }
+  }
+
+  /**
+   * Tracking quiz completion với tham số mới
+   */
+  static async trackQuizCompletionNew(
+    userId: string,
+    quizData: {
+      quizId: string;
+      field: string;
+      topic: string;
+      level: string;
+      score: number;
+      totalQuestions: number;
+      correctAnswers: number;
+      timeUsed: number;
+      retryCount?: number;
+    }
+  ) {
+    try {
+      // Tạo activity mới
+      const activity: Activity = {
+        type: 'quiz' as ActivityType,
+        score: quizData.score,
+        duration: Math.max(1, Math.round(quizData.timeUsed / 60)), // Chuyển từ seconds sang minutes
+        timestamp: this.formatDate(new Date())
+      };
+
+      // Thêm vào activities
+      await UserActivityService.addActivity(userId, activity);
+
+      // Cập nhật kỹ năng dựa trên topic của quiz
+      const timestamp = this.formatDate(new Date());
+      await UserActivityService.updateSkill(userId, {
+        name: quizData.topic,
+        score: quizData.score,
+        lastAssessed: timestamp
+      });
+
+      // Cập nhật streak
+      await UserActivityService.updateLearningStats(userId);
+      
+      console.log(`[TrackingIntegrationService] Successfully tracked quiz completion for user ${userId}, score: ${quizData.score}%`);
     } catch (error) {
       console.error('Error tracking quiz completion:', error);
     }
