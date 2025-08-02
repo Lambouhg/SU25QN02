@@ -3,12 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import ScoreChart, { DetailedScores } from '@/components/ui/ScoreChart';
 import { questionSetService, QuestionSetData } from '@/services/questionSetService';
 
 interface AnalysisResult {
   feedback: string;
-  detailedScores: DetailedScores;
+  detailedScores: { [key: string]: number };
   strengths: string[];
   improvements: string[];
   suggestions: string[];
@@ -104,13 +103,34 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
             return;
           }
         } else {
-          // No questionSetId provided - this should not happen in normal flow
-          // Instead of using fallback, redirect user to select a question set
-          console.warn('No questionSetId provided in URL - redirecting to question sets');
-          setErrorMessage('No question set selected. Please go back and select a specific question set to continue.');
-          setAvailableQuestions([]);
-          setQuestionSets([]);
-          return;
+          // No questionSetId provided - this happens when user clicks question from newly generated JD questions
+          // Load questions from localStorage instead of database
+          const savedState = localStorage.getItem('jd_page_state');
+          if (savedState) {
+            try {
+              const state = JSON.parse(savedState);
+              if (state.questions && Array.isArray(state.questions) && state.questions.length > 0) {
+                questionsToUse = state.questions;
+                setsToUse = []; // No saved question sets
+              } else {
+                setErrorMessage('No questions found. Please go back and generate questions from a job description.');
+                setAvailableQuestions([]);
+                setQuestionSets([]);
+                return;
+              }
+            } catch (error) {
+              console.error('Error parsing localStorage state:', error);
+              setErrorMessage('No question set selected. Please go back and select a specific question set to continue.');
+              setAvailableQuestions([]);
+              setQuestionSets([]);
+              return;
+            }
+          } else {
+            setErrorMessage('No questions available. Please go back and generate questions from a job description first.');
+            setAvailableQuestions([]);
+            setQuestionSets([]);
+            return;
+          }
         }
         
         // Set the question sets and available questions
@@ -343,7 +363,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                 {errorMessage.includes('No question set selected') && (
                   <div className="mt-3">
                     <button
-                      onClick={() => window.location.href = '/dashboard/job-description'}
+                      onClick={() => window.location.href = '/jd'}
                       className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                     >
                       Go to Question Sets
@@ -485,7 +505,6 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                       if (questionSetId) newUrl += `&questionSetId=${questionSetId}`;
                       if (returnUrl) newUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
                       
-                      console.log('Updating URL for previous question:', newUrl);
                       window.history.replaceState(null, '', newUrl);
                       
                       // Reset navigation flag after a delay
@@ -541,7 +560,6 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                       if (questionSetId) newUrl += `&questionSetId=${questionSetId}`;
                       if (returnUrl) newUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
                       
-                      console.log('Updating URL for skip to next question:', newUrl);
                       window.history.replaceState(null, '', newUrl);
                       
                       // Reset navigation flag after a delay
@@ -608,17 +626,33 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                     </div>
                   )}
                   
+                  {feedback && analysisResult && analysisResult.detailedScores && (
+                    <div className="space-y-6">
+                      <h4 className="font-bold text-gray-900 text-lg mb-2">Score Breakdown</h4>
+                      <div className="space-y-4">
+                        {Object.entries(analysisResult.detailedScores).map(([key, value]) => (
+                          <div key={key} className="flex flex-col gap-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-gray-700 font-medium">{key}</span>
+                              <span className="text-gray-500 text-sm">{value}/10</span>
+                            </div>
+                            <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-4 rounded-full transition-all duration-700 ${value >= 8 ? 'bg-green-500' : value >= 5 ? 'bg-orange-400' : 'bg-red-400'}`}
+                                style={{ width: `${(value / 10) * 100}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 text-sm text-gray-600 text-center">
+                        Higher scores mean you are closer to the next level for each skill.
+                      </div>
+                    </div>
+                  )}
+                  
                   {feedback && (
                     <div className="space-y-6">
-                      {/* Score Chart */}
-                      {analysisResult && analysisResult.detailedScores && (
-                        <ScoreChart 
-                          scores={analysisResult.detailedScores}
-                          level={analysisResult.level || 'intermediate'}
-                          readinessScore={analysisResult.readinessScore || 60}
-                        />
-                      )}
-                      
                       {/* Detailed Feedback */}
                       <div className="bg-gradient-to-br from-green-50 to-blue-50 border border-green-200 rounded-xl overflow-hidden shadow-lg">
                         <div className="bg-gradient-to-r from-green-500 to-blue-500 p-4">
@@ -763,7 +797,6 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                                     if (questionSetId) newUrl += `&questionSetId=${questionSetId}`;
                                     if (returnUrl) newUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
                                     
-                                    console.log('Updating URL for next question:', newUrl);
                                     window.history.replaceState(null, '', newUrl);
                                   }
                                 }}

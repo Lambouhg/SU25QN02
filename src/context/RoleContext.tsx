@@ -15,14 +15,14 @@ interface RoleContextType extends UserRole {
   invalidateRoleCache: () => void;
 }
 
-const ROLE_CACHE_KEY = 'user_role_cache_v3';
+const ROLE_CACHE_KEY = 'user_role_session'; // Changed from v3 to session
 const ROLE_INVALIDATION_KEY = 'role_invalidation_signal';
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+const CACHE_DURATION = 5 * 60 * 1000; // Reduced from 15 to 5 minutes
 
 interface RoleCache {
   role: string;
   timestamp: number;
-  userId: string;
+  // Removed userId for security - don't store user identifiers
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
@@ -36,18 +36,18 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
     loading: true
   });
 
-  // Memoized cache functions
-  const getCachedRole = useCallback((userId: string): string | null => {
+  // Memoized cache functions - Updated for security  
+  const getCachedRole = useCallback((): string | null => {
     if (typeof window === 'undefined') return null;
     
     try {
-      const cached = localStorage.getItem(ROLE_CACHE_KEY);
+      const cached = sessionStorage.getItem(ROLE_CACHE_KEY); // Use sessionStorage
       if (!cached) return null;
       
       const parsedCache: RoleCache = JSON.parse(cached);
       const isExpired = (Date.now() - parsedCache.timestamp) >= CACHE_DURATION;
       
-      if (parsedCache.userId === userId && !isExpired) {
+      if (!isExpired) { // Don't check userId - just timestamp for security
         return parsedCache.role;
       }
     } catch (error) {
@@ -56,16 +56,16 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
     return null;
   }, []);
 
-  const setCachedRole = useCallback((userId: string, role: string) => {
+  const setCachedRole = useCallback((role: string) => {
     if (typeof window === 'undefined') return;
     
     try {
       const cacheData: RoleCache = {
         role,
-        timestamp: Date.now(),
-        userId
+        timestamp: Date.now()
+        // No userId stored for security
       };
-      localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(cacheData));
+      sessionStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(cacheData)); // Use sessionStorage
     } catch (error) {
       console.error('Error caching role:', error);
     }
@@ -75,7 +75,8 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
     if (typeof window === 'undefined') return;
     
     try {
-      localStorage.removeItem(ROLE_CACHE_KEY);
+      sessionStorage.removeItem(ROLE_CACHE_KEY); // Use sessionStorage
+      localStorage.removeItem('user_role_cache_v3'); // Cleanup old cache
     } catch (error) {
       console.error('Error invalidating role cache:', error);
     }
@@ -148,14 +149,14 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       
       // If that fails, try to get from cache or use default
       if (!role || role === 'user') {
-        const cachedRole = getCachedRole(user.id);
+        const cachedRole = getCachedRole();
         if (cachedRole && cachedRole !== 'user') {
           role = cachedRole;
           console.log('Using cached role due to API issues:', role);
         }
       }
       
-      setCachedRole(user.id, role);
+      setCachedRole(role);
       
       setUserRole({
         isAdmin: role === 'admin',
@@ -170,7 +171,7 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       }
       
       // Try to use cached role as fallback
-      const cachedRole = getCachedRole(user.id);
+      const cachedRole = getCachedRole();
       if (cachedRole) {
         console.log('Using cached role as fallback:', cachedRole);
         setUserRole({
@@ -212,7 +213,7 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Try cache first
-      const cachedRole = getCachedRole(user.id);
+      const cachedRole = getCachedRole();
       if (cachedRole && isMounted) {
         setUserRole({
           isAdmin: cachedRole === 'admin',
@@ -225,7 +226,7 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         if (!abortController.signal.aborted) {
           fetchRole(user.id).then(freshRole => {
             if (freshRole !== cachedRole && isMounted && !abortController.signal.aborted) {
-              setCachedRole(user.id, freshRole);
+              setCachedRole(freshRole);
               setUserRole({
                 isAdmin: freshRole === 'admin',
                 isUser: freshRole === 'user',
@@ -257,7 +258,7 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         
         // Check again before setting state
         if (isMounted && !abortController.signal.aborted) {
-          setCachedRole(user.id, role);
+          setCachedRole(role);
           
           setUserRole({
             isAdmin: role === 'admin',
@@ -299,7 +300,7 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       
       // Handle role cache updates from other tabs
       if (e.key === ROLE_CACHE_KEY) {
-        const cachedRole = getCachedRole(user.id);
+        const cachedRole = getCachedRole();
         if (cachedRole) {
           setUserRole({
             isAdmin: cachedRole === 'admin',

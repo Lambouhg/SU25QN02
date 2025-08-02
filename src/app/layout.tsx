@@ -6,6 +6,7 @@ import UserSync from "@/components/UserSync";
 import AuthRedirect from "@/components/auth/AuthRedirect";
 import { UserSyncProvider } from "@/context/UserSyncContext";
 import { RoleProvider } from "@/context/RoleContext";
+import UserSyncAuth from "@/components/auth/UserSync";
 import AdminRedirect from "@/components/auth/AdminRedirect";
 
 const geistSans = Geist({
@@ -30,21 +31,23 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <UserSyncProvider>
-        <RoleProvider>
-          <html lang="en" className="h-full">
-            <body 
-              className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}
-              suppressHydrationWarning={true}
-            >
-              {children}
-              <UserSync />
-              <AuthRedirect />
-              <AdminRedirect />
-            </body>
-          </html>
-        </RoleProvider>
-      </UserSyncProvider>
+      <UserSyncAuth>
+        <UserSyncProvider>
+          <RoleProvider>
+            <html lang="en" className="h-full">
+              <body 
+                className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}
+                suppressHydrationWarning={true}
+              >
+                {children}
+                <UserSync />
+                <AuthRedirect />
+                <AdminRedirect />
+              </body>
+            </html>
+          </RoleProvider>
+        </UserSyncProvider>
+      </UserSyncAuth>
     </ClerkProvider>
   );
 }

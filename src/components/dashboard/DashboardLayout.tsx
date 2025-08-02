@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
-  Star, Users, Settings, Menu, X, Search, Bell, LogOut, Shield,
+  Star, Settings, Menu, X, Search, Bell, LogOut, Shield,
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
@@ -85,12 +85,7 @@ export default function DashboardLayout({
       href: '/saved',
       key: 'saved'
     },
-    { 
-      icon: Users, 
-      label: 'Community', 
-      href: '/community',
-      key: 'community'
-    }
+
   ], []);
 
   // Optimized logout function

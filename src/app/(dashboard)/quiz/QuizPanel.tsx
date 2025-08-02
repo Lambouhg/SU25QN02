@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import QuizStart from './QuizStart';
@@ -12,8 +11,8 @@ export type QuizConfig = {
   field: string;
   topic: string;
   level: string;
-  questionCount: number;
-  timeLimit: number; // in minutes
+  questionCount: string;
+  timeLimit: string; // in minutes
 };
 
 export type Question = {
@@ -54,8 +53,8 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
     field: '',
     topic: '',
     level: '',
-    questionCount: 10,
-    timeLimit: 15,
+    questionCount: '10',
+    timeLimit: '15',
   });
   const [quiz, setQuiz] = useState<Quiz | null>(null);
 
@@ -102,7 +101,7 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
     userAnswers: { questionId: string; answerIndex: number[] }[];
     score: number;
     timeUsed: number;
-    questions?: any[];
+    questions?: Question[];
     correctCount?: number;
     totalQuestions?: number;
   }) => {
@@ -169,9 +168,30 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
         <QuizStart
           config={quizConfig}
           onChange={setQuizConfig}
-          onStart={(quizData) => {
-            setQuiz(quizData);
-            setStep('session');
+          onStart={async (quizData) => {
+            setLoading(true);
+            try {
+              const response = await fetch('/api/quiz/generate', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(quizData),
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to generate quiz');
+              }
+
+              const quiz = await response.json();
+              setQuiz(quiz);
+              setStep('session');
+            } catch (error) {
+              console.error('Error generating quiz:', error);
+              setError('Failed to generate quiz');
+            } finally {
+              setLoading(false);
+            }
           }}
           isLoading={loading}
           error={error}

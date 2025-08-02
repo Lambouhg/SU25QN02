@@ -1,39 +1,16 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
 interface UserSyncContextType {
   syncedUserIds: Set<string>;
   markUserSynced: (userId: string) => void;
 }
 
-const STORAGE_KEY = "syncedUserIds";
-
 const UserSyncContext = createContext<UserSyncContextType | undefined>(undefined);
 
 export const UserSyncProvider = ({ children }: { children: ReactNode }) => {
+  // Chỉ lưu trong memory, không localStorage để bảo mật
   const [syncedUserIds, setSyncedUserIds] = useState<Set<string>>(new Set());
-
-  // Load từ localStorage khi mount
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try {
-          const arr = JSON.parse(stored);
-          if (Array.isArray(arr)) {
-            setSyncedUserIds(new Set(arr));
-          }
-        } catch {}
-      }
-    }
-  }, []);
-
-  // Lưu vào localStorage khi syncedUserIds thay đổi
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(syncedUserIds)));
-    }
-  }, [syncedUserIds]);
 
   const markUserSynced = (userId: string) => {
     setSyncedUserIds(prev => {
