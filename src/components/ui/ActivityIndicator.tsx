@@ -49,21 +49,6 @@ export default function ActivityIndicator() {
             <div><strong>Email:</strong> {sessionInfo.email || 'Not available'}</div>
             <div><strong>Session ID:</strong> {sessionInfo.sessionId || 'Not available'}</div>
           </div>
-          <button 
-            onClick={() => {
-              console.log('🔍 Activity Debug Info:', {
-                isOnline,
-                isActiveSession: isActiveSession(),
-                sessionDuration,
-                lastActivity,
-                sessionInfo,
-                localStorage: localStorage.getItem('lastActivity')
-              });
-            }}
-            className="mt-3 px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-          >
-            Log to Console
-          </button>
         </div>
       )}
     </div>

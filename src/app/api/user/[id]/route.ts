@@ -155,7 +155,6 @@ export async function DELETE(
     try {
       const clerk = await clerkClient();
       await clerk.users.deleteUser(id);
-      console.log(`Successfully deleted user from Clerk: ${id}`);
     } catch (clerkError) {
       console.error("Error deleting user from Clerk:", clerkError);
       // Tiếp tục xóa từ database ngay cả khi Clerk fail

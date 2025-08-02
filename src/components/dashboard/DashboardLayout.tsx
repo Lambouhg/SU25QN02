@@ -15,7 +15,6 @@ import Toast from '@/components/ui/Toast';
 import { useRole } from '@/context/RoleContext';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
 import ActivityIndicator from '@/components/ui/ActivityIndicator';
-import ActivityTestPanel from '@/components/debug/ActivityTestPanel';
 
 
 export default function DashboardLayout({
@@ -409,9 +408,6 @@ export default function DashboardLayout({
         onClose={() => setToast({ ...toast, show: false })}
         duration={3000}
       />
-
-      {/* Activity Test Panel (Debug Only) */}
-      {process.env.NODE_ENV === 'development' && <ActivityTestPanel />}
       
     </div>
   );

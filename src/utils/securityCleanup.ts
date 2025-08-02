@@ -38,10 +38,10 @@ export class SecurityCleanup {
     });
 
     // Also clear sessionStorage role cache
-    sessionStorage.removeItem('user_role_session');
+      sessionStorage.removeItem('user_role_session');
+    }
 
-    console.log('🧹 Security cleanup completed - removed user data from localStorage & sessionStorage');
-  }
+   
 
   /**
    * Xóa chỉ auth tokens

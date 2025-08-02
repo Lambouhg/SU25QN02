@@ -27,7 +27,6 @@ export default function ConfirmDeleteModal({
 }: ConfirmDeleteModalProps) {
   if (!isOpen || !user) return null;
 
-  console.log('ConfirmDeleteModal rendering:', { isOpen, user: user?.fullName });
 
   const modalContent = (
     <div className="fixed inset-0 z-50 overflow-y-auto">

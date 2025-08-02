@@ -104,7 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Không lưu vào localStorage nữa để bảo mật
     // localStorage.setItem('user', JSON.stringify(userData)); // ❌ Không làm này nữa
     
-    console.log('User logged in:', userData);
+
   };
 
   // Hàm logout
@@ -124,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Điều hướng về trang login
       router.push('/sign-in');
       
-      console.log('User logged out successfully');
+
     } catch (error) {
       console.error('Error during logout:', error);
     } finally {
@@ -137,7 +137,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (user) {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
-      console.log('User updated:', updatedUser);
+
     }
   };
 
@@ -160,7 +160,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           ...prevUser!,
           ...userData,
         }));
-        console.log('User data refreshed:', userData);
+
       }
     } catch (error) {
       console.error('Error refreshing user data:', error);

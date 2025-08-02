@@ -152,7 +152,6 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         const cachedRole = getCachedRole();
         if (cachedRole && cachedRole !== 'user') {
           role = cachedRole;
-          console.log('Using cached role due to API issues:', role);
         }
       }
       
@@ -173,7 +172,6 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
       // Try to use cached role as fallback
       const cachedRole = getCachedRole();
       if (cachedRole) {
-        console.log('Using cached role as fallback:', cachedRole);
         setUserRole({
           isAdmin: cachedRole === 'admin',
           isUser: cachedRole === 'user',
@@ -234,9 +232,8 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
                 loading: false
               });
             }
-          }).catch(error => {
-            if (!abortController.signal.aborted) {
-              console.log('Background role fetch failed, keeping cached role:', error.message);
+          }).catch(() => {
+            if (!abortController.signal.aborted) {       
             }
           });
         }

@@ -53,7 +53,6 @@ export default function UserSync() {
       
       // Log nếu đây là user mới 
       if (result.created) {
-        console.log('New user registered:', userData.email);
       }
       
       // Đánh dấu user đã sync trong cả context và localStorage

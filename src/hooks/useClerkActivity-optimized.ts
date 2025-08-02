@@ -27,12 +27,11 @@ export function useClerkActivityOptimized() {
   // Track user activity using Clerk's built-in state
   useEffect(() => {
     if (!isLoaded || !user || !session) {
-      console.log('🔍 Activity Hook: Not ready', { isLoaded, hasUser: !!user, hasSession: !!session });
       setActivityState(prev => ({ ...prev, isOnline: false }));
       return;
     }
 
-    console.log('🟢 Activity Hook: Starting tracking for user', user.id);
+    
 
     // Capture ref values at the start of effect
     const sessionStart = sessionStartRef.current;
@@ -48,7 +47,6 @@ export function useClerkActivityOptimized() {
     // Track activity with mouse/keyboard events (lightweight)
     const updateActivity = () => {
       lastActivityRef.current = new Date();
-      console.log('🔄 Activity Hook: User activity detected');
       setActivityState(prev => ({
         ...prev,
         lastActivity: new Date(),
@@ -62,12 +60,11 @@ export function useClerkActivityOptimized() {
       document.addEventListener(event, updateActivity, { passive: true });
     });
 
-    console.log('🔧 Activity Hook: Event listeners added');
+
 
     // Update timer every 30 seconds (instead of API calls)
     activityTimerRef.current = setInterval(() => {
       const duration = Date.now() - sessionStart.getTime();
-      console.log('⏰ Activity Hook: Timer update - Duration:', Math.round(duration / 1000), 'seconds');
       setActivityState(prev => ({
         ...prev,
         totalTimeSpent: duration
@@ -75,7 +72,6 @@ export function useClerkActivityOptimized() {
 
       // Sync with server every 2 minutes (4 timer cycles)
       if (Math.floor(duration / 30000) % 4 === 0 && duration > 60000) {
-        console.log('🔄 Activity Hook: Syncing with server...');
         syncActivityWithServer(user.id, duration, getLastActivity());
       }
     }, 30000);
@@ -88,7 +84,6 @@ export function useClerkActivityOptimized() {
         lastActivity: getLastActivity().toISOString()
       };
       
-      console.log('💾 Activity Hook: Saving activity data', activityData);
       
       // Save to localStorage as backup
       localStorage.setItem('lastActivity', JSON.stringify(activityData));
@@ -109,7 +104,6 @@ export function useClerkActivityOptimized() {
 
     // Cleanup
     return () => {
-      console.log('🔴 Activity Hook: Cleaning up for user', user.id);
       
       events.forEach(event => {
         document.removeEventListener(event, updateActivity);
@@ -138,7 +132,6 @@ export function useClerkActivityOptimized() {
       });
 
       if (response.ok) {
-        console.log('✅ Activity Hook: Successfully synced with server');
         return true;
       } else {
         console.warn('⚠️ Activity Hook: Failed to sync with server', response.status);

@@ -38,7 +38,7 @@ export function useUserRoleWithCache(): UserRole {
       const now = Date.now();
       
       if ((now - parsedCache.timestamp) < CACHE_DURATION) {
-        console.log('📦 Using cached role:', parsedCache.role);
+
         return parsedCache.role;
       }
     } catch (error) {
@@ -55,7 +55,7 @@ export function useUserRoleWithCache(): UserRole {
         timestamp: Date.now(),
       };
       sessionStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(cacheData));
-      console.log('💾 Cached role:', role);
+
     } catch (error) {
       console.error('Error caching role:', error);
     }
@@ -64,12 +64,12 @@ export function useUserRoleWithCache(): UserRole {
   useEffect(() => {
     const checkUserRole = async () => {
       if (!isLoaded) {
-        console.log('⏳ Clerk not loaded yet...');
+
         return;
       }
 
       if (!user) {
-        console.log('❌ No user found');
+
         setUserRole({
           isAdmin: false,
           isUser: false,
@@ -90,8 +90,6 @@ export function useUserRoleWithCache(): UserRole {
         });
         return;
       }
-
-      console.log('🔍 Fetching user role from API...');
 
       try {
         const response = await fetch(`/api/user/${user.id}`, {
