@@ -52,19 +52,10 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
       const isIncorrect = questionResult.isCorrect === false; // Chỉ false mới là sai
       const isNotSaved = !savedQuestionIds.includes(question.id)
       
-      console.log(`Question ${question.id}:`, {
-        isIncorrect,
-        isNotSaved,
-        userSelectedIndexes: questionResult.userSelectedIndexes,
-        isCorrect: questionResult.isCorrect
-      })
       
       return isIncorrect && isNotSaved
     })
     
-    console.log('Quiz questions:', quiz.questions)
-    console.log('Saved question IDs:', savedQuestionIds)
-    console.log('Unsaved incorrect questions:', unsaved)
     return unsaved
   }
 
@@ -121,8 +112,6 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
   // Handle navigation with warning
   const handleNavigation = (action: string, callback: () => void) => {
-    console.log('handleNavigation called with action:', action)
-    console.log('unsavedIncorrectCount:', unsavedIncorrectCount)
     if (unsavedIncorrectCount > 0) {
       console.log('Showing save warning popup')
       setShowSaveWarning(true)

@@ -62,9 +62,6 @@ export default function QuizHistoryPage() {
     }, [fetchQuizHistory])
 
     useEffect(() => {
-        // Log dữ liệu để debug
-        console.log("quizHistory", quizHistory)
-        console.log("selectedQuiz", selectedQuiz)
     }, [quizHistory, selectedQuiz])
 
     const handleViewQuizDetails = async (quiz: Quiz) => {

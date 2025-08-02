@@ -239,9 +239,7 @@ export default function DashboardPage() {
     const activities = progress.recentActivities;
     const totalInterviews = progress.stats?.totalInterviews || 0;
     
-    console.log('=== Progress by Day Debug ===');
-    console.log('Activities count:', activities.length);
-    console.log('Activities:', activities);
+
     console.log('Total interviews from stats:', totalInterviews);
     
     const groupKey = (date: Date): string => {
@@ -281,8 +279,7 @@ export default function DashboardPage() {
       }
     }).sort((a, b) => a.period.localeCompare(b.period));
     
-    console.log('Grouped data:', grouped);
-    console.log('Chart data:', chartData);
+
     setLineChartData(chartData);
   }, [progress, viewMode, lineMode]);
 

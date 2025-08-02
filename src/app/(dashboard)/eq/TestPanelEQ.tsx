@@ -525,7 +525,7 @@ export default function TestPanelEQ() {
 					position,
 				})
 			});
-			console.log('EQ result saved:', response);
+
 		} catch (error) {
 			console.error('Error saving EQ result:', error);
 		}

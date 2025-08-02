@@ -120,9 +120,6 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
 
     // Sử dụng thông tin isMultipleChoice từ API
     const isMultipleChoice = currentQuestion.isMultipleChoice || false;
-    console.log('Debug - Question:', currentQuestion.question);
-    console.log('Debug - isMultipleChoice:', isMultipleChoice);
-    console.log('Debug - Current question object:', currentQuestion);
 
     if (isMultipleChoice) {
       // Multiple choice logic
