@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import type { Quiz as QuizType } from "./QuizPanel"
 import {
   Target,
   ChevronLeft,
@@ -45,18 +46,11 @@ interface ConfigType {
   error?: string;
 }
 
-interface QuizData {
-  field: string;
-  topic: string;
-  level: string;
-  questionCount: number;
-  timeLimit: number;
-}
 
 interface QuizStartProps {
   config: ConfigType
   onChange: (config: ConfigType) => void
-  onStart: (quizData: QuizData) => void
+  onStart: (quiz: QuizType) => void
   isLoading: boolean
   error: string | null
 }

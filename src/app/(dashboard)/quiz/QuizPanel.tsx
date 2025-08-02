@@ -7,6 +7,8 @@ import QuizStart from './QuizStart';
 import QuizSession from './QuizSession';
 import QuizResult from './QuizResult';
 
+// Import QuizData type
+
 export type QuizConfig = {
   field: string;
   topic: string;
@@ -168,33 +170,14 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
         <QuizStart
           config={quizConfig}
           onChange={setQuizConfig}
-          onStart={async (quizData) => {
-            setLoading(true);
-            try {
-              const response = await fetch('/api/quiz/generate', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(quizData),
-              });
-
-              if (!response.ok) {
-                throw new Error('Failed to generate quiz');
-              }
-
-              const quiz = await response.json();
-              setQuiz(quiz);
-              setStep('session');
-            } catch (error) {
-              console.error('Error generating quiz:', error);
-              setError('Failed to generate quiz');
-            } finally {
-              setLoading(false);
-            }
+          onStart={(quiz) => {
+            console.log('Received quiz from QuizStart:', quiz);
+            setQuiz(quiz);
+            localStorage.setItem('currentQuizId', quiz.id); // Lưu quizId như khi fetch từ API
+            setStep('session');
           }}
-          isLoading={loading}
-          error={error}
+          isLoading={false}
+          error={null}
         />
       )}
 

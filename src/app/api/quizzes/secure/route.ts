@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 
+// Define Answer interface
+interface Answer {
+  content: string;
+  isCorrect: boolean;
+}
+
 // Hàm shuffleArray để random mảng
 function shuffleArray<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
@@ -12,7 +18,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 // Hàm shuffle answers và trả về mapping
-function shuffleAnswers(answers: any[]): { shuffledAnswers: any[], mapping: number[] } {
+function shuffleAnswers(answers: Answer[]): { shuffledAnswers: Answer[], mapping: number[] } {
   const originalIndexes = answers.map((_, index) => index);
   const shuffledIndexes = shuffleArray([...originalIndexes]);
   
@@ -70,19 +76,19 @@ export async function POST(req: Request) {
     // Tạo answer mapping cho từng câu hỏi
     const answerMapping: Record<string, number[]> = {};
     const questionsWithShuffledAnswers = shuffledQuestions.map(question => {
-      const answers = question.answers as any[];
+      const answers = question.answers as unknown as Answer[];
       if (answers && answers.length > 0) {
         const { shuffledAnswers, mapping } = shuffleAnswers(answers);
         answerMapping[question.id] = mapping;
         
         // Loại bỏ trường isCorrect khỏi answers khi trả về
-        const answersWithoutCorrect = shuffledAnswers.map((answer: any) => ({
+        const answersWithoutCorrect = shuffledAnswers.map((answer: Answer) => ({
           content: answer.content,
           // Không bao gồm isCorrect
         }));
         
         // Đếm số lượng đáp án đúng để xác định loại câu hỏi
-        const correctAnswerCount = shuffledAnswers.filter((answer: any) => answer.isCorrect).length;
+        const correctAnswerCount = shuffledAnswers.filter((answer: Answer) => answer.isCorrect).length;
         
         return {
           ...question,
@@ -94,26 +100,22 @@ export async function POST(req: Request) {
     });
 
     // Create quiz
-    const quizData = {
-      userId: user.id,
-      field,
-      topic,
-      level,
-      questions: {
-        connect: shuffledQuestions.map(q => ({ id: q.id })),
-      },
-      totalQuestions: questions.length,
-      timeLimit,
-      score: 0,
-      timeUsed: 0,
-      retryCount: 0,
-    };
-
     const quiz = await prisma.quiz.create({
       data: {
-        ...quizData,
+        userId: user.id,
+        field,
+        topic,
+        level,
+        questions: {
+          connect: shuffledQuestions.map(q => ({ id: q.id })),
+        },
+        totalQuestions: questions.length,
+        timeLimit,
+        score: 0,
+        timeUsed: 0,
+        retryCount: 0,
         answerMapping,
-      } as any,
+      },
       include: { questions: true },
     });
 
