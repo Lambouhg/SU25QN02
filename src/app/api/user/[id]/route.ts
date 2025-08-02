@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
-
-// Function to invalidate user list cache (shared with main route)
-async function invalidateUserListCache() {
-  try {
-    // Make a request to the main user route to invalidate its cache
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/user/invalidate-cache`, {
-      method: 'POST'
-    });
-  } catch (error) {
-    console.error('Failed to invalidate user list cache:', error);
-  }
-}
+import { invalidateUserListCache } from "@/lib/userCache";
 
 export async function GET(
   request: NextRequest,
@@ -149,16 +139,72 @@ export async function DELETE(
       );
     }
     
-    // Tìm và xóa user theo clerkId
-    const user = await prisma.user.delete({
+    // Tìm user trước khi xóa để lấy thông tin
+    const user = await prisma.user.findUnique({
       where: { clerkId: id }
     });
 
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Xóa user từ Clerk trước
+    try {
+      const clerk = await clerkClient();
+      await clerk.users.deleteUser(id);
+      console.log(`Successfully deleted user from Clerk: ${id}`);
+    } catch (clerkError) {
+      console.error("Error deleting user from Clerk:", clerkError);
+      // Tiếp tục xóa từ database ngay cả khi Clerk fail
+      // vì có thể user đã bị xóa từ Clerk rồi
+    }
+
+    // Xóa tất cả dữ liệu liên quan từ database
+    await prisma.$transaction(async (tx) => {
+      // Xóa UserActivity trước (nếu có)
+      await tx.userActivity.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa Quiz records liên quan đến user
+      await tx.quiz.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa JdQuestions
+      await tx.jdQuestions.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa UserPackage
+      await tx.userPackage.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa PaymentHistory records
+      await tx.paymentHistory.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa Interview records
+      await tx.interview.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa user từ database (cuối cùng)
+      await tx.user.delete({
+        where: { clerkId: id }
+      });
+    });
+
     // Invalidate user list cache since user was deleted
-    await invalidateUserListCache();
+    invalidateUserListCache();
 
     return NextResponse.json({
-      message: "User deleted successfully",
+      message: "User deleted successfully from both Clerk and database",
       deletedUser: {
         id: user.id,
         clerkId: user.clerkId,
@@ -179,7 +225,7 @@ export async function DELETE(
     }
     
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: (error as Error).message },
       { status: 500 }
     );
   }
