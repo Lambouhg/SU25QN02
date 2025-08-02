@@ -5,17 +5,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AdminAnalytics from '@/components/admin/AdminAnalytics';
 import UserActivitiesList from '@/components/admin/UserActivitiesList';
 import UserActivityDetailView from '@/components/admin/UserActivityDetailView';
+import AdminActivityDashboard from '@/components/admin/AdminActivityDashboard';
 import { 
   BarChart3, 
   Users, 
   Settings,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  Activity
 } from 'lucide-react';
 
 export default function AdminUserActivitiesPage() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('realtime');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
 
@@ -93,7 +95,11 @@ export default function AdminUserActivitiesPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="realtime" className="flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Real-time Activity
+          </TabsTrigger>
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Analytics Overview
@@ -107,6 +113,10 @@ export default function AdminUserActivitiesPage() {
             Activity Management
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="realtime" className="space-y-6">
+          <AdminActivityDashboard />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-6">
           <AdminAnalytics />
