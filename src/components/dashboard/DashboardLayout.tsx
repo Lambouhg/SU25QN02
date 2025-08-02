@@ -13,8 +13,9 @@ import Image from 'next/image';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Toast from '@/components/ui/Toast';
 import { useRole } from '@/context/RoleContext';
-import { useClerkActivity } from '@/hooks/useClerkActivity';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+import ActivityIndicator from '@/components/ui/ActivityIndicator';
+import ActivityTestPanel from '@/components/debug/ActivityTestPanel';
 
 
 export default function DashboardLayout({
@@ -35,9 +36,6 @@ export default function DashboardLayout({
   const { user } = useUser();
   const { signOut } = useClerk();
   const { isAdmin } = useRole();
-  
-  // Track user activity với Clerk
-  useClerkActivity();
   
   // Listen for role invalidation signals
   useRoleInvalidation();
@@ -180,6 +178,8 @@ export default function DashboardLayout({
                   Admin Panel
                 </Link>
               )}
+              {/* Activity Indicator */}
+              <ActivityIndicator />
               
               {/* Sign Out Button */}
               <button
@@ -409,6 +409,9 @@ export default function DashboardLayout({
         onClose={() => setToast({ ...toast, show: false })}
         duration={3000}
       />
+
+      {/* Activity Test Panel (Debug Only) */}
+      {process.env.NODE_ENV === 'development' && <ActivityTestPanel />}
       
     </div>
   );
