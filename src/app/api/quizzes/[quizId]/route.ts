@@ -22,7 +22,36 @@ export async function GET(
       return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
     }
 
-    return NextResponse.json(quiz);
+    // Transform data để phù hợp với UI
+    const transformedQuiz = {
+      id: quiz.id,
+      field: quiz.field,
+      topic: quiz.topic,
+      level: quiz.level,
+      completedAt: quiz.completedAt?.toISOString(),
+      score: quiz.score,
+      timeUsed: quiz.timeUsed,
+      timeLimit: quiz.timeLimit,
+      userAnswers: quiz.userAnswers as any[] || [],
+      totalQuestions: quiz.totalQuestions,
+      retryCount: quiz.retryCount || 0,
+      questions: quiz.questions.map((q: any) => {
+        const answers = q.answers || [];
+        const correctCount = answers.filter((a: any) => a.isCorrect).length;
+        return {
+          id: q.id,
+          question: q.question,
+          answers: answers.map((answer: any) => ({
+            content: answer.content,
+            isCorrect: answer.isCorrect
+          })),
+          explanation: q.explanation,
+          isMultipleChoice: correctCount > 1
+        };
+      })
+    };
+
+    return NextResponse.json(transformedQuiz);
   } catch (error) {
     console.error('Error fetching quiz:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

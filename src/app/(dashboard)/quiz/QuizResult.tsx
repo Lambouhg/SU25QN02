@@ -36,21 +36,23 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
   // Get incorrect questions that haven't been saved
   const getUnsavedIncorrectQuestions = () => {
-    const unsaved = quiz.userAnswers.filter(answer => {
-      const isIncorrect = !answer.isCorrect
-      const isNotSaved = !savedQuestionIds.includes(answer.questionId)
+    const unsaved = quiz.questions.filter(question => {
+      // Kiểm tra xem question có thông tin isCorrect không (từ API submit)
+      const questionResult = question as any;
+      const isIncorrect = questionResult.isCorrect === false; // Chỉ false mới là sai
+      const isNotSaved = !savedQuestionIds.includes(question.id)
       
-      console.log(`Question ${answer.questionId}:`, {
+      console.log(`Question ${question.id}:`, {
         isIncorrect,
         isNotSaved,
-        answerIndex: answer.answerIndex,
-        isCorrect: answer.isCorrect
+        userSelectedIndexes: questionResult.userSelectedIndexes,
+        isCorrect: questionResult.isCorrect
       })
       
-      return (isIncorrect) && isNotSaved
+      return isIncorrect && isNotSaved
     })
     
-    console.log('Quiz userAnswers:', quiz.userAnswers)
+    console.log('Quiz questions:', quiz.questions)
     console.log('Saved question IDs:', savedQuestionIds)
     console.log('Unsaved incorrect questions:', unsaved)
     return unsaved
@@ -90,7 +92,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
     }
   }
 
-  const correctAnswers = quiz.userAnswers.filter((a) => a.isCorrect).length
+  const correctAnswers = quiz.questions.filter((q) => (q as any).isCorrect === true).length
   const isPassingScore = quiz.score >= 70
 
   const handleRetryQuiz = async () => {
@@ -145,18 +147,18 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
     const unsavedIncorrect = getUnsavedIncorrectQuestions()
     let savedCount = 0
 
-    for (const answer of unsavedIncorrect) {
+    for (const question of unsavedIncorrect) {
       try {
         const response = await fetch("/api/users/saved-questions", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ questionId: answer.questionId }),
+          body: JSON.stringify({ questionId: question.id }),
         })
         if (response.ok) {
           savedCount++
-          setSavedQuestionIds(prev => [...prev, answer.questionId])
+          setSavedQuestionIds(prev => [...prev, question.id])
         }
       } catch (error) {
         console.error("Error saving question:", error)
@@ -286,8 +288,10 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
                 <div className="space-y-6">
                   {quiz.questions.map((question, qIndex) => {
-                    const userAnswer = quiz.userAnswers.find((a) => a.questionId === question.id)
-                    const isCorrect = userAnswer?.isCorrect
+                    // Sử dụng thông tin từ question result (có từ API submit)
+                    const questionResult = question as any;
+                    const isCorrect = questionResult.isCorrect;
+                    const userSelectedIndexes = questionResult.userSelectedIndexes || [];
                     const isSaved = savedQuestionIds.includes(question.id)
 
                     return (
@@ -347,9 +351,9 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
                             const questionMapping = quiz.answerMapping?.[question.id];
                             const originalIndex = questionMapping ? questionMapping[aIndex] : aIndex;
                             
-                            const userSelectedThisAnswer = userAnswer?.answerIndex.includes(originalIndex);
+                            const userSelectedThisAnswer = userSelectedIndexes.includes(aIndex);
                             const isThisAnswerCorrect = answer.isCorrect;
-                            const isQuestionCorrect = userAnswer?.isCorrect;
+                            const isQuestionCorrect = isCorrect;
 
                             let answerClass = "p-3 rounded-lg border "
                             let iconClass = ""

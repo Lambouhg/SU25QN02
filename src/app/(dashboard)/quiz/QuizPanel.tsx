@@ -21,9 +21,10 @@ export type Question = {
   question: string;
   answers: {
     content: string;
-    isCorrect: boolean;
+    isCorrect?: boolean; // Optional vì có thể không có khi start quiz
   }[];
   explanation?: string;
+  isMultipleChoice?: boolean; // Thêm thông tin về loại câu hỏi
 };
 
 export type Quiz = {
@@ -33,7 +34,7 @@ export type Quiz = {
   userAnswers: {
     questionId: string;
     answerIndex: number[];
-    isCorrect: boolean;
+    isCorrect?: boolean; // Optional vì có thể không có khi start quiz
   }[];
   score: number;
   totalQuestions: number;
@@ -98,43 +99,37 @@ export default function QuizPanel({ quizId }: QuizPanelProps) {
 
 
   const handleQuizComplete = async (result: {
-    userAnswers: { questionId: string; answerIndex: number[]; isCorrect: boolean }[];
+    userAnswers: { questionId: string; answerIndex: number[] }[];
     score: number;
     timeUsed: number;
+    questions?: any[];
+    correctCount?: number;
+    totalQuestions?: number;
   }) => {
     if (!quiz) return;
 
     try {
-      // Save quiz result to database
-      const response = await fetch(`/api/quizzes/${quiz.id}/complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(result),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save quiz result');
-      }
-
+      // Quiz đã được submit và tính điểm ở server, không cần gọi API complete nữa
       const updatedQuiz = {
         ...quiz,
         userAnswers: result.userAnswers,
         score: result.score,
         timeUsed: result.timeUsed,
+        // Cập nhật questions với đáp án đúng nếu có
+        questions: result.questions || quiz.questions,
       };
 
       setQuiz(updatedQuiz);
       setStep('result');
     } catch (error) {
-      console.error('Error saving quiz result:', error);
-      // Still show the result even if saving fails
+      console.error('Error handling quiz result:', error);
+      // Still show the result even if there's an error
       const updatedQuiz = {
         ...quiz,
         userAnswers: result.userAnswers,
         score: result.score,
         timeUsed: result.timeUsed,
+        questions: result.questions || quiz.questions,
       };
       setQuiz(updatedQuiz);
       setStep('result');

@@ -34,66 +34,79 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find the user by clerkId
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
+    // Find user
+    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const body = await req.json();
-    const { field, topic, level, count, timeLimit } = body;
+    const { field, topic, level, count, timeLimit } = await req.json();
 
-    // Chuẩn hóa field, topic, level để so sánh không phân biệt hoa thường/khoảng trắng
-    const norm = (str: string) => str.trim().toLowerCase();
-    const normField = norm(field);
-    const normTopic = norm(topic);
-    const normLevel = norm(level);
-
-    // Lấy tất cả câu hỏi phù hợp (không phân biệt hoa thường/khoảng trắng)
-    const allQuestions = (await prisma.question.findMany({})).filter(q =>
-      q.fields.some(f => norm(f) === normField) &&
-      q.topics.some(t => norm(t) === normTopic) &&
-      q.levels.some(l => norm(l) === normLevel)
-    );
-
-    if (!allQuestions || allQuestions.length === 0) {
-      return NextResponse.json({ error: 'No questions found' }, { status: 404 });
+    // Validate input
+    if (!field || !topic || !level || !count || !timeLimit) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Shuffle và lấy random count câu hỏi
-    const shuffled = shuffleArray([...allQuestions]);
-    const questions = shuffled.slice(0, parseInt(count));
+    // Get questions from database
+    const questions = await prisma.question.findMany({
+      where: {
+        fields: { has: field },
+        topics: { has: topic },
+        levels: { has: level },
+      },
+      take: count,
+      orderBy: {
+        id: 'asc',
+      },
+    });
+
+    if (questions.length === 0) {
+      return NextResponse.json({ error: 'No questions found for the specified criteria' }, { status: 404 });
+    }
+
+    // Shuffle thứ tự các câu hỏi
+    const shuffledQuestions = shuffleArray([...questions]);
 
     // Tạo answer mapping cho từng câu hỏi
     const answerMapping: Record<string, number[]> = {};
-    const questionsWithShuffledAnswers = questions.map(question => {
+    const questionsWithShuffledAnswers = shuffledQuestions.map(question => {
       const answers = question.answers as any[];
       if (answers && answers.length > 0) {
         const { shuffledAnswers, mapping } = shuffleAnswers(answers);
         answerMapping[question.id] = mapping;
+        
+        // Loại bỏ trường isCorrect khỏi answers khi trả về
+        const answersWithoutCorrect = shuffledAnswers.map((answer: any) => ({
+          content: answer.content,
+          // Không bao gồm isCorrect
+        }));
+        
+        // Đếm số lượng đáp án đúng để xác định loại câu hỏi
+        const correctAnswerCount = shuffledAnswers.filter((answer: any) => answer.isCorrect).length;
+        
         return {
           ...question,
-          answers: shuffledAnswers
+          answers: answersWithoutCorrect,
+          isMultipleChoice: correctAnswerCount > 1 // Thêm thông tin về loại câu hỏi
         };
       }
       return question;
     });
 
-    // Tạo quiz mới
+    // Create quiz
     const quizData = {
       userId: user.id,
       field,
       topic,
       level,
       questions: {
-        connect: questions.map(q => ({ id: q.id })),
+        connect: shuffledQuestions.map(q => ({ id: q.id })),
       },
       totalQuestions: questions.length,
-      timeLimit: parseInt(timeLimit), // Đảm bảo là Int
+      timeLimit,
       score: 0,
       timeUsed: 0,
+      retryCount: 0,
     };
 
     const quiz = await prisma.quiz.create({
@@ -104,7 +117,7 @@ export async function POST(req: Request) {
       include: { questions: true },
     });
 
-    // Update user's quiz history (nếu cần)
+    // Update user's quiz history
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -114,7 +127,7 @@ export async function POST(req: Request) {
       },
     });
 
-    // Trả về quiz với câu trả lời đã được shuffle
+    // Trả về quiz với câu trả lời đã được shuffle và KHÔNG có isCorrect
     const quizWithShuffledAnswers = {
       ...quiz,
       questions: questionsWithShuffledAnswers
@@ -122,39 +135,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(quizWithShuffledAnswers, { status: 201 });
   } catch (error) {
-    console.error('Error creating quiz:', error);
+    console.error('Error creating secure quiz:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-export async function GET() {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Tìm user theo clerkId
-    const user = await prisma.user.findUnique({
-      where: { clerkId: userId },
-    });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Lấy danh sách quiz của user, kèm questions
-    const quizzes = await prisma.quiz.findMany({
-      where: { userId: user.id },
-      orderBy: { completedAt: 'desc' },
-      include: { questions: true },
-    });
-
-    return NextResponse.json(quizzes);
-  } catch (error) {
-    console.error('Error in GET /api/quizzes:', error);
-    return NextResponse.json({
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error',
-    }, { status: 500 });
-  }
-}
+} 

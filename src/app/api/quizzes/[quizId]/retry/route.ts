@@ -2,31 +2,6 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 
-// Hàm shuffleArray để random mảng
-function shuffleArray<T>(array: T[]): T[] {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-
-// Hàm shuffle answers và trả về mapping
-function shuffleAnswers(answers: any[]): { shuffledAnswers: any[], mapping: number[] } {
-  const originalIndexes = answers.map((_, index) => index);
-  const shuffledIndexes = shuffleArray([...originalIndexes]);
-  
-  const shuffledAnswers = shuffledIndexes.map(index => answers[index]);
-  
-  // Tạo mapping từ vị trí gốc về vị trí mới: mapping[originalIndex] = newIndex
-  const mapping = new Array(answers.length);
-  shuffledIndexes.forEach((originalIndex, newIndex) => {
-    mapping[originalIndex] = newIndex;
-  });
-  
-  return { shuffledAnswers, mapping };
-}
-
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ quizId: string }> }
@@ -37,32 +12,48 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    const { quizId } = await params;
+
+    // Tìm user theo clerkId
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Get the original quiz
-    const { quizId } = await params;
+    // Lấy quiz gốc để retry
     const originalQuiz = await prisma.quiz.findUnique({
       where: { id: quizId },
       include: { questions: true },
     });
+
     if (!originalQuiz) {
       return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
     }
 
-    // Tạo answer mapping mới cho từng câu hỏi (khác với lần trước)
-    const answerMapping: Record<string, number[]> = {};
-    const questionsWithShuffledAnswers = originalQuiz.questions.map(question => {
+    // Kiểm tra xem quiz có thuộc về user này không
+    if (originalQuiz.userId !== user.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Retry quiz - giữ nguyên thứ tự answers nhưng loại bỏ isCorrect
+    const questionsWithCleanAnswers = originalQuiz.questions.map(question => {
       const answers = question.answers as any[];
       if (answers && answers.length > 0) {
-        const { shuffledAnswers, mapping } = shuffleAnswers(answers);
-        answerMapping[question.id] = mapping;
+        // Loại bỏ isCorrect khỏi answers khi trả về cho client
+        const cleanAnswers = answers.map((answer: any) => ({
+          content: answer.content,
+          // Không bao gồm isCorrect
+        }));
+        
+        // Đếm số lượng đáp án đúng để xác định loại câu hỏi
+        const correctAnswerCount = answers.filter((answer: any) => answer.isCorrect).length;
+        
         return {
           ...question,
-          answers: shuffledAnswers
+          answers: cleanAnswers,
+          isMultipleChoice: correctAnswerCount > 1
         };
       }
       return question;
@@ -87,30 +78,23 @@ export async function POST(
     const newQuiz = await prisma.quiz.create({
       data: {
         ...quizData,
-        answerMapping,
+        // Không tạo answerMapping cho retry quiz
       } as any,
       include: { questions: true },
     });
 
-    // Update user's quiz history
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        quizHistory: {
-          connect: { id: newQuiz.id },
-        },
-      },
-    });
-
-    // Trả về quiz với câu trả lời đã được shuffle
-    const quizWithShuffledAnswers = {
+    // Trả về quiz với câu trả lời đã clean (không có isCorrect)
+    const quizWithCleanAnswers = {
       ...newQuiz,
-      questions: questionsWithShuffledAnswers
+      questions: questionsWithCleanAnswers
     };
 
-    return NextResponse.json(quizWithShuffledAnswers, { status: 201 });
+    return NextResponse.json(quizWithCleanAnswers, { status: 201 });
   } catch (error) {
-    console.error('Error retrying quiz:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Error in POST /api/quizzes/[quizId]/retry:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    }, { status: 500 });
   }
 } 

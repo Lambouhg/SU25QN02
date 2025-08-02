@@ -9,30 +9,91 @@ import type { Quiz } from "./QuizPanel";
 interface QuizSessionProps {
   quiz: Quiz;
   onComplete: (result: {
-    userAnswers: { questionId: string; answerIndex: number[]; isCorrect: boolean }[];
+    userAnswers: { questionId: string; answerIndex: number[] }[];
     score: number;
     timeUsed: number;
+    questions?: any[];
+    correctCount?: number;
+    totalQuestions?: number;
   }) => void;
   onCancel: () => void;
 }
 
 export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<{ questionId: string; answerIndex: number[]; isCorrect: boolean }[]>([]);
+  const [userAnswers, setUserAnswers] = useState<{ questionId: string; answerIndex: number[] }[]>([]);
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimit * 60); // Convert minutes to seconds
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    const score = Math.round((userAnswers.filter((answer) => answer.isCorrect).length / quiz.questions.length) * 100);
-    onComplete({
-      userAnswers,
-      score,
-      timeUsed: quiz.timeLimit * 60 - timeLeft,
-    });
-  }, [isSubmitting, userAnswers, quiz.questions.length, quiz.timeLimit, timeLeft, onComplete]);
+    try {
+      // Gọi API submit để tính điểm server-side (hoạt động với cả secure quiz và retry quiz)
+      const submitRes = await fetch(`/api/quizzes/${quiz.id}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userAnswers,
+        }),
+      });
+      
+      const result = await submitRes.json();
+      if (result.error) {
+        console.error('Error submitting quiz:', result.error);
+        return;
+      }
+
+      onComplete({
+        userAnswers,
+        score: result.score,
+        timeUsed: quiz.timeLimit * 60 - timeLeft,
+        questions: result.questions,
+        correctCount: result.correctCount,
+        totalQuestions: result.totalQuestions,
+      });
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [isSubmitting, userAnswers, quiz.id, quiz.questions.length, quiz.timeLimit, timeLeft, onComplete]);
+
+  const handleSubmitClick = () => {
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmSubmit = () => {
+    setShowConfirmModal(false);
+    handleSubmit();
+  };
+
+  const handleCancelSubmit = () => {
+    setShowConfirmModal(false);
+  };
+
+  // Đóng modal khi click bên ngoài
+  const handleModalBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowConfirmModal(false);
+    }
+  };
+
+  // Đóng modal khi nhấn ESC
+  useEffect(() => {
+    const handleEscKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showConfirmModal) {
+        setShowConfirmModal(false);
+      }
+    };
+
+    if (showConfirmModal) {
+      document.addEventListener('keydown', handleEscKey);
+      return () => document.removeEventListener('keydown', handleEscKey);
+    }
+  }, [showConfirmModal]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -56,7 +117,11 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
       (answer) => answer.questionId === currentQuestion.id
     );
 
-    const isMultipleChoice = currentQuestion.answers.filter(a => a.isCorrect).length > 1;
+    // Sử dụng thông tin isMultipleChoice từ API
+    const isMultipleChoice = (currentQuestion as any).isMultipleChoice || false;
+    console.log('Debug - Question:', currentQuestion.question);
+    console.log('Debug - isMultipleChoice:', isMultipleChoice);
+    console.log('Debug - Current question object:', currentQuestion);
 
     if (isMultipleChoice) {
       // Multiple choice logic
@@ -67,18 +132,14 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
         if (!currentAnswers.answerIndex.includes(index)) {
           newAnswers.push({
             questionId: currentQuestion.id,
-            answerIndex: [...currentAnswers.answerIndex, index],
-            isCorrect: checkAnswer([...currentAnswers.answerIndex, index])
+            answerIndex: [...currentAnswers.answerIndex, index]
           });
         } else {
           const updatedIndexes = currentAnswers.answerIndex.filter(i => i !== index);
-          if (updatedIndexes.length > 0) {
-            newAnswers.push({
-              questionId: currentQuestion.id,
-              answerIndex: updatedIndexes,
-              isCorrect: checkAnswer(updatedIndexes)
-            });
-          }
+          newAnswers.push({
+            questionId: currentQuestion.id,
+            answerIndex: updatedIndexes
+          });
         }
         setUserAnswers(newAnswers);
       } else {
@@ -86,8 +147,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
           ...userAnswers,
           {
             questionId: currentQuestion.id,
-            answerIndex: [index],
-            isCorrect: checkAnswer([index])
+            answerIndex: [index]
           }
         ]);
       }
@@ -98,24 +158,13 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
       );
       newAnswers.push({
         questionId: currentQuestion.id,
-        answerIndex: [index],
-        isCorrect: checkAnswer([index])
+        answerIndex: [index]
       });
       setUserAnswers(newAnswers);
     }
   };
 
-  const checkAnswer = (selectedIndexes: number[]) => {
-    // Lấy câu trả lời đúng từ câu hỏi hiện tại (đã được shuffle)
-    const correctIndexes = currentQuestion.answers
-      .map((answer, index) => answer.isCorrect ? index : -1)
-      .filter(index => index !== -1);
-    
-    return (
-      selectedIndexes.length === correctIndexes.length &&
-      selectedIndexes.every(index => correctIndexes.includes(index))
-    );
-  };
+
 
   const handleNext = () => {
     if (currentQuestionIndex < quiz.questions.length - 1) {
@@ -133,7 +182,11 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
   const userAnswer = userAnswers.find(
     (answer) => answer.questionId === currentQuestion.id
   );
-  const isMultipleChoice = currentQuestion.answers.filter(a => a.isCorrect).length > 1;
+  const isMultipleChoice = (currentQuestion as any).isMultipleChoice || false;
+  
+  // Debug log
+  console.log(`Current question ${currentQuestionIndex + 1}: isMultipleChoice = ${isMultipleChoice}`);
+  console.log('Current question data:', currentQuestion);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -297,7 +350,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                 <div className="relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl blur-lg opacity-30 animate-pulse" />
                   <button
-                    onClick={handleSubmit}
+                    onClick={handleSubmitClick}
                     disabled={isSubmitting}
                     className="relative flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white shadow-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100"
                   >
@@ -318,6 +371,88 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
             </div>
           </CardContent>
         </Card>
+
+        {/* Confirmation Modal */}
+        {showConfirmModal && (
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={handleModalBackdropClick}
+          >
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-8 h-8 text-white" />
+                </div>
+                
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  Confirm Quiz Submission
+                </h3>
+                
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to submit your quiz? Once submitted, you cannot change your answers.
+                </p>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-blue-800 font-medium">Total Questions:</span>
+                    <span className="text-blue-900 font-bold">{quiz.questions.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-blue-800 font-medium">Answered:</span>
+                    <span className="text-blue-900 font-bold">{answeredQuestions}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-blue-800 font-medium">Unanswered:</span>
+                    <span className="text-blue-900 font-bold">{quiz.questions.length - answeredQuestions}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-blue-800 font-medium">Time Remaining:</span>
+                    <span className="text-blue-900 font-bold">{formatTime(timeLeft)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-blue-800 font-medium">Time Used:</span>
+                    <span className="text-blue-900 font-bold">{formatTime(quiz.timeLimit * 60 - timeLeft)}</span>
+                  </div>
+                </div>
+
+                {quiz.questions.length - answeredQuestions > 0 && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-6">
+                    <div className="flex items-center gap-2 text-orange-800">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span className="text-sm font-medium">
+                        Warning: You have {quiz.questions.length - answeredQuestions} unanswered questions!
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCancelSubmit}
+                      className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-xl font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                    >
+                      Cancel
+                    </button>
+                    
+                    <button
+                      onClick={handleConfirmSubmit}
+                      disabled={isSubmitting}
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white transition-all duration-200"
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Submitting...
+                        </div>
+                      ) : (
+                        'Confirm Submit'
+                      )}
+                    </button>
+                  </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

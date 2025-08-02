@@ -235,8 +235,8 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
     setIsGenerating(true);
 
     try {
-      // Gọi API lấy quiz từ DB (tạo quiz mới)
-      const quizRes = await fetch('/api/quizzes', {
+      // Gọi API secure quiz từ DB (tạo quiz mới)
+      const quizRes = await fetch('/api/quizzes/secure', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
