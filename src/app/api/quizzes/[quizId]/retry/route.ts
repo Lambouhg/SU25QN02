@@ -85,7 +85,7 @@ export async function POST(
       isMultipleChoice?: boolean;
       fields: string[];
       topics: string[];
-      levels: any[];
+      levels: string[];
       createdAt?: Date | null;
       updatedAt?: Date | null;
       createdById?: string | null;
@@ -101,14 +101,7 @@ export async function POST(
         // Lưu mapping cho câu hỏi này
         answerMapping[question.id] = mapping;
         
-        console.log(`Retry - Question ${question.id} mapping:`, {
-          originalAnswers: answers.map((a, idx) => ({ index: idx, content: a.content })),
-          shuffledAnswers: shuffledAnswers.map((a, idx) => ({ index: idx, content: a.content })),
-          mapping,
-          mappingExplanation: mapping.map((newIndex, originalIndex) => 
-            `Original index ${originalIndex} (${answers[originalIndex].content}) → New index ${newIndex} (${shuffledAnswers[newIndex].content})`
-          )
-        });
+        console.log(`Retry - Question ${question.id}: shuffled answers`);
         
         // Loại bỏ trường isCorrect khỏi answers khi trả về
         const answersWithoutCorrect = shuffledAnswers.map((answer: Answer) => ({
@@ -123,9 +116,13 @@ export async function POST(
           ...question,
           answers: answersWithoutCorrect,
           isMultipleChoice: correctAnswerCount > 1 // Thêm thông tin về loại câu hỏi
-        } as any);
+        });
       } else {
-        questionsWithShuffledAnswers.push(question as any);
+        questionsWithShuffledAnswers.push({
+          ...question,
+          answers: [],
+          isMultipleChoice: false
+        });
       }
     });
 

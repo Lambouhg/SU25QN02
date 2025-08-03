@@ -31,11 +31,7 @@ export async function GET(
     // Kiểm tra xem quiz có answerMapping không (retry quiz)
     const answerMapping = quiz.answerMapping as Record<string, number[]> || {};
     
-    console.log(`GET Quiz ${quizId}:`, {
-      hasAnswerMapping: Object.keys(answerMapping).length > 0,
-      answerMapping,
-      isCompleted: !!quiz.completedAt
-    });
+    console.log(`GET Quiz ${quizId}: hasAnswerMapping=${Object.keys(answerMapping).length > 0}`);
 
     // Transform data để phù hợp với UI
     const transformedQuiz = {
@@ -64,15 +60,6 @@ export async function GET(
         if (mapping && mapping.length > 0) {
           // Tạo answers đã shuffle theo mapping
           processedAnswers = mapping.map((originalIndex: number) => answers[originalIndex]);
-          
-          console.log(`GET - Question ${q.id} answers processing:`, {
-            originalAnswers: answers.map((a: { content: string; isCorrect?: boolean }, idx: number) => ({ index: idx, content: a.content })),
-            mapping,
-            processedAnswers: processedAnswers.map((a: { content: string; isCorrect?: boolean }, idx: number) => ({ index: idx, content: a.content })),
-            mappingExplanation: mapping.map((originalIndex: number, newIndex: number) => 
-              `Original index ${originalIndex} (${answers[originalIndex]?.content}) → New index ${newIndex} (${processedAnswers[newIndex]?.content})`
-            )
-          });
         }
         
         return {

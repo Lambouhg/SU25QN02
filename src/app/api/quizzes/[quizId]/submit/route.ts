@@ -61,12 +61,7 @@ export async function POST(
       const answerMapping = quiz.answerMapping as Record<string, number[]> || {};
       const mapping = answerMapping[question.id] || [];
 
-      console.log(`Question ${question.id}:`, {
-        hasAnswerMapping: mapping.length > 0,
-        mapping,
-        userAnswer: userAnswer.answerIndex,
-        answers: answers.map((a, idx) => ({ index: idx, content: a.content, isCorrect: a.isCorrect }))
-      });
+      console.log(`Question ${question.id}: processing with answerMapping=${mapping.length > 0}`);
 
       let originalSelectedIndexes: number[];
 
@@ -76,19 +71,9 @@ export async function POST(
         originalSelectedIndexes = userAnswer.answerIndex.map(
           (shuffledIndex: number) => {
             const originalIndex = mapping.findIndex((value: number) => value === shuffledIndex);
-            console.log(`Mapping for shuffledIndex ${shuffledIndex}:`, {
-              mapping,
-              foundOriginalIndex: originalIndex,
-              mappingValues: mapping.map((val, idx) => ({ originalIndex: idx, newIndex: val }))
-            });
             return originalIndex;
           }
         ).filter((idx: number) => idx !== -1);
-        
-        console.log(`Converted indexes for question ${question.id}:`, {
-          shuffledIndexes: userAnswer.answerIndex,
-          originalIndexes: originalSelectedIndexes
-        });
       } else {
         // Quiz không có answerMapping (quiz thường) - sử dụng trực tiếp
         originalSelectedIndexes = userAnswer.answerIndex;
@@ -107,13 +92,7 @@ export async function POST(
         sortedSelected.every((idx: number, i: number) => idx === sortedCorrect[i])
       );
 
-      console.log(`Result for question ${question.id}:`, {
-        originalSelectedIndexes,
-        correctIndexes,
-        sortedSelected,
-        sortedCorrect,
-        isCorrect
-      });
+      console.log(`Question ${question.id}: result=${isCorrect ? 'correct' : 'incorrect'}`);
 
       if (isCorrect) {
         correctCount++;
@@ -136,13 +115,6 @@ export async function POST(
                 content: answers[originalIndex].content,
                 isCorrect: answers[originalIndex].isCorrect
               };
-            });
-            
-            console.log(`Submit - Question ${question.id} shuffled answers:`, {
-              originalAnswers: answers.map((a, idx) => ({ index: idx, content: a.content, isCorrect: a.isCorrect })),
-              mapping,
-              shuffledAnswers: shuffledAnswers.map((a, idx) => ({ index: idx, content: a.content, isCorrect: a.isCorrect })),
-              userSelectedIndexes: userAnswer.answerIndex
             });
             
             return shuffledAnswers;
