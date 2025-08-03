@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { withCORS, corsOptionsResponse } from '@/lib/utils';
+
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+  return corsOptionsResponse();
+}
 
 export async function GET() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     // Tìm user theo clerkId
@@ -14,7 +20,7 @@ export async function GET() {
       where: { clerkId: userId },
     });
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return withCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }));
     }
 
     // Lấy danh sách quiz history của user với đầy đủ thông tin
@@ -39,7 +45,7 @@ export async function GET() {
     // Transform data để phù hợp với UI
     const transformedHistory = quizHistory.map(quiz => {
       // Tính toán số câu trả lời đúng
-      const userAnswers = quiz.userAnswers as any[] || [];
+      const userAnswers = quiz.userAnswers as Array<{ questionId: string; answerIndex: number[]; isCorrect: boolean }> || [];
       const correctAnswers = userAnswers.filter(answer => answer.isCorrect).length;
       
       // Tính toán score nếu chưa có
@@ -64,18 +70,46 @@ export async function GET() {
         questions: quiz.questions.map(question => ({
           id: question.id,
           question: question.question,
-          answers: question.answers as any[] || [],
+          answers: question.answers as Array<{ content: string; isCorrect?: boolean }> || [],
           explanation: question.explanation
         }))
       };
     });
 
-    return NextResponse.json(transformedHistory);
+    // Calculate stats
+    const stats = {
+      totalQuizzes: transformedHistory.length,
+      completedQuizzes: transformedHistory.length,
+      averageScore: transformedHistory.length > 0 
+        ? Math.round(transformedHistory.reduce((sum, quiz) => sum + quiz.score, 0) / transformedHistory.length)
+        : 0,
+      byField: {} as Record<string, number>,
+      byLevel: {} as Record<string, number>,
+      byTopic: {} as Record<string, number>,
+      recentQuizzes: transformedHistory.filter(quiz => {
+        const quizDate = new Date(quiz.completedAt!);
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return quizDate >= weekAgo;
+      }).length
+    };
+
+    // Calculate byField, byLevel, byTopic
+    transformedHistory.forEach(quiz => {
+      stats.byField[quiz.field] = (stats.byField[quiz.field] || 0) + 1;
+      stats.byLevel[quiz.level] = (stats.byLevel[quiz.level] || 0) + 1;
+      stats.byTopic[quiz.topic] = (stats.byTopic[quiz.topic] || 0) + 1;
+    });
+
+    return withCORS(NextResponse.json({
+      quizzes: transformedHistory,
+      stats
+    }));
   } catch (error) {
     console.error('Error in GET /api/quizzes/history:', error);
-    return NextResponse.json({
+    return withCORS(NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error',
-    }, { status: 500 });
+    }, { status: 500 }));
   }
 } 

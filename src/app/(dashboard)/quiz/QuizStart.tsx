@@ -1,30 +1,11 @@
 "use client"
 
-import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import type { Quiz as QuizType } from "./QuizPanel"
-import {
-  Target,
-  ChevronLeft,
-  CheckCircle2,
-  BarChart3,
-} from "lucide-react"
-
-interface Quiz {
-  _id: string;
-  userId: string;
-  field: string;
-  topic: string;
-  level: 'junior' | 'middle' | 'senior';
-  score: number;
-  totalQuestions: number;
-  timeLimit: number;
-  timeUsed: number;
-  completedAt: Date;
-  retryCount: number;
-}
+import { CheckCircle2, ChevronLeft, Target, BarChart3 } from 'lucide-react';
+import type { Quiz } from './QuizPanel';
 
 interface FieldType {
   id: string;
@@ -46,11 +27,10 @@ interface ConfigType {
   error?: string;
 }
 
-
 interface QuizStartProps {
   config: ConfigType
   onChange: (config: ConfigType) => void
-  onStart: (quiz: QuizType) => void
+  onStart: (quizData: Quiz) => void
   isLoading: boolean
   error: string | null
 }
@@ -243,8 +223,8 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          field: isFieldOthers ? customField : PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field,
-          topic: isTopicOthers ? customTopic : PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic,
+          field: isFieldOthers ? customField : PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field, // ✅ Capitalize field
+          topic: isTopicOthers ? customTopic : PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic, // ✅ Capitalize topic
           level: level || "junior",
           count: Number(questionCount),
           timeLimit: Number(timeLimit),
@@ -398,6 +378,9 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
                 <span className="text-lg font-semibold text-gray-700">Level</span>
               {historyLoading && <span className="ml-2 text-xs text-gray-500 animate-pulse">Checking unlocks...</span>}
               </div>
+              
+
+              
               <div className="flex flex-row gap-4 justify-center w-full">
               {experienceLevels.map((lvl: typeof experienceLevels[number]) => {
                 let disabled = false;
@@ -493,32 +476,60 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
       try {
         const res = await fetch("/api/quizzes/history");
         if (!res.ok) throw new Error("Failed to fetch quiz history");
-        const quizzes = await res.json();
-        // Lọc quiz theo field & topic
-        const filtered = quizzes.filter((q: Quiz) =>
-          q.field === PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name &&
-          q.topic === PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name
-        );
-        // Tìm best score từng level
-        let bestJunior = 0, bestMiddle = 0, bestSenior = 0;
-        filtered.forEach((q: Quiz) => {
-          if (q.level === "junior") bestJunior = Math.max(bestJunior, q.score || 0);
-          if (q.level === "middle") bestMiddle = Math.max(bestMiddle, q.score || 0);
-          if (q.level === "senior") bestSenior = Math.max(bestSenior, q.score || 0);
+        const data = await res.json();
+        const quizzes = data.quizzes || [];
+        
+        // Get field and topic names for matching
+        const fieldName = PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name;
+        const topicName = PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name;
+        
+        if (!fieldName || !topicName) {
+          setLevelUnlock({ junior: true, middle: false, senior: false });
+          return;
+        }
+        
+        // Filter quizzes by exact field and topic match
+        const filteredQuizzes = quizzes.filter((q: { field: string; topic: string; level: string; score?: number }) => {
+          return q.field === fieldName && q.topic === topicName;
         });
-        // Unlock logic
+        
+        // Find best scores for each level
+        let bestJunior = 0, bestMiddle = 0, bestSenior = 0;
+        
+        filteredQuizzes.forEach((q: { level: string; score?: number }) => {
+          const score = q.score || 0;
+          if (q.level === "junior") {
+            bestJunior = Math.max(bestJunior, score);
+          } else if (q.level === "middle") {
+            bestMiddle = Math.max(bestMiddle, score);
+          } else if (q.level === "senior") {
+            bestSenior = Math.max(bestSenior, score);
+          }
+        });
+        
+        // Unlock logic based on best scores
         const unlock = {
-          junior: true,
-          middle: bestJunior >= 90,
-          senior: bestMiddle >= 90,
+          junior: true, // Always unlocked
+          middle: bestJunior >= 90, // Unlock if best junior score >= 90
+          senior: bestMiddle >= 90, // Unlock if best middle score >= 90
         };
+        
         setLevelUnlock(unlock);
-      } catch {
+        
+        // Debug logging
+        console.log(`Field: ${fieldName}, Topic: ${topicName}`);
+        console.log(`Best scores - Junior: ${bestJunior}, Middle: ${bestMiddle}, Senior: ${bestSenior}`);
+        console.log(`Unlocks - Junior: ${unlock.junior}, Middle: ${unlock.middle}, Senior: ${unlock.senior}`);
+        
+      } catch (e) {
+        console.error('Error fetching quiz history:', e);
+        // Default: only junior unlocked
         setLevelUnlock({ junior: true, middle: false, senior: false });
       } finally {
         setHistoryLoading(false);
       }
     };
+    
     fetchHistory();
   }, [selectedField, selectedTopic]);
 

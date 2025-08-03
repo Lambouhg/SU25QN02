@@ -11,6 +11,10 @@ import type { Quiz, Question } from "./QuizPanel"
 interface QuestionResult extends Question {
   isCorrect?: boolean;
   userSelectedIndexes?: number[];
+  answers: {
+    content: string;
+    isCorrect?: boolean;
+  }[];
 }
 
 interface QuizResultData extends Quiz {
@@ -20,10 +24,11 @@ interface QuizResultData extends Quiz {
 interface QuizResultProps {
   quiz: QuizResultData
   onNewQuiz: () => void
+  onRetryQuiz?: (retryQuiz: Quiz) => void // Add prop to handle retry quiz data
   onViewProfile?: () => void // made optional for compatibility
 }
 
-export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
+export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultProps) {
   const router = useRouter()
   const [savedQuestionIds, setSavedQuestionIds] = useState<string[]>([])
   const [showSaveWarning, setShowSaveWarning] = useState(false)
@@ -103,7 +108,18 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
       });
       if (!response.ok) throw new Error('Failed to retry quiz');
       const newQuiz = await response.json();
-      router.push(`/quiz/${newQuiz.id || newQuiz._id}`);
+      
+      console.log('Retry quiz response:', newQuiz);
+      
+      // Thay vì navigate, gọi callback để pass quiz data đã shuffle
+      if (onRetryQuiz) {
+        // Pass quiz data đã shuffle cho parent component
+        onRetryQuiz(newQuiz);
+        // Parent component sẽ handle việc set quiz data
+      } else {
+        // Fallback: navigate như cũ
+        router.push(`/quiz/${newQuiz.id || newQuiz._id}`);
+      }
     } catch (error) {
       console.error('Error retrying quiz:', error);
       toast.error('Failed to retry quiz');
@@ -339,12 +355,11 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
                         <div className="ml-11 space-y-3">
                           {question.answers.map((answer, aIndex) => {
-                            // Note: Answer mapping functionality available for future use if needed
-                            // const questionMapping = quiz.answerMapping?.[question.id];
-                            // const originalIndex = questionMapping ? questionMapping[aIndex] : aIndex;
+                            // API submit đã trả về answers theo thứ tự đã shuffle mà user đã thấy
+                            // Không cần xử lý answerMapping nữa
+                            const isThisAnswerCorrect = answer.isCorrect;
                             
                             const userSelectedThisAnswer = userSelectedIndexes.includes(aIndex);
-                            const isThisAnswerCorrect = answer.isCorrect;
                             const isQuestionCorrect = isCorrect;
 
                             let answerClass = "p-3 rounded-lg border "

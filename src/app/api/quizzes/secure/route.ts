@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
+import { withCORS, corsOptionsResponse } from '@/lib/utils';
 
-// Define Answer interface
+
 interface Answer {
   content: string;
-  isCorrect: boolean;
+  isCorrect?: boolean;
 }
 
 // Hàm shuffleArray để random mảng
@@ -33,24 +34,29 @@ function shuffleAnswers(answers: Answer[]): { shuffledAnswers: Answer[], mapping
   return { shuffledAnswers, mapping };
 }
 
+// Handle OPTIONS request for CORS preflight
+export async function OPTIONS() {
+  return corsOptionsResponse();
+}
+
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     // Find user
     const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return withCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }));
     }
 
     const { field, topic, level, count, timeLimit } = await req.json();
 
     // Validate input
     if (!field || !topic || !level || !count || !timeLimit) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return withCORS(NextResponse.json({ error: 'Missing required fields' }, { status: 400 }));
     }
 
     // Get questions from database
@@ -67,7 +73,7 @@ export async function POST(req: Request) {
     });
 
     if (questions.length === 0) {
-      return NextResponse.json({ error: 'No questions found for the specified criteria' }, { status: 404 });
+      return withCORS(NextResponse.json({ error: 'No questions found for the specified criteria' }, { status: 404 }));
     }
 
     // Shuffle thứ tự các câu hỏi
@@ -76,7 +82,7 @@ export async function POST(req: Request) {
     // Tạo answer mapping cho từng câu hỏi
     const answerMapping: Record<string, number[]> = {};
     const questionsWithShuffledAnswers = shuffledQuestions.map(question => {
-      const answers = question.answers as unknown as Answer[];
+      const answers = (question.answers as unknown) as Answer[];
       if (answers && answers.length > 0) {
         const { shuffledAnswers, mapping } = shuffleAnswers(answers);
         answerMapping[question.id] = mapping;
@@ -115,7 +121,8 @@ export async function POST(req: Request) {
         timeUsed: 0,
         retryCount: 0,
         answerMapping,
-      },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
       include: { questions: true },
     });
 
@@ -135,9 +142,9 @@ export async function POST(req: Request) {
       questions: questionsWithShuffledAnswers
     };
 
-    return NextResponse.json(quizWithShuffledAnswers, { status: 201 });
+    return withCORS(NextResponse.json(quizWithShuffledAnswers, { status: 201 }));
   } catch (error) {
     console.error('Error creating secure quiz:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 } 

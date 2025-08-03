@@ -105,7 +105,7 @@ export default function TrackingDashboard() {
   });
   const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day');
   const [lineMode, setLineMode] = useState<'score' | 'total'>('score');
-  const [lineChartData, setLineChartData] = useState<any[]>([]);
+  const [lineChartData, setLineChartData] = useState<Array<{ period: string; quiz: number; test: number; interview: number }>>([]);
   const [targetUpdateTrigger, setTargetUpdateTrigger] = useState(0);
 
   // Load personal targets from localStorage on mount
@@ -432,7 +432,7 @@ export default function TrackingDashboard() {
     if (isLoaded && user) {
       fetchProgress();
     }
-  }, [isLoaded, user, viewMode, lineMode, targetUpdateTrigger]);
+  }, [isLoaded, user, viewMode, lineMode, targetUpdateTrigger, personalTargets]);
 
   if (loading) {
     return (
@@ -525,7 +525,7 @@ export default function TrackingDashboard() {
             <select
               className="border rounded px-2 py-1"
               value={viewMode}
-              onChange={e => setViewMode(e.target.value as any)}
+              onChange={e => setViewMode(e.target.value as 'day' | 'month' | 'year')}
             >
               <option value="day">Day</option>
               <option value="month">Month</option>
@@ -535,7 +535,7 @@ export default function TrackingDashboard() {
             <select
               className="border rounded px-2 py-1"
               value={lineMode}
-              onChange={e => setLineMode(e.target.value as any)}
+              onChange={e => setLineMode(e.target.value as 'score' | 'total')}
             >
               <option value="score">Score</option>
               <option value="total">Total</option>

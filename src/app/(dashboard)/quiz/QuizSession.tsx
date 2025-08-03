@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, X, CheckCircle2, AlertTriangle, Timer, Target, Brain, Bookmark } from "lucide-react";
 import type { Quiz, Question } from "./QuizPanel";
@@ -194,107 +193,75 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
   const progress = (answeredQuestions / quiz.questions.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
-      <div className="relative container mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="mb-6">
-          <Card className="bg-white/90 backdrop-blur-sm border-white/60 shadow-xl">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                    <Brain className="w-4 h-4 text-white" />
+    <div className="fixed inset-0 bg-gradient-to-br from-gray-50 to-blue-50/30 overflow-hidden">
+      {/* Header - Fixed at top */}
+      <div className="h-20 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <div className="h-full flex items-center justify-between px-6">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+              <Brain className="w-5 h-5 text-white" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">
                       Question {currentQuestionIndex + 1} of {quiz.questions.length}
                     </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mt-1">
                     <Target className="w-4 h-4 text-green-600" />
                     <span className="text-sm font-medium text-gray-700">
                       {answeredQuestions}/{quiz.questions.length} answered
                     </span>
+              </div>
+            </div>
                   </div>
 
+          <div className="flex items-center gap-4">
                   <div
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
                       timeLeft < 300 ? "bg-red-50 border border-red-200" : "bg-blue-50 border border-blue-200"
                     }`}
                   >
                     <Timer className={`w-4 h-4 ${timeLeft < 300 ? "text-red-600" : "text-blue-600"}`} />
-                    <span className={`text-base font-bold ${timeLeft < 300 ? "text-red-600" : "text-blue-600"}`}>
+              <span className={`text-lg font-bold ${timeLeft < 300 ? "text-red-600" : "text-blue-600"}`}>
                       {formatTime(timeLeft)}
                     </span>
+            </div>
+
+            <button
+              onClick={onCancel}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700 transition-all duration-300"
+            >
+              <X className="w-4 h-4" />
+              Exit
+            </button>
                   </div>
                 </div>
               </div>
 
-              {/* Progress Bar */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-gray-600">
+      {/* Progress Bar - Fixed below header */}
+      <div className="h-16 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="h-full flex items-center px-6">
+          <div className="flex-1 space-y-2">
+            <div className="flex justify-between text-sm text-gray-600">
                   <span>Progress</span>
                   <span>{Math.round(progress)}%</span>
                 </div>
                 <Progress value={progress} className="h-2 bg-gray-200" />
-                <div className="flex items-center justify-between mb-3">
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {quiz.questions.map((_, index) => {
-                const isAnswered = userAnswers.some(answer => answer.questionId === quiz.questions[index].id);
-                const isCurrent = index === currentQuestionIndex;
-                const isMarked = markedQuestions.has(index);
-                
-                return (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentQuestionIndex(index)}
-                    className={`w-10 h-10 rounded-lg font-bold text-sm transition-all duration-300 border-2 ${
-                      isCurrent
-                        ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white border-purple-500 shadow-lg scale-110"
-                        : isMarked
-                        ? "bg-red-500 text-white border-red-500 hover:bg-red-600"
-                        : isAnswered
-                        ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
-                        : "bg-gray-50 text-gray-600 border-gray-300 hover:bg-gray-100"
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="flex items-center gap-4 mt-3 text-xs text-gray-600">
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded"></div>
-                <span>Current</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-500 rounded"></div>
-                <span>Marked</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
-                <span>Answered</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded"></div>
-                <span>Unanswered</span>
               </div>
             </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-        {/* Question Card */}
-        <Card className="bg-white/90 backdrop-blur-sm border-white/60 shadow-xl mb-6">
-          <CardContent className="p-6">
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-bold text-gray-800 flex-1">{currentQuestion.question}</h2>
+
+
+
+      {/* Main Content - Scrollable area */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full flex">
+          {/* Question Panel - Left side */}
+          <div className="flex-1 flex flex-col p-6 overflow-hidden">
+            <div className="flex-1 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-white/60 overflow-hidden flex flex-col">
+              {/* Question Header */}
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-800 flex-1 pr-4">{currentQuestion.question}</h2>
                 <button
                   onClick={() => {
                     const newMarked = new Set(markedQuestions);
@@ -305,7 +272,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                     }
                     setMarkedQuestions(newMarked);
                   }}
-                  className={`ml-3 p-2 rounded-lg transition-all duration-300 flex items-center justify-center ${
+                    className={`p-2 rounded-lg transition-all duration-300 flex items-center justify-center flex-shrink-0 ${
                     markedQuestions.has(currentQuestionIndex)
                       ? "bg-red-500 text-white shadow-lg hover:bg-red-600"
                       : "bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-500"
@@ -315,7 +282,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                   <Bookmark className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 {isMultipleChoice ? (
                   <>
                     <CheckCircle2 className="w-4 h-4 text-blue-600" />
@@ -330,6 +297,8 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
               </div>
             </div>
 
+              {/* Answers - Scrollable */}
+              <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-3">
               {currentQuestion.answers.map((answer, index) => (
                 <label
@@ -355,14 +324,17 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                   )}
                 </label>
               ))}
+                </div>
             </div>
             
-            <div className="flex justify-between items-center mt-6">
+              {/* Navigation Buttons - Fixed at bottom */}
+              <div className="p-6 border-t border-gray-200 bg-gray-50/50">
+                <div className="flex justify-between items-center">
               <div className="flex gap-2">
                 <button
                   onClick={handlePrevious}
                   disabled={currentQuestionIndex === 0}
-                  className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 text-sm ${
+                      className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 ${
                     currentQuestionIndex === 0
                       ? "opacity-50 cursor-not-allowed border-gray-200 text-gray-400"
                       : "border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
@@ -375,7 +347,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                 <button
                   onClick={handleNext}
                   disabled={currentQuestionIndex === quiz.questions.length - 1}
-                  className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 text-sm ${
+                      className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 ${
                     currentQuestionIndex === quiz.questions.length - 1
                       ? "opacity-50 cursor-not-allowed border-gray-200 text-gray-400"
                       : "border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
@@ -386,19 +358,10 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                 </button>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={onCancel}
-                  className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg font-medium text-gray-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700 transition-all duration-300 text-sm"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-
                 <button
                   onClick={handleSubmitClick}
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold text-white shadow-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100 text-sm"
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold text-white shadow-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100"
                 >
                   {isSubmitting ? (
                     <>
@@ -414,8 +377,87 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                 </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
+
+          {/* Legend Panel - Right side */}
+          <div className="w-64 bg-white/80 backdrop-blur-sm border-l border-gray-200 p-4">
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-800 text-sm">Notes</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded"></div>
+                  <span>Current</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded"></div>
+                  <span>Marked</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+                  <span>Answered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-gray-100 border border-gray-300 rounded"></div>
+                  <span>Unanswered</span>
+                </div>
+              </div>
+
+              {/* Question Navigation */}
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="font-semibold text-gray-800 text-sm mb-3">Question</h3>
+                <div className="flex flex-wrap gap-2">
+                  {quiz.questions.map((_, index) => {
+                    const isAnswered = userAnswers.some(answer => answer.questionId === quiz.questions[index].id);
+                    const isCurrent = index === currentQuestionIndex;
+                    const isMarked = markedQuestions.has(index);
+                    
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentQuestionIndex(index)}
+                        className={`w-8 h-8 rounded-lg font-bold text-xs transition-all duration-300 border-2 flex-shrink-0 ${
+                          isCurrent
+                            ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white border-purple-500 shadow-lg scale-110"
+                            : isMarked
+                            ? "bg-red-500 text-white border-red-500 hover:bg-red-600"
+                            : isAnswered
+                            ? "bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
+                            : "bg-gray-50 text-gray-600 border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-gray-200">
+                <h3 className="font-semibold text-gray-800 text-sm mb-2">Quiz Info</h3>
+                <div className="space-y-1 text-xs text-gray-600">
+                  <div className="flex justify-between">
+                    <span>Specialization:</span>
+                    <span className="font-medium">{quiz.field}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Topic:</span>
+                    <span className="font-medium">{quiz.topic}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Level:</span>
+                    <span className="font-medium capitalize">{quiz.level}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Time Limit:</span>
+                    <span className="font-medium">{quiz.timeLimit} min</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
         {/* Confirmation Modal */}
         {showConfirmModal && (
@@ -498,7 +540,6 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

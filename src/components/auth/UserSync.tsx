@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Fetch thêm thông tin user từ database nếu cần
         try {
-          const response = await fetch('/api/user/profile', {
+          const response = await fetch('/api/profile', {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       setIsLoading(true);
-      const response = await fetch('/api/user/profile', {
+      const response = await fetch('/api/profile', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

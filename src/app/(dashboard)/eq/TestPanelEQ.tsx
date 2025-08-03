@@ -512,7 +512,7 @@ export default function TestPanelEQ() {
 		}
 
 		try {
-			const response = await fetch('/api/eq-mode/eq', {
+			await fetch('/api/eq-mode/eq', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
