@@ -4,7 +4,13 @@ import prisma from '@/lib/prisma';
 import { AssessmentType } from '@prisma/client';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 
+// Handle preflight OPTIONS request
+export async function OPTIONS() {
+  return new Response(null, { status: 200 });
+}
+
 export async function POST(request: NextRequest) {
+  const start = Date.now();
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,6 +22,8 @@ export async function POST(request: NextRequest) {
 
     // Kiểm tra type hợp lệ
     if (type !== 'test' && type !== 'eq') {
+      const ms = Date.now() - start;
+      console.log(`POST /api/assessment 400 in ${ms}ms`);
       return NextResponse.json({ error: 'Invalid type. Must be "test" or "eq"' }, { status: 400 });
     }
 
@@ -25,6 +33,8 @@ export async function POST(request: NextRequest) {
         where: { id: positionId }
       });
       if (!position) {
+        const ms = Date.now() - start;
+        console.log(`POST /api/assessment 400 in ${ms}ms`);
         return NextResponse.json({ error: 'Position not found' }, { status: 400 });
       }
     }

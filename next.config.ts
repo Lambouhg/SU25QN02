@@ -43,10 +43,33 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // CORS headers
+  // CORS headers - Global configuration
   async headers() {
     return [
       {
+        // Áp dụng cho tất cả API routes
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*', // Hoặc 'http://localhost:8081' cho cụ thể
+          },
+          {
+            key: 'Access-Control-Allow-Methods',
+            value: 'GET,POST,PUT,DELETE,OPTIONS',
+          },
+          {
+            key: 'Access-Control-Allow-Headers',
+            value: 'Content-Type, Authorization, X-Requested-With',
+          },
+          {
+            key: 'Access-Control-Allow-Credentials',
+            value: 'true',
+          },
+        ],
+      },
+      {
+        // Áp dụng cho tất cả các routes khác
         source: '/:path*',
         headers: [
           {

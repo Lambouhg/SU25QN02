@@ -2,13 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
-import { corsOptionsResponse, withCORS } from '@/lib/utils';
-
-// Helper function to create CORS-enabled JSON response
-function corsJsonResponse(data: unknown, init?: ResponseInit) {
-  const response = NextResponse.json(data, init);
-  return withCORS(response);
-}
 
 // Define AssessmentType enum locally
 enum AssessmentType {
@@ -18,14 +11,13 @@ enum AssessmentType {
 
 // Handle preflight requests
 export async function OPTIONS() {
-  return corsOptionsResponse();
+  return new Response(null, { status: 200 });
 }
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
-    const response = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    return withCORS(response);
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -111,12 +103,9 @@ export async function POST(request: NextRequest) {
       
       if (dbUser) {
         dbUserId = dbUser.id;
-        console.log(`[API] Found database user ID ${dbUserId} for Clerk user ${userId}`);
-      } else {
-        console.log(`[API] Could not find database user for Clerk ID ${userId}`);
       }
-    } catch (userLookupError) {
-      console.error('[API] Error looking up database user:', userLookupError);
+    } catch {
+      // Error looking up database user
     }
     
     // Prepare response with both IDs for client
@@ -127,30 +116,19 @@ export async function POST(request: NextRequest) {
       dbUserId         // The database user ID
     };
 
-    // Log position và topic information
-    console.log(`[API] Assessment created with position: ${assessment.position?.positionName || 'Unknown'}, level: ${assessment.position?.level || 'Unknown'}`);
-    if (topic) {
-      console.log(`[API] Assessment includes topic: ${topic}`);
-    }
-
     // Track assessment completion
     try {
       if (dbUserId) {
         // We have a valid database user ID - pass both IDs for complete context
         await TrackingIntegrationService.trackAssessmentCompletion(dbUserId, assessment, { clerkId: userId });
-        console.log(`[API] Successfully tracked assessment completion for user ${dbUserId} (Clerk ID: ${userId})`);
-      } else {
-        console.warn(`[API] Skipping tracking - could not find database user ID for Clerk user ${userId}`);
       }
-    } catch (trackingError) {
-      console.error('[API] Error tracking assessment completion:', trackingError);
+    } catch {
       // Continue and return results, just log the error
     }
 
-    return corsJsonResponse(responseData, { status: 201 });
+    return NextResponse.json(responseData, { status: 201 });
   } catch (error) {
-    console.error('Error creating assessment:', error);
-    return corsJsonResponse({ 
+    return NextResponse.json({ 
       error: 'Lưu kết quả thất bại', 
       detail: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
@@ -160,7 +138,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const { userId } = await auth();
   if (!userId) {
-    return corsJsonResponse({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -180,10 +158,9 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return corsJsonResponse(assessments);
+    return NextResponse.json(assessments);
   } catch (error) {
-    console.error('Error fetching assessments:', error);
-    return corsJsonResponse({ 
+    return NextResponse.json({ 
       error: 'Lấy kết quả thất bại', 
       detail: error instanceof Error ? error.message : 'Unknown error' 
     }, { status: 500 });
