@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
@@ -12,9 +12,10 @@ import { UserButton, useUser, useClerk } from '@clerk/nextjs';
 import Image from 'next/image';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Toast from '@/components/ui/Toast';
+import ActivityReminderModal from '@/components/ui/ActivityReminderModal';
+import CelebrationModal from '@/components/ui/CelebrationModal';
 import { useRole } from '@/context/RoleContext';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
-import ActivityIndicator from '@/components/ui/ActivityIndicator';
 
 
 export default function DashboardLayout({
@@ -25,6 +26,14 @@ export default function DashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['practice']); // Mặc định mở Practice Modes
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showActivityReminder, setShowActivityReminder] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMilestone, setCelebrationMilestone] = useState(0);
+  const [userProgress, setUserProgress] = useState({
+    streak: 0,
+    completedToday: 0,
+    totalTarget: 10
+  });
   const [toast, setToast] = useState<{ 
     show: boolean; 
     message: string; 
@@ -38,6 +47,75 @@ export default function DashboardLayout({
   
   // Listen for role invalidation signals
   useRoleInvalidation();
+  
+  // Check user activity and show reminder modal
+  useEffect(() => {
+    const checkUserActivity = async () => {
+      try {
+        if (!user?.id) {
+          return;
+        }
+        
+        // Fetch user progress
+        const response = await fetch('/api/tracking');
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          const progress = {
+            streak: data.stats?.studyStreak || 0,
+            completedToday: data.recentActivities?.filter((activity: { timestamp: string }) => {
+              const today = new Date().toDateString();
+              const activityDate = new Date(activity.timestamp).toDateString();
+              return today === activityDate;
+            }).length || 0,
+            totalTarget: 10
+          };
+          
+          setUserProgress(progress);
+          
+          // Check for streak milestones and show celebration
+          const milestones = [3, 10, 30, 50, 100];
+          const currentMilestone = milestones.find(m => progress.streak === m);
+          
+          if (currentMilestone) {
+            const celebrationKey = `celebration_${currentMilestone}_${new Date().toDateString()}`;
+            const hasShownToday = localStorage.getItem(celebrationKey);
+            
+            if (!hasShownToday) {
+              setCelebrationMilestone(currentMilestone);
+              setTimeout(() => {
+                setShowCelebration(true);
+                localStorage.setItem(celebrationKey, 'true');
+              }, 1000);
+            }
+          }
+          
+          // Show reminder if user has NO activity today (regardless of streak)
+          const shouldShow = progress.completedToday === 0;
+          
+          if (shouldShow) {
+            // Enable localStorage check để chỉ hiện 1 lần trong ngày
+            const today = new Date().toDateString();
+            const lastShown = localStorage.getItem('activityReminderShown');
+            
+            if (lastShown !== today) {
+              setTimeout(() => {
+                setShowActivityReminder(true);
+                localStorage.setItem('activityReminderShown', today);
+              }, 2000); // Show after 2 seconds
+            }
+          }
+        }
+      } catch {
+        // Silent error handling
+      }
+    };
+
+    if (user) {
+      checkUserActivity();
+    }
+  }, [user]);
   
   // Memoize menu items để tránh re-render không cần thiết
   const menuItems = useMemo(() => [
@@ -84,6 +162,15 @@ export default function DashboardLayout({
     },
 
   ], []);
+
+  // Optimized modal close functions
+  const closeActivityReminder = useCallback(() => {
+    setShowActivityReminder(false);
+  }, []);
+
+  const closeCelebration = useCallback(() => {
+    setShowCelebration(false);
+  }, []);
 
   // Optimized logout function
   const confirmLogout = useCallback(async () => {
@@ -165,8 +252,7 @@ export default function DashboardLayout({
             <div className="flex items-center gap-4">
               <button className="p-2 rounded-lg hover:bg-gray-100">
                 <Bell className="w-6 h-6 text-gray-600" />
-              </button>
-              
+              </button>     
               {/* Admin Panel Access - Only show for admins */}
               {isAdmin && (
                 <Link
@@ -177,8 +263,6 @@ export default function DashboardLayout({
                   Admin Panel
                 </Link>
               )}
-              {/* Activity Indicator */}
-              <ActivityIndicator />
               
               {/* Sign Out Button */}
               <button
@@ -408,6 +492,25 @@ export default function DashboardLayout({
         onClose={() => setToast({ ...toast, show: false })}
         duration={3000}
       />
+
+      {/* Activity Reminder Modal */}
+      {showActivityReminder && (
+        <ActivityReminderModal
+          isOpen={showActivityReminder}
+          onClose={closeActivityReminder}
+          userProgress={userProgress}
+        />
+      )}
+
+      {/* Celebration Modal */}
+      {showCelebration && celebrationMilestone && userProgress && (
+        <CelebrationModal
+          isOpen={showCelebration}
+          onClose={closeCelebration}
+          milestone={celebrationMilestone}
+          streakCount={userProgress.streak}
+        />
+      )}
       
     </div>
   );
