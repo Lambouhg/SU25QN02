@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { withCORS, corsOptionsResponse } from '@/lib/utils';
+import { QuizMappingService } from '@/hooks/useQuizMapping';
 
 // Handle OPTIONS request for CORS preflight
 export async function OPTIONS() {
@@ -58,8 +59,8 @@ export async function GET(
         let processedAnswers = answers;
         
         if (mapping && mapping.length > 0) {
-          // Tạo answers đã shuffle theo mapping
-          processedAnswers = mapping.map((originalIndex: number) => answers[originalIndex]);
+          // Sử dụng QuizMappingService để tạo answers theo thứ tự user đã thấy
+          processedAnswers = QuizMappingService.createShuffledAnswersWithCorrect(answers, mapping);
         }
         
         return {

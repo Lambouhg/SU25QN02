@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
 import { withCORS, corsOptionsResponse } from '@/lib/utils';
+import { QuizMappingService } from '@/hooks/useQuizMapping';
 
 // Handle OPTIONS request for CORS preflight
 export async function OPTIONS() {
@@ -29,6 +30,13 @@ export async function POST(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
 
+    // Lấy questions gốc từ database để có answers chính xác
+    const originalQuestions = await prisma.question.findMany({
+      where: {
+        id: { in: quiz.questions.map((q: { id: string }) => q.id) }
+      }
+    });
+
     if (!quiz) {
       return withCORS(NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
     }
@@ -38,7 +46,10 @@ export async function POST(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const questionsWithCorrectAnswers = quiz.questions.map((question: any) => {
       const userAnswer = userAnswers.find((a: { questionId: string; answerIndex: number[] }) => a.questionId === question.id);
-      const answers = question.answers as Array<{ content: string; isCorrect?: boolean }>;
+      
+      // Lấy answers gốc từ originalQuestions
+      const originalQuestion = originalQuestions.find((q: { id: string }) => q.id === question.id);
+      const answers = originalQuestion?.answers as Array<{ content: string; isCorrect?: boolean }> || [];
       
       if (!userAnswer || !answers) {
         return {
@@ -57,27 +68,19 @@ export async function POST(
         };
       }
 
-      // Kiểm tra xem quiz có answerMapping không (secure quiz hoặc retry quiz)
+      // 1. Chuyển đổi user answers từ shuffled về original indexes
       const answerMapping = quiz.answerMapping as Record<string, number[]> || {};
-      const mapping = answerMapping[question.id] || [];
-
-      console.log(`Question ${question.id}: processing with answerMapping=${mapping.length > 0}`);
-
+      const convertedUserAnswers = QuizMappingService.convertUserAnswers(userAnswers, answerMapping);
+      const userAnswerConverted = convertedUserAnswers.find(a => a.questionId === question.id);
+      
       let originalSelectedIndexes: number[];
-
-      if (mapping.length > 0) {
-        // Quiz có answerMapping (secure quiz hoặc retry quiz) - cần chuyển đổi vị trí
-        // mapping[originalIndex] = newIndex, nên để tìm originalIndex từ newIndex: tìm index của newIndex trong mapping
-        originalSelectedIndexes = userAnswer.answerIndex.map(
-          (shuffledIndex: number) => {
-            const originalIndex = mapping.findIndex((value: number) => value === shuffledIndex);
-            return originalIndex;
-          }
-        ).filter((idx: number) => idx !== -1);
+      if (userAnswerConverted) {
+        originalSelectedIndexes = userAnswerConverted.answerIndex;
       } else {
-        // Quiz không có answerMapping (quiz thường) - sử dụng trực tiếp
-        originalSelectedIndexes = userAnswer.answerIndex;
+        originalSelectedIndexes = userAnswer.answerIndex || [];
       }
+
+
 
       // Tính toán đáp án đúng từ vị trí gốc
       const correctIndexes = answers
@@ -101,25 +104,14 @@ export async function POST(
       // Trả về câu hỏi với đáp án đúng và kết quả
       return {
         ...question,
-        userSelectedIndexes: userAnswer.answerIndex,
+        userSelectedIndexes: userAnswer.answerIndex, // Giữ nguyên shuffled indexes để hiển thị đúng với answers đã shuffle
         isCorrect,
-        // Trả về answers theo thứ tự đã shuffle mà user đã thấy
+        // 2. Trả về answers theo thứ tự user đã thấy (shuffled) với isCorrect
         answers: (() => {
+          const mapping = answerMapping[question.id] || [];
           if (mapping.length > 0) {
-            // Quiz có answerMapping - trả về answers theo thứ tự đã shuffle
-            // mapping[originalIndex] = newIndex, nên để lấy answers theo thứ tự shuffle:
-            // shuffledAnswers[newIndex] = originalAnswers[originalIndex]
-            const shuffledAnswers = new Array(answers.length);
-            mapping.forEach((newIndex, originalIndex) => {
-              shuffledAnswers[newIndex] = {
-                content: answers[originalIndex].content,
-                isCorrect: answers[originalIndex].isCorrect
-              };
-            });
-            
-            return shuffledAnswers;
+            return QuizMappingService.createShuffledAnswersWithCorrect(answers, mapping);
           } else {
-            // Quiz không có answerMapping - trả về answers gốc
             return answers.map((answer: { content: string; isCorrect?: boolean }) => ({
               content: answer.content,
               isCorrect: answer.isCorrect
