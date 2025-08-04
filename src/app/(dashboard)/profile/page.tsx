@@ -5,9 +5,9 @@ import { useState, useEffect, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import Toast from "@/components/ui/Toast";
 import {
-  PersonalInfoForm,
   AvatarCard,
-  ProfileLoading
+  ProfileLoading,
+  ProfileTabs
 } from "@/components/Profile";
 
 
@@ -252,10 +252,10 @@ export default function ProfilePage() {
 
             {/* Right Column - Main Content */}
             <div className="xl:col-span-3 space-y-8">
-              {/* Personal Information Card */}
+              {/* Personal Information Card with Tabs */}
               <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Personal Information</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">Profile Management</h2>
                   {isLoading && (
                     <div className="flex items-center space-x-2 text-sm text-gray-500">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -264,7 +264,7 @@ export default function ProfilePage() {
                   )}
                 </div>
                 
-                <PersonalInfoForm
+                <ProfileTabs
                   formData={{
                     firstName: formData.firstName,
                     lastName: formData.lastName,
@@ -278,6 +278,7 @@ export default function ProfilePage() {
                   onDataChange={updateProfileData}
                   onEditToggle={() => setIsEditing(true)}
                   onSubmit={handleSubmit}
+                  userId={user?.id}
                 />
               </div>
             </div>

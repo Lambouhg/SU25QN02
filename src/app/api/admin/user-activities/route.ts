@@ -84,16 +84,23 @@ export async function GET(request: NextRequest) {
       const goals: Goal[] = userActivity && Array.isArray(userActivity.goals) ? userActivity.goals as Goal[] : [];
       const learningStats = (userActivity?.learningStats as { streak?: number; totalStudyTime?: number }) || {};
       
-      // Calculate real-time activity status
+      // Calculate real-time activity status using multiple indicators
       const now = new Date();
-      const lastActivity = user.lastActivity || user.updatedAt || user.createdAt;
+      
+      // Use the most recent timestamp from available fields
+      const lastActivity = user.lastActivity || user.lastLogin || user.lastSignInAt || user.updatedAt || user.createdAt;
       const timeSinceLastActivity = now.getTime() - lastActivity.getTime();
       
-      // Consider active if activity within last 5 minutes
-      const isCurrentlyActive = timeSinceLastActivity < 5 * 60 * 1000;
+      // For currently active: check if user has active Clerk session AND recent activity (5 minutes)
+      const isCurrentlyActive = user.clerkSessionActive && timeSinceLastActivity < 5 * 60 * 1000;
       
-      // Consider online if activity within last 15 minutes  
-      const isCurrentlyOnline = timeSinceLastActivity < 15 * 60 * 1000;
+      // For currently online: check if user has active Clerk session AND recent activity (20 minutes)
+      // OR if they have very recent lastLogin/lastSignInAt (within 20 minutes)
+      const hasRecentClerkActivity = user.clerkSessionActive && timeSinceLastActivity < 20 * 60 * 1000;
+      const hasRecentLogin = user.lastLogin && (now.getTime() - user.lastLogin.getTime()) < 20 * 60 * 1000;
+      const hasRecentSignIn = user.lastSignInAt && (now.getTime() - user.lastSignInAt.getTime()) < 20 * 60 * 1000;
+      
+      const isCurrentlyOnline = hasRecentClerkActivity || hasRecentLogin || hasRecentSignIn;
 
       const totalInterviews = activities.filter((a) => a.type === 'interview').length;
       const totalQuizzes = activities.filter((a) => a.type === 'quiz').length;
@@ -200,7 +207,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalUsers: totalCount,
         currentlyActiveUsers, // Real-time active users (last 5 min)
-        currentlyOnlineUsers, // Real-time online users (last 15 min)
+        currentlyOnlineUsers, // Real-time online users (last 20 min)
         activeUsers: overallStats.activeUsers, // Historical active users (last 7 days)
         totalActivities: overallStats.totalInterviews,
         averageScore: Math.round(overallStats.averageScore * 100) / 100

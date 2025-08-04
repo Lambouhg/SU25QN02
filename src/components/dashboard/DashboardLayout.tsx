@@ -16,6 +16,7 @@ import ActivityReminderModal from '@/components/ui/ActivityReminderModal';
 import CelebrationModal from '@/components/ui/CelebrationModal';
 import { useRole } from '@/context/RoleContext';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+import { useActivityHeartbeat } from '@/hooks/useActivityHeartbeat';
 
 
 export default function DashboardLayout({
@@ -47,6 +48,9 @@ export default function DashboardLayout({
   
   // Listen for role invalidation signals
   useRoleInvalidation();
+  
+  // Activity heartbeat to track online status
+  useActivityHeartbeat();
   
   // Check user activity and show reminder modal
   useEffect(() => {
@@ -257,7 +261,7 @@ export default function DashboardLayout({
               {isAdmin && (
                 <Link
                   href="/admin/dashboard"
-                  className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                  className="flex items-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg"
                 >
                   <Shield className="w-4 h-4" />
                   Admin Panel
@@ -267,10 +271,10 @@ export default function DashboardLayout({
               {/* Sign Out Button */}
               <button
                 onClick={() => setShowLogoutConfirm(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                className="flex items-center gap-2 px-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-sm font-medium transition-all duration-200"
+                title="Sign Out"
               >
                 <LogOut className="w-4 h-4" />
-                Sign Out
               </button>
               
               <UserButton afterSignOutUrl="/" />

@@ -7,7 +7,6 @@ import AuthRedirect from "@/components/auth/AuthRedirect";
 import { UserSyncProvider } from "@/context/UserSyncContext";
 import { RoleProvider } from "@/context/RoleContext";
 import UserSyncAuth from "@/components/auth/UserSync";
-import AdminRedirect from "@/components/auth/AdminRedirect";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,7 +41,6 @@ export default function RootLayout({
                 {children}
                 <UserSync />
                 <AuthRedirect />
-                <AdminRedirect />
               </body>
             </html>
           </RoleProvider>
