@@ -388,40 +388,6 @@ export default function DashboardLayout({
             </ul>
           </div>
 
-          {/* Premium Upgrade Card */}
-          <div className="px-3 pb-4">
-            <Link href="/payment" className="block">
-              <div className="relative p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl text-white overflow-hidden group cursor-pointer transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg">
-                {/* Background Pattern */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-                
-                {/* Content */}
-                <div className="relative z-10">
-                  {/* Crown Icon */}
-                  <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center mb-3">
-                    <svg className="w-5 h-5 text-yellow-800" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732L14.146 12.8l-1.179 4.456a1 1 0 01-1.934 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732L9.854 7.2l1.179-4.456A1 1 0 0112 2z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  
-                  {/* Text */}
-                  <h3 className="text-sm font-bold mb-1">Upgrade to Premium</h3>
-                  <p className="text-xs text-blue-100 mb-3 leading-relaxed">
-                    Unlock unlimited interviews and advanced features
-                  </p>
-                  
-                  {/* CTA Button */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold">Upgrade Now</span>
-                    <svg className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          </div>
-
           {/* Separator */}
           <div className="px-3 pb-4">
             <div className="border-t border-gray-200"></div>

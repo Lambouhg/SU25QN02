@@ -5,7 +5,6 @@ import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import WhyChooseSection from '@/components/WhyChooseSection';
 import HowItWorksSection from '@/components/HowItWorksSection';
-import PricingSection from '@/components/PricingSection';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -32,7 +31,6 @@ export default function Home() {
       <main>
         <WhyChooseSection />
         <HowItWorksSection />
-        <PricingSection />
       </main>
       
       <Footer />
