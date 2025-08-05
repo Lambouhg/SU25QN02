@@ -58,6 +58,12 @@ interface ProgressData {
     duration?: number;
     timestamp?: string | Date;
   }>;
+  allActivities?: Array<{
+    type: string;
+    score?: number;
+    duration?: number;
+    timestamp?: string | Date;
+  }>;
   allQuizActivities?: Array<{
     type: string;
     score?: number;
@@ -119,7 +125,7 @@ export default function DashboardPage() {
 
   // Lấy số ngày streak thực tế từ progress.stats.studyStreak
   const currentStreak = progress?.stats?.studyStreak || 0;
-  const totalActivities = (progress?.stats?.totalInterviews || 0) + (progress?.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0);
+  const totalActivities = progress?.allActivities?.length || 0;
 
   // Tính level và evolution của pet dựa vào tổng số activities
   let petLevel = 1;
@@ -287,8 +293,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!progress) return;
     
-    // Sử dụng totalInterviews + quiz/test count để tính tổng activities
-    const totalCount = (progress.stats?.totalInterviews || 0) + (progress.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0);
+    // Sử dụng totalActivities để tính tổng số activities
+    const totalCount = totalActivities;
     const avgScore = progress.stats?.averageScore || 0;
     // Study time chuyển sang giờ, làm tròn 1 số thập phân
     const totalStudyTimeRaw = progress.stats?.totalStudyTime || 0;
@@ -324,7 +330,7 @@ export default function DashboardPage() {
         subject: 'Learning Frequency', A: Math.min(frequency, 20), fullMark: 20, target: personalTargets.learningFrequency, unit: 'times/month'
       },
     ]);
-  }, [progress, personalTargets]);
+  }, [progress, personalTargets, totalActivities]);
 
   return (
     <DashboardLayout>
@@ -396,7 +402,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">              <div>
                 <p className="text-sm text-gray-600 mb-1">Total Activities</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : (progress?.stats?.totalInterviews || 0) + (progress?.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0)}
+                  {loading ? '...' : totalActivities}
                 </p>
                 <p className="text-sm text-green-600">Recent activities</p>
               </div>

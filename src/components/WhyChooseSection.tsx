@@ -1,6 +1,6 @@
 "use client";
 
-import { Brain, Clock, Shield, Target, Users, Zap } from 'lucide-react';
+import { Brain, Clock, Shield } from 'lucide-react';
 
 const features = [
   {
@@ -12,7 +12,7 @@ const features = [
   {
     icon: Clock,
     title: "Time Saving", 
-    description: "Automates interview process, reducing 80% of HR recruitment time",
+    description: "Helps candidates practice interviews effectively, reducing 80% of their preparation time.",
     gradient: "from-purple-500 to-purple-600"
   },
   {
@@ -20,24 +20,6 @@ const features = [
     title: "Detailed Reports",
     description: "In-depth analysis of skills, personality and job fit assessment", 
     gradient: "from-green-500 to-green-600"
-  },
-  {
-    icon: Target,
-    title: "Absolute Security",
-    description: "End-to-end encryption, GDPR compliant and international security standards",
-    gradient: "from-orange-500 to-orange-600"
-  },
-  {
-    icon: Users,
-    title: "Diverse Positions",
-    description: "Supports interviews for 100+ positions from IT to Marketing, Sales",
-    gradient: "from-pink-500 to-pink-600"
-  },
-  {
-    icon: Zap,
-    title: "Easy Integration", 
-    description: "Connect with existing HR systems via API and webhooks",
-    gradient: "from-indigo-500 to-indigo-600"
   }
 ];
 

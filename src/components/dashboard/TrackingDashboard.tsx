@@ -51,6 +51,8 @@ interface ProgressData {
     targetDate: Date;
   }>;
   recommendations: string[];
+  recentActivities?: Activity[];
+  allActivities?: Activity[];
 }
 
 interface Activity {
@@ -77,7 +79,6 @@ export default function TrackingDashboard() {
   const { isLoaded, user } = useUser();
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [quizStats, setQuizStats] = useState<{ totalQuiz: number; averageQuizScore: number }>({ totalQuiz: 0, averageQuizScore: 0 });
   const [overallSpiderData, setOverallSpiderData] = useState<SpiderChartData[]>([]);
 
   const [showTargetModal, setShowTargetModal] = useState(false);
@@ -131,25 +132,15 @@ export default function TrackingDashboard() {
         const data = await response.json();
         console.log('Tracking data fetched:', data);
         
-        // Tổng hợp quiz từ recentActivities nếu có
-        const quizStats = { totalQuiz: 0, averageQuizScore: 0 };
-        if (data.recentActivities && Array.isArray(data.recentActivities)) {
-          const quizActivities = data.recentActivities.filter((a: Activity) => a.type === 'quiz' || a.type === 'test');
-          quizStats.totalQuiz = quizActivities.length;
-          quizStats.averageQuizScore = quizActivities.length
-            ? quizActivities.reduce((sum: number, a: Activity) => sum + (a.score || 0), 0) / quizActivities.length
-            : 0;
-        }
-        setQuizStats(quizStats);
         setProgress(data);
 
         // Tính toán dữ liệu cho spider charts
-        if (data.recentActivities && Array.isArray(data.recentActivities)) {
-          const activities = data.recentActivities as Activity[];
+        if (data.allActivities && Array.isArray(data.allActivities)) {
+          const allActivities = data.allActivities as Activity[];
 
           // Tính toán metrics tổng quan
-          const calculateOverallMetrics = (activities: Activity[]) => {
-            if (activities.length === 0) {
+          const calculateOverallMetrics = (allActivities: Activity[]) => {
+            if (allActivities.length === 0) {
               return [
                 { subject: 'Tổng hoạt động', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
                 { subject: 'Điểm trung bình', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
@@ -159,16 +150,16 @@ export default function TrackingDashboard() {
               ];
             }
 
-            const totalCount = activities.length;
-            const avgScore = activities.reduce((sum, a) => sum + (a.score || 0), 0) / activities.length;
-            const totalStudyTime = activities.reduce((sum, a) => sum + (a.duration || 0), 0);
-            const completionRate = activities.filter(a => a.score !== undefined).length / activities.length * 100;
+            const totalCount = allActivities.length;
+            const avgScore = allActivities.reduce((sum, a) => sum + (a.score || 0), 0) / allActivities.length;
+            const totalStudyTime = allActivities.reduce((sum, a) => sum + (a.duration || 0), 0);
+            const completionRate = allActivities.filter(a => a.score !== undefined).length / allActivities.length * 100;
             
-            // Tính tần suất (số lần/tháng)
+            // Tính tần suất (số lần/tháng) - sử dụng recentActivities
             const now = new Date();
             const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            const recentActivities = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo);
-            const frequency = recentActivities.length;
+            const monthlyActivities = allActivities.filter(a => new Date(a.timestamp || '') > oneMonthAgo);
+            const frequency = monthlyActivities.length;
 
             return [
               { 
@@ -214,11 +205,11 @@ export default function TrackingDashboard() {
             ];
           };
 
-          setOverallSpiderData(calculateOverallMetrics(activities));
+          setOverallSpiderData(calculateOverallMetrics(allActivities));
         }
         // Group activities by period for the new chart
-        if (data.recentActivities && Array.isArray(data.recentActivities)) {
-          const activities = data.recentActivities as Activity[];
+        if (data.allActivities && Array.isArray(data.allActivities)) {
+          const activities = data.allActivities as Activity[];
           // Group activities by period
           const groupKey = (date: Date): string => {
             if (viewMode === 'day') return date.toISOString().slice(0, 10);
@@ -418,9 +409,9 @@ export default function TrackingDashboard() {
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-6">
-          <h3 className="text-sm font-medium text-gray-500">Total Interviews</h3>
+          <h3 className="text-sm font-medium text-gray-500">Total Activities</h3>
           <p className="mt-2 text-3xl font-semibold">
-            {progress.stats.totalInterviews + quizStats.totalQuiz}
+            {progress?.allActivities?.length || 0}
           </p>
         </Card>
         <Card className="p-6">

@@ -574,6 +574,7 @@ export class UserActivityService {
         totalStudyTime: learningStats.totalStudyTime
       },
       recentActivities,
+      allActivities: activities, // Tất cả activities để tính total count
       skillProgress,
       goals,
       strengths: userActivity.strengths as string[] || [],
