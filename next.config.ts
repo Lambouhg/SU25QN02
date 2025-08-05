@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: '*', // Hoặc 'http://localhost:8081' cho cụ thể
+            value: 'http://localhost:8081, http://localhost:3000, *', // Explicit cho localhost:8081
           },
           {
             key: 'Access-Control-Allow-Methods',

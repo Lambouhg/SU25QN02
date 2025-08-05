@@ -512,10 +512,11 @@ export default function TestPanelEQ() {
 		}
 
 		try {
-			await fetch('/api/eq-mode/eq', {
+			await fetch('/api/assessment', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
+					type: 'eq', // Thêm type cho EQ
 					duration,
 					selectedCategory,
 					level,
@@ -608,10 +609,11 @@ export default function TestPanelEQ() {
 		setRemainingTime(minutesLeft);
 		const totalTime = Math.ceil(duration - minutesLeft);
 		try {
-			fetch('/api/eq-mode/eq', {
+			fetch('/api/assessment', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
+					type: 'eq', // Thêm type cho EQ
 					duration,
 					selectedCategory,
 					level,
