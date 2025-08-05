@@ -3,7 +3,7 @@
 import { 
   Brain, FileText,
   TestTube, FileQuestion, TrendingUp,
-  Clock, Award, Users, Play, Target
+  Clock, Award, Users, Target
 } from 'lucide-react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -239,9 +239,7 @@ export default function DashboardPage() {
     const activities = progress.recentActivities;
     const totalInterviews = progress.stats?.totalInterviews || 0;
     
-    console.log('=== Progress by Day Debug ===');
-    console.log('Activities count:', activities.length);
-    console.log('Activities:', activities);
+
     console.log('Total interviews from stats:', totalInterviews);
     
     const groupKey = (date: Date): string => {
@@ -281,8 +279,7 @@ export default function DashboardPage() {
       }
     }).sort((a, b) => a.period.localeCompare(b.period));
     
-    console.log('Grouped data:', grouped);
-    console.log('Chart data:', chartData);
+
     setLineChartData(chartData);
   }, [progress, viewMode, lineMode]);
 
@@ -333,39 +330,39 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header + Hero Section ngang hàng */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-          <div>
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h1>
             <p className="text-gray-600">Welcome back! Here&apos;s an overview of your interview activities.</p>
           </div>
           {/* Study Streak Hero Section */}
-          <div className={`bg-gradient-to-r ${getStreakGradient(currentStreak)} rounded-2xl text-white relative overflow-hidden flex flex-col md:flex-row items-center md:items-stretch md:justify-end p-4 md:p-0 min-w-[420px] max-w-[600px] w-full md:w-auto`}>
+          <div className={`bg-gradient-to-r ${getStreakGradient(currentStreak)} rounded-xl text-white relative overflow-hidden flex items-center justify-between p-3 max-w-[480px] w-full lg:w-auto lg:min-w-[380px]`}>
             {/* Streak bên trái */}
-            <div className="flex flex-col items-center justify-center px-4 py-2">
-              <div className={`text-4xl mb-1 animate-bounce ${getStreakBadge(currentStreak).color} ${getStreakBadge(currentStreak).text} rounded-full p-2 shadow-lg`}>
+            <div className="flex flex-col items-center justify-center px-2">
+              <div className={`text-3xl mb-1 ${getStreakBadge(currentStreak).color} ${getStreakBadge(currentStreak).text} rounded-full p-1.5 shadow-md`}>
                 {getStreakBadge(currentStreak).emoji}
               </div>
-              <div className="text-lg font-bold mb-1">{currentStreak} day streak</div>
-              <div className="flex gap-1 mt-1 flex-wrap justify-center">
+              <div className="text-sm font-bold mb-1">{currentStreak} day streak</div>
+              <div className="flex gap-1 flex-wrap justify-center">
                 {[3, 10, 30, 50, 100].map((milestone) => (
                   <div
                     key={milestone}
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shadow ${getMilestoneColor(milestone)} ${currentStreak >= milestone ? 'ring-2 ring-white' : 'opacity-60'}`}
+                    className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium shadow-sm ${getMilestoneColor(milestone)} ${currentStreak >= milestone ? 'ring-1 ring-white' : 'opacity-50'}`}
                   >
-                    <span>🔥</span>
+                    <span className="text-xs">🔥</span>
                     <span>{milestone}</span>
                   </div>
                 ))}
               </div>
             </div>
             {/* Pet bên phải */}
-            <div className="flex flex-col items-center justify-center px-4 py-2">
-              <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3 inline-block w-36">
-                <div className="text-4xl mb-1 animate-bounce">
+            <div className="flex flex-col items-center justify-center px-2">
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2.5 w-32">
+                <div className="text-3xl mb-1 text-center">
                   {getPetEmoji(streakData.pet.evolution, streakData.pet.isAlive)}
                 </div>
-                <h3 className="text-base font-bold mb-1">{streakData.pet.name}</h3>
-                <p className="text-xs opacity-80 mb-1">
+                <h3 className="text-sm font-bold mb-1 text-center truncate">{streakData.pet.name}</h3>
+                <p className="text-xs opacity-80 mb-1 text-center">
                   Level {streakData.pet.level} • {streakData.pet.evolution}
                 </p>
                 {/* Pet Happiness Bar */}
@@ -374,7 +371,7 @@ export default function DashboardPage() {
                     <span>Progress</span>
                     <span>{currentActivities}/{targetActivities}</span>
                   </div>
-                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-gradient-to-r from-green-400 to-blue-400 rounded-full transition-all duration-500"
                       style={{ width: `${happinessPercentage}%` }}
@@ -384,7 +381,7 @@ export default function DashboardPage() {
                 <Button
                   onClick={() => setShowStreakModal(true)}
                   variant="outline"
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30 text-xs px-3 py-1 mt-2"
+                  className="bg-white/20 border-white/30 text-white hover:bg-white/30 text-xs px-2 py-1 mt-1 w-full"
                 >
                   Pet Details
                 </Button>
@@ -392,6 +389,66 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between">              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Activities</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {loading ? '...' : (progress?.stats?.totalInterviews || 0) + (progress?.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0)}
+                </p>
+                <p className="text-sm text-green-600">Recent activities</p>
+              </div>
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between">              <div>
+                <p className="text-sm text-gray-600 mb-1">Average Score</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {loading ? '...' : progress?.stats?.averageScore ? progress.stats.averageScore.toFixed(1) : '0.0'}
+                </p>
+                <p className="text-sm text-green-600">Overall performance</p>
+              </div>
+              <div className="p-3 bg-green-50 rounded-lg">
+                <Award className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between">              <div>
+                <p className="text-sm text-gray-600 mb-1">Study Streak</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {loading ? '...' : streakData.currentStreak}
+                </p>
+                <p className="text-sm text-green-600">Consecutive days</p>
+              </div>
+              <div className="p-3 bg-yellow-50 rounded-lg">
+                <Clock className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center justify-between">              <div>
+                <p className="text-sm text-gray-600 mb-1">Study Time</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {loading ? '...' : progress?.stats?.totalStudyTime ? (progress.stats.totalStudyTime / 60).toFixed(1) + 'h' : '0h'}
+                </p>
+                <p className="text-sm text-green-600">Total minutes</p>
+              </div>
+              <div className="p-3 bg-purple-50 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Multi-Line Chart + Spider Chart */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Multi-Line Chart - Left */}
@@ -505,66 +562,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Activities</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : (progress?.stats?.totalInterviews || 0) + (progress?.recentActivities?.filter(a => a.type === 'quiz' || a.type === 'test').length || 0)}
-                </p>
-                <p className="text-sm text-green-600">Recent activities</p>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">              <div>
-                <p className="text-sm text-gray-600 mb-1">Average Score</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : progress?.stats?.averageScore ? progress.stats.averageScore.toFixed(1) : '0.0'}
-                </p>
-                <p className="text-sm text-green-600">Overall performance</p>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <Award className="w-6 h-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">              <div>
-                <p className="text-sm text-gray-600 mb-1">Study Streak</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : streakData.currentStreak}
-                </p>
-                <p className="text-sm text-green-600">Consecutive days</p>
-              </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <Clock className="w-6 h-6 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center justify-between">              <div>
-                <p className="text-sm text-gray-600 mb-1">Study Time</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : progress?.stats?.totalStudyTime ? (progress.stats.totalStudyTime / 60).toFixed(1) + 'h' : '0h'}
-                </p>
-                <p className="text-sm text-green-600">Total minutes</p>
-              </div>
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
-        </div>
-        
         {/* Main Content Grid */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Left Column - Quick Actions */}
@@ -737,174 +734,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
-        {/* Current Focus & Recommendations */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-4">Current Focus</h3>
-            <ul className="space-y-2">
-              {(progress?.currentFocus ?? []).map((focus: string, index: number) => (
-                <li
-                  key={index}
-                  className="flex items-center text-gray-700"
-                >
-                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2" />
-                  {focus}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-4">Recommendations</h3>
-            <ul className="space-y-2">
-              {(progress?.recommendations ?? []).map((recommendation: string, index: number) => (
-                <li
-                  key={index}
-                  className="flex items-center text-gray-700"
-                >
-                  <span className="w-2 h-2 bg-blue-500 rounded-full mr-2" />
-                  {recommendation}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Upcoming Milestones */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold mb-4">Upcoming Milestones</h3>
-          <div className="space-y-4">
-            {(progress?.nextMilestones ?? []).map((milestone: { goal: string; targetDate: Date }, index: number) => (
-              <div
-                key={index}
-                className="flex justify-between items-center border-b border-gray-100 pb-4 last:border-0 last:pb-0"
-              >
-                <span className="font-medium">{milestone.goal}</span>
-                <span className="text-sm text-gray-500">
-                  {new Date(milestone.targetDate).toLocaleDateString()}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Interview Records */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-lg font-semibold">Recent Interviews</h3>
-              <p className="text-sm text-gray-600">List of your latest interview sessions</p>
-            </div>
-            <Link href="/history" className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-              View All
-            </Link>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-blue-600">NB</span>
-                </div>                <div>
-                  <p className="font-medium text-gray-900">Nguyen Thi B</p>
-                  <p className="text-sm text-gray-500">Frontend Developer</p>
-                  <p className="text-xs text-gray-400">AI Avatar • 2024-01-15</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-lg font-bold text-green-600">8.5/10</p>
-                  <p className="text-xs text-gray-500">Score</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                    Completed
-                  </button>
-                  <button className="p-1 text-gray-400 hover:text-gray-600">
-                    <Play className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-green-600">VC</span>
-                </div>                <div>
-                  <p className="font-medium text-gray-900">Tran Van C</p>
-                  <p className="text-sm text-gray-500">Backend Developer</p>
-                  <p className="text-xs text-gray-400">Video Call • 2024-01-14</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-lg font-bold text-yellow-600">7.8/10</p>
-                  <p className="text-xs text-gray-500">Score</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700">
-                    Completed
-                  </button>
-                  <button className="p-1 text-gray-400 hover:text-gray-600">
-                    <Play className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-purple-600">LD</span>
-                </div>                <div>
-                  <p className="font-medium text-gray-900">Le Thi D</p>
-                  <p className="text-sm text-gray-500">UX Designer</p>
-                  <p className="text-xs text-gray-400">EQ Test • 2024-01-13</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-lg font-bold text-green-600">9.2/10</p>
-                  <p className="text-xs text-gray-500">Score</p>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700">
-                    Completed
-                  </button>
-                  <button className="p-1 text-gray-400 hover:text-gray-600">
-                    <Play className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-orange-600">VE</span>
-                </div>                <div>
-                  <p className="font-medium text-gray-900">Pham Van E</p>
-                  <p className="text-sm text-gray-500">Product Manager</p>
-                  <p className="text-xs text-gray-400">AI Avatar • 2024-01-12</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="text-right">
-                  <p className="text-lg font-bold text-blue-600">Pending</p>
-                  <p className="text-xs text-gray-500"></p>
-                </div>
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded">
-                    Pending
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-                </div>
+     </div>
       {/* Target Modal */}
       {showTargetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
@@ -1049,7 +879,7 @@ export default function DashboardPage() {
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <h5 className="font-semibold text-yellow-800 mb-2">⚠️ Important Notice</h5>
                 <p className="text-sm text-yellow-700">
-                  If you don't study for 2 consecutive days, your pet will disappear and you'll have to start over!
+                  If you don&#39;t study for 2 consecutive days, your pet will disappear and you&#39;ll have to start over!
                 </p>
               </div>
             </div>

@@ -5,15 +5,30 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "react-hot-toast"
 import { Trophy, Clock, Target, CheckCircle2, XCircle, BookOpen, RotateCcw, History, Bookmark, Brain, Sparkles, Award, TrendingUp,} from "lucide-react"
-import type { Quiz } from "./QuizPanel"
+import type { Quiz, Question } from "./QuizPanel"
+
+// Extended types for quiz results
+interface QuestionResult extends Question {
+  isCorrect?: boolean;
+  userSelectedIndexes?: number[];
+  answers: {
+    content: string;
+    isCorrect?: boolean;
+  }[];
+}
+
+interface QuizResultData extends Quiz {
+  questions: QuestionResult[];
+}
 
 interface QuizResultProps {
-  quiz: Quiz
+  quiz: QuizResultData
   onNewQuiz: () => void
+  onRetryQuiz?: (retryQuiz: Quiz) => void // Add prop to handle retry quiz data
   onViewProfile?: () => void // made optional for compatibility
 }
 
-export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
+export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultProps) {
   const router = useRouter()
   const [savedQuestionIds, setSavedQuestionIds] = useState<string[]>([])
   const [showSaveWarning, setShowSaveWarning] = useState(false)
@@ -36,23 +51,16 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
   // Get incorrect questions that haven't been saved
   const getUnsavedIncorrectQuestions = () => {
-    const unsaved = quiz.userAnswers.filter(answer => {
-      const isIncorrect = !answer.isCorrect
-      const isNotSaved = !savedQuestionIds.includes(answer.questionId)
+    const unsaved = quiz.questions.filter(question => {
+      // Kiểm tra xem question có thông tin isCorrect không (từ API submit)
+      const questionResult = question as QuestionResult;
+      const isIncorrect = questionResult.isCorrect === false; // Chỉ false mới là sai
+      const isNotSaved = !savedQuestionIds.includes(question.id)
       
-      console.log(`Question ${answer.questionId}:`, {
-        isIncorrect,
-        isNotSaved,
-        answerIndex: answer.answerIndex,
-        isCorrect: answer.isCorrect
-      })
       
-      return (isIncorrect) && isNotSaved
+      return isIncorrect && isNotSaved
     })
     
-    console.log('Quiz userAnswers:', quiz.userAnswers)
-    console.log('Saved question IDs:', savedQuestionIds)
-    console.log('Unsaved incorrect questions:', unsaved)
     return unsaved
   }
 
@@ -90,7 +98,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
     }
   }
 
-  const correctAnswers = quiz.userAnswers.filter((a) => a.isCorrect).length
+  const correctAnswers = quiz.questions.filter((q) => (q as QuestionResult).isCorrect === true).length
   const isPassingScore = quiz.score >= 70
 
   const handleRetryQuiz = async () => {
@@ -100,7 +108,18 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
       });
       if (!response.ok) throw new Error('Failed to retry quiz');
       const newQuiz = await response.json();
-      router.push(`/quiz/${newQuiz.id || newQuiz._id}`);
+      
+      console.log('Retry quiz response:', newQuiz);
+      
+      // Thay vì navigate, gọi callback để pass quiz data đã shuffle
+      if (onRetryQuiz) {
+        // Pass quiz data đã shuffle cho parent component
+        onRetryQuiz(newQuiz);
+        // Parent component sẽ handle việc set quiz data
+      } else {
+        // Fallback: navigate như cũ
+        router.push(`/quiz/${newQuiz.id || newQuiz._id}`);
+      }
     } catch (error) {
       console.error('Error retrying quiz:', error);
       toast.error('Failed to retry quiz');
@@ -109,8 +128,6 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
   // Handle navigation with warning
   const handleNavigation = (action: string, callback: () => void) => {
-    console.log('handleNavigation called with action:', action)
-    console.log('unsavedIncorrectCount:', unsavedIncorrectCount)
     if (unsavedIncorrectCount > 0) {
       console.log('Showing save warning popup')
       setShowSaveWarning(true)
@@ -145,18 +162,18 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
     const unsavedIncorrect = getUnsavedIncorrectQuestions()
     let savedCount = 0
 
-    for (const answer of unsavedIncorrect) {
+    for (const question of unsavedIncorrect) {
       try {
         const response = await fetch("/api/users/saved-questions", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ questionId: answer.questionId }),
+          body: JSON.stringify({ questionId: question.id }),
         })
         if (response.ok) {
           savedCount++
-          setSavedQuestionIds(prev => [...prev, answer.questionId])
+          setSavedQuestionIds(prev => [...prev, question.id])
         }
       } catch (error) {
         console.error("Error saving question:", error)
@@ -173,15 +190,8 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-200/30 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl animate-pulse delay-1000" />
-      </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-3 mb-6">
@@ -286,8 +296,10 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
                 <div className="space-y-6">
                   {quiz.questions.map((question, qIndex) => {
-                    const userAnswer = quiz.userAnswers.find((a) => a.questionId === question.id)
-                    const isCorrect = userAnswer?.isCorrect
+                    // Sử dụng thông tin từ question result (có từ API submit)
+                    const questionResult = question as QuestionResult;
+                    const isCorrect = questionResult.isCorrect;
+                    const userSelectedIndexes = questionResult.userSelectedIndexes || [];
                     const isSaved = savedQuestionIds.includes(question.id)
 
                     return (
@@ -343,13 +355,12 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
 
                         <div className="ml-11 space-y-3">
                           {question.answers.map((answer, aIndex) => {
-                            // Lấy mapping cho câu hỏi này nếu có
-                            const questionMapping = quiz.answerMapping?.[question.id];
-                            const originalIndex = questionMapping ? questionMapping[aIndex] : aIndex;
-                            
-                            const userSelectedThisAnswer = userAnswer?.answerIndex.includes(originalIndex);
+                            // API submit đã trả về answers theo thứ tự đã shuffle mà user đã thấy
+                            // Không cần xử lý answerMapping nữa
                             const isThisAnswerCorrect = answer.isCorrect;
-                            const isQuestionCorrect = userAnswer?.isCorrect;
+                            
+                            const userSelectedThisAnswer = userSelectedIndexes.includes(aIndex);
+                            const isQuestionCorrect = isCorrect;
 
                             let answerClass = "p-3 rounded-lg border "
                             let iconClass = ""
@@ -544,7 +555,7 @@ export default function QuizResult({ quiz, onNewQuiz }: QuizResultProps) {
               </div>
                              <h3 className="text-xl font-bold text-gray-800 mb-2">Save Your Progress?</h3>
                <p className="text-gray-600 mb-6">
-                 We noticed you haven't saved {unsavedIncorrectCount} question{unsavedIncorrectCount > 1 ? 's' : ''} (incorrect). 
+                 We noticed you haven&apos;t saved {unsavedIncorrectCount} question{unsavedIncorrectCount > 1 ? 's' : ''} (incorrect). 
                  Would you like to save them for later study?
                </p>
                

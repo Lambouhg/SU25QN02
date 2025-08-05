@@ -35,10 +35,27 @@ export default function ActiveUsersMetrics({
 
   const fetchActiveUsers = async () => {
     try {
-      const response = await fetch('/api/admin/active-users');
+      // Use the new optimized user-activities API with real-time data
+      const response = await fetch('/api/admin/user-activities?limit=100');
       if (response.ok) {
         const result = await response.json();
-        setData(result);
+        
+        // Extract data from the new API format
+        const transformedData: ActiveUsersData = {
+          totalUsers: result.summary.totalUsers || 0,
+          activeUsers: {
+            daily: result.summary.currentlyActiveUsers || 0, // Users active in last 5 min
+            weekly: result.summary.activeUsers || 0, // Users active in last 7 days  
+            monthly: result.summary.activeUsers || 0, // Using same data for now
+            currentlyOnline: result.summary.currentlyOnlineUsers || 0 // Users online in last 15 min
+          },
+          activityPercentage: result.summary.totalUsers > 0 
+            ? Math.round((result.summary.currentlyOnlineUsers / result.summary.totalUsers) * 100)
+            : 0,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        setData(transformedData);
       } else {
         console.error('Failed to fetch active users data');
       }

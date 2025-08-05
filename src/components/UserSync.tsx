@@ -11,18 +11,20 @@ export default function UserSync() {
   const { refreshRole } = useRole();
   const syncInProgress = useRef<Set<string>>(new Set());
 
-  // Check if user was recently synced (within last 24 hours)
+  // Check if user was recently synced (in memory only)
+  const recentSyncCache = useRef<Map<string, number>>(new Map());
+  
   const isRecentlySynced = useCallback((clerkId: string) => {
-    const lastSyncTime = localStorage.getItem(`userSync_${clerkId}`);
+    const lastSyncTime = recentSyncCache.current.get(clerkId);
     if (!lastSyncTime) return false;
     
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
-    return parseInt(lastSyncTime) > twentyFourHoursAgo;
+    return lastSyncTime > twentyFourHoursAgo;
   }, []);
 
-  // Mark user as synced in localStorage
+  // Mark user as synced in memory only (more secure)
   const markSyncedInStorage = useCallback((clerkId: string) => {
-    localStorage.setItem(`userSync_${clerkId}`, Date.now().toString());
+    recentSyncCache.current.set(clerkId, Date.now());
   }, []);
 
   // Memoize saveUserToDB function để tránh re-create
@@ -51,7 +53,6 @@ export default function UserSync() {
       
       // Log nếu đây là user mới 
       if (result.created) {
-        console.log('New user registered:', userData.email);
       }
       
       // Đánh dấu user đã sync trong cả context và localStorage

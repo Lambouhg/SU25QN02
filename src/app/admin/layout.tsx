@@ -24,7 +24,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
     });
     
     if (!user || user.role !== 'admin') {
-      redirect('/dashboard');
+      redirect('/access-denied');
     }
   } catch (error) {
     // Don't log redirect errors as they are expected
@@ -32,7 +32,7 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
       throw error; // Re-throw redirect errors
     }
     console.error('Error checking admin role:', error);
-    redirect('/dashboard');
+    redirect('/access-denied');
   }
 
   return (

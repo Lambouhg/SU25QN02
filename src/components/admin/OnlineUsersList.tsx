@@ -1,16 +1,37 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { User, Clock, RefreshCw } from 'lucide-react';
 
+interface ActivityData {
+  user: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    avatar?: string;
+    realTimeActivity: {
+      isCurrentlyActive: boolean;
+      isCurrentlyOnline: boolean;
+      lastActivityText: string;
+      lastActivityTimestamp: string;
+    };
+  };
+}
+
 interface OnlineUser {
-  _id: string;
+  id: string;
   firstName?: string;
   lastName?: string;
   email: string;
   avatar?: string;
-  lastActivity: string;
+  realTimeActivity: {
+    isCurrentlyActive: boolean;
+    isCurrentlyOnline: boolean;
+    lastActivityText: string;
+    lastActivityTimestamp: string;
+  };
 }
 
 interface OnlineUsersListProps {
@@ -27,14 +48,29 @@ export default function OnlineUsersList({
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [error, setError] = useState<string>('');
 
-  const fetchOnlineUsers = async () => {
+  const fetchOnlineUsers = useCallback(async () => {
     try {
       setError('');
-      const response = await fetch('/api/admin/online-users');
+      // Use the new user-activities API with real-time data
+      const response = await fetch('/api/admin/user-activities?limit=50');
       if (response.ok) {
         const data = await response.json();
-        setOnlineUsers(Array.isArray(data.users) ? data.users : []);
-        setLastUpdate(data.timestamp || new Date().toISOString());
+        
+        // Filter only currently online users and transform data
+        const onlineUsersData = data.activities
+          .filter((activity: ActivityData) => activity.user.realTimeActivity.isCurrentlyOnline)
+          .map((activity: ActivityData) => ({
+            id: activity.user.id,
+            firstName: activity.user.firstName,
+            lastName: activity.user.lastName,
+            email: activity.user.email,
+            avatar: activity.user.avatar,
+            realTimeActivity: activity.user.realTimeActivity
+          }))
+          .slice(0, maxUsers);
+          
+        setOnlineUsers(onlineUsersData);
+        setLastUpdate(new Date().toISOString());
       } else {
         console.error('Failed to fetch online users:', response.status);
         setOnlineUsers([]);
@@ -45,7 +81,7 @@ export default function OnlineUsersList({
       setOnlineUsers([]);
       setError('Network error occurred');
     }
-  };
+  }, [maxUsers]);
 
   useEffect(() => {
     const initializeData = async () => {
@@ -58,17 +94,7 @@ export default function OnlineUsersList({
     // Auto refresh
     const interval = setInterval(fetchOnlineUsers, refreshInterval);
     return () => clearInterval(interval);
-  }, [refreshInterval]);
-
-  const formatTimeAgo = (timestamp: string) => {
-    const now = new Date().getTime();
-    const time = new Date(timestamp).getTime();
-    const diffInSeconds = Math.floor((now - time) / 1000);
-    
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    return `${Math.floor(diffInSeconds / 3600)}h ago`;
-  };
+  }, [refreshInterval, fetchOnlineUsers]);
 
   const getInitials = (firstName?: string, lastName?: string) => {
     const first = firstName?.charAt(0) || '';
@@ -122,7 +148,7 @@ export default function OnlineUsersList({
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {(onlineUsers || []).slice(0, maxUsers).map((user) => (
-            <div key={user._id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
+            <div key={user.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
               <div className="flex items-center space-x-3">
                 <div className="relative">
                   {user.avatar ? (
@@ -138,8 +164,10 @@ export default function OnlineUsersList({
                       {getInitials(user.firstName, user.lastName)}
                     </div>
                   )}
-                  {/* Online indicator */}
-                  <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                  {/* Status indicator - green for active, yellow for online */}
+                  <div className={`absolute -bottom-1 -right-1 w-3 h-3 border-2 border-white rounded-full ${
+                    user.realTimeActivity.isCurrentlyActive ? 'bg-green-500' : 'bg-yellow-500'
+                  }`}></div>
                 </div>
                 
                 <div className="min-w-0 flex-1">
@@ -155,7 +183,7 @@ export default function OnlineUsersList({
               
               <div className="flex items-center text-xs text-gray-500">
                 <Clock className="h-3 w-3 mr-1" />
-                {formatTimeAgo(user.lastActivity)}
+                {user.realTimeActivity.lastActivityText}
               </div>
             </div>
           ))}

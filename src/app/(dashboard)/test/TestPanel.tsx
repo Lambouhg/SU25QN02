@@ -546,7 +546,7 @@ export default function TestPanel() {
 
     // Gọi API lưu kết quả xuống DB
     try {
-      await fetch('/api/test-mode/test', {
+      await fetch('/api/assessment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -650,7 +650,7 @@ export default function TestPanel() {
     const totalTime = Math.ceil(duration - minutesLeft);
     // Lưu kết quả
     try {
-      fetch('/api/test-mode/test', {
+      fetch('/api/assessment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,28 +1,36 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Brain,
-  Sparkles,
-  ArrowRight,
-  Play,
-  Timer,
-  Target,
-  ChevronLeft,
-  ChevronRight,
-  CheckCircle2,
-  Clock,
-  Rocket,
-  BarChart3,
-} from "lucide-react"
+import { CheckCircle2, ChevronLeft, Target, BarChart3 } from 'lucide-react';
+import type { Quiz } from './QuizPanel';
+
+interface FieldType {
+  id: string;
+  name: string;
+}
+
+interface TopicType {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+interface ConfigType {
+  field: string;
+  topic: string;
+  level: string;
+  questionCount: string;
+  timeLimit: string;
+  error?: string;
+}
 
 interface QuizStartProps {
-  config: any
-  onChange: (config: any) => void
-  onStart: (quizData: any) => void
+  config: ConfigType
+  onChange: (config: ConfigType) => void
+  onStart: (quizData: Quiz) => void
   isLoading: boolean
   error: string | null
 }
@@ -42,44 +50,44 @@ const PREDEFINED_FIELDS = [
 ]
 
 const PREDEFINED_TOPICS = [
-  { id: "sql", name: "SQL", icon: "🗄️" },
-  { id: "computer-science", name: "Computer Science", icon: "💻" },
-  { id: "react", name: "React", icon: "⚛️" },
-  { id: "vue", name: "Vue", icon: "💚" },
-  { id: "angular", name: "Angular", icon: "🅰️" },
-  { id: "javascript", name: "JavaScript", icon: "🟨" },
-  { id: "nodejs", name: "Node.js", icon: "🟢" },
-  { id: "typescript", name: "TypeScript", icon: "🔷" },
-  { id: "python", name: "Python", icon: "🐍" },
-  { id: "system-design", name: "System Design", icon: "🏗️" },
-  { id: "api-design", name: "API Design", icon: "🔌" },
-  { id: "aspnet-core", name: "ASP.NET Core", icon: "🔵" },
-  { id: "java", name: "Java", icon: "☕" },
-  { id: "cpp", name: "C++", icon: "⚡" },
-  { id: "flutter", name: "Flutter", icon: "🦋" },
-  { id: "spring-boot", name: "Spring Boot", icon: "🍃" },
-  { id: "go", name: "Go Roadmap", icon: "🐹" },
-  { id: "rust", name: "Rust", icon: "🦀" },
-  { id: "graphql", name: "GraphQL", icon: "📊" },
-  { id: "design-architecture", name: "Design and Architecture", icon: "🏛️" },
-  { id: "design-system", name: "Design System", icon: "🎨" },
-  { id: "react-native", name: "React Native", icon: "📱" },
-  { id: "aws", name: "AWS", icon: "☁️" },
-  { id: "code-review", name: "Code Review", icon: "👀" },
-  { id: "docker", name: "Docker", icon: "🐳" },
-  { id: "kubernetes", name: "Kubernetes", icon: "⚓" },
-  { id: "linux", name: "Linux", icon: "🐧" },
-  { id: "mongodb", name: "MongoDB", icon: "🍃" },
-  { id: "prompt-engineering", name: "Prompt Engineering", icon: "🎯" },
-  { id: "terraform", name: "Terraform", icon: "🏗️" },
-  { id: "data-structures", name: "Data Structures & Algorithms", icon: "🧮" },
-  { id: "git-github", name: "Git and GitHub", icon: "📚" },
-  { id: "redis", name: "Redis", icon: "🔴" },
-  { id: "php", name: "PHP", icon: "🐘" },
-  { id: "cloudflare", name: "Cloudflare", icon: "☁️" },
-  { id: "ai-agents", name: "AI Agents", icon: "🤖", isNew: true },
-  { id: "ai-red-teaming", name: "AI Red Teaming", icon: "🛡️", isNew: true },
-  { id: "backup-recovery", name: "Backup & Recovery", icon: "💾" },
+  { id: "sql", name: "SQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg" },
+  { id: "computer-science", name: "Computer Science", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/computercraft/computercraft-original.svg" },
+  { id: "react", name: "React", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
+  { id: "vue", name: "Vue", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg" },
+  { id: "angular", name: "Angular", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/angularjs/angularjs-original.svg" },
+  { id: "javascript", name: "JavaScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" },
+  { id: "nodejs", name: "Node.js", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" },
+  { id: "typescript", name: "TypeScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" },
+  { id: "python", name: "Python", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" },
+  { id: "system-design", name: "System Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
+  { id: "api-design", name: "API Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" },
+  { id: "aspnet-core", name: "ASP.NET Core", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dotnetcore/dotnetcore-original.svg" },
+  { id: "java", name: "Java", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg" },
+  { id: "cpp", name: "C++", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg" },
+  { id: "flutter", name: "Flutter", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg" },
+  { id: "spring-boot", name: "Spring Boot", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg" },
+  { id: "go", name: "Go Roadmap", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original.svg" },
+  { id: "rust", name: "Rust", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-plain.svg" },
+  { id: "graphql", name: "GraphQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" },
+  { id: "design-architecture", name: "Design and Architecture", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg" },
+  { id: "design-system", name: "Design System", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sketch/sketch-original.svg" },
+  { id: "react-native", name: "React Native", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
+  { id: "aws", name: "AWS", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" },
+  { id: "code-review", name: "Code Review", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" },
+  { id: "docker", name: "Docker", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" },
+  { id: "kubernetes", name: "Kubernetes", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
+  { id: "linux", name: "Linux", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg" },
+  { id: "mongodb", name: "MongoDB", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" },
+  { id: "prompt-engineering", name: "Prompt Engineering", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg" },
+  { id: "terraform", name: "Terraform", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg" },
+  { id: "data-structures", name: "Data Structures & Algorithms", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/algorithm/algorithm-original.svg" },
+  { id: "git-github", name: "Git and GitHub", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" },
+  { id: "redis", name: "Redis", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" },
+  { id: "php", name: "PHP", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg" },
+  { id: "cloudflare", name: "Cloudflare", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cloudflare/cloudflare-original.svg" },
+  { id: "ai-agents", name: "AI Agents", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg", isNew: true },
+  { id: "ai-red-teaming", name: "AI Red Teaming", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytorch/pytorch-original.svg", isNew: true },
+  { id: "backup-recovery", name: "Backup & Recovery", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" },
 ]
 
 // Thêm mapping field -> topics
@@ -126,8 +134,6 @@ const FIELD_TOPICS_MAP: Record<string, string[]> = {
   ] ,
 }
 
-const ITEMS_PER_PAGE = 9
-
 const experienceLevels = [
   { value: "junior", label: "Junior", description: "0-2 years experience" },
   { value: "middle", label: "Middle", description: "2-5 years experience" },
@@ -140,37 +146,14 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
   const [selectedTopic, setSelectedTopic] = useState<string>("")
   const [questionCount, setQuestionCount] = useState("") // ban đầu rỗng
   const [timeLimit, setTimeLimit] = useState("") // ban đầu rỗng
-  const [customField, setCustomField] = useState("");
-  const [customTopic, setCustomTopic] = useState("");
+  const [customField] = useState("");
+  const [customTopic] = useState("");
   const [fieldError, setFieldError] = useState("");
   const [topicError, setTopicError] = useState("");
   const [level, setLevel] = useState(""); // ban đầu rỗng
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedQuiz, setGeneratedQuiz] = useState<any>(null);
   const [levelUnlock, setLevelUnlock] = useState<{ junior: boolean; middle: boolean; senior: boolean }>({ junior: true, middle: false, senior: false });
   const [historyLoading, setHistoryLoading] = useState(false);
-
-  const fieldNames = PREDEFINED_FIELDS.map(f => f.name);
-  const topicNames = PREDEFINED_TOPICS.map(t => t.name);
-
-  const handleFieldDropdownChange = (value: string) => {
-    if (value === "Others") {
-      setCustomField("");
-      onChange({ ...config, field: "" });
-    } else {
-      setCustomField("");
-      onChange({ ...config, field: value });
-    }
-  };
-  const handleTopicDropdownChange = (value: string) => {
-    if (value === "Others") {
-      setCustomTopic("");
-      onChange({ ...config, topic: "" });
-    } else {
-      setCustomTopic("");
-      onChange({ ...config, topic: value });
-    }
-  };
 
   // currentFields = PREDEFINED_FIELDS; currentTopics = filteredTopics;
   // Lọc topic theo field đã chọn, hoặc hiển thị tất cả nếu chưa chọn field
@@ -179,30 +162,30 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
     : PREDEFINED_TOPICS;
 
   const quizSettings = [
-    { questions: 5, timeLimit: 5, label: "5 questions - 5 minutes", icon: "⚡", type: "Quick", color: "from-green-400 to-emerald-400" },
-    { questions: 10, timeLimit: 10, label: "10 questions - 10 minutes", icon: "🎯", type: "Standard", color: "from-blue-400 to-cyan-400" },
-    { questions: 15, timeLimit: 15, label: "15 questions - 15 minutes", icon: "🔥", type: "Extended", color: "from-purple-400 to-pink-400" },
-    { questions: 20, timeLimit: 20, label: "20 questions - 20 minutes", icon: "🏆", type: "Comprehensive", color: "from-orange-400 to-red-400" },
+    { questions: 5, timeLimit: 5, label: "5 questions - 5 minutes",  type: "Quick", color: "from-green-400 to-emerald-400" },
+    { questions: 10, timeLimit: 10, label: "10 questions - 10 minutes",  type: "Standard", color: "from-blue-400 to-cyan-400" },
+    { questions: 15, timeLimit: 15, label: "15 questions - 15 minutes",  type: "Extended", color: "from-purple-400 to-pink-400" },
+    { questions: 20, timeLimit: 20, label: "20 questions - 20 minutes",  type: "Comprehensive", color: "from-orange-400 to-red-400" },
   ]
 
-  const handleFieldSelect = (field: any) => {
+  const handleFieldSelect = (field: FieldType) => {
     setSelectedField(field.id)
     onChange({ ...config, field: field.name })
     setStep("topic")
   }
 
-  const handleTopicSelect = (topic: any) => {
+  const handleTopicSelect = (topic: TopicType) => {
     setSelectedTopic(topic.id)
     onChange({ ...config, topic: topic.name })
     
     // Auto-detect field based on selected topic
-    const detectedField = Object.entries(FIELD_TOPICS_MAP).find(([fieldId, topics]) => 
+    const detectedField = Object.entries(FIELD_TOPICS_MAP).find(([, topics]) => 
       topics.includes(topic.id)
     );
     
     if (detectedField) {
       const fieldId = detectedField[0];
-      const fieldName = PREDEFINED_FIELDS.find(f => f.id === fieldId)?.name;
+      const fieldName = PREDEFINED_FIELDS.find(f => f.id === fieldId)?.name || "";
       setSelectedField(fieldId);
       onChange({ ...config, topic: topic.name, field: fieldName });
     }
@@ -235,13 +218,13 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
     setIsGenerating(true);
 
     try {
-      // Gọi API lấy quiz từ DB (tạo quiz mới)
-      const quizRes = await fetch('/api/quizzes', {
+      // Gọi API secure quiz từ DB (tạo quiz mới)
+      const quizRes = await fetch('/api/quizzes/secure', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          field: isFieldOthers ? customField : PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field,
-          topic: isTopicOthers ? customTopic : PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic,
+          field: isFieldOthers ? customField : PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field, // ✅ Capitalize field
+          topic: isTopicOthers ? customTopic : PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic, // ✅ Capitalize topic
           level: level || "junior",
           count: Number(questionCount),
           timeLimit: Number(timeLimit),
@@ -254,7 +237,7 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         return;
       }
       onStart(quizData);
-    } catch (err) {
+    } catch {
       onChange({ ...config, error: 'Something went wrong!' });
     } finally {
       setIsGenerating(false);
@@ -264,30 +247,30 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
   const isFormValid = selectedField && selectedTopic && level && questionCount && timeLimit
 
   const renderFieldSelection = () => (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="text-center">
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">Select Specialization</h3>
-        <p className="text-gray-600">Which specialization do you want to practice?</p>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Select Specialization</h3>
+        <p className="text-gray-600 text-sm">Which specialization do you want to practice?</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         {PREDEFINED_FIELDS.map((field: typeof PREDEFINED_FIELDS[number]) => (
           <div
             key={field.id}
             onClick={() => handleFieldSelect(field)}
-            className={`group relative p-6 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+            className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
               selectedField === field.id
                 ? `bg-gradient-to-r ${field.color.replace("500", "50")} border-purple-500 shadow-lg`
                 : "bg-white/70 border-gray-200 hover:border-purple-300 hover:shadow-md"
             }`}
           >
             <div className="text-center">
-              <div className="text-4xl mb-3">{field.icon}</div>
+              <div className="text-3xl mb-2">{field.icon}</div>
               <h4 className="font-bold text-gray-800 text-sm">{field.name}</h4>
             </div>
             {selectedField === field.id && (
-              <div className="absolute top-2 right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4 text-white" />
+              <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-3 h-3 text-white" />
               </div>
             )}
           </div>
@@ -297,25 +280,36 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
   )
 
   const renderTopicSelection = () => (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="text-center">
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">Select Topic</h3>
-        <p className="text-gray-600">Choose the topic you want to practice.</p>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Select Topic</h3>
+        <p className="text-gray-600 text-sm">Choose the topic you want to practice.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3">
         {filteredTopics.map((topic: typeof PREDEFINED_TOPICS[number]) => (
           <div
             key={topic.id}
             onClick={() => handleTopicSelect(topic)}
-            className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+            className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
               selectedTopic === topic.id
                 ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-500 shadow-lg"
                 : "bg-white/70 border-gray-200 hover:border-green-300 hover:shadow-md"
             }`}
           >
             <div className="text-center">
-              <div className="text-3xl mb-2">{topic.icon}</div>
+              <div className="flex justify-center mb-2">
+                <Image 
+                  src={topic.icon} 
+                  alt={topic.name}
+                  width={28}
+                  height={28}
+                  className="object-contain"
+                  onError={() => {
+                    // You can handle errors here if needed
+                  }}
+                />
+              </div>
               <h4 className="font-semibold text-gray-800 text-xs leading-tight">{topic.name}</h4>
               {topic.isNew && (
                 <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-medium rounded-full">
@@ -324,15 +318,15 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
               )}
             </div>
             {selectedTopic === topic.id && (
-              <div className="absolute top-2 right-2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+              <div className="absolute top-2 right-2 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                 <CheckCircle2 className="w-3 h-3 text-white" />
               </div>
             )}
           </div>
         ))}
       </div>
-      <div className="flex justify-center">
-        <Button variant="outline" onClick={() => setStep("field")} className="flex items-center gap-2">
+      <div className="flex justify-center pt-4">
+        <Button variant="outline" onClick={() => setStep("field")} className="flex items-center gap-2 text-sm">
           <ChevronLeft className="w-4 h-4" />
           Back to specialization selection
         </Button>
@@ -384,6 +378,9 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
                 <span className="text-lg font-semibold text-gray-700">Level</span>
               {historyLoading && <span className="ml-2 text-xs text-gray-500 animate-pulse">Checking unlocks...</span>}
               </div>
+              
+
+              
               <div className="flex flex-row gap-4 justify-center w-full">
               {experienceLevels.map((lvl: typeof experienceLevels[number]) => {
                 let disabled = false;
@@ -425,14 +422,14 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
           </div>
           
           {/* Quiz Settings */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+              <div className="w-7 h-7 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
                 <Target className="w-4 h-4 text-white" />
               </div>
-              <h4 className="text-lg font-semibold text-gray-700">Quiz Settings</h4>
+              <h4 className="text-base font-semibold text-gray-700">Quiz Settings</h4>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {quizSettings.map((setting) => (
                 <div
                   key={setting.questions}
@@ -440,19 +437,18 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
                     setQuestionCount(setting.questions.toString())
                     setTimeLimit(setting.timeLimit.toString())
                   }}
-                  className={`relative group p-6 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+                  className={`relative group p-4 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
                     questionCount === setting.questions.toString() && timeLimit === setting.timeLimit.toString()
                       ? `bg-gradient-to-r ${setting.color.replace("400", "500/10")} border-orange-500/50 shadow-lg`
                       : "bg-white/50 border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
                   }`}
                 >
                   <div className="text-center">
-                    <div className="text-3xl mb-3">{setting.icon}</div>
-                    <div className="font-bold text-gray-800 text-lg mb-1">{setting.label}</div>
+                    <div className="font-bold text-gray-800 text-base mb-1">{setting.label}</div>
                     <div className="text-sm text-gray-500">{setting.type}</div>
                   </div>
                   {questionCount === setting.questions.toString() && timeLimit === setting.timeLimit.toString() && (
-                    <div className="absolute top-3 right-3 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+                    <div className="absolute top-2 right-2 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
                       <CheckCircle2 className="w-3 h-3 text-white" />
                     </div>
                   )}
@@ -462,8 +458,8 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
           </div>
         </div>
 
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setStep("topic")} className="flex items-center gap-2">
+        <div className="flex justify-center pt-4">
+          <Button variant="outline" onClick={() => setStep("topic")} className="flex items-center gap-2 text-sm">
             <ChevronLeft className="w-4 h-4" />
             Back to topic selection
           </Button>
@@ -480,53 +476,72 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
       try {
         const res = await fetch("/api/quizzes/history");
         if (!res.ok) throw new Error("Failed to fetch quiz history");
-        const quizzes = await res.json();
-        // Lọc quiz theo field & topic
-        const filtered = quizzes.filter((q: any) =>
-          q.field === PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name &&
-          q.topic === PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name
-        );
-        // Tìm best score từng level
-        let bestJunior = 0, bestMiddle = 0, bestSenior = 0;
-        filtered.forEach((q: any) => {
-          if (q.level === "junior") bestJunior = Math.max(bestJunior, q.score || 0);
-          if (q.level === "middle") bestMiddle = Math.max(bestMiddle, q.score || 0);
-          if (q.level === "senior") bestSenior = Math.max(bestSenior, q.score || 0);
+        const data = await res.json();
+        const quizzes = data.quizzes || [];
+        
+        // Get field and topic names for matching
+        const fieldName = PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name;
+        const topicName = PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name;
+        
+        if (!fieldName || !topicName) {
+          setLevelUnlock({ junior: true, middle: false, senior: false });
+          return;
+        }
+        
+        // Filter quizzes by exact field and topic match
+        const filteredQuizzes = quizzes.filter((q: { field: string; topic: string; level: string; score?: number }) => {
+          return q.field === fieldName && q.topic === topicName;
         });
-        // Unlock logic
+        
+        // Find best scores for each level
+        let bestJunior = 0, bestMiddle = 0, bestSenior = 0;
+        
+        filteredQuizzes.forEach((q: { level: string; score?: number }) => {
+          const score = q.score || 0;
+          if (q.level === "junior") {
+            bestJunior = Math.max(bestJunior, score);
+          } else if (q.level === "middle") {
+            bestMiddle = Math.max(bestMiddle, score);
+          } else if (q.level === "senior") {
+            bestSenior = Math.max(bestSenior, score);
+          }
+        });
+        
+        // Unlock logic based on best scores
         const unlock = {
-          junior: true,
-          middle: bestJunior >= 90,
-          senior: bestMiddle >= 90,
+          junior: true, // Always unlocked
+          middle: bestJunior >= 90, // Unlock if best junior score >= 90
+          senior: bestMiddle >= 90, // Unlock if best middle score >= 90
         };
+        
         setLevelUnlock(unlock);
+        
+        // Debug logging
+        console.log(`Field: ${fieldName}, Topic: ${topicName}`);
+        console.log(`Best scores - Junior: ${bestJunior}, Middle: ${bestMiddle}, Senior: ${bestSenior}`);
+        console.log(`Unlocks - Junior: ${unlock.junior}, Middle: ${unlock.middle}, Senior: ${unlock.senior}`);
+        
       } catch (e) {
+        console.error('Error fetching quiz history:', e);
+        // Default: only junior unlocked
         setLevelUnlock({ junior: true, middle: false, senior: false });
       } finally {
         setHistoryLoading(false);
       }
     };
+    
     fetchHistory();
   }, [selectedField, selectedTopic]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-200/30 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl animate-pulse delay-1000" />
-      </div>
-
-      <div className="relative z-10 container mx-auto px-4 py-8">
-
-
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
+      <div className="relative container mx-auto px-4 py-6">
         {/* Main Content */}
-        <div className="max-w-6xl mx-auto">
-          <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
-            <CardContent className="p-8">
+        <div className="max-w-5xl mx-auto">
+          <Card className="bg-white/90 backdrop-blur-sm border-white/60 shadow-xl">
+            <CardContent className="p-6">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6">{error}</div>
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg mb-4 text-sm">{error}</div>
               )}
 
               {step === "field" && renderFieldSelection()}
@@ -535,28 +550,30 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
 
               {/* Start Button */}
               {isFormValid && step === "config" && (
-                <div className="pt-8">
-                  <div className="relative inline-block w-full">
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl blur-xl opacity-30 animate-pulse" />
-                    <Button
+                <div className="pt-6">
+                  <div className="text-center">
+                    <button
                       onClick={handleStartQuiz}
                       disabled={isLoading || isGenerating}
-                      className="relative w-full h-16 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl font-bold text-lg text-white shadow-2xl shadow-purple-500/25 transition-all duration-300 transform hover:scale-[1.02] disabled:hover:scale-100 border border-white/20"
+                      className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
                     >
                       {isLoading || isGenerating ? (
-                        <div className="flex items-center justify-center gap-3">
-                          <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <>
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                           <span>{isGenerating ? "Generating quiz..." : "Creating quiz with AI..."}</span>
-                          <Rocket className="w-6 h-6 animate-bounce" />
-                        </div>
+                        </>
                       ) : (
-                        <div className="flex items-center justify-center gap-3">
-                          <Play className="w-6 h-6" />
-                          <span>Start Quiz</span>
-                          <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                        </div>
+                        <>
+                          <svg className="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                          </svg>
+                          Start Quiz
+                        </>
                       )}
-                    </Button>
+                    </button>
+                    <p className="text-sm text-gray-500 mt-3">
+                      AI will generate personalized questions based on your selections
+                    </p>
                   </div>
                 </div>
               )}

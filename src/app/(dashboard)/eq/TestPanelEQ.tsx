@@ -512,10 +512,11 @@ export default function TestPanelEQ() {
 		}
 
 		try {
-			const response = await fetch('/api/eq-mode/eq', {
+			await fetch('/api/assessment', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
+					type: 'eq', // Thêm type cho EQ
 					duration,
 					selectedCategory,
 					level,
@@ -525,7 +526,7 @@ export default function TestPanelEQ() {
 					position,
 				})
 			});
-			console.log('EQ result saved:', response);
+
 		} catch (error) {
 			console.error('Error saving EQ result:', error);
 		}
@@ -608,10 +609,11 @@ export default function TestPanelEQ() {
 		setRemainingTime(minutesLeft);
 		const totalTime = Math.ceil(duration - minutesLeft);
 		try {
-			fetch('/api/eq-mode/eq', {
+			fetch('/api/assessment', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
+					type: 'eq', // Thêm type cho EQ
 					duration,
 					selectedCategory,
 					level,

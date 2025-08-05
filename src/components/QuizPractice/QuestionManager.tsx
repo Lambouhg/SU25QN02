@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useCallback } from 'react';
-import { Brain, Sparkles, CheckCircle2, ChevronLeft, ChevronRight, Globe, Languages, Loader2, Bot, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Brain, Sparkles, CheckCircle2, ChevronLeft, Globe, Languages, Loader2, Bot, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 type Answer = {
@@ -171,7 +171,7 @@ export default function QuestionManager() {
   const [aiGenCustomTopic, setAIGenCustomTopic] = useState('');
   const [aiGenLoading, setAIGenLoading] = useState(false);
   const [aiGenError, setAIGenError] = useState('');
-  const [aiGenQuestions, setAIGenQuestions] = useState<any[]>([]);
+  const [aiGenQuestions, setAIGenQuestions] = useState<Array<{ question: string; answers: Array<{ content: string; isCorrect: boolean }>; explanation: string }>>([]);
   const [aiGenSelected, setAIGenSelected] = useState<number[]>([]);
   const [aiGenParams, setAIGenParams] = useState({
     field: '',
@@ -180,13 +180,13 @@ export default function QuestionManager() {
     count: 5,
     language: 'vi',
   });
-  const [customField, setCustomField] = useState('');
+
 
   // Thêm state cho showExplain và saved cho từng card AI gen
   const [aiGenShowExplain, setAIGenShowExplain] = useState<boolean[]>([]);
   const [aiGenSaved, setAIGenSaved] = useState<boolean[]>([]);
   // Thêm state cho edit mode từng câu hỏi AI sinh ra
-  const [aiGenEdit, setAIGenEdit] = useState<(null | { question: string; answers: any[]; explanation: string })[]>([]);
+  const [aiGenEdit, setAIGenEdit] = useState<(null | { question: string; answers: Array<{ content: string; isCorrect: boolean }>; explanation: string })[]>([]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -418,16 +418,12 @@ export default function QuestionManager() {
     setPagination({ ...pagination, page });
   };
 
-  function getTopicsForField(field: string): string[] {
-    if (!field) return [];
-    const map: Record<string, string[]> = FIELD_TOPICS_MAP;
-    return Object.prototype.hasOwnProperty.call(map, field) ? map[field] : [];
-  }
+
 
   // Khi nhận được câu hỏi AI, khởi tạo state edit cho từng câu
   useEffect(() => {
     if (aiGenQuestions.length > 0) {
-      setAIGenEdit(aiGenQuestions.map(q => null));
+      setAIGenEdit(aiGenQuestions.map(() => null));
     }
   }, [aiGenQuestions]);
 
@@ -606,7 +602,7 @@ export default function QuestionManager() {
                           setAIGenQuestions(data.data || []);
                           setAIGenSelected([]);
                           if (!data.data || data.data.length === 0) setAIGenError('No questions returned by AI.');
-                        } catch (err) {
+                        } catch {
                           setAIGenError('Failed to call AI.');
                         } finally {
                           setAIGenLoading(false);
@@ -624,7 +620,7 @@ export default function QuestionManager() {
                 {aiGenStep === 1 && (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400">
                     <Bot className="w-32 h-32 mb-4 opacity-30" />
-                    <div className="text-lg font-semibold">Select configuration and click "Generate questions" to let AI create questions!</div>
+                    <div className="text-lg font-semibold">Select configuration and click &quot;Generate questions&quot; to let AI create questions!</div>
                   </div>
                 )}
                 {aiGenStep === 2 && (
@@ -678,7 +674,7 @@ export default function QuestionManager() {
                                       if (!res.ok) throw new Error('Error saving');
                                       const saved = await res.json();
                                       setQuestions(prev => [saved, ...prev]);
-                                    } catch (err) {
+                                    } catch {
                                       toast.error('Error saving question!');
                                     }
                                   }
@@ -740,7 +736,7 @@ export default function QuestionManager() {
                                     )}
                                     {/* Đáp án (edit hoặc view) */}
                                   <ul className="space-y-2 mb-2">
-                                      {(isEdit ? editData.answers : q.answers).map((a: any, i: number) => (
+                                      {(isEdit ? editData.answers : q.answers).map((a: { content: string; isCorrect: boolean }, i: number) => (
                                         <li key={i} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${a.isCorrect ? 'bg-green-100 text-green-700 font-semibold' : 'bg-white text-gray-800'} text-base`}>
                                           {isEdit ? (
                                             <>
@@ -759,7 +755,7 @@ export default function QuestionManager() {
                                               <input
                                                 type="checkbox"
                                                 checked={a.isCorrect}
-                                                onChange={e => setAIGenEdit(edits => {
+                                                onChange={() => setAIGenEdit(edits => {
                                                   const arr = [...edits];
                                                   const newAnswers = [...editData.answers];
                                                   newAnswers[i] = { ...newAnswers[i], isCorrect: !a.isCorrect };

@@ -73,11 +73,10 @@ export async function PATCH(req: Request) {
     }
     
     const body = await req.json();
-    console.log('PATCH request body:', body);
+
     
     const { questionId } = body;
     if (!questionId) {
-      console.log('QuestionId is missing or undefined:', questionId);
       return NextResponse.json({ error: 'Question ID is required', received: body }, { status: 400 });
     }
 

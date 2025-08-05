@@ -121,7 +121,7 @@ function extractPartialQuestions(truncatedResponse: string): GeneratedQuizQuesti
           if (question.question && Array.isArray(question.options) && Array.isArray(question.correct)) {
             questions.push(question);
           }
-        } catch (e) {
+        } catch {
           // Skip invalid partial questions
           continue;
         }

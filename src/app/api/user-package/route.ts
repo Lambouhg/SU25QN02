@@ -94,7 +94,6 @@ export async function POST(req: NextRequest) {
                         role: 'user'
                     }
                 });
-                console.log('Auto-created user:', userId);
             } catch (createError) {
                 console.error('Error auto-creating user:', createError);
                 return NextResponse.json(

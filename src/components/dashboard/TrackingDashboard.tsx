@@ -105,7 +105,7 @@ export default function TrackingDashboard() {
   });
   const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day');
   const [lineMode, setLineMode] = useState<'score' | 'total'>('score');
-  const [lineChartData, setLineChartData] = useState<any[]>([]);
+  const [lineChartData, setLineChartData] = useState<Array<{ period: string; quiz: number; test: number; interview: number }>>([]);
   const [targetUpdateTrigger, setTargetUpdateTrigger] = useState(0);
 
   // Load personal targets from localStorage on mount
@@ -146,11 +146,6 @@ export default function TrackingDashboard() {
         // Tính toán dữ liệu cho spider charts
         if (data.recentActivities && Array.isArray(data.recentActivities)) {
           const activities = data.recentActivities as Activity[];
-          
-          // Tách activities theo type
-          const assessmentActivities = activities.filter(a => a.type === 'test' || a.type === 'eq');
-          const interviewActivities = activities.filter(a => a.type === 'interview');
-          const quizActivities = activities.filter(a => a.type === 'quiz');
 
           // Tính toán metrics tổng quan
           const calculateOverallMetrics = (activities: Activity[]) => {
@@ -216,144 +211,6 @@ export default function TrackingDashboard() {
                 target: personalTargets.learningFrequency,
                 unit: 'times/month'
               }
-            ];
-          };
-
-          // Tính toán metrics chi tiết cho Assessment
-          const calculateAssessmentMetrics = (activities: Activity[]) => {
-            if (activities.length === 0) {
-                          return [
-              { subject: 'Number of Tests', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 50 },
-              { subject: 'Logic Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Language Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Fundamental Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Average Time', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 60 }
-            ];
-            }
-
-            const totalTests = activities.length;
-            const avgLogicScore = activities.reduce((sum, a) => {
-              const skillScores = a.skillScores || {};
-              return sum + (skillScores.logic || 0);
-            }, 0) / activities.length;
-            const avgLanguageScore = activities.reduce((sum, a) => {
-              const skillScores = a.skillScores || {};
-              return sum + (skillScores.language || 0);
-            }, 0) / activities.length;
-            const avgFundamentalScore = activities.reduce((sum, a) => {
-              const skillScores = a.skillScores || {};
-              return sum + (skillScores.fundamental || 0);
-            }, 0) / activities.length;
-            const avgDuration = activities.reduce((sum, a) => sum + (a.duration || 0), 0) / activities.length;
-
-            return [
-              { 
-                subject: 'Number of Tests', 
-                A: Math.min(totalTests, 50), 
-                B: 0, C: 0, D: 0, E: 0, 
-                fullMark: 50,
-                target: personalTargets.numberOfTests,
-                unit: 'tests'
-              },
-              { 
-                subject: 'Logic Score', 
-                A: Math.round(avgLogicScore), 
-                B: 0, C: 0, D: 0, E: 0, 
-                fullMark: 100,
-                target: personalTargets.logicScore,
-                unit: 'points'
-              },
-              { 
-                subject: 'Language Score', 
-                A: Math.round(avgLanguageScore), 
-                B: 0, C: 0, D: 0, E: 0, 
-                fullMark: 100,
-                target: personalTargets.languageScore,
-                unit: 'points'
-              },
-              { 
-                subject: 'Fundamental Score', 
-                A: Math.round(avgFundamentalScore), 
-                B: 0, C: 0, D: 0, E: 0, 
-                fullMark: 100,
-                target: personalTargets.fundamentalScore,
-                unit: 'points'
-              },
-              { 
-                subject: 'Average Time', 
-                A: Math.min(Math.round(avgDuration), 60), 
-                B: 0, C: 0, D: 0, E: 0, 
-                fullMark: 60,
-                target: personalTargets.testAverageTime,
-                unit: 'min'
-              }
-            ];
-          };
-
-          // Tính toán metrics chi tiết cho Interview
-          const calculateInterviewMetrics = (activities: Activity[]) => {
-            if (activities.length === 0) {
-                          return [
-              { subject: 'Number of Interviews', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 30 },
-              { subject: 'Technical Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Communication Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Problem Solving Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Average Time', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 120 }
-            ];
-            }
-
-            const totalInterviews = activities.length;
-            const avgTechnicalScore = activities.reduce((sum, a) => {
-              const skillScores = a.skillScores || {};
-              return sum + (skillScores.technical || 0);
-            }, 0) / activities.length;
-            const avgCommunicationScore = activities.reduce((sum, a) => {
-              const skillScores = a.skillScores || {};
-              return sum + (skillScores.communication || 0);
-            }, 0) / activities.length;
-            const avgProblemSolvingScore = activities.reduce((sum, a) => {
-              const skillScores = a.skillScores || {};
-              return sum + (skillScores.problemSolving || 0);
-            }, 0) / activities.length;
-            const avgDuration = activities.reduce((sum, a) => sum + (a.duration || 0), 0) / activities.length;
-
-            return [
-              { subject: 'Number of Interviews', A: Math.min(totalInterviews, 30), B: 0, C: 0, D: 0, E: 0, fullMark: 30 },
-              { subject: 'Technical Score', A: Math.round(avgTechnicalScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Communication Score', A: Math.round(avgCommunicationScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Problem Solving Score', A: Math.round(avgProblemSolvingScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Average Time', A: Math.min(Math.round(avgDuration), 120), B: 0, C: 0, D: 0, E: 0, fullMark: 120 }
-            ];
-          };
-
-          // Tính toán metrics chi tiết cho Quiz
-          const calculateQuizMetrics = (activities: Activity[]) => {
-            if (activities.length === 0) {
-                          return [
-              { subject: 'Number of Quizzes', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Average Score', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Accuracy Rate', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Average Time', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 60 },
-              { subject: 'Completion Frequency', A: 0, B: 0, C: 0, D: 0, E: 0, fullMark: 15 }
-            ];
-            }
-
-            const totalQuizzes = activities.length;
-            const avgScore = activities.reduce((sum, a) => sum + (a.score || 0), 0) / activities.length;
-            const avgDuration = activities.reduce((sum, a) => sum + (a.duration || 0), 0) / activities.length;
-            
-            // Tính tần suất (số lần/tháng)
-            const now = new Date();
-            const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-            const recentQuizzes = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo);
-            const frequency = recentQuizzes.length;
-
-            return [
-              { subject: 'Number of Quizzes', A: Math.min(totalQuizzes, 100), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Average Score', A: Math.round(avgScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Accuracy Rate', A: Math.round(avgScore), B: 0, C: 0, D: 0, E: 0, fullMark: 100 },
-              { subject: 'Average Time', A: Math.min(Math.round(avgDuration), 60), B: 0, C: 0, D: 0, E: 0, fullMark: 60 },
-              { subject: 'Completion Frequency', A: Math.min(frequency, 15), B: 0, C: 0, D: 0, E: 0, fullMark: 15 }
             ];
           };
 
@@ -432,7 +289,7 @@ export default function TrackingDashboard() {
     if (isLoaded && user) {
       fetchProgress();
     }
-  }, [isLoaded, user, viewMode, lineMode, targetUpdateTrigger]);
+  }, [isLoaded, user, viewMode, lineMode, targetUpdateTrigger, personalTargets]);
 
   if (loading) {
     return (
@@ -525,7 +382,7 @@ export default function TrackingDashboard() {
             <select
               className="border rounded px-2 py-1"
               value={viewMode}
-              onChange={e => setViewMode(e.target.value as any)}
+              onChange={e => setViewMode(e.target.value as 'day' | 'month' | 'year')}
             >
               <option value="day">Day</option>
               <option value="month">Month</option>
@@ -535,7 +392,7 @@ export default function TrackingDashboard() {
             <select
               className="border rounded px-2 py-1"
               value={lineMode}
-              onChange={e => setLineMode(e.target.value as any)}
+              onChange={e => setLineMode(e.target.value as 'score' | 'total')}
             >
               <option value="score">Score</option>
               <option value="total">Total</option>

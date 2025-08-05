@@ -49,9 +49,16 @@ export default function QuizHistoryPage() {
                 throw new Error(errorData.message || `HTTP ${response.status}`)
             }
             const data = await response.json()
-            setQuizHistory(data)
+            // API trả về { quizzes: [...], stats: {...} }
+            if (data && typeof data === 'object' && Array.isArray(data.quizzes)) {
+                setQuizHistory(data.quizzes)
+            } else {
+                console.warn('Unexpected API response format:', data)
+                setQuizHistory([])
+            }
         } catch (error) {
             console.error("Error fetching quiz history:", error)
+            setQuizHistory([]) // Set empty array on error
         } finally {
             setIsLoading(false)
         }
@@ -60,12 +67,6 @@ export default function QuizHistoryPage() {
     useEffect(() => {
         fetchQuizHistory()
     }, [fetchQuizHistory])
-
-    useEffect(() => {
-        // Log dữ liệu để debug
-        console.log("quizHistory", quizHistory)
-        console.log("selectedQuiz", selectedQuiz)
-    }, [quizHistory, selectedQuiz])
 
     const handleViewQuizDetails = async (quiz: Quiz) => {
         if (selectedQuiz?.id === quiz.id) {
@@ -115,7 +116,10 @@ export default function QuizHistoryPage() {
         return "bg-red-100 text-red-800 border-red-200"
     }
 
-    const filteredQuizzes = quizHistory.filter((quiz) => {
+    // Đảm bảo quizHistory luôn là array
+    const safeQuizHistory = Array.isArray(quizHistory) ? quizHistory : [];
+    
+    const filteredQuizzes = safeQuizHistory.filter((quiz) => {
         if (!quiz || !quiz.field || !quiz.topic || !quiz.completedAt) return false;
         const matchesSearch =
             (quiz.field?.toLowerCase?.().includes(searchTerm.toLowerCase()) || false) ||
@@ -124,7 +128,7 @@ export default function QuizHistoryPage() {
         return matchesSearch && matchesLevel;
     })
 
-    const completedQuizzes = quizHistory.filter(quiz => quiz.completedAt)
+    const completedQuizzes = safeQuizHistory.filter(quiz => quiz.completedAt)
     const totalQuizzes = completedQuizzes.length
     const averageScore =
         totalQuizzes > 0 ? Math.round(completedQuizzes.reduce((sum, quiz) => sum + (quiz.score || 0), 0) / totalQuizzes) : 0

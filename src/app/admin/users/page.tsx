@@ -81,6 +81,33 @@ export default function AdminUsersPage() {
     fetchUsers();
   }, []);
 
+  // Thêm function fetchUsers để có thể gọi lại
+  const fetchUsers = async () => {
+    try {
+      // Clear cache trước khi fetch
+      await fetch('/api/user/clear-cache', {
+        method: 'POST'
+      });
+      
+      // Thêm timestamp để force refresh
+      const timestamp = Date.now();
+      const response = await fetch(`/api/user?t=${timestamp}`, {
+        cache: 'no-store', // Đảm bảo không cache
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      showToast('Failed to fetch users', 'error');
+    }
+  };
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning') => {
     setToast({ show: true, message, type });
   };
@@ -167,12 +194,19 @@ export default function AdminUsersPage() {
       });
 
       if (response.ok) {
-        setUsers(users.filter(u => u._id !== deletingUser._id));
+        // Fetch lại danh sách users với cache busting
+        await fetchUsers();
+        
+        // Force reload trang để đảm bảo dữ liệu mới nhất
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
         
         showToast(`Successfully deleted ${deletingUser.fullName}`, 'success');
         setDeletingUser(null);
       } else {
-        showToast(`Failed to delete ${deletingUser.fullName}`, 'error');
+        const errorData = await response.json();
+        showToast(`Failed to delete ${deletingUser.fullName}: ${errorData.error || 'Unknown error'}`, 'error');
       }
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -220,9 +254,6 @@ export default function AdminUsersPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -272,24 +303,6 @@ export default function AdminUsersPage() {
                         )}
                         {user.role}
                       </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {user.isOnline ? (
-                          <span className="flex items-center text-green-600">
-                            <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                            Online
-                          </span>
-                        ) : (
-                          <span className="flex items-center text-gray-500">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
-                            Offline
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Session: {user.clerkSessionActive ? 'Active' : 'Inactive'}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end">

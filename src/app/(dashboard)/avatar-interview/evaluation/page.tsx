@@ -70,7 +70,6 @@ const InterviewEvaluationContent: React.FC = () => {
       const data = await response.json();
       
       if (response.ok) {
-        console.log('Evaluation data received:', data);
         setEvaluation(data);
       } else {
         setError(data.message || 'Không thể tải đánh giá');

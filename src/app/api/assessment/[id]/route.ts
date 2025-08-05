@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withCORS } from '@/lib/utils';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
@@ -9,12 +10,12 @@ export async function PUT(
 ) {
   const { userId } = await auth();
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
   }
 
   const { id } = await params;
   if (!id) {
-    return NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 });
+    return withCORS(NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 }));
   }
 
   try {
@@ -26,12 +27,12 @@ export async function PUT(
     });
 
     if (!existingAssessment) {
-      return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });
+      return withCORS(NextResponse.json({ error: 'Assessment not found' }, { status: 404 }));
     }
 
     // Kiểm tra quyền sở hữu
     if (existingAssessment.userId !== userId) {
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+      return withCORS(NextResponse.json({ error: 'Permission denied' }, { status: 403 }));
     }
     
     // Cập nhật assessment
@@ -48,13 +49,13 @@ export async function PUT(
       await TrackingIntegrationService.trackAssessmentCompletion(userId, updatedAssessment);
     }
 
-    return NextResponse.json(updatedAssessment);
+    return withCORS(NextResponse.json(updatedAssessment));
   } catch (error) {
     console.error('Error updating assessment:', error);
-    return NextResponse.json({ 
+    return withCORS(NextResponse.json({ 
       error: 'Cập nhật kết quả thất bại', 
       detail: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 });
+    }, { status: 500 }));
   }
 }
 
@@ -64,12 +65,12 @@ export async function GET(
 ) {
   const { userId } = await auth();
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
   }
 
   const { id } = await params;
   if (!id) {
-    return NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 });
+    return withCORS(NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 }));
   }
 
   try {
@@ -81,7 +82,7 @@ export async function GET(
     });
 
     if (!assessment) {
-      return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });
+      return withCORS(NextResponse.json({ error: 'Assessment not found' }, { status: 404 }));
     }
 
     // Kiểm tra quyền sở hữu hoặc là admin
@@ -91,16 +92,16 @@ export async function GET(
     });
 
     if (assessment.userId !== userId && user?.role !== 'admin') {
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+      return withCORS(NextResponse.json({ error: 'Permission denied' }, { status: 403 }));
     }
 
-    return NextResponse.json(assessment);
+    return withCORS(NextResponse.json(assessment));
   } catch (error) {
     console.error('Error fetching assessment:', error);
-    return NextResponse.json({ 
+    return withCORS(NextResponse.json({ 
       error: 'Lấy kết quả thất bại', 
       detail: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 });
+    }, { status: 500 }));
   }
 }
 
@@ -110,12 +111,12 @@ export async function DELETE(
 ) {
   const { userId } = await auth();
   if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
   }
 
   const { id } = await params;
   if (!id) {
-    return NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 });
+    return withCORS(NextResponse.json({ error: 'Assessment ID is required' }, { status: 400 }));
   }
 
   try {
@@ -125,7 +126,7 @@ export async function DELETE(
     });
 
     if (!existingAssessment) {
-      return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });
+      return withCORS(NextResponse.json({ error: 'Assessment not found' }, { status: 404 }));
     }
 
     // Kiểm tra quyền sở hữu hoặc là admin
@@ -135,7 +136,7 @@ export async function DELETE(
     });
 
     if (existingAssessment.userId !== userId && user?.role !== 'admin') {
-      return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+      return withCORS(NextResponse.json({ error: 'Permission denied' }, { status: 403 }));
     }
 
     // Xóa assessment
@@ -143,12 +144,12 @@ export async function DELETE(
       where: { id },
     });
 
-    return NextResponse.json({ success: true });
+    return withCORS(NextResponse.json({ success: true }));
   } catch (error) {
     console.error('Error deleting assessment:', error);
-    return NextResponse.json({ 
+    return withCORS(NextResponse.json({ 
       error: 'Xóa kết quả thất bại', 
       detail: error instanceof Error ? error.message : 'Unknown error' 
-    }, { status: 500 });
+    }, { status: 500 }));
   }
 }

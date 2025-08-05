@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
+import prisma from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,6 +10,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Check if user is admin
+    try {
+      const user = await prisma.user.findUnique({
+        where: { clerkId: currentClerkUser.id },
+        select: { role: true }
+      });
+      
+      if (!user || user.role !== 'admin') {
+        return NextResponse.json(
+          { 
+            error: "Access Denied", 
+            message: "You don't have permission to access this admin API."
+          },
+          { status: 403 }
+        );
+      }
+    } catch (dbError) {
+      console.error('Error checking admin role:', dbError);
+      return NextResponse.json(
+        { error: "Database error" },
+        { status: 500 }
       );
     }
 

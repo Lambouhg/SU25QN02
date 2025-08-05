@@ -10,13 +10,13 @@ interface UserRole {
   loading: boolean;
 }
 
-const ROLE_CACHE_KEY = 'user_role_cache';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const ROLE_CACHE_KEY = 'admin_role_session'; // Use sessionStorage
+const CACHE_DURATION = 3 * 60 * 1000; // Reduced to 3 minutes
 
 interface RoleCache {
   role: string;
   timestamp: number;
-  userId: string;
+  // Removed userId for security
 }
 
 export function useUserRoleWithCache(): UserRole {
@@ -28,20 +28,17 @@ export function useUserRoleWithCache(): UserRole {
     loading: true
   });
 
-  // Kiểm tra cache
-  const getCachedRole = (userId: string): string | null => {
+  // Kiểm tra cache - Updated for security
+  const getCachedRole = (): string | null => {
     try {
-      const cached = localStorage.getItem(ROLE_CACHE_KEY);
+      const cached = sessionStorage.getItem(ROLE_CACHE_KEY);
       if (!cached) return null;
       
       const parsedCache: RoleCache = JSON.parse(cached);
       const now = Date.now();
       
-      if (
-        parsedCache.userId === userId &&
-        (now - parsedCache.timestamp) < CACHE_DURATION
-      ) {
-        console.log('📦 Using cached role:', parsedCache.role);
+      if ((now - parsedCache.timestamp) < CACHE_DURATION) {
+
         return parsedCache.role;
       }
     } catch (error) {
@@ -50,16 +47,15 @@ export function useUserRoleWithCache(): UserRole {
     return null;
   };
 
-  // Lưu cache
-  const setCachedRole = (userId: string, role: string) => {
+  // Lưu cache - Updated for security
+  const setCachedRole = (role: string) => {
     try {
       const cacheData: RoleCache = {
         role,
         timestamp: Date.now(),
-        userId
       };
-      localStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(cacheData));
-      console.log('💾 Cached role:', role);
+      sessionStorage.setItem(ROLE_CACHE_KEY, JSON.stringify(cacheData));
+
     } catch (error) {
       console.error('Error caching role:', error);
     }
@@ -68,12 +64,12 @@ export function useUserRoleWithCache(): UserRole {
   useEffect(() => {
     const checkUserRole = async () => {
       if (!isLoaded) {
-        console.log('⏳ Clerk not loaded yet...');
+
         return;
       }
 
       if (!user) {
-        console.log('❌ No user found');
+
         setUserRole({
           isAdmin: false,
           isUser: false,
@@ -84,7 +80,7 @@ export function useUserRoleWithCache(): UserRole {
       }
 
       // Kiểm tra cache trước
-      const cachedRole = getCachedRole(user.id);
+      const cachedRole = getCachedRole();
       if (cachedRole) {
         setUserRole({
           isAdmin: cachedRole === 'admin',
@@ -94,8 +90,6 @@ export function useUserRoleWithCache(): UserRole {
         });
         return;
       }
-
-      console.log('🔍 Fetching user role from API...');
 
       try {
         const response = await fetch(`/api/user/${user.id}`, {
@@ -110,7 +104,7 @@ export function useUserRoleWithCache(): UserRole {
           const role = userData.role || 'user';
           
           // Cache the result
-          setCachedRole(user.id, role);
+          setCachedRole(role);
           
           setUserRole({
             isAdmin: role === 'admin',
@@ -121,7 +115,7 @@ export function useUserRoleWithCache(): UserRole {
         } else {
           
           const defaultRole = 'user';
-          setCachedRole(user.id, defaultRole);
+          setCachedRole(defaultRole);
           
           setUserRole({
             isAdmin: false,
