@@ -1,14 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo, useCallback } from "react";
 import { format } from "date-fns";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { CreditCard, DollarSign, CheckCircle, XCircle, Clock, Download } from "lucide-react";
 
 interface PaymentData {
   id: string;
+  userId: string;
+  servicePackageId: string;
+  orderCode: string;
   amount: number;
-  currency: string;
+  refundAmount: number;
+  description: string;
   status: string;
-  paymentMethod: string;
+  paymentMethod: string | null;
+  transactionId: string | null;
+  checkoutUrl: string;
+  qrCode: string;
+  returnUrl: string;
+  cancelUrl: string;
+  paidAt: string | null;
   createdAt: string;
   updatedAt: string;
   servicePackage?: {
@@ -18,35 +32,33 @@ interface PaymentData {
     duration: number;
     description: string;
   };
-  transactionId?: string;
-  notes?: string;
 }
 
 interface PaymentHistoryProps {
   userId?: string;
 }
 
-export default function PaymentHistory({ }: PaymentHistoryProps) {
+function PaymentHistory({ }: PaymentHistoryProps) {
   const [payments, setPayments] = useState<PaymentData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    fetchPaymentHistory();
-  }, []);
-
-  const fetchPaymentHistory = async () => {
+  const fetchPaymentHistory = useCallback(async () => {
+    console.log('🔄 PaymentHistory: Fetching payment history...');
     try {
       setIsLoading(true);
+      setError(null);
+      
       const response = await fetch("/api/payment/history");
       
       if (!response.ok) {
-        throw new Error("Failed to fetch payment history");
+        throw new Error(`API request failed: ${response.status}`);
       }
       
       const result = await response.json();
+      console.log('🔄 PaymentHistory: API response:', result);
       
       if (result.success) {
         setPayments(result.data || []);
@@ -54,28 +66,34 @@ export default function PaymentHistory({ }: PaymentHistoryProps) {
         throw new Error(result.error || "Failed to load payment history");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      console.error("Error fetching payment history:", err);
+      console.error("🔄 PaymentHistory: Error fetching payment history:", err);
+      setError(err instanceof Error ? err.message : "Không thể tải lịch sử thanh toán");
+      setPayments([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    console.log('🔄 PaymentHistory: useEffect triggered');
+    fetchPaymentHistory();
+  }, [fetchPaymentHistory]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
       case "success":
       case "paid":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "text-green-600 bg-green-100";
       case "pending":
       case "processing":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "text-yellow-600 bg-yellow-100";
       case "failed":
       case "cancelled":
       case "refunded":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "text-red-600 bg-red-100";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "text-gray-600 bg-gray-100";
     }
   };
 
@@ -84,186 +102,192 @@ export default function PaymentHistory({ }: PaymentHistoryProps) {
       case "completed":
       case "success":
       case "paid":
-        return "✅";
+        return CheckCircle;
       case "pending":
       case "processing":
-        return "⏳";
+        return Clock;
       case "failed":
       case "cancelled":
-        return "❌";
+        return XCircle;
       case "refunded":
-        return "↩️";
+        return XCircle;
       default:
-        return "💳";
+        return CreditCard;
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "dd/MM/yyyy");
+    } catch {
+      return "Unknown date";
+    }
+  };
+
+  const formatAmount = (amount: number) => {
+    return new Intl.NumberFormat("vi-VN", {
       style: "currency",
-      currency: currency.toUpperCase(),
+      currency: "VND"
     }).format(amount);
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Payment History</h3>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-3 text-gray-600">Loading payment history...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Payment History</h3>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <span className="text-red-500 text-xl mr-3">⚠️</span>
-            <div>
-              <h4 className="text-red-800 font-medium">Error loading payment history</h4>
-              <p className="text-red-600 text-sm mt-1">{error}</p>
-            </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            Lịch sử thanh toán
+          </CardTitle>
+          <CardDescription>Quản lý và theo dõi các giao dịch của bạn</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-gray-600">Đang tải...</span>
           </div>
-          <button
-            onClick={fetchPaymentHistory}
-            className="mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
-  const totalPages = Math.ceil(payments.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentPayments = payments.slice(startIndex, endIndex);
+  if (error && payments.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="w-5 h-5" />
+            Lịch sử thanh toán
+          </CardTitle>
+          <CardDescription>Quản lý và theo dõi các giao dịch của bạn</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchPaymentHistory} variant="outline">
+              Thử lại
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const totalAmount = payments
-    .filter(p => ["completed", "success", "paid"].includes(p.status.toLowerCase()))
-    .reduce((sum, payment) => sum + payment.amount, 0);
+  const paginatedPayments = payments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xl font-semibold text-gray-900">Payment History</h3>
-        <div className="flex items-center space-x-4 text-sm">
-          <div className="flex items-center space-x-2 text-gray-500">
-            <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-            <span>{payments.length} transactions</span>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CreditCard className="w-5 h-5" />
+          Lịch sử thanh toán
+        </CardTitle>
+        <CardDescription>Quản lý và theo dõi các giao dịch của bạn</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {payments.length === 0 ? (
+          <div className="text-center py-8">
+            <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 mb-2">Chưa có giao dịch nào</p>
+            <p className="text-sm text-gray-500">Lịch sử thanh toán sẽ hiển thị ở đây khi bạn có giao dịch</p>
           </div>
-          {totalAmount > 0 && (
-            <div className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">
-              Total: {formatCurrency(totalAmount)}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {payments.length === 0 ? (
-        <div className="text-center py-12">
-          <h4 className="text-lg font-medium text-gray-900 mb-2">No Payment History</h4>
-          <p className="text-gray-600">You haven&apos;t made any payments yet.</p>
-        </div>
-      ) : (
-        <>
-          <div className="space-y-3">
-            {currentPayments.map((payment) => (
-              <div
-                key={payment.id}
-                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start space-x-3">
-                    <div className="text-2xl">{getStatusIcon(payment.status)}</div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span
-                          className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                            payment.status
-                          )}`}
-                        >
-                          {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          {format(new Date(payment.createdAt), "MMM dd, yyyy 'at' HH:mm")}
-                        </span>
+        ) : (
+          <>
+            <div className="space-y-4">
+              {paginatedPayments.map((payment, index) => {
+                const StatusIcon = getStatusIcon(payment.status);
+                const statusColorClasses = getStatusColor(payment.status);
+                
+                return (
+                  <div key={payment.id}>
+                    <div className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 rounded-full bg-blue-100">
+                          <DollarSign className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {payment.servicePackage?.name || payment.description || `Giao dịch ${payment.orderCode}`}
+                          </p>
+                          <div className="flex items-center gap-4 mt-1">
+                            <span className="text-sm text-gray-600">{formatDate(payment.createdAt)}</span>
+                            <span className="text-sm text-blue-600 font-medium">#{payment.orderCode}</span>
+                            {payment.paymentMethod && (
+                              <span className="text-sm text-gray-600">{payment.paymentMethod}</span>
+                            )}
+                          </div>
+                          {payment.paidAt && (
+                            <div className="text-xs text-green-600 mt-1">
+                              Đã thanh toán: {formatDate(payment.paidAt)}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">
-                          {payment.servicePackage?.name || "Service Payment"}
-                        </h4>
-                        <span className="text-lg font-semibold text-gray-900">
-                          {formatCurrency(payment.amount, payment.currency)}
-                        </span>
-                      </div>
-                      
-                      {payment.servicePackage?.description && (
-                        <p className="text-sm text-gray-600 mb-2">
-                          {payment.servicePackage.description}
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-gray-900">
+                          {formatAmount(payment.amount)}
                         </p>
-                      )}
-                      
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        {payment.paymentMethod && (
-                          <span>Payment: {payment.paymentMethod}</span>
-                        )}
-                        {payment.servicePackage?.duration && (
-                          <span>Duration: {payment.servicePackage.duration} days</span>
-                        )}
-                        {payment.transactionId && (
-                          <span>ID: {payment.transactionId}</span>
-                        )}
+                        <div className="flex items-center gap-1 mt-1">
+                          <StatusIcon className="w-4 h-4" />
+                          <span className={`text-sm px-2 py-1 rounded-full ${statusColorClasses}`}>
+                            {payment.status === "success" ? "Thành công" : 
+                             payment.status === "failed" ? "Thất bại" : 
+                             payment.status === "pending" ? "Đang xử lý" : payment.status}
+                          </span>
+                        </div>
                       </div>
-                      
-                      {payment.notes && (
-                        <p className="text-sm text-gray-600 mt-2 italic">
-                          Note: {payment.notes}
-                        </p>
-                      )}
                     </div>
+                    {index < paginatedPayments.length - 1 && <Separator className="my-2" />}
                   </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination */}
+            {payments.length > itemsPerPage && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <p className="text-sm text-gray-600">
+                  Hiển thị {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, payments.length)} của {payments.length} giao dịch
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Trước
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => prev + 1)}
+                    disabled={currentPage * itemsPerPage >= payments.length}
+                  >
+                    Sau
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-              <div className="text-sm text-gray-500">
-                Showing {startIndex + 1} to {Math.min(endIndex, payments.length)} of{" "}
-                {payments.length} payments
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-600">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
+            {/* Export Button */}
+            <div className="mt-6 pt-4 border-t">
+              <Button variant="outline" className="w-full">
+                <Download className="w-4 h-4 mr-2" />
+                Xuất lịch sử thanh toán
+              </Button>
             </div>
-          )}
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
+
+export default memo(PaymentHistory, (prevProps, nextProps) => {
+  // Only re-render if userId changes
+  return prevProps.userId === nextProps.userId;
+});

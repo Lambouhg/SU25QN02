@@ -437,7 +437,7 @@ export default function DashboardLayout({
 
       {/* Main Content */}
       <div className="lg:ml-64 mt-[61px]">
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="w-full">
           {children}
         </div>
       </div>

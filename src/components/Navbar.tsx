@@ -1,12 +1,19 @@
 "use client";
 
-import { Search, ChevronDown, Menu, X } from 'lucide-react';
+import { Search, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <nav className="flex items-center justify-between px-4 md:px-12 py-4 md:py-6 relative z-50 max-w-[2100px] mx-auto">
@@ -24,45 +31,46 @@ export default function Navbar() {
 
       {/* Desktop Navigation */}
       <div className="hidden md:flex items-center space-x-10">
-        <Link href="#" className="text-white font-medium hover:text-white/80 transition-colors">
+        <button 
+          onClick={() => scrollToSection('home')}
+          className="text-white font-medium hover:text-purple-300 transition-colors"
+        >
           Home
-        </Link>
-        <Link href="/dashboard" className="text-white font-medium hover:text-white/80 transition-colors">
+        </button>
+        <Link href="/dashboard" className="text-white font-medium hover:text-purple-300 transition-colors">
           Dashboard
         </Link>
-        <div className="relative group">
-          <button className="text-white font-medium flex items-center hover:text-white/80 transition-colors">
-            Features <ChevronDown className="ml-1 w-4 h-4 transition-transform group-hover:rotate-180" />
-          </button>
-          <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-            <Link href="#" className="block px-4 py-2 text-gray-700 hover:bg-purple-50">Feature 1</Link>
-            <Link href="#" className="block px-4 py-2 text-gray-700 hover:bg-purple-50">Feature 2</Link>
-            <Link href="#" className="block px-4 py-2 text-gray-700 hover:bg-purple-50">Feature 3</Link>
-          </div>
-        </div>
-        <Link href="/Pricing" className="text-white font-medium hover:text-white/80 transition-colors">
+        <button 
+          onClick={() => scrollToSection('features')}
+          className="text-white font-medium hover:text-purple-300 transition-colors"
+        >
+          Features
+        </button>
+        <button 
+          onClick={() => scrollToSection('how-it-works')}
+          className="text-white font-medium hover:text-purple-300 transition-colors"
+        >
+          How It Works
+        </button>
+        <button 
+          onClick={() => scrollToSection('pricing')}
+          className="text-white font-medium hover:text-purple-300 transition-colors"
+        >
           Pricing
+        </button>
+        <Link href="/Pricing" className="text-white font-medium hover:text-purple-300 transition-colors">
+          Full Pricing
         </Link>
-        <div className="relative group">
-          <button className="text-white font-medium flex items-center hover:text-white/80 transition-colors">
-            Resources <ChevronDown className="ml-1 w-4 h-4 transition-transform group-hover:rotate-180" />
-          </button>
-          <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
-            <Link href="#" className="block px-4 py-2 text-gray-700 hover:bg-purple-50">Resource 1</Link>
-            <Link href="#" className="block px-4 py-2 text-gray-700 hover:bg-purple-50">Resource 2</Link>
-            <Link href="#" className="block px-4 py-2 text-gray-700 hover:bg-purple-50">Resource 3</Link>
-          </div>
-        </div>
       </div>
 
       {/* Search and Auth */}
       <div className="hidden md:flex items-center space-x-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
             placeholder="Search"
-            className="pl-10 pr-4 py-2 rounded-full bg-white/10 text-white placeholder-white focus:outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/20 transition-all w-48"
+            className="pl-10 pr-4 py-2 rounded-full bg-gray-100 text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-300 focus:bg-white transition-all w-48"
           />
         </div>
         <SignedIn>
@@ -77,12 +85,12 @@ export default function Navbar() {
           />
         </SignedIn>
         <SignedOut>
-          <Link href="/sign-in" className="text-white font-medium hover:text-white/80 transition-colors">
+          <Link href="/sign-in" className="text-white font-medium hover:text-purple-300 transition-colors">
             Login
           </Link>
           <Link
             href="/sign-up"
-            className="bg-white text-purple-600 px-6 py-2.5 rounded-full font-medium hover:bg-white/90 transition-colors"
+            className="bg-purple-600 text-white px-6 py-2.5 rounded-full font-medium hover:bg-purple-700 transition-colors"
           >
             Sign-up
           </Link>
@@ -99,36 +107,67 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden absolute top-14 inset-x-0 z-50 bg-purple-600 border-t border-purple-500/20">
-          <div className="p-4">
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  className="w-full pl-10 pr-4 py-2 rounded-full bg-white/10 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/20"
-                />
-              </div>
-            </div>
-            <Link href="#" className="block py-2 text-white font-medium">Home</Link>
-            <Link href="/dashboard" className="block py-2 text-white font-medium">Dashboard</Link>
-            <Link href="#" className="block py-2 text-white font-medium">Features</Link>
-            <Link href="#" className="block py-2 text-white font-medium">Pricing</Link>
-            <Link href="#" className="block py-2 text-white font-medium">Resources</Link>
-            <div className="border-t border-purple-500/20 my-2"></div>
+        <div className="md:hidden absolute top-14 inset-x-0 z-50 bg-white border-t border-gray-200 shadow-lg">
+          <div className="p-4 space-y-4">
+            <button 
+              onClick={() => {
+                scrollToSection('home');
+                setIsMenuOpen(false);
+              }}
+              className="block w-full text-left py-2 text-gray-700 font-medium hover:text-purple-600"
+            >
+              Home
+            </button>
+            <Link href="/dashboard" className="block py-2 text-gray-700 font-medium hover:text-purple-600">
+              Dashboard
+            </Link>
+            <button 
+              onClick={() => {
+                scrollToSection('features');
+                setIsMenuOpen(false);
+              }}
+              className="block w-full text-left py-2 text-gray-700 font-medium hover:text-purple-600"
+            >
+              Features
+            </button>
+            <button 
+              onClick={() => {
+                scrollToSection('how-it-works');
+                setIsMenuOpen(false);
+              }}
+              className="block w-full text-left py-2 text-gray-700 font-medium hover:text-purple-600"
+            >
+              How It Works
+            </button>
+            <button 
+              onClick={() => {
+                scrollToSection('pricing');
+                setIsMenuOpen(false);
+              }}
+              className="block w-full text-left py-2 text-gray-700 font-medium hover:text-purple-600"
+            >
+              Pricing
+            </button>
+            <Link href="/Pricing" className="block py-2 text-gray-700 font-medium hover:text-purple-600">
+              Full Pricing
+            </Link>
+
+            <div className="border-t border-gray-200 my-2"></div>
+            
             <SignedIn>
               <div className="flex items-center justify-center py-2">
                 <UserButton afterSignOutUrl="/" />
               </div>
             </SignedIn>
             <SignedOut>
-              <Link href="/sign-in" className="block py-2 text-white font-medium">Đăng nhập</Link>
+              <Link href="/sign-in" className="block py-2 text-gray-700 font-medium hover:text-purple-600">
+                Login
+              </Link>
               <Link
                 href="/sign-up"
-                className="block py-2 text-white font-medium bg-white/10 rounded-lg text-center mt-2"
+                className="block py-2 text-gray-700 font-medium bg-purple-50 rounded-lg text-center mt-2"
               >
-                Đăng ký
+                Sign-up
               </Link>
             </SignedOut>
           </div>

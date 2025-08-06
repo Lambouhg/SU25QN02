@@ -154,6 +154,7 @@ export async function POST(req: NextRequest) {
                 servicePackageId,
                 startDate,
                 endDate,
+                // Set usage counters = 0 (hết lượt)
                 avatarInterviewUsed: 0,
                 testQuizEQUsed: 0,
                 jdUploadUsed: 0,
@@ -162,6 +163,9 @@ export async function POST(req: NextRequest) {
             include: { servicePackage: true }
         });
 
+        console.log(`✅ Đã tạo gói "${servicePackage.name}" cho user: ${user.email}`);
+        console.log(`📊 Usage counters: AI=0, EQ=0, JD=0 (hết lượt)`);
+       
         return NextResponse.json(newUserPackage, { status: 201 });
     } catch (error) {
         console.error('Error creating user package:', error);
@@ -209,24 +213,24 @@ export async function PATCH(req: NextRequest) {
             );
         }
 
-        // Validate usage limits
-        if (avatarInterviewUsed !== undefined && avatarInterviewUsed > currentPackage.servicePackage.avatarInterviewLimit) {
+        // Validate usage limits (avatarInterviewUsed = số lần còn lại)
+        if (avatarInterviewUsed !== undefined && avatarInterviewUsed < 0) {
             return NextResponse.json(
-                { error: `Avatar interview usage cannot exceed ${currentPackage.servicePackage.avatarInterviewLimit}` },
+                { error: `Avatar interview remaining uses cannot be negative` },
                 { status: 400 }
             );
         }
 
-        if (testQuizEQUsed !== undefined && testQuizEQUsed > currentPackage.servicePackage.testQuizEQLimit) {
+        if (testQuizEQUsed !== undefined && testQuizEQUsed < 0) {
             return NextResponse.json(
-                { error: `Test quiz EQ usage cannot exceed ${currentPackage.servicePackage.testQuizEQLimit}` },
+                { error: `Test quiz EQ remaining uses cannot be negative` },
                 { status: 400 }
             );
         }
 
-        if (jdUploadUsed !== undefined && jdUploadUsed > currentPackage.servicePackage.jdUploadLimit) {
+        if (jdUploadUsed !== undefined && jdUploadUsed < 0) {
             return NextResponse.json(
-                { error: `JD upload usage cannot exceed ${currentPackage.servicePackage.jdUploadLimit}` },
+                { error: `JD upload remaining uses cannot be negative` },
                 { status: 400 }
             );
         }
@@ -247,9 +251,9 @@ export async function PATCH(req: NextRequest) {
         const response = {
             ...updatedPackage,
             usage: {
-                avatarInterview: `${updatedPackage.avatarInterviewUsed}/${updatedPackage.servicePackage.avatarInterviewLimit}`,
-                testQuizEQ: `${updatedPackage.testQuizEQUsed}/${updatedPackage.servicePackage.testQuizEQLimit}`,
-                jdUpload: `${updatedPackage.jdUploadUsed}/${updatedPackage.servicePackage.jdUploadLimit}`
+                avatarInterview: `${updatedPackage.servicePackage.avatarInterviewLimit - updatedPackage.avatarInterviewUsed}/${updatedPackage.servicePackage.avatarInterviewLimit}`,
+                testQuizEQ: `${updatedPackage.servicePackage.testQuizEQLimit - updatedPackage.testQuizEQUsed}/${updatedPackage.servicePackage.testQuizEQLimit}`,
+                jdUpload: `${updatedPackage.servicePackage.jdUploadLimit - updatedPackage.jdUploadUsed}/${updatedPackage.servicePackage.jdUploadLimit}`
             }
         };
 

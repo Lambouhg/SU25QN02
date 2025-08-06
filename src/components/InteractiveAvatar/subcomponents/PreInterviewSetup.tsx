@@ -98,8 +98,51 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
           'Content-Type': 'application/json'
         }
       });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
       
+      console.log('Package check response:', data); // Debug log
+      
+      // Debug log chi tiết hơn
+      console.log('Avatar interview usage:', {
+        hasActivePackage: data.hasActivePackage,
+        avatarInterviewCanUse: data.usage?.avatarInterview?.canUse,
+        avatarInterviewUsage: data.usage?.avatarInterview ? 
+          `${data.usage.avatarInterview.currentUsage}/${data.usage.avatarInterview.serviceLimit}` : 'N/A',
+        selectedPackage: data.selectedPackage?.name
+      });
+      
+      // Validate response structure
+      if (!data || typeof data.hasActivePackage !== 'boolean') {
+        throw new Error('Invalid response structure from package check API');
+      }
+      
+      // Validate usage data structure
+      if (!data.usage) {
+        throw new Error('Missing usage data in package check response');
+      }
+      
+      if (!data.usage.avatarInterview) {
+        throw new Error('Missing avatarInterview usage data in package check response');
+      }
+      
+      // Kiểm tra cụ thể cho avatarInterview service
+      if (!data.usage.avatarInterview.canUse) {
+        // Lấy thông tin gói hiện tại để hiển thị
+        setPackageLimitInfo({
+          currentUsage: data.usage.avatarInterview.currentUsage || 0,
+          totalLimit: data.usage.avatarInterview.serviceLimit || 0,
+          packageName: data.selectedPackage?.name || 'Gói hiện tại'
+        });
+        setShowUpgradeModal(true);
+        return;
+      }
+      
+      // Kiểm tra thêm: nếu không có gói active
       if (!data.hasActivePackage) {
         setPackageLimitInfo({
           currentUsage: 0,
@@ -110,19 +153,32 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
         return;
       }
       
-      if (!data.canUse.avatarInterview) {
-        // Lấy thông tin gói hiện tại để hiển thị
-        setPackageLimitInfo({
-          currentUsage: data.currentUsage?.avatarInterview || 0,
-          totalLimit: data.totalLimit?.avatarInterview || 0,
-          packageName: data.packageName || 'Gói hiện tại'
-        });
-        setShowUpgradeModal(true);
-        return;
+      // Kiểm tra thêm: nếu avatarInterview usage không hợp lệ
+      if (typeof data.usage.avatarInterview.currentUsage !== 'number' || 
+          typeof data.usage.avatarInterview.serviceLimit !== 'number') {
+        throw new Error('Invalid avatarInterview usage data format');
       }
     } catch (error) {
       console.error('Error checking package limits:', error);
-      setStartError('Không kiểm tra được hạn mức. Vui lòng thử lại hoặc liên hệ hỗ trợ.');
+      
+      // Hiển thị error message chi tiết hơn
+      let errorMessage = 'Không kiểm tra được hạn mức. Vui lòng thử lại hoặc liên hệ hỗ trợ.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('HTTP error')) {
+          errorMessage = 'Lỗi kết nối server. Vui lòng thử lại sau.';
+        } else if (error.message.includes('Invalid response structure')) {
+          errorMessage = 'Lỗi dữ liệu từ server. Vui lòng liên hệ hỗ trợ.';
+        } else if (error.message.includes('Missing usage data')) {
+          errorMessage = 'Thông tin gói dịch vụ không đầy đủ. Vui lòng liên hệ hỗ trợ.';
+        } else if (error.message.includes('Missing avatarInterview usage data')) {
+          errorMessage = 'Thông tin phỏng vấn avatar không đầy đủ. Vui lòng liên hệ hỗ trợ.';
+        } else if (error.message.includes('Invalid avatarInterview usage data format')) {
+          errorMessage = 'Định dạng dữ liệu sử dụng không hợp lệ. Vui lòng liên hệ hỗ trợ.';
+        }
+      }
+      
+      setStartError(errorMessage);
       return;
     }
 
@@ -367,12 +423,6 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                         Truy cập tất cả tính năng premium
-                      </li>
-                      <li className="flex items-center">
-                        <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Hỗ trợ ưu tiên
                       </li>
                     </ul>
                   </div>

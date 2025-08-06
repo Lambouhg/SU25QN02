@@ -22,24 +22,31 @@ export async function POST(req: NextRequest) {
   const servicePackage = await prisma.servicePackage.findUnique({ where: { id: servicePackageId } });
   if (!servicePackage) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  // Lấy gói hiện tại của user (nếu có)
-  const userPackage = await prisma.userPackage.findFirst({
+  // Lấy tất cả gói active của user (có thể có cả free và paid)
+  const userPackages = await prisma.userPackage.findMany({
     where: {
-      userId: user.id, // Sử dụng user.id thay vì clerkId
+      userId: user.id,
+      isActive: true,
       endDate: { gt: new Date() },
     },
     orderBy: { endDate: 'desc' },
     include: { servicePackage: true },
   });
 
+  // Tìm gói trả phí cao nhất hiện tại (không phải gói free)
+  const paidPackage = userPackages.find(pkg => pkg.servicePackage.price > 0);
+  const freePackage = userPackages.find(pkg => pkg.servicePackage.price === 0);
+
+  console.log(`📊 User packages: Paid=${paidPackage?.servicePackage?.name || 'None'}, Free=${freePackage?.servicePackage?.name || 'None'}`);
+
   // Kiểm tra nâng cấp hợp lệ
-  if (userPackage && userPackage.servicePackage) {
+  if (paidPackage && paidPackage.servicePackage) {
     // Không cho phép mua lại gói đang dùng
-    if (userPackage.servicePackage.id === servicePackage.id) {
+    if (paidPackage.servicePackage.id === servicePackage.id) {
       return NextResponse.json({ error: 2, message: 'Bạn đang sử dụng gói này.' }, { status: 400 });
     }
     // Không cho phép nâng cấp xuống gói thấp hơn hoặc cùng cấp (chỉ cho phép lên gói giá cao hơn)
-    if (servicePackage.price <= userPackage.servicePackage.price) {
+    if (servicePackage.price <= paidPackage.servicePackage.price) {
       return NextResponse.json({ error: 3, message: 'Chỉ được nâng cấp lên gói cao hơn.' }, { status: 400 });
     }
   }
@@ -47,16 +54,16 @@ export async function POST(req: NextRequest) {
   let amount = servicePackage.price;
   let refundAmount = 0;
 
-  if (userPackage && userPackage.servicePackage) {
-    // Tính số ngày còn lại của gói cũ
+  if (paidPackage && paidPackage.servicePackage) {
+    // Tính số ngày còn lại của gói trả phí cũ
     const now = new Date();
-    const endDate = userPackage.endDate as Date;
-    const startDate = userPackage.startDate as Date;
+    const endDate = paidPackage.endDate as Date;
+    const startDate = paidPackage.startDate as Date;
     const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-    // Giá trị còn lại của gói cũ
-    if (totalDays > 0 && userPackage.servicePackage.price > 0) {
-      refundAmount = Math.round(userPackage.servicePackage.price * (daysLeft / totalDays));
+    // Giá trị còn lại của gói trả phí cũ
+    if (totalDays > 0 && paidPackage.servicePackage.price > 0) {
+      refundAmount = Math.round(paidPackage.servicePackage.price * (daysLeft / totalDays));
       amount = Math.max(0, servicePackage.price - refundAmount);
     }
   }

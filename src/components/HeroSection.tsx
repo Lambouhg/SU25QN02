@@ -46,43 +46,6 @@ export default function HeroSection() {
         </div>
       </div>
       
-      {/* Statistics Section */}
-      <div className="mt-16 md:mt-24 pt-12 md:pt-16 border-t border-white/10">
-        <div className="text-center mb-12">
-          <p className="text-lg md:text-xl text-white/80 max-w-3xl mx-auto leading-relaxed">
-            Trusted by leading companies worldwide for efficient recruitment and candidate preparation
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="text-center group">
-            <div className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">
-              50,000+
-            </div>
-            <p className="text-white/80 text-sm md:text-base font-medium">
-              Successful Interviews
-            </p>
-          </div>
-          
-          <div className="text-center group">
-            <div className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-green-400 to-green-300 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">
-              95%
-            </div>
-            <p className="text-white/80 text-sm md:text-base font-medium">
-              Accuracy Rate
-            </p>
-          </div>
-          
-          <div className="text-center group">
-            <div className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-purple-300 bg-clip-text text-transparent mb-3 group-hover:scale-110 transition-transform duration-300">
-              2,000+
-            </div>
-            <p className="text-white/80 text-sm md:text-base font-medium">
-              Trusted Companies
-            </p>
-          </div>
-        </div>
-      </div>
     </section>
   );
 }

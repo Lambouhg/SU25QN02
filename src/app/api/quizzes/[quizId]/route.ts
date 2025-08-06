@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { withCORS, corsOptionsResponse } from '@/lib/utils';
 import { QuizMappingService } from '@/hooks/useQuizMapping';
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
-  return corsOptionsResponse();
-}
+
 
 export async function GET(
   req: Request,
@@ -16,7 +13,7 @@ export async function GET(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+      return (NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { quizId } = await params;
@@ -26,7 +23,7 @@ export async function GET(
     });
 
     if (!quiz) {
-      return withCORS(NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
     }
 
     // Kiểm tra xem quiz có answerMapping không (retry quiz)
@@ -77,10 +74,10 @@ export async function GET(
       })
     };
 
-    return withCORS(NextResponse.json(transformedQuiz));
+    return (NextResponse.json(transformedQuiz));
   } catch (error) {
     console.error('Error fetching quiz:', error);
-    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
+    return (NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 }
 
@@ -91,7 +88,7 @@ export async function DELETE(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+      return (NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { quizId } = await params;
@@ -101,7 +98,7 @@ export async function DELETE(
       where: { clerkId: userId },
     });
     if (!user) {
-      return withCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'User not found' }, { status: 404 }));
     }
 
     // Check if quiz exists and belongs to user
@@ -110,11 +107,11 @@ export async function DELETE(
     });
 
     if (!quiz) {
-      return withCORS(NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
     }
 
     if (quiz.userId !== user.id) {
-      return withCORS(NextResponse.json({ error: 'Access denied' }, { status: 403 }));
+      return (NextResponse.json({ error: 'Access denied' }, { status: 403 }));
     }
 
     // Delete quiz
@@ -122,9 +119,9 @@ export async function DELETE(
       where: { id: quizId },
     });
 
-    return withCORS(NextResponse.json({ message: 'Quiz deleted successfully' }));
+    return (NextResponse.json({ message: 'Quiz deleted successfully' }));
   } catch (error) {
     console.error('Error deleting quiz:', error);
-    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
+    return (NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 } 

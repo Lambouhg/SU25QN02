@@ -243,10 +243,8 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!progress || !progress.recentActivities) return;
     const activities = progress.recentActivities;
-    const totalInterviews = progress.stats?.totalInterviews || 0;
     
 
-    console.log('Total interviews from stats:', totalInterviews);
     
     const groupKey = (date: Date): string => {
       if (viewMode === 'day') return date.toISOString().slice(0, 10);

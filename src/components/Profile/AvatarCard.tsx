@@ -29,7 +29,6 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({
     return first + last || 'U';
   };
 
-  const fullName = `${firstName} ${lastName}`.trim() || 'User';
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -117,7 +116,6 @@ export const AvatarCard: React.FC<AvatarCardProps> = ({
         />
         
         <div className="mt-6">
-          <h3 className="text-xl font-bold text-gray-900">{fullName || 'User'}</h3>
           <p className="text-sm text-gray-500 mt-1">
             {isUploading ? 'Uploading...' : 'Click camera to update photo'}
           </p>
