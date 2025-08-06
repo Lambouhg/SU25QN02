@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,6 @@ import {
   Users, 
   MessageCircle, 
   Trophy, 
-  Clock, 
   Sparkles,
   Zap,
   Crown,
@@ -34,11 +34,13 @@ interface ServicePackage {
 interface UserPackage {
   servicePackageId: string;
   isActive: boolean;
+  startDate: string;
   endDate: string;
   servicePackage: ServicePackage;
 }
 
-const PricingPage: React.FC = () => {
+const PricingContent: React.FC = () => {
+  const searchParams = useSearchParams();
   const [packages, setPackages] = useState<ServicePackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -55,6 +57,16 @@ const PricingPage: React.FC = () => {
         if (data && Array.isArray(data.packages)) {
           setPackages(data.packages);
           setUserPackage(data.userPackage || null);
+          
+          // Kiểm tra xem có tham số package trong URL không
+          const packageParam = searchParams.get('package');
+          if (packageParam) {
+            // Tìm gói có id trùng khớp
+            const foundPackage = data.packages.find((pkg: ServicePackage) => pkg.id === packageParam);
+            if (foundPackage) {
+              setSelectedId(packageParam);
+            }
+          }
         } else {
           setPackages([]);
           setUserPackage(null);
@@ -65,7 +77,7 @@ const PricingPage: React.FC = () => {
         setError('Không thể tải danh sách gói dịch vụ.');
         setLoading(false);
       });
-  }, []);
+  }, [searchParams]);
 
   const handleBuy = async () => {
     if (!selectedId) return;
@@ -99,8 +111,11 @@ const PricingPage: React.FC = () => {
       userPackage.isActive && 
       new Date(userPackage.endDate) >= new Date();
     
-    // Nếu là gói hiện tại thì không cho phép chọn
-    if (isCurrentPackage) {
+    // Tìm gói được chọn
+    const selectedPackage = packages.find(pkg => pkg.id === id);
+    
+    // Nếu là gói hiện tại hoặc gói free thì không cho phép chọn
+    if (isCurrentPackage || (selectedPackage && selectedPackage.price === 0)) {
       return;
     }
     
@@ -112,9 +127,10 @@ const PricingPage: React.FC = () => {
   };
 
   const getPlanIcon = (pkg: ServicePackage) => {
-    if (pkg.price <= 100000) return <Star className="h-8 w-8" />;
-    if (pkg.price <= 300000) return <Zap className="h-8 w-8" />;
-    return <Crown className="h-8 w-8" />;
+    if (pkg.price === 0) return <Star className="h-8 w-8" />;
+    if (pkg.price <= 100000) return <Zap className="h-8 w-8" />;
+    if (pkg.price <= 300000) return <Crown className="h-8 w-8" />;
+    return <Trophy className="h-8 w-8" />;
   };
 
   const getPlanStyle = (pkg: ServicePackage, index: number) => {
@@ -123,6 +139,18 @@ const PricingPage: React.FC = () => {
       userPackage.servicePackageId === pkg.id && 
       userPackage.isActive && 
       new Date(userPackage.endDate) >= new Date();
+    
+    // Gói free luôn được kích hoạt sẵn
+    if (pkg.price === 0) {
+      return {
+        iconBg: "bg-gradient-to-br from-green-500 to-emerald-600",
+        cardBg: "bg-gradient-to-br from-green-50 to-emerald-50",
+        borderColor: "border-green-300",
+        priceColor: "text-green-700",
+        popular: false,
+        disabled: true // Disabled vì đã được kích hoạt sẵn
+      };
+    }
     
     if (isCurrent) {
       return {
@@ -167,7 +195,7 @@ const PricingPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Đang tải...</p>
@@ -178,7 +206,7 @@ const PricingPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-red-600 text-2xl">!</span>
@@ -192,10 +220,7 @@ const PricingPage: React.FC = () => {
   const selectedPackage = getSelectedPackage();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] -z-10" />
-      
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
       <div className="relative">
         {/* Hero Section */}
         <div className="pt-20 pb-16 px-4">
@@ -203,15 +228,12 @@ const PricingPage: React.FC = () => {
             <div className="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-purple-500 to-pink-500 mb-8 shadow-2xl">
               <CreditCard className="h-12 w-12 text-white" />
             </div>
-            <h1 className="text-6xl font-bold text-gray-900 mb-6 bg-gradient-to-r from-gray-900 via-purple-800 to-violet-900 bg-clip-text text-transparent">
+            <h1 className="text-6xl font-bold text-gray-900 mb-6">
               Gói Dịch Vụ
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-10">
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Chọn gói dịch vụ phù hợp để nâng cao kỹ năng phỏng vấn của bạn với công nghệ AI tiên tiến
             </p>
-            
-            {/* Toggle Buttons */}
-            
           </div>
         </div>
 
@@ -219,33 +241,29 @@ const PricingPage: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4 pb-20">
           {/* Pricing Cards Section */}
           <div className="mb-16">
-            <div className="grid md:grid-cols-3 gap-6">
+            <div className="grid md:grid-cols-3 gap-8">
               {packages.map((pkg, index) => {
                 const planStyle = getPlanStyle(pkg, index);
                 const isCurrent = userPackage && 
                   userPackage.servicePackageId === pkg.id && 
                   userPackage.isActive && 
                   new Date(userPackage.endDate) >= new Date();
-                const isExpired = userPackage && 
-                  userPackage.servicePackageId === pkg.id && 
-                  (!userPackage.isActive || new Date(userPackage.endDate) < new Date());
-                const isHigher = userPackage && pkg.price > userPackage.servicePackage.price;
                 const isSelected = selectedId === pkg.id;
 
                 return (
-                                     <Card
-                     key={pkg.id}
-                     className={`relative transition-all duration-300 h-full ${
-                       planStyle.disabled 
-                         ? 'cursor-not-allowed' 
-                         : 'cursor-pointer hover:scale-105'
-                     } ${
-                       isSelected && !planStyle.disabled
-                         ? 'ring-4 ring-purple-500 ring-opacity-50 shadow-2xl'
-                         : planStyle.popular
-                         ? "lg:scale-105 shadow-2xl shadow-purple-500/30 border-2 border-purple-300"
-                         : `shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 ${planStyle.borderColor}`
-                     }`}
+                  <Card
+                    key={pkg.id}
+                    className={`relative transition-all duration-300 h-full ${
+                      planStyle.disabled 
+                        ? 'cursor-not-allowed' 
+                        : 'cursor-pointer hover:scale-105'
+                    } ${
+                      isSelected && !planStyle.disabled
+                        ? 'ring-4 ring-purple-500 ring-opacity-50 shadow-2xl'
+                        : planStyle.popular
+                        ? "lg:scale-105 shadow-2xl shadow-purple-500/30 border-2 border-purple-300"
+                        : `shadow-xl hover:shadow-2xl hover:shadow-purple-500/20 ${planStyle.borderColor}`
+                    }`}
                     style={{
                       background: planStyle.cardBg,
                     }}
@@ -271,24 +289,15 @@ const PricingPage: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Expired Badge */}
-                    {isExpired && (
+                    {/* Free Package Badge */}
+                    {pkg.price === 0 && (
                       <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                        <Badge className="bg-gradient-to-r from-gray-600 to-slate-600 text-white px-4 py-2 text-sm font-bold shadow-xl border border-gray-400/50">
-                          <Clock className="h-4 w-4 mr-2" />
-                          Đã hết hạn
+                        <Badge className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 text-sm font-bold shadow-xl border border-green-400/50">
+                          <Check className="h-4 w-4 mr-2" />
+                          Đã kích hoạt
                         </Badge>
                       </div>
                     )}
-
-                                         {/* Current Package Icon */}
-                     {planStyle.disabled && (
-                       <div className="absolute top-4 right-4 z-20">
-                         <div className="bg-green-500 text-white rounded-full p-2 shadow-lg">
-                           <Check className="h-5 w-5" />
-                         </div>
-                       </div>
-                     )}
 
                     <CardHeader className="text-center pb-6 pt-8">
                       {/* Icon */}
@@ -306,11 +315,13 @@ const PricingPage: React.FC = () => {
                       <div className="mb-6">
                         <div className="flex items-baseline justify-center gap-2 mb-2">
                           <span className={`text-4xl font-bold ${planStyle.priceColor}`}>
-                            {pkg.price.toLocaleString()}đ
+                            {pkg.price === 0 ? 'Miễn phí' : `${pkg.price.toLocaleString()}đ`}
                           </span>
-                          <span className="text-gray-500 text-lg">/{pkg.duration} ngày</span>
+                          {pkg.price > 0 && <span className="text-gray-500 text-lg">/{pkg.duration} ngày</span>}
                         </div>
-                        <p className="text-gray-500 text-sm">Thanh toán một lần</p>
+                        <p className="text-gray-500 text-sm">
+                          {pkg.price === 0 ? 'Kích hoạt ngay lập tức' : 'Thanh toán một lần'}
+                        </p>
                       </div>
                       
                       {/* Features Grid */}
@@ -362,45 +373,30 @@ const PricingPage: React.FC = () => {
                         </div>
                       </div>
 
-                                             {/* Selection Indicator - Đã ẩn cho tất cả gói */}
-                      
-                      {/* Action buttons - Ẩn cho gói hiện tại */}
+                      {/* Action buttons */}
                       {!planStyle.disabled && (
-                        <>
-                          {isHigher && !isCurrent && (
-                            <Button
-                              className="w-full py-3 text-base font-semibold transition-all duration-300 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white shadow-xl hover:shadow-2xl rounded-xl"
-                              disabled={buying}
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                handleSelect(pkg.id); 
-                                handleBuy(); 
-                              }}
-                            >
-                              <span className="flex items-center justify-center gap-2">
-                                Nâng cấp ngay
-                                <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-                              </span>
-                            </Button>
-                          )}
-                          
-                          {!isCurrent && !isHigher && (
-                            <Button
-                              className="w-full py-3 text-base font-semibold transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-xl hover:shadow-2xl rounded-xl"
-                              disabled={buying}
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                handleSelect(pkg.id); 
-                                handleBuy(); 
-                              }}
-                            >
-                              <span className="flex items-center justify-center gap-2">
-                                {buying ? 'Đang xử lý...' : 'Mua gói'}
-                                <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-                              </span>
-                            </Button>
-                          )}
-                        </>
+                        <Button
+                          className="w-full py-3 text-base font-semibold transition-all duration-300 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-xl hover:shadow-2xl rounded-xl"
+                          disabled={buying}
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            handleSelect(pkg.id); 
+                            handleBuy();
+                          }}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            Mua gói
+                            <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                          </span>
+                        </Button>
+                      )}
+
+                      {/* Free package - already activated */}
+                      {pkg.price === 0 && (
+                        <div className="w-full py-3 text-base font-semibold bg-green-100 text-green-700 rounded-xl flex items-center justify-center gap-2">
+                          <Check className="h-5 w-5" />
+                          Đã kích hoạt
+                        </div>
                       )}
                     </CardContent>
                   </Card>
@@ -430,11 +426,13 @@ const PricingPage: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                        {selectedPackage.price.toLocaleString()}đ
+                        {selectedPackage.price === 0 ? 'Miễn phí' : `${selectedPackage.price.toLocaleString()}đ`}
                       </div>
-                      <div className="text-gray-500 text-lg">
-                        /{selectedPackage.duration} ngày
-                      </div>
+                      {selectedPackage.price > 0 && (
+                        <div className="text-gray-500 text-lg">
+                          /{selectedPackage.duration} ngày
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -476,11 +474,11 @@ const PricingPage: React.FC = () => {
                           new Date(userPackage.endDate) >= new Date()
                         )
                       }
-                      onClick={handleBuy}
+                      onClick={selectedPackage.price === 0 ? () => {} : handleBuy}
                     >
                       <span className="flex items-center gap-4">
-                        {buying ? 'Đang xử lý...' : 'Tiến hành thanh toán'}
-                        <ArrowRight className="h-6 w-6" />
+                        {selectedPackage.price === 0 ? 'Đã kích hoạt' : 'Tiến hành thanh toán'}
+                        {selectedPackage.price > 0 && <ArrowRight className="h-6 w-6" />}
                       </span>
                     </Button>
                   </div>
@@ -518,135 +516,24 @@ const PricingPage: React.FC = () => {
               </Card>
             </div>
           )}
-
-          {/* Information Sections */}
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Benefits Card */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader className="pb-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-3xl">
-                <CardTitle className="flex items-center gap-4 text-xl">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                    <Heart className="h-6 w-6 text-white" />
-                  </div>
-                  Lợi ích
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-6">
-                <div className="flex items-center space-x-4 p-4 bg-purple-50 rounded-2xl border border-purple-100">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center">
-                    <Heart className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 text-lg">Avatar Interview</h4>
-                    <p className="text-gray-600 text-sm">Phỏng vấn với AI avatar thực tế</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4 p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center">
-                    <Users className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 text-lg">EQ & Quiz Tests</h4>
-                    <p className="text-gray-600 text-sm">Đánh giá trí tuệ cảm xúc</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4 p-4 bg-teal-50 rounded-2xl border border-teal-100">
-                  <div className="w-12 h-12 rounded-2xl bg-teal-100 flex items-center justify-center">
-                    <MessageCircle className="h-6 w-6 text-teal-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 text-lg">JD Analysis</h4>
-                    <p className="text-gray-600 text-sm">Phân tích mô tả công việc</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Why Choose Us Card */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader className="pb-6 bg-gradient-to-r from-pink-50 to-purple-50 rounded-t-3xl">
-                <CardTitle className="flex items-center gap-4 text-xl">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center">
-                    <Star className="h-6 w-6 text-white" />
-                  </div>
-                  Tại sao chọn chúng tôi?
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-6">
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-base flex-shrink-0">1</div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 text-lg">Công nghệ AI tiên tiến</h4>
-                    <p className="text-gray-600 text-sm mt-1">Sử dụng AI mới nhất để tạo trải nghiệm phỏng vấn thực tế</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-base flex-shrink-0">2</div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 text-lg">Đánh giá chi tiết</h4>
-                    <p className="text-gray-600 text-sm mt-1">Nhận phản hồi chi tiết về kỹ năng và cải thiện</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-4">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-base flex-shrink-0">3</div>
-                  <div>
-                    <h4 className="font-semibold text-gray-900 text-lg">Linh hoạt thời gian</h4>
-                    <p className="text-gray-600 text-sm mt-1">Luyện tập bất cứ lúc nào, không giới hạn thời gian</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Current Package Card */}
-            <Card className="bg-white/90 backdrop-blur-sm border-0 shadow-xl">
-              <CardHeader className="pb-6 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-t-3xl">
-                <CardTitle className="flex items-center gap-4 text-xl">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-500 flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-white" />
-                  </div>
-                  Gói hiện tại
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                {userPackage ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
-                      <span className="text-base font-medium text-gray-600">Gói:</span>
-                      <Badge className="bg-purple-100 text-purple-800 border-purple-200 font-medium text-base">
-                        {userPackage.servicePackage.name}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
-                      <span className="text-base font-medium text-gray-600">Trạng thái:</span>
-                      <Badge className={`font-medium text-base ${
-                        userPackage.isActive && new Date(userPackage.endDate) >= new Date()
-                          ? 'bg-green-100 text-green-800 border-green-200'
-                          : 'bg-red-100 text-red-800 border-red-200'
-                      }`}>
-                        {userPackage.isActive && new Date(userPackage.endDate) >= new Date() ? 'Hoạt động' : 'Hết hạn'}
-                      </Badge>
-                    </div>
-                    <div className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl">
-                      <span className="text-base font-medium text-gray-600">Hết hạn:</span>
-                      <Badge className="bg-teal-100 text-teal-800 border-teal-200 font-medium text-base">
-                        {new Date(userPackage.endDate).toLocaleDateString('vi-VN')}
-                      </Badge>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="w-20 h-20 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-6">
-                      <CreditCard className="h-10 w-10 text-gray-400" />
-                    </div>
-                    <p className="text-gray-500 font-medium text-lg">Chưa có gói dịch vụ nào</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
     </div>
+  );
+};
+
+const PricingPage: React.FC = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Đang tải...</p>
+        </div>
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   );
 };
 

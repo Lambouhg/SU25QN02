@@ -1,13 +1,7 @@
-import { corsOptionsResponse } from '@/lib/utils';
-// Handler for CORS preflight
-export async function OPTIONS() {
-  return corsOptionsResponse();
-}
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
-import { withCORS } from '@/lib/utils';
 
 type PrismaError = Error & { code?: string };
 
@@ -136,9 +130,9 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     const userId = session?.userId;
     if (!userId) {
-      return withCORS(new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
-      }));
+      });
     }
 
     // Get user from database
@@ -147,38 +141,52 @@ export async function POST(req: NextRequest) {
     });
 
     if (!dbUser) {
-      return withCORS(new Response(JSON.stringify({ error: 'User not found' }), {
+      return new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404,
-      }));
+      });
     }
 
     // Get request data
     const data = await req.json() as CreateInterviewRequest;
     if (!validateInterviewData(data)) {
-      return withCORS(new Response(JSON.stringify({ error: 'Invalid request data' }), {
+      return new Response(JSON.stringify({ error: 'Invalid request data' }), {
         status: 400,
-      }));
+      });
     }
 
-    // Luôn kiểm tra hạn mức trước khi tạo interview
-    const activeUserPackage = await prisma.userPackage.findFirst({
+    // Lấy tất cả gói active và chọn gói phù hợp để sử dụng
+    const activeUserPackages = await prisma.userPackage.findMany({
       where: {
         userId: dbUser.id,
         isActive: true,
         endDate: { gte: new Date() }
       },
-      include: { servicePackage: true }
+      include: { servicePackage: true },
+      orderBy: { createdAt: 'desc' }
     });
 
-    if (!activeUserPackage) {
-      return withCORS(new Response(JSON.stringify({ error: 'No active service package found for user' }), { status: 403 }));
+    if (activeUserPackages.length === 0) {
+      return new Response(JSON.stringify({ error: 'No active service package found for user' }), { status: 403 });
     }
 
-    const used = activeUserPackage.avatarInterviewUsed;
-    const limit = activeUserPackage.servicePackage.avatarInterviewLimit;
-    if (used >= limit) {
-      return withCORS(new Response(JSON.stringify({ error: `Avatar interview usage exceeded: ${used}/${limit}` }), { status: 403 }));
+    // Logic chọn gói: ưu tiên gói trả phí có lượt, fallback về gói free
+    const paidPackages = activeUserPackages.filter(pkg => pkg.servicePackage.price > 0);
+    const freePackages = activeUserPackages.filter(pkg => pkg.servicePackage.price === 0);
+    
+    // Tìm gói trả phí có lượt còn lại
+    const availablePaidPackage = paidPackages.find(pkg => pkg.avatarInterviewUsed > 0);
+    
+    // Tìm gói free có lượt còn lại
+    const availableFreePackage = freePackages.find(pkg => pkg.avatarInterviewUsed > 0);
+    
+    // Chọn gói để sử dụng
+    const selectedPackage = availablePaidPackage || availableFreePackage;
+    
+    if (!selectedPackage) {
+      return new Response(JSON.stringify({ error: `Avatar interview usage exceeded: 0 remaining uses` }), { status: 403 });
     }
+
+    const remaining = selectedPackage.avatarInterviewUsed;
 
     // Tạo interview
     const newInterview = await prisma.interview.create({
@@ -223,35 +231,35 @@ export async function POST(req: NextRequest) {
         }
       });
       await prisma.userPackage.update({
-        where: { id: activeUserPackage.id },
+        where: { id: selectedPackage.id },
         data: {
-          avatarInterviewUsed: used + 1,
+          avatarInterviewUsed: remaining - 1,
           updatedAt: new Date()
         }
       });
     }
 
-    return withCORS(new Response(
+    return new Response(
       JSON.stringify({ 
         message: 'Interview created successfully', 
         interviewId: newInterview.id 
       }), 
       { status: 201 }
-    ));
+    );
   } catch (error) {
     console.error('Error in POST /api/interviews:', error);
     
     if (error instanceof Error && (error as PrismaError).code === 'P2002') {
-      return withCORS(NextResponse.json(
+      return NextResponse.json(
         { error: 'Duplicate interview entry' },
         { status: 409 }
-      ));
+      );
     }
     
-    return withCORS(NextResponse.json(
+    return NextResponse.json(
       { error: 'Internal server error', details: (error as Error).message },
       { status: 500 }
-    ));
+    );
   }
 }
 
@@ -261,10 +269,10 @@ export async function GET(req: NextRequest) {
     const clerkId = session?.userId;
     
     if (!clerkId) {
-      return withCORS(NextResponse.json(
+      return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      ));
+      );
     }
     
     // Find user by clerkId
@@ -273,10 +281,10 @@ export async function GET(req: NextRequest) {
     });
     
     if (!user) {
-      return withCORS(NextResponse.json(
+      return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
-      ));
+      );
     }
 
     // Get query parameters for filtering
@@ -355,15 +363,17 @@ export async function GET(req: NextRequest) {
       new Date(i.startTime) >= weekAgo
     ).length;
 
-    return withCORS(NextResponse.json({
+    return NextResponse.json({
       interviews,
       stats
-    }));
+    });
   } catch (error) {
     console.error('Error in GET /api/interviews:', error);
-    return withCORS(NextResponse.json(
+    return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    ));
+    );
   }
 }
+
+

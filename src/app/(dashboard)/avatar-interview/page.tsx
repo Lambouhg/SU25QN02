@@ -43,7 +43,7 @@ export default function AvatarInterviewPage() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
               <div className="flex justify-end mb-4">
             <Link href="/avatar-interview/history">
-              <button className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-all">History</button>
+              <button className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-all">History</button>
             </Link>
           </div>
               <div className="text-center mb-8">
@@ -136,7 +136,7 @@ export default function AvatarInterviewPage() {
               <div className="text-center">
                 <button
                   onClick={() => setIsInterviewStarted(true)}
-                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="inline-flex items-center px-8 py-4 bg-black text-white rounded-lg font-semibold text-lg hover:bg-gray-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
                   <svg className="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />

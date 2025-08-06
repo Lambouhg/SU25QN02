@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { withCORS, corsOptionsResponse } from '@/lib/utils';
 import { QuizMappingService } from '@/hooks/useQuizMapping';
 
 interface Question {
@@ -12,10 +11,7 @@ interface Question {
   isMultipleChoice?: boolean;
 }
 
-// Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
-  return corsOptionsResponse();
-}
+
 
 export async function POST(
   req: Request,
@@ -24,7 +20,7 @@ export async function POST(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+      return (NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { quizId } = await params;
@@ -34,7 +30,7 @@ export async function POST(
       where: { clerkId: userId },
     });
     if (!user) {
-      return withCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'User not found' }, { status: 404 }));
     }
 
     // Lấy quiz gốc để retry
@@ -44,12 +40,12 @@ export async function POST(
     });
 
     if (!originalQuiz) {
-      return withCORS(NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
     }
 
     // Kiểm tra xem quiz có thuộc về user này không
     if (originalQuiz.userId !== user.id) {
-      return withCORS(NextResponse.json({ error: 'Access denied' }, { status: 403 }));
+      return (NextResponse.json({ error: 'Access denied' }, { status: 403 }));
     }
 
     // 1. Xử lý shuffle questions và answers từ quiz gốc
@@ -94,9 +90,9 @@ export async function POST(
       answerMapping: answerMapping
     };
 
-    return withCORS(NextResponse.json(quizForUI, { status: 201 }));
+    return (NextResponse.json(quizForUI, { status: 201 }));
   } catch (error) {
     console.error('Error retrying quiz:', error);
-    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
+    return (NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 } 

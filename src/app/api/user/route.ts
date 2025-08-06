@@ -7,12 +7,9 @@ import {
   getUserCache,
   USER_LIST_CACHE_DURATION
 } from "../../../lib/userCache";
-import { withCORS } from '../../../lib/utils';
 // import NotificationService from "../../../services/notificationService";
 
-export async function OPTIONS() {
-  return withCORS(new NextResponse(null, { status: 200 }));
-}
+
 
 export async function GET() {
   try {
@@ -20,7 +17,7 @@ export async function GET() {
     const now = Date.now();
     const currentCache = getUserListCache();
     if (currentCache && (now - currentCache.timestamp) < USER_LIST_CACHE_DURATION) {
-      return withCORS(NextResponse.json(currentCache.data));
+      return (NextResponse.json(currentCache.data));
     }
 
     // Select specific fields including activity tracking fields
@@ -69,10 +66,10 @@ export async function GET() {
     // Update cache
     setUserListCache(responseData);
 
-    return withCORS(NextResponse.json(responseData));
+    return (NextResponse.json(responseData));
   } catch (error) {
     console.error("Error fetching users:", error);
-    return withCORS(NextResponse.json(
+    return (NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     ));
@@ -85,7 +82,7 @@ export async function POST(request: Request) {
     const { email, firstName, lastName, clerkId, avatar } = body;
 
     if (!email || !clerkId) {
-      return withCORS(NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 }));
+      return (NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 }));
     }
 
     // Check if user was recently updated (within last hour) to avoid unnecessary updates
@@ -99,7 +96,7 @@ export async function POST(request: Request) {
       const userCache = getUserCache();
       const cachedUser = userCache.get(clerkId);
       if (cachedUser) {
-        return withCORS(NextResponse.json({
+        return (NextResponse.json({
           message: "User data is current (cached)",
           user: cachedUser,
           action: "cached"
@@ -120,7 +117,6 @@ export async function POST(request: Request) {
 
     const isNewUser = !existingUser;
     
-    console.log(`User check - isNewUser: ${isNewUser}, existingUserPackages: ${existingUser?.userPackages?.length || 0}`);
 
     // Sử dụng upsert để tránh race condition
     const user = await prisma.user.upsert({
@@ -153,89 +149,102 @@ export async function POST(request: Request) {
       }
     });
 
-    // Sau khi upsert, kiểm tra lại xem user có gói active không
-    const userWithPackages = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        userPackages: {
-          where: { 
-            isActive: true,
-            endDate: { gte: new Date() } // Chỉ tính gói còn hạn
+    // Sử dụng transaction để đảm bảo consistency khi tạo user và gói free
+    const result = await prisma.$transaction(async (tx) => {
+      // Kiểm tra lại xem user có gói active không
+      const userWithPackages = await tx.user.findUnique({
+        where: { id: user.id },
+        include: {
+          userPackages: {
+            where: { 
+              isActive: true,
+              endDate: { gte: new Date() } // Chỉ tính gói còn hạn
+            },
+            include: { servicePackage: true }
           }
         }
-      }
-    });
+      });
 
-    const hasActivePackage = userWithPackages && userWithPackages.userPackages.length > 0;
-    const shouldAssignFreePackage = isNewUser || !hasActivePackage;
-    
-    console.log(`User check - isNewUser: ${isNewUser}, hasActivePackage: ${hasActivePackage}, shouldAssignFreePackage: ${shouldAssignFreePackage}`);
-    console.log(`User packages count: ${userWithPackages?.userPackages?.length || 0}`);
-    
-    if (shouldAssignFreePackage) {
-      try {
-        // Tìm gói free (giá = 0 hoặc tên chứa "free")
-        console.log('Đang tìm gói free...');
-        const freePackage = await prisma.servicePackage.findFirst({
-          where: {
-            OR: [
-              { price: 0 },
-              { 
-                name: {
-                  contains: 'free',
-                  mode: 'insensitive' // Không phân biệt hoa thường
-                }
-              }
-            ],
-            isActive: true
-          }
-        });
-
-        console.log('Gói free tìm được:', freePackage ? `${freePackage.name} (${freePackage.price})` : 'Không tìm thấy');
-
-        if (freePackage) {
-          // Kiểm tra xem user đã có gói free này chưa
-          const existingFreePackage = await prisma.userPackage.findFirst({
+      const hasActivePackage = userWithPackages && userWithPackages.userPackages.length > 0;
+   
+      // Tạo gói free cho user mới đăng ký hoặc user cũ chưa có gói active
+      if (!hasActivePackage) {
+        try {
+          // Tìm gói free (giá = 0 hoặc tên chứa "free")
+          console.log(`Đang tìm gói free cho user ${isNewUser ? 'mới' : 'cũ chưa có gói'}...`);
+          const freePackage = await tx.servicePackage.findFirst({
             where: {
-              userId: user.id,
-              servicePackageId: freePackage.id,
+              OR: [
+                { price: 0 },
+                { 
+                  name: {
+                    contains: 'free',
+                    mode: 'insensitive' // Không phân biệt hoa thường
+                  }
+                }
+              ],
               isActive: true
             }
           });
 
-          if (existingFreePackage) {
-            console.log(`User ${user.email} đã có gói free "${freePackage.name}" rồi`);
-          } else {
-            // Tạo user package với gói free
+
+          if (freePackage) {
+            // Tạo gói free mới với số lần dùng tương ứng theo gói free
             const endDate = new Date();
             endDate.setFullYear(endDate.getFullYear() + 1); // Gói free có thời hạn 1 năm
 
-            await prisma.userPackage.create({
+            const freeUserPackage = await tx.userPackage.create({
               data: {
                 userId: user.id,
                 servicePackageId: freePackage.id,
                 startDate: new Date(),
                 endDate: endDate,
-                isActive: true
+                isActive: true,
+                // Set usage counters tương ứng với limit của ServicePackage
+                avatarInterviewUsed: freePackage.avatarInterviewLimit,
+                testQuizEQUsed: freePackage.testQuizEQLimit,
+                jdUploadUsed: freePackage.jdUploadLimit
               }
             });
 
-            const userType = isNewUser ? 'mới' : 'chưa có gói';
-            console.log(`Đã tự động gán gói free "${freePackage.name}" cho user ${userType}: ${user.email}`);
+         
+            return { 
+              ...user, 
+              freePackageAssigned: true, 
+              freePackage: {
+                ...freeUserPackage,
+                servicePackage: freePackage
+              }
+            };
+          } else {
+            console.log('❌ Không tìm thấy gói free trong hệ thống');
+            console.log(`⚠️ User ${user.email} sẽ không có gói active`);
           }
-        } else {
-          console.log('Không tìm thấy gói free trong hệ thống');
+        } catch (packageError) {
+          console.error('❌ Lỗi khi gán gói free:', packageError);
+          // Không throw error để không ảnh hưởng đến việc tạo user
         }
-      } catch (packageError) {
-        console.error('Lỗi khi gán gói free:', packageError);
-        // Không throw error để không ảnh hưởng đến việc tạo user
-      }
-    }
+      } 
+      
+      return user;
+    });
 
-    return withCORS(NextResponse.json(user));
+    // Invalidate cache sau khi tạo user và gói free
+    const userCache = getUserCache();
+    
+    // Clear user cache
+    userCache.delete(clerkId);
+    
+    // Set recent update timestamp
+    userUpdateCache.set(recentUpdateKey, Date.now());
+    
+    // Clear user list cache
+    setUserListCache({ success: true, users: [], totalCount: 0 });
+
+    return (NextResponse.json(result));
   } catch (error) {
     console.error("Error in user API:", error);
-    return withCORS(NextResponse.json(
+    return (NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
     ));

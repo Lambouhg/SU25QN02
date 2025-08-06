@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import WhyChooseSection from '@/components/WhyChooseSection';
 import HowItWorksSection from '@/components/HowItWorksSection';
+import PricingSection from '@/components/PricingSection';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -22,15 +23,22 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Hero Section with Dark Background */}
-      <div className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 md:m-3 md:rounded-3xl overflow-hidden">
+      <div id="home" className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 md:m-3 md:rounded-3xl overflow-hidden">
         <Navbar />
         <HeroSection />
       </div>
       
       {/* Main Content */}
       <main>
-        <WhyChooseSection />
-        <HowItWorksSection />
+        <div id="features">
+          <WhyChooseSection />
+        </div>
+        <div id="how-it-works">
+          <HowItWorksSection />
+        </div>
+        <div id="pricing">
+          <PricingSection />
+        </div>
       </main>
       
       <Footer />

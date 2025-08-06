@@ -2,13 +2,10 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
-import { withCORS, corsOptionsResponse } from '@/lib/utils';
 import { QuizMappingService } from '@/hooks/useQuizMapping';
 
 // Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
-  return corsOptionsResponse();
-}
+
 
 export async function POST(
   req: Request,
@@ -17,7 +14,7 @@ export async function POST(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+      return (NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     const { userAnswers } = await req.json();
@@ -38,7 +35,7 @@ export async function POST(
     });
 
     if (!quiz) {
-      return withCORS(NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'Quiz not found' }, { status: 404 }));
     }
 
     // Tính điểm server-side
@@ -151,7 +148,7 @@ export async function POST(
       console.error('Error tracking quiz completion:', err);
     }
 
-    return withCORS(NextResponse.json({
+    return (NextResponse.json({
       quiz: updatedQuiz,
       questions: questionsWithCorrectAnswers,
       score,
@@ -160,6 +157,6 @@ export async function POST(
     }));
   } catch (error) {
     console.error('Error submitting quiz:', error);
-    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
+    return (NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 } 

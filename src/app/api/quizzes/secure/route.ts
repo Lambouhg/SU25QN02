@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { withCORS, corsOptionsResponse } from '@/lib/utils';
 import { QuizMappingService } from '@/hooks/useQuizMapping';
 
 interface Question {
@@ -12,29 +11,26 @@ interface Question {
   isMultipleChoice?: boolean;
 }
 
-// Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
-  return corsOptionsResponse();
-}
+
 
 export async function POST(req: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+      return (NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     // Find user
     const user = await prisma.user.findUnique({ where: { clerkId: userId } });
     if (!user) {
-      return withCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'User not found' }, { status: 404 }));
     }
 
     const { field, topic, level, count, timeLimit } = await req.json();
 
     // Validate input
     if (!field || !topic || !level || !count || !timeLimit) {
-      return withCORS(NextResponse.json({ error: 'Missing required fields' }, { status: 400 }));
+      return (NextResponse.json({ error: 'Missing required fields' }, { status: 400 }));
     }
 
     // 1. Lấy questions ngẫu nhiên từ database
@@ -51,7 +47,7 @@ export async function POST(req: Request) {
     });
 
     if (questions.length === 0) {
-      return withCORS(NextResponse.json({ error: 'No questions found for the specified criteria' }, { status: 404 }));
+      return (NextResponse.json({ error: 'No questions found for the specified criteria' }, { status: 404 }));
     }
 
     // 2. Xử lý shuffle questions và answers
@@ -94,9 +90,9 @@ export async function POST(req: Request) {
       questions: questionsForUI
     };
 
-    return withCORS(NextResponse.json(quizForUI, { status: 201 }));
+    return (NextResponse.json(quizForUI, { status: 201 }));
   } catch (error) {
     console.error('Error creating secure quiz:', error);
-    return withCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
+    return (NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
 } 

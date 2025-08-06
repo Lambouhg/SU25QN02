@@ -1,18 +1,14 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { withCORS, corsOptionsResponse } from '@/lib/utils';
 
-// Handle OPTIONS request for CORS preflight
-export async function OPTIONS() {
-  return corsOptionsResponse();
-}
+
 
 export async function GET() {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return withCORS(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+      return (NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
     // Tìm user theo clerkId
@@ -20,7 +16,7 @@ export async function GET() {
       where: { clerkId: userId },
     });
     if (!user) {
-      return withCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }));
+      return (NextResponse.json({ error: 'User not found' }, { status: 404 }));
     }
 
     // Lấy danh sách quiz history của user với đầy đủ thông tin
@@ -101,13 +97,13 @@ export async function GET() {
       stats.byTopic[quiz.topic] = (stats.byTopic[quiz.topic] || 0) + 1;
     });
 
-    return withCORS(NextResponse.json({
+    return (NextResponse.json({
       quizzes: transformedHistory,
       stats
     }));
   } catch (error) {
     console.error('Error in GET /api/quizzes/history:', error);
-    return withCORS(NextResponse.json({
+    return (NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 }));

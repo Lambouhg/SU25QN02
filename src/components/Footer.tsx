@@ -3,10 +3,10 @@
 const Footer = () => {
   return (
     <footer className="w-full bg-black">
-      <div className="mx-auto max-w-7xl px-6 py-10 md:px-12 lg:px-20">
+      <div className="mx-auto max-w-7xl px-2 py-10 md:px-4 lg:px-6">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Company Info */}
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-1 md:col-span-1">
             <div className="flex items-center space-x-2 mb-6">
               <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
                 <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none">

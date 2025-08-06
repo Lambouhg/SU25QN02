@@ -5,11 +5,11 @@ import { useState, useEffect, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import Toast from "@/components/ui/Toast";
 import {
-  AvatarCard,
   ProfileLoading,
   ProfileTabs
 } from "@/components/Profile";
-
+import { Card, CardContent } from "@/components/ui/card";
+import Image from "next/image";
 
 
 export default function ProfilePage() {
@@ -154,13 +154,6 @@ export default function ProfilePage() {
     }
   };
 
-  const handleAvatarChange = async () => {
-    if (user) {
-      await user.reload();
-      setToast({ show: true, message: 'Profile picture updated!', type: 'success' });
-    }
-  };
-
   const updateProfileData = (data: Record<string, string>) => {
     // Update profile fields
     const profileFields = ['phone', 'department', 'position', 'bio'];
@@ -184,6 +177,7 @@ export default function ProfilePage() {
     }
   };
 
+  
   // Show loading only for auth, not for additional profile data
   if (!isLoaded) {
     return (
@@ -205,83 +199,80 @@ export default function ProfilePage() {
     );
   }
 
-  return (    <DashboardLayout>
-      {/* Modern Gradient Background */}
-      <div>
-        <div className="relative z-10 max-w-7xl mx-auto">
-          {/* Modern Header with Glass Effect */}
-          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 bg-clip-text text-transparent">
-                  Profile Settings
-                </h1>
-                <p className="text-lg text-gray-600 mt-2">
-                  Manage your personal information and account preferences
-                </p>
-              </div>
-              <div className="hidden md:flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-medium text-gray-600">Online</span>
-                </div>
-                {isEditing && (
-                  <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium animate-bounce">
-                    Editing Mode
-                  </div>
-                )}
-              </div>
-            </div>
-            
-          </div>
-
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-            {/* Left Column - Avatar & Quick Stats */}
-            <div className="xl:col-span-1 space-y-6">
-              {/* Enhanced Avatar Card */}
-              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6 hover:shadow-2xl transition-all duration-300 hover:scale-105">
-                <AvatarCard
-                  user={user}
-                  firstName={formData.firstName}
-                  lastName={formData.lastName}
-                  onAvatarChange={handleAvatarChange}
-                />
-              </div>
-            </div>
-
-            {/* Right Column - Main Content */}
-            <div className="xl:col-span-3 space-y-8">
-              {/* Personal Information Card with Tabs */}
-              <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Profile Management</h2>
-                  {isLoading && (
-                    <div className="flex items-center space-x-2 text-sm text-gray-500">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                      <span>Loading additional data...</span>
+  return (
+    <DashboardLayout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="w-full space-y-6 p-6">
+          {/* Header Profile Card */}
+          <Card className="relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 opacity-10" />
+            <CardContent className="p-3">
+              <div className="flex flex-row items-center gap-3">
+                {/* Compact Avatar Section */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-lg">
+                    <div className="w-full h-full rounded-full overflow-hidden bg-white">
+                      {user?.imageUrl ? (
+                        <Image
+                          src={user.imageUrl}
+                          alt="Profile"
+                          width={48}
+                          height={48}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                          {(formData.firstName?.charAt(0) || '') + (formData.lastName?.charAt(0) || '')}
+                        </div>
+                      )}
                     </div>
+                  </div>
+                </div>
+
+                {/* User Info Section */}
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg font-bold text-gray-900 truncate">
+                    {formData.firstName} {formData.lastName}
+                  </h1>
+                  <p className="text-sm text-gray-600 truncate">{formData.email}</p>
+                  {profileData.bio && (
+                    <p className="text-xs text-gray-500 truncate mt-1">
+                      {profileData.bio}
+                    </p>
                   )}
                 </div>
-                
-                <ProfileTabs
-                  formData={{
-                    firstName: formData.firstName,
-                    lastName: formData.lastName,
-                    email: formData.email,
-                    phone: formData.phone,
-                    department: formData.department,
-                    position: formData.position,
-                    bio: formData.bio
-                  }}
-                  isEditing={isEditing}
-                  onDataChange={updateProfileData}
-                  onEditToggle={() => setIsEditing(true)}
-                  onSubmit={handleSubmit}
-                  userId={user?.id}
-                />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Main Content Tabs */}
+          <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Profile Management</h2>
+              {isLoading && (
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span>Loading additional data...</span>
+                </div>
+              )}
             </div>
+            
+            <ProfileTabs
+              formData={{
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                phone: profileData.phone,
+                department: profileData.department,
+                position: profileData.position,
+                bio: profileData.bio
+              }}
+              isEditing={isEditing}
+              onDataChange={updateProfileData}
+              onEditToggle={() => setIsEditing(true)}
+              onSubmit={handleSubmit}
+              userId={user?.id}
+            />
           </div>
         </div>
       </div>
