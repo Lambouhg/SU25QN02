@@ -124,4 +124,68 @@ export async function DELETE(
     console.error('Error deleting quiz:', error);
     return (NextResponse.json({ error: 'Internal server error' }, { status: 500 }));
   }
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ quizId: string }> }
+) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { quizId } = await params;
+    const body = await req.json();
+    const { timeUsed } = body;
+
+    // Validation
+    if (timeUsed === undefined || typeof timeUsed !== 'number' || timeUsed < 0) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid timeUsed value' }, 
+        { status: 400 }
+      );
+    }
+
+    // Find user
+    const user = await prisma.user.findUnique({
+      where: { clerkId: userId },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if quiz exists and belongs to user
+    const quiz = await prisma.quiz.findUnique({
+      where: { id: quizId },
+    });
+
+    if (!quiz) {
+      return NextResponse.json({ error: 'Quiz not found' }, { status: 404 });
+    }
+
+    if (quiz.userId !== user.id) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Update timeUsed in database
+    const updatedQuiz = await prisma.quiz.update({
+      where: { id: quizId },
+      data: { timeUsed }
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'TimeUsed updated successfully',
+      data: { quizId: updatedQuiz.id, timeUsed: updatedQuiz.timeUsed }
+    });
+
+  } catch (error) {
+    console.error('Error updating timeUsed:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' }, 
+      { status: 500 }
+    );
+  }
 } 
