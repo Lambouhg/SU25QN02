@@ -69,7 +69,7 @@ export default function ActivityReminderModal({
           <p className="text-gray-600 text-sm">
             {userProgress.streak > 0 
               ? `You have a ${userProgress.streak}-day streak! Keep going to maintain it.`
-              : 'You haven&apos;t had any activity today. Start now to build your streak and improve your skills!'
+              : 'You haven\'t had any activity today. Start now to build your streak and improve your skills!'
             }
           </p>
         </div>

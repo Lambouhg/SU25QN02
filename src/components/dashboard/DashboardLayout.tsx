@@ -388,13 +388,8 @@ export default function DashboardLayout({
             </ul>
           </div>
 
-          {/* Separator */}
-          <div className="px-3 pb-4">
-            <div className="border-t border-gray-200"></div>
-          </div>
-
           {/* User Profile Section - Fixed at Bottom */}
-          <div className="flex-shrink-0 p-3 border-t border-gray-200 bg-white">
+          <div >
             <Link 
               href="/profile" 
               onClick={() => setIsSidebarOpen(false)}
@@ -436,8 +431,8 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="lg:ml-64 mt-[61px]">
-        <div className="w-full">
+      <div className="lg:ml-64 mt-[61px] min-h-screen">
+        <div className="w-full p-3 sm:p-4 lg:p-6 max-w-full overflow-x-hidden">
           {children}
         </div>
       </div>
