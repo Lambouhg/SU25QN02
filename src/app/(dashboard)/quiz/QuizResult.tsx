@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { toast } from "react-hot-toast"
-import { Trophy, Clock, Target, CheckCircle2, XCircle, BookOpen, RotateCcw, History, Bookmark, Brain, Sparkles, Award, TrendingUp,} from "lucide-react"
+import { Trophy, Clock, Target, CheckCircle2, XCircle, BookOpen, RotateCcw, History, Bookmark, Brain, Sparkles, Award, TrendingUp, Eye, EyeOff } from "lucide-react"
 import type { Quiz, Question } from "./QuizPanel"
 
 // Extended types for quiz results
@@ -33,6 +33,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
   const [savedQuestionIds, setSavedQuestionIds] = useState<string[]>([])
   const [showSaveWarning, setShowSaveWarning] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState<Record<string, boolean>>({}) // Track which questions show correct answers
 
   useEffect(() => {
     const fetchSavedQuestions = async () => {
@@ -40,7 +41,9 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
         const response = await fetch("/api/users/saved-questions")
         if (!response.ok) throw new Error("Failed to fetch saved questions")
         const data = await response.json()
-        setSavedQuestionIds(data.map((q: { id: string }) => q.id))
+        const savedIds = data.map((q: { id: string }) => q.id);
+        setSavedQuestionIds(savedIds)
+        console.log('Fetched saved question IDs:', savedIds.length)
       } catch (error) {
         console.error("Error fetching saved questions:", error)
         toast.error("Failed to load saved questions.")
@@ -52,11 +55,33 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
   // Get incorrect questions that haven't been saved
   const getUnsavedIncorrectQuestions = () => {
     const unsaved = quiz.questions.filter(question => {
-      // Kiểm tra xem question có thông tin isCorrect không (từ API submit)
+      // Use same logic as question review to determine correctness
       const questionResult = question as QuestionResult;
-      const isIncorrect = questionResult.isCorrect === false; // Chỉ false mới là sai
-      const isNotSaved = !savedQuestionIds.includes(question.id)
+      let isCorrect = questionResult.isCorrect;
       
+      // Fallback logic for retry quiz - calculate isCorrect if not available
+      if (isCorrect === undefined && quiz.userAnswers) {
+        const userAnswer = quiz.userAnswers.find(ua => ua.questionId === question.id);
+        if (userAnswer && question.answers) {
+          const userSelectedIndexes = userAnswer.answerIndex || [];
+          // Check if user's answers match correct answers
+          const correctIndexes = question.answers
+            .map((answer, idx) => answer.isCorrect ? idx : -1)
+            .filter(idx => idx !== -1);
+          
+          const sortedSelected = [...userSelectedIndexes].sort();
+          const sortedCorrect = [...correctIndexes].sort();
+          isCorrect = (
+            sortedSelected.length === sortedCorrect.length &&
+            sortedSelected.every((idx, i) => idx === sortedCorrect[i])
+          );
+        } else {
+          isCorrect = false;
+        }
+      }
+      
+      const isIncorrect = isCorrect === false; // Only false means incorrect
+      const isNotSaved = !savedQuestionIds.includes(question.id)
       
       return isIncorrect && isNotSaved
     })
@@ -65,6 +90,14 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
   }
 
   const unsavedIncorrectCount = getUnsavedIncorrectQuestions().length
+
+  // Debug log for save warning popup
+  console.log('QuizResult - Save warning check:', {
+    unsavedIncorrectCount,
+    totalQuestions: quiz.questions?.length,
+    hasIsCorrectFlags: quiz.questions?.some(q => (q as QuestionResult).isCorrect !== undefined),
+    savedQuestionIds: savedQuestionIds.length
+  });
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -98,7 +131,29 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
     }
   }
 
-  const correctAnswers = quiz.questions.filter((q) => (q as QuestionResult).isCorrect === true).length
+  const toggleShowCorrectAnswers = (questionId: string) => {
+    setShowCorrectAnswers(prev => ({
+      ...prev,
+      [questionId]: !prev[questionId]
+    }))
+  }
+
+  const correctAnswers = (() => {
+    // Try to get correct count from quiz questions with isCorrect flag
+    const questionsWithResults = quiz.questions.filter((q) => (q as QuestionResult).isCorrect === true);
+    
+    if (questionsWithResults.length > 0) {
+      return questionsWithResults.length;
+    }
+    
+    // Fallback: calculate from score and total questions (for retry quiz)
+    if (quiz.score !== undefined && quiz.totalQuestions) {
+      return Math.round((quiz.score / 100) * quiz.totalQuestions);
+    }
+    
+    return 0;
+  })();
+  
   const isPassingScore = quiz.score >= 70
 
   const handleRetryQuiz = async () => {
@@ -109,16 +164,12 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
       if (!response.ok) throw new Error('Failed to retry quiz');
       const newQuiz = await response.json();
       
-      console.log('Retry quiz response:', newQuiz);
+      // Always navigate to new quiz page to prevent data conflicts
+      router.push(`/quiz/${newQuiz.id || newQuiz._id}`);
       
-      // Thay vì navigate, gọi callback để pass quiz data đã shuffle
+      // Optional: If parent needs to handle retry, call it but don't rely on it
       if (onRetryQuiz) {
-        // Pass quiz data đã shuffle cho parent component
         onRetryQuiz(newQuiz);
-        // Parent component sẽ handle việc set quiz data
-      } else {
-        // Fallback: navigate như cũ
-        router.push(`/quiz/${newQuiz.id || newQuiz._id}`);
       }
     } catch (error) {
       console.error('Error retrying quiz:', error);
@@ -128,6 +179,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
 
   // Handle navigation with warning
   const handleNavigation = (action: string, callback: () => void) => {
+    console.log('handleNavigation called:', { action, unsavedIncorrectCount });
     if (unsavedIncorrectCount > 0) {
       console.log('Showing save warning popup')
       setShowSaveWarning(true)
@@ -298,8 +350,30 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                   {quiz.questions.map((question, qIndex) => {
                     // Sử dụng thông tin từ question result (có từ API submit)
                     const questionResult = question as QuestionResult;
-                    const isCorrect = questionResult.isCorrect;
-                    const userSelectedIndexes = questionResult.userSelectedIndexes || [];
+                    let isCorrect = questionResult.isCorrect;
+                    let userSelectedIndexes = questionResult.userSelectedIndexes || [];
+                    
+                    // Fallback logic for retry quiz - calculate isCorrect if not available
+                    if (isCorrect === undefined && quiz.userAnswers) {
+                      const userAnswer = quiz.userAnswers.find(ua => ua.questionId === question.id);
+                      if (userAnswer && question.answers) {
+                        userSelectedIndexes = userAnswer.answerIndex || [];
+                        // Check if user's answers match correct answers
+                        const correctIndexes = question.answers
+                          .map((answer, idx) => answer.isCorrect ? idx : -1)
+                          .filter(idx => idx !== -1);
+                        
+                        const sortedSelected = [...userSelectedIndexes].sort();
+                        const sortedCorrect = [...correctIndexes].sort();
+                        isCorrect = (
+                          sortedSelected.length === sortedCorrect.length &&
+                          sortedSelected.every((idx, i) => idx === sortedCorrect[i])
+                        );
+                      } else {
+                        isCorrect = false;
+                      }
+                    }
+                    
                     const isSaved = savedQuestionIds.includes(question.id)
 
                     return (
@@ -321,6 +395,32 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                               {qIndex + 1}
                             </div>
                             <div className="flex-1">
+                              {/* Question Type Indicator - moved to top */}
+                              <div className="flex items-center gap-2 mb-2">
+                                {(() => {
+                                  // Use isMultipleChoice if available, otherwise determine from answers
+                                  let isMultipleChoice = false;
+                                  
+                                  if (question.isMultipleChoice !== undefined) {
+                                    isMultipleChoice = question.isMultipleChoice;
+                                  } else if (question.answers) {
+                                    // Fallback: determine from correct answers count
+                                    const correctAnswersCount = question.answers.filter(a => a.isCorrect).length;
+                                    isMultipleChoice = correctAnswersCount > 1;
+                                  }
+                                  
+                                  return isMultipleChoice ? (
+                                    <>
+                                      <span className="text-blue-600 font-medium text-lg italic">Multiple Choice</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="text-purple-600 font-medium text-lg italic">Single Choice</span>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                              
                               <h4 className="font-bold text-gray-800 text-lg mb-2">{question.question}</h4>
                               <div className="flex items-center gap-2 mb-3">
                                 {isCorrect ? (
@@ -338,53 +438,88 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                             </div>
                           </div>
 
-                          <button
-                            onClick={() => handleSaveQuestion(question.id)}
-                            className={`p-2 rounded-lg transition-all duration-300 ${
-                              isSaved
-                                ? "bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200"
-                                : isCorrect
-                                ? "bg-green-100 text-green-700 border border-green-300 hover:bg-green-200"
-                                : "bg-red-100 text-red-700 border border-red-300 hover:bg-red-200"
-                            }`}
-                            title={isSaved ? "Unsave Question" : "Save Question"}
-                          >
-                            <Bookmark className={`w-5 h-5 ${isSaved ? "fill-current" : ""}`} />
-                          </button>
+                          <div className="flex gap-2">
+                            {/* Eye button - only show for incorrect questions */}
+                            {!isCorrect && (
+                              <button
+                                onClick={() => toggleShowCorrectAnswers(question.id)}
+                                className={`p-2 rounded-lg transition-all duration-300 ${
+                                  showCorrectAnswers[question.id]
+                                    ? "bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200"
+                                    : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
+                                }`}
+                                title={showCorrectAnswers[question.id] ? "Hide Correct Answers" : "Show Correct Answers"}
+                              >
+                                {showCorrectAnswers[question.id] ? (
+                                  <EyeOff className="w-5 h-5" />
+                                ) : (
+                                  <Eye className="w-5 h-5" />
+                                )}
+                              </button>
+                            )}
+
+                            {/* Save button */}
+                            <button
+                              onClick={() => handleSaveQuestion(question.id)}
+                              className={`p-2 rounded-lg transition-all duration-300 ${
+                                isSaved
+                                  ? "bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200"
+                                  : isCorrect
+                                  ? "bg-green-100 text-green-700 border border-green-300 hover:bg-green-200"
+                                  : "bg-red-100 text-red-700 border border-red-300 hover:bg-red-200"
+                              }`}
+                              title={isSaved ? "Unsave Question" : "Save Question"}
+                            >
+                              <Bookmark className={`w-5 h-5 ${isSaved ? "fill-current" : ""}`} />
+                            </button>
+                          </div>
                         </div>
 
                         <div className="ml-11 space-y-3">
                           {question.answers.map((answer, aIndex) => {
-                            // API submit đã trả về answers theo thứ tự đã shuffle mà user đã thấy
-                            // Không cần xử lý answerMapping nữa
-                            const isThisAnswerCorrect = answer.isCorrect;
+                            // Check if answer has isCorrect property (from API submit)
+                            // If not, this might be a retry quiz that needs fallback logic
+                            let isThisAnswerCorrect = answer.isCorrect;
+                            
+                            // Fallback: if answer doesn't have isCorrect, try to get from original question data
+                            if (isThisAnswerCorrect === undefined) {
+                              // For retry quiz, we might not have isCorrect in shuffled answers
+                              // This is expected - the logic above should handle overall correctness
+                              isThisAnswerCorrect = false; // Default to false if not available
+                            }
                             
                             const userSelectedThisAnswer = userSelectedIndexes.includes(aIndex);
-                            const isQuestionCorrect = isCorrect;
 
                             let answerClass = "p-3 rounded-lg border "
                             let iconClass = ""
 
-                            // Logic hiển thị màu sắc mới:
-                            // - Nếu user đúng: chỉ hiện xanh cho đáp án user chọn
-                            // - Nếu user sai: hiện đỏ cho đáp án user chọn sai, xanh cho đáp án đúng
-                            if (isQuestionCorrect) {
-                              // User trả lời đúng - chỉ hiện xanh cho đáp án user chọn
-                              if (userSelectedThisAnswer) {
+                            // Check if we're in "show correct answers" mode for this question
+                            const showCorrectMode = showCorrectAnswers[question.id];
+
+                            // Logic hiển thị màu sắc:
+                            if (showCorrectMode) {
+                              // Show correct answers mode - only show green for correct answers
+                              if (isThisAnswerCorrect) {
                                 answerClass += "border-green-300 bg-green-100 text-green-800"
                                 iconClass = "text-green-600"
                               } else {
                                 answerClass += "border-gray-200 bg-gray-50 text-gray-600"
                               }
                             } else {
-                              // User trả lời sai - hiện đỏ cho đáp án user chọn sai, xanh cho đáp án đúng
-                              if (userSelectedThisAnswer && !isThisAnswerCorrect) {
-                                answerClass += "border-red-300 bg-red-100 text-red-800"
-                                iconClass = "text-red-600"
-                              } else if (isThisAnswerCorrect) {
-                                answerClass += "border-green-300 bg-green-50 text-green-700"
-                                iconClass = "text-green-500"
+                              // Normal mode - show user's selected answers with correct/incorrect indication
+                              if (userSelectedThisAnswer) {
+                                // User selected this answer - show if it's correct or incorrect
+                                if (isThisAnswerCorrect) {
+                                  // User selected correct answer
+                                  answerClass += "border-green-300 bg-green-100 text-green-800"
+                                  iconClass = "text-green-600"
+                                } else {
+                                  // User selected incorrect answer  
+                                  answerClass += "border-red-300 bg-red-100 text-red-800"
+                                  iconClass = "text-red-600"
+                                }
                               } else {
+                                // User didn't select this answer - neutral
                                 answerClass += "border-gray-200 bg-gray-50 text-gray-600"
                               }
                             }
@@ -392,14 +527,21 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                             return (
                               <div key={aIndex} className={answerClass}>
                                 <div className="flex items-center gap-3">
-                                  {isQuestionCorrect && userSelectedThisAnswer && (
-                                    <CheckCircle2 className={`w-5 h-5 ${iconClass}`} />
-                                  )}
-                                  {!isQuestionCorrect && userSelectedThisAnswer && !isThisAnswerCorrect && (
-                                    <XCircle className={`w-5 h-5 ${iconClass}`} />
-                                  )}
-                                  {!isQuestionCorrect && isThisAnswerCorrect && (
-                                    <CheckCircle2 className={`w-5 h-5 ${iconClass}`} />
+                                  {/* Show icons based on mode */}
+                                  {showCorrectMode ? (
+                                    // In show correct mode, only show check for correct answers
+                                    isThisAnswerCorrect && (
+                                      <CheckCircle2 className={`w-5 h-5 ${iconClass}`} />
+                                    )
+                                  ) : (
+                                    // Normal mode - show icons for user selected answers with correct/incorrect indication
+                                    userSelectedThisAnswer && (
+                                      isThisAnswerCorrect ? (
+                                        <CheckCircle2 className={`w-5 h-5 ${iconClass}`} />
+                                      ) : (
+                                        <XCircle className={`w-5 h-5 ${iconClass}`} />
+                                      )
+                                    )
                                   )}
                                   <span className="font-medium">{answer.content}</span>
                                 </div>

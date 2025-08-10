@@ -11,21 +11,21 @@ export interface PetData {
 }
 
 export const calculatePetLevel = (totalActivities: number): number => {
-  if (totalActivities >= 100) return 5;
-  if (totalActivities >= 75) return 4;
-  if (totalActivities >= 50) return 3;
-  if (totalActivities >= 25) return 2;
-  if (totalActivities >= 10) return 2;
-  return 1;
+  if (totalActivities >= 75) return 5; // 75+ activities = Level 5
+  if (totalActivities >= 50) return 4; // 50-74 activities = Level 4  
+  if (totalActivities >= 25) return 3; // 25-49 activities = Level 3
+  if (totalActivities >= 10) return 2; // 10-24 activities = Level 2
+  if (totalActivities >= 1) return 1;  // 1-9 activities = Level 1
+  return 1; // 0 activities = Level 1 (default)
 };
 
 export const calculatePetEvolution = (totalActivities: number): PetEvolution => {
-  if (totalActivities >= 100) return 'master';
-  if (totalActivities >= 75) return 'adult';
-  if (totalActivities >= 50) return 'teen';
-  if (totalActivities >= 25) return 'baby';
-  if (totalActivities >= 10) return 'baby';
-  return 'egg';
+  if (totalActivities >= 75) return 'master'; // 75+ activities = Master 🦅
+  if (totalActivities >= 50) return 'adult';  // 50-74 activities = Adult 🐦
+  if (totalActivities >= 25) return 'teen';   // 25-49 activities = Teen 🐤
+  if (totalActivities >= 10) return 'baby';   // 10-24 activities = Baby 🐣
+  if (totalActivities >= 1) return 'egg';     // 1-9 activities = Egg 🥚
+  return 'egg'; // 0 activities = Egg 🥚 (default)
 };
 
 export const getTargetActivities = (level: number): number => {
@@ -34,7 +34,7 @@ export const getTargetActivities = (level: number): number => {
     case 2: return 25; // Level 2 cần 25 activities để lên level 3
     case 3: return 50; // Level 3 cần 50 activities để lên level 4
     case 4: return 75; // Level 4 cần 75 activities để lên level 5
-    case 5: return 100; // Level 5 cần 100 activities để lên level 6
+    case 5: return 75; // Level 5 đã max, giữ nguyên target 75
     default: return 10;
   }
 };
@@ -70,7 +70,7 @@ export const getPetEmoji = (evolution: PetEvolution, isAlive: boolean): string =
 };
 
 export const getPetEvolutionStages = () => [
-  { stage: 'egg' as const, level: 1, emoji: '🥚', name: 'Egg', requirement: '0-9 activities' },
+  { stage: 'egg' as const, level: 1, emoji: '🥚', name: 'Egg', requirement: '1-9 activities' },
   { stage: 'baby' as const, level: 2, emoji: '🐣', name: 'Baby', requirement: '10-24 activities' },
   { stage: 'teen' as const, level: 3, emoji: '🐤', name: 'Teen', requirement: '25-49 activities' },
   { stage: 'adult' as const, level: 4, emoji: '🐦', name: 'Adult', requirement: '50-74 activities' },

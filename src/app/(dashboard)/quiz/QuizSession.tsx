@@ -37,6 +37,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userAnswers,
+          timeUsed: quiz.timeLimit * 60 - timeLeft, // Add timeUsed to request
         }),
       });
       

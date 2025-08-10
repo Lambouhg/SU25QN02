@@ -43,18 +43,18 @@ export default function QuizPage({ params }: QuizPageProps) {
     correctCount?: number;
     totalQuestions?: number;
   }) => {
-    console.log('QuizPage handleQuizComplete called with result:', result);
     if (currentQuiz) {
       const updatedQuiz = {
         ...currentQuiz,
         userAnswers: result.userAnswers,
         score: result.score,
         timeUsed: result.timeUsed,
-        questions: result.questions || currentQuiz.questions,
+        // Use result.questions if available, they contain isCorrect flag
+        questions: result.questions && result.questions.length > 0 ? result.questions : currentQuiz.questions,
         totalQuestions: result.totalQuestions || currentQuiz.totalQuestions,
         completedAt: new Date().toISOString(), // Đánh dấu quiz đã hoàn thành
       };
-      console.log('QuizPage setting updated quiz and switching to result step');
+      
       setCurrentQuiz(updatedQuiz);
       safeSetCurrentStep('result');
     }

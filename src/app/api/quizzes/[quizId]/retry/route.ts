@@ -63,7 +63,7 @@ export async function POST(
       totalQuestions: shuffledQuestions.length,
       timeLimit: originalQuiz.timeLimit,
       score: 0,
-      timeUsed: 0,
+      timeUsed: 0, // Will be updated when quiz is submitted with actual time used
       retryCount: (originalQuiz.retryCount || 0) + 1,
       answerMapping: answerMapping, // Lưu answerMapping để xử lý khi submit
     };

@@ -299,7 +299,14 @@ export default function QuizHistoryPage() {
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <Target className="w-4 h-4" />
-                                                                {(quiz.userAnswers?.filter((a) => a.isCorrect).length || 0)}/{quiz.totalQuestions || 0} correct
+                                                                {(() => {
+                                                                    // Tính số câu trả lời đúng từ score và totalQuestions
+                                                                    // Vì userAnswers không có isCorrect field đúng
+                                                                    const totalQuestions = quiz.totalQuestions || 0;
+                                                                    const score = quiz.score || 0;
+                                                                    const correctCount = Math.round((score / 100) * totalQuestions);
+                                                                    return `${correctCount}/${totalQuestions} correct`;
+                                                                })()}
                                                             </div>
                                                         </div>
                                                     </div>

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useCallback } from 'react';
-import { Brain, Sparkles, CheckCircle2, ChevronLeft, Globe, Languages, Loader2, Bot, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Brain, Sparkles, CheckCircle2, ChevronLeft, Loader2, Bot, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 type Answer = {
@@ -35,7 +35,6 @@ const PREDEFINED_FIELDS = [
   { id: "qa", name: "QA", icon: "🔍", color: "from-yellow-500 to-orange-500" },
   { id: "mobile-app", name: "Mobile App", icon: "📱", color: "from-violet-500 to-purple-500" },
   { id: "database", name: "Database Admin", icon: "🗄️", color: "from-green-700 to-blue-700" },
-  { id: "others", name: "Others", icon: "❓", color: "from-gray-400 to-gray-600" },
 ];
 const PREDEFINED_TOPICS = [
   { id: "sql", name: "SQL", icon: "🗄️" },
@@ -76,7 +75,6 @@ const PREDEFINED_TOPICS = [
   { id: "ai-agents", name: "AI Agents", icon: "🤖", isNew: true },
   { id: "ai-red-teaming", name: "AI Red Teaming", icon: "🛡️", isNew: true },
   { id: "backup-recovery", name: "Backup & Recovery", icon: "💾" },
-  { id: "others", name: "Others", icon: "❓" },
 ];
 const FIELD_TOPICS_MAP: Record<string, string[]> = {
   frontend: [
@@ -109,7 +107,6 @@ const FIELD_TOPICS_MAP: Record<string, string[]> = {
   database: [
     "sql", "mongodb", "redis", "database-design", "performance-tuning", "backup-recovery"
   ],
-  others: ["others"],
 };
 const PREDEFINED_LEVELS = [
   { value: 'junior', label: 'Junior', icon: '🟢', color: 'from-green-400 to-green-600' },
@@ -117,10 +114,6 @@ const PREDEFINED_LEVELS = [
   { value: 'senior', label: 'Senior', icon: '🔴', color: 'from-red-400 to-red-600' },
 ];
 const QUESTION_COUNTS = [10, 25, 50, 75];
-const LANGUAGES = [
-  { value: 'vi', label: 'Tiếng Việt', icon: <Globe className="inline w-4 h-4 mr-1" /> },
-  { value: 'en', label: 'English', icon: <Languages className="inline w-4 h-4 mr-1" /> },
-];
 
 export default function QuestionManager() {
   // const { userId } = useAuth();
@@ -151,24 +144,12 @@ export default function QuestionManager() {
     search: ''
   });
 
-  // Field combobox state
-  const [isFieldOpen, setIsFieldOpen] = useState(false);
-  const [fieldInputValue, setFieldInputValue] = useState('');
-  const fieldDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Topic combobox state
-  const [isTopicOpen, setIsTopicOpen] = useState(false);
-  const [topicInputValue, setTopicInputValue] = useState('');
-  const topicDropdownRef = useRef<HTMLDivElement>(null);
-
   // AI Generate Modal state
   const [showAIGenerate, setShowAIGenerate] = useState(false);
   // Thêm state cho luồng chọn field/topic/level
   const [aiGenStep, setAIGenStep] = useState(1); // 1: field, 2: topic, 3: level+count+lang, 4: kết quả
   const [aiGenField, setAIGenField] = useState('');
-  const [aiGenCustomField, setAIGenCustomField] = useState('');
   const [aiGenTopic, setAIGenTopic] = useState('');
-  const [aiGenCustomTopic, setAIGenCustomTopic] = useState('');
   const [aiGenLoading, setAIGenLoading] = useState(false);
   const [aiGenError, setAIGenError] = useState('');
   const [aiGenQuestions, setAIGenQuestions] = useState<Array<{ question: string; answers: Array<{ content: string; isCorrect: boolean }>; explanation: string }>>([]);
@@ -178,7 +159,7 @@ export default function QuestionManager() {
     topic: '',
     level: 'junior',
     count: 5,
-    language: 'vi',
+    language: 'en',
   });
 
 
@@ -187,57 +168,192 @@ export default function QuestionManager() {
   const [aiGenSaved, setAIGenSaved] = useState<boolean[]>([]);
   // Thêm state cho edit mode từng câu hỏi AI sinh ra
   const [aiGenEdit, setAIGenEdit] = useState<(null | { question: string; answers: Array<{ content: string; isCorrect: boolean }>; explanation: string })[]>([]);
+  
+  // Duplicate detection states
+  const [duplicateCheck, setDuplicateCheck] = useState<{
+    checking: boolean;
+    results: Array<{
+      questionIndex: number;
+      isDuplicate: boolean;
+      similarQuestions: Array<{
+        id: string;
+        question: string;
+        similarity: number;
+      }>;
+    }>;
+  }>({ checking: false, results: [] });
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [validationResults, setValidationResults] = useState<{
+    duplicates: number[];
+    warnings: number[];
+    canSave: boolean;
+  }>({ duplicates: [], warnings: [], canSave: true });
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (fieldDropdownRef.current && !fieldDropdownRef.current.contains(event.target as Node)) {
-        setIsFieldOpen(false);
-      }
-      if (topicDropdownRef.current && !topicDropdownRef.current.contains(event.target as Node)) {
-        setIsTopicOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const filteredFields = fields.filter(field =>
-    field.toLowerCase().includes(fieldInputValue.toLowerCase())
-  );
-
-  const filteredTopics = topics.filter(topic =>
-    topic.toLowerCase().includes(topicInputValue.toLowerCase())
-  );
-
-  const handleFieldSelect = (field: string) => {
-    if (!formData.fields.includes(field)) {
-      setFormData(prev => ({ ...prev, fields: [...prev.fields, field] }));
+  // Advanced similarity calculation for better duplicate detection
+  const calculateSimilarity = (str1: string, str2: string): number => {
+    const normalize = (str: string) => str.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+    const text1 = normalize(str1);
+    const text2 = normalize(str2);
+    
+    if (text1 === text2) return 1;
+    
+    // Exact substring check for high similarity
+    if (text1.includes(text2) || text2.includes(text1)) {
+      const shorter = text1.length < text2.length ? text1 : text2;
+      const longer = text1.length >= text2.length ? text1 : text2;
+      return shorter.length / longer.length;
     }
-    setFieldInputValue('');
-    setIsFieldOpen(false);
-  };
-
-  const removeField = (fieldToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      fields: prev.fields.filter(field => field !== fieldToRemove)
-    }));
-  };
-
-  const handleTopicSelect = (topic: string) => {
-    if (!formData.topics.includes(topic)) {
-      setFormData(prev => ({ ...prev, topics: [...prev.topics, topic] }));
+    
+    // Word-based similarity with higher precision
+    const words1 = text1.split(' ').filter(w => w.length > 2); // Filter out short words
+    const words2 = text2.split(' ').filter(w => w.length > 2);
+    
+    if (words1.length === 0 || words2.length === 0) return 0;
+    
+    const allWords = Array.from(new Set([...words1, ...words2]));
+    let matches = 0;
+    let weightedMatches = 0;
+    
+    for (const word of allWords) {
+      if (words1.includes(word) && words2.includes(word)) {
+        matches++;
+        // Give more weight to longer words
+        weightedMatches += Math.max(1, word.length / 4);
+      }
     }
-    setTopicInputValue('');
-    setIsTopicOpen(false);
+    
+    // Combined score considering both word matches and weighted importance
+    const wordSimilarity = matches / allWords.length;
+    const weightedSimilarity = weightedMatches / (allWords.length * 2);
+    
+    return Math.max(wordSimilarity, weightedSimilarity);
   };
 
-  const removeTopic = (topicToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      topics: prev.topics.filter(topic => topic !== topicToRemove)
-    }));
+  const checkForDuplicates = async (questionTexts: string[]) => {
+    setDuplicateCheck(prev => ({ ...prev, checking: true }));
+    
+    try {
+      console.log('Checking duplicates for questions:', questionTexts);
+      // Check against existing questions in database
+      const res = await fetch('/api/questions/check-duplicates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          questions: questionTexts,
+          field: aiGenField,
+          topic: aiGenTopic 
+        })
+      });
+      
+      if (!res.ok) {
+        console.error('API call failed, falling back to local check');
+        // Fallback to local similarity check if API fails
+        return checkLocalSimilarity(questionTexts);
+      }
+      
+      const data = await res.json();
+      console.log('Duplicate check results:', data.results);
+      setDuplicateCheck(prev => ({ ...prev, checking: false, results: data.results }));
+      return data.results;
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      return checkLocalSimilarity(questionTexts);
+    }
+  };
+
+  const checkLocalSimilarity = (questionTexts: string[]) => {
+    const results = questionTexts.map((questionText, index) => {
+      const similarQuestions = questions.filter(q => {
+        const similarity = calculateSimilarity(questionText, q.question);
+        return similarity > 0.5; // Lower threshold for better detection
+      }).map(q => ({
+        id: q.id,
+        question: q.question,
+        similarity: calculateSimilarity(questionText, q.question)
+      }));
+
+      return {
+        questionIndex: index,
+        isDuplicate: similarQuestions.length > 0,
+        similarQuestions
+      };
+    });
+
+    setDuplicateCheck({ checking: false, results });
+    return results;
+  };
+
+  const validateQuestions = async () => {
+    if (aiGenQuestions.length === 0) return;
+    
+    const questionTexts = aiGenQuestions.map(q => q.question);
+    const duplicateResults = await checkForDuplicates(questionTexts);
+    
+    const duplicates: number[] = [];
+    const warnings: number[] = [];
+    
+    duplicateResults.forEach((result: {
+      questionIndex: number;
+      isDuplicate: boolean;
+      similarQuestions: Array<{
+        id: string;
+        question: string;
+        similarity: number;
+      }>;
+    }) => {
+      if (result.isDuplicate) {
+        const highSimilarity = result.similarQuestions.some((sq: { similarity: number }) => sq.similarity > 0.9);
+        if (highSimilarity) {
+          duplicates.push(result.questionIndex);
+        } else {
+          warnings.push(result.questionIndex);
+        }
+      }
+    });
+    
+    setValidationResults({
+      duplicates,
+      warnings,
+      canSave: duplicates.length === 0
+    });
+    
+    if (duplicates.length > 0 || warnings.length > 0) {
+      setShowDuplicateModal(true);
+    }
+  };
+
+  const saveSelectedQuestions = async () => {
+    for (const idx of aiGenSelected) {
+      const q = aiGenEdit[idx] ? { ...aiGenQuestions[idx], ...aiGenEdit[idx] } : aiGenQuestions[idx];
+      try {
+        const res = await fetch('/api/questions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...q,
+            fields: [PREDEFINED_FIELDS.find(f => f.id === aiGenField)?.name || aiGenField],
+            topics: [PREDEFINED_TOPICS.find(t => t.id === aiGenTopic)?.name || aiGenTopic],
+            levels: [aiGenParams.level]
+          }),
+        });
+        if (!res.ok) throw new Error('Error saving');
+        const saved = await res.json();
+        setQuestions(prev => [saved, ...prev]);
+      } catch (error) {
+        console.error('Save error:', error);
+        toast.error('Error saving question!');
+      }
+    }
+    toast.success('Saved selected questions!');
+    setShowAIGenerate(false);
+    setAIGenStep(1);
+    setAIGenQuestions([]);
+    setAIGenSelected([]);
+    setAIGenShowExplain([]);
+    setAIGenSaved([]);
+    setAIGenEdit([]);
+    setValidationResults({ duplicates: [], warnings: [], canSave: true });
+    setDuplicateCheck({ checking: false, results: [] });
   };
 
   const toggleLevel = (level: string) => {
@@ -482,8 +598,6 @@ export default function QuestionManager() {
                           onClick={() => {
                             setAIGenField(f.id);
                             setAIGenTopic('');
-                            setAIGenCustomField('');
-                            setAIGenCustomTopic('');
                           }}
                         >
                           <span className="text-2xl mb-1">{f.icon}</span>
@@ -492,19 +606,11 @@ export default function QuestionManager() {
                         </button>
                       ))}
                     </div>
-                    {aiGenField === 'others' && (
-                      <input
-                        className="mt-2 w-full border rounded px-2 py-1"
-                        placeholder="Enter custom field..."
-                        value={aiGenCustomField}
-                        onChange={e => setAIGenCustomField(e.target.value)}
-                      />
-                    )}
                   </div>
                   {/* Topic select */}
                   <div>
                     <div className="mb-2 font-semibold text-gray-700">Topic</div>
-                    {aiGenField && aiGenField !== 'others' && (
+                    {aiGenField && (
                       <div className="grid grid-cols-3 gap-2">
                         {PREDEFINED_TOPICS.filter(t => FIELD_TOPICS_MAP[aiGenField]?.includes(t.id)).map(t => (
                           <button
@@ -512,7 +618,6 @@ export default function QuestionManager() {
                             className={`rounded-xl p-3 flex flex-col items-center border-2 transition-all cursor-pointer text-sm font-medium ${aiGenTopic === t.id ? 'border-indigo-500 bg-gradient-to-r from-blue-400 to-cyan-400 text-white shadow-lg' : 'border-gray-200 bg-white hover:border-indigo-300'}`}
                             onClick={() => {
                               setAIGenTopic(t.id);
-                              setAIGenCustomTopic('');
                             }}
                           >
                             <span className="text-2xl mb-1">{t.icon}</span>
@@ -521,14 +626,6 @@ export default function QuestionManager() {
                           </button>
                         ))}
                       </div>
-                    )}
-                    {(aiGenField === 'others' || aiGenTopic === 'others') && (
-                      <input
-                        className="mt-2 w-full border rounded px-2 py-1"
-                        placeholder="Enter custom topic..."
-                        value={aiGenCustomTopic}
-                        onChange={e => setAIGenCustomTopic(e.target.value)}
-                      />
                     )}
                   </div>
                   {/* Level select */}
@@ -561,18 +658,6 @@ export default function QuestionManager() {
                         ))}
                       </div>
                     </div>
-                    <div>
-                      <div className="mb-2 font-semibold text-gray-700">Language</div>
-                      <div className="flex gap-2">
-                        {LANGUAGES.map(lang => (
-                          <button
-                            key={lang.value}
-                            className={`flex-1 rounded-xl p-2 border-2 transition-all font-semibold flex items-center justify-center gap-1 ${aiGenParams.language === lang.value ? 'border-blue-500 bg-gradient-to-r from-blue-400 to-cyan-400 text-white shadow-lg' : 'border-gray-200 bg-white hover:border-blue-300'}`}
-                            onClick={() => setAIGenParams(p => ({...p, language: lang.value}))}
-                          >{lang.icon}{lang.label}</button>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                   <div className="flex justify-between mt-8">
                     <Button variant="outline" onClick={() => setShowAIGenerate(false)}>
@@ -586,8 +671,8 @@ export default function QuestionManager() {
                         setAIGenQuestions([]);
                         setAIGenStep(2);
                         try {
-                          const field = aiGenField === 'others' ? aiGenCustomField : PREDEFINED_FIELDS.find(f => f.id === aiGenField)?.name || '';
-                          const topic = aiGenTopic === 'others' ? aiGenCustomTopic : PREDEFINED_TOPICS.find(t => t.id === aiGenTopic)?.name || '';
+                          const field = PREDEFINED_FIELDS.find(f => f.id === aiGenField)?.name || '';
+                          const topic = PREDEFINED_TOPICS.find(t => t.id === aiGenTopic)?.name || '';
                           const res = await fetch('/api/questions/generate', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -601,14 +686,21 @@ export default function QuestionManager() {
                           const data = await res.json();
                           setAIGenQuestions(data.data || []);
                           setAIGenSelected([]);
-                          if (!data.data || data.data.length === 0) setAIGenError('No questions returned by AI.');
+                          if (!data.data || data.data.length === 0) {
+                            setAIGenError('No questions returned by AI.');
+                          } else {
+                            // Auto-validate questions for duplicates
+                            setTimeout(async () => {
+                              await validateQuestions();
+                            }, 500);
+                          }
                         } catch {
                           setAIGenError('Failed to call AI.');
                         } finally {
                           setAIGenLoading(false);
                         }
                       }}
-                      disabled={aiGenLoading || (!aiGenField && !aiGenCustomField) || (!aiGenTopic && !aiGenCustomTopic)}
+                      disabled={aiGenLoading || !aiGenField || !aiGenTopic}
                     >
                       {aiGenLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5 mr-1" />} Generate questions
                     </Button>
@@ -630,18 +722,31 @@ export default function QuestionManager() {
                     </Button>
                     {/* Select All/Cancel All button */}
                     {aiGenQuestions.length > 0 && (
-                      <div className="flex justify-end mb-4">
+                      <div className="flex justify-between mb-4">
+                        <Button
+                          variant="outline"
+                          onClick={validateQuestions}
+                          disabled={duplicateCheck.checking}
+                          className="flex items-center gap-2"
+                        >
+                          {duplicateCheck.checking ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <span>🔍</span>
+                          )}
+                          {duplicateCheck.checking ? 'Checking...' : 'Check for Duplicates'}
+                        </Button>
                         <Button
                           variant="outline"
                           onClick={() => {
                             if (aiGenSelected.length === aiGenQuestions.length) {
                               setAIGenSelected([]);
                             } else {
-                              setAIGenSelected(aiGenQuestions.map((_, idx) => idx));
+                              setAIGenSelected(aiGenQuestions.map((_, idx) => idx).filter(idx => !validationResults.duplicates.includes(idx)));
                             }
                           }}
                         >
-                          {aiGenSelected.length === aiGenQuestions.length ? 'Cancel All' : 'Select All'}
+                          {aiGenSelected.length === aiGenQuestions.length ? 'Cancel All' : 'Select All Valid'}
                         </Button>
                       </div>
                     )}
@@ -658,34 +763,89 @@ export default function QuestionManager() {
                           <div className="text-gray-500 text-center">No questions generated.</div>
                         ) : (
                           <>
+                            {/* Validation Status Summary */}
+                            {duplicateCheck.results.length > 0 && (
+                              <div className="mb-4 p-3 bg-gray-50 rounded-lg border">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="font-medium">Validation Results:</span>
+                                  <div className="flex gap-4">
+                                    {validationResults.duplicates.length > 0 && (
+                                      <span className="text-red-600 font-medium">
+                                        🚫 {validationResults.duplicates.length} High Duplicates
+                                      </span>
+                                    )}
+                                    {validationResults.warnings.length > 0 && (
+                                      <span className="text-yellow-600 font-medium">
+                                        ⚠️ {validationResults.warnings.length} Similar
+                                      </span>
+                                    )}
+                                    {validationResults.duplicates.length === 0 && validationResults.warnings.length === 0 && (
+                                      <span className="text-green-600 font-medium">
+                                        ✅ All questions are unique
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
                             <div className="flex justify-end mb-2">
                               <Button
                                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
                                 disabled={aiGenSelected.length === 0 || aiGenLoading}
                                 onClick={async () => {
-                                  for (const idx of aiGenSelected) {
-                                    const q = aiGenEdit[idx] ? { ...aiGenQuestions[idx], ...aiGenEdit[idx] } : aiGenQuestions[idx];
-                                    try {
-                                      const res = await fetch('/api/questions', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify(q),
-                                      });
-                                      if (!res.ok) throw new Error('Error saving');
-                                      const saved = await res.json();
-                                      setQuestions(prev => [saved, ...prev]);
-                                    } catch {
-                                      toast.error('Error saving question!');
+                                  // Validate questions for duplicates first
+                                  await validateQuestions();
+                                  
+                                  // Wait a bit for state to update, then check if can save
+                                  setTimeout(async () => {
+                                    // Filter out duplicate questions from selection
+                                    const validSelections = aiGenSelected.filter(idx => !validationResults.duplicates.includes(idx));
+                                    
+                                    if (validSelections.length === 0) {
+                                      toast.error('No valid questions to save. All selected questions are duplicates.');
+                                      return;
                                     }
-                                  }
-                                  toast.success('Saved selected questions!');
-                                  setShowAIGenerate(false);
-                                  setAIGenStep(1);
-                                  setAIGenQuestions([]);
-                                  setAIGenSelected([]);
-                                  setAIGenShowExplain([]);
-                                  setAIGenSaved([]);
-                                  setAIGenEdit([]);
+                                    
+                                    if (validSelections.length !== aiGenSelected.length) {
+                                      const duplicateCount = aiGenSelected.length - validSelections.length;
+                                      toast.error(`⚠️ Skipping ${duplicateCount} duplicate questions. Saving ${validSelections.length} unique questions.`);
+                                    }
+                                    
+                                    // Save only valid questions
+                                    for (const idx of validSelections) {
+                                      const q = aiGenEdit[idx] ? { ...aiGenQuestions[idx], ...aiGenEdit[idx] } : aiGenQuestions[idx];
+                                      try {
+                                        const res = await fetch('/api/questions', {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            ...q,
+                                            fields: [PREDEFINED_FIELDS.find(f => f.id === aiGenField)?.name || aiGenField],
+                                            topics: [PREDEFINED_TOPICS.find(t => t.id === aiGenTopic)?.name || aiGenTopic],
+                                            levels: [aiGenParams.level]
+                                          }),
+                                        });
+                                        if (!res.ok) throw new Error('Error saving');
+                                        const saved = await res.json();
+                                        setQuestions(prev => [saved, ...prev]);
+                                      } catch (error) {
+                                        console.error('Save error:', error);
+                                        toast.error('Error saving question!');
+                                      }
+                                    }
+                                    
+                                    toast.success(`Saved ${validSelections.length} unique questions!`);
+                                    setShowAIGenerate(false);
+                                    setAIGenStep(1);
+                                    setAIGenQuestions([]);
+                                    setAIGenSelected([]);
+                                    setAIGenShowExplain([]);
+                                    setAIGenSaved([]);
+                                    setAIGenEdit([]);
+                                    setValidationResults({ duplicates: [], warnings: [], canSave: true });
+                                    setDuplicateCheck({ checking: false, results: [] });
+                                  }, 100);
                                 }}
                               >Save Selected</Button>
                             </div>
@@ -693,22 +853,49 @@ export default function QuestionManager() {
                               {aiGenQuestions.map((q, idx) => {
                                 const isEdit = aiGenEdit[idx] !== null;
                                 const editData = aiGenEdit[idx] || { question: q.question, answers: q.answers, explanation: q.explanation };
+                                const isDuplicate = validationResults.duplicates.includes(idx);
+                                const isWarning = validationResults.warnings.includes(idx);
+                                
+                                let borderClass = 'border-gray-200 bg-white hover:border-indigo-300';
+                                if (aiGenSelected.includes(idx)) {
+                                  borderClass = 'border-green-500 bg-green-50';
+                                }
+                                if (isDuplicate) {
+                                  borderClass = 'border-red-500 bg-red-50';
+                                } else if (isWarning) {
+                                  borderClass = 'border-yellow-500 bg-yellow-50';
+                                }
+                                
                                 return (
                                 <Card
                                   key={idx}
-                                    className={`relative border-2 p-6 rounded-2xl shadow-lg transition-all group ${aiGenSelected.includes(idx) ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white hover:border-indigo-300'} ${aiGenSaved[idx] ? 'opacity-60' : ''} ${isEdit ? 'ring-2 ring-indigo-400' : ''}`}
-                                  onClick={() => setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx])}
+                                    className={`relative border-2 p-6 rounded-2xl shadow-lg transition-all group ${borderClass} ${aiGenSaved[idx] ? 'opacity-60' : ''} ${isEdit ? 'ring-2 ring-indigo-400' : ''}`}
+                                  onClick={() => {
+                                    if (!isDuplicate) {
+                                      setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
+                                    }
+                                  }}
                                 >
+                                  {/* Duplicate indicator */}
+                                  {(isDuplicate || isWarning) && (
+                                    <div className={`absolute top-2 right-12 z-20 px-2 py-1 rounded-full text-xs font-bold ${isDuplicate ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                                      {isDuplicate ? '🚫 DUPLICATE' : '⚠️ SIMILAR'}
+                                    </div>
+                                  )}
+                                  
                                   {/* Checkbox chọn */}
                                   <div className="absolute top-4 right-4 z-10">
                                     <input
                                       type="checkbox"
                                       checked={aiGenSelected.includes(idx)}
+                                      disabled={isDuplicate}
                                       onChange={e => {
                                         e.stopPropagation();
-                                        setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
+                                        if (!isDuplicate) {
+                                          setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
+                                        }
                                       }}
-                                      className="w-6 h-6 accent-green-500 rounded-lg border-2 border-green-400 shadow"
+                                      className={`w-6 h-6 rounded-lg border-2 shadow ${isDuplicate ? 'opacity-50 cursor-not-allowed' : 'accent-green-500 border-green-400'}`}
                                     />
                                   </div>
                                     {/* Edit/Save button */}
@@ -818,163 +1005,286 @@ export default function QuestionManager() {
           </div>
         )}
         {/* End Modal AI Generate */}
+        
+        {/* Duplicate Detection Modal */}
+        {showDuplicateModal && (
+          <div className="fixed inset-0 z-50 w-screen h-screen bg-black bg-opacity-50 flex items-center justify-center">
+            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">⚠️</span>
+                  <h3 className="text-xl font-bold">Duplicate Questions Detected</h3>
+                </div>
+                <button
+                  className="text-2xl text-gray-400 hover:text-gray-700"
+                  onClick={() => setShowDuplicateModal(false)}
+                >×</button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto max-h-[70vh]">
+                {validationResults.duplicates.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-red-600 mb-3">
+                      🚫 High Similarity (Cannot Save)
+                    </h4>
+                    <div className="space-y-3">
+                      {validationResults.duplicates.map(idx => (
+                        <div key={idx} className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                          <div className="font-medium text-red-800 mb-2">
+                            Question {idx + 1}: {aiGenQuestions[idx]?.question}
+                          </div>
+                          <div className="text-sm text-red-600">
+                            Similar to existing questions in database:
+                          </div>
+                          {duplicateCheck.results[idx]?.similarQuestions.map((sq, i) => (
+                            <div key={i} className="text-xs text-red-500 mt-1 pl-4">
+                              • {sq.question} (Similarity: {Math.round(sq.similarity * 100)}%)
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {validationResults.warnings.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-yellow-600 mb-3">
+                      ⚠️ Moderate Similarity (Review Recommended)
+                    </h4>
+                    <div className="space-y-3">
+                      {validationResults.warnings.map(idx => (
+                        <div key={idx} className="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded">
+                          <div className="font-medium text-yellow-800 mb-2">
+                            Question {idx + 1}: {aiGenQuestions[idx]?.question}
+                          </div>
+                          <div className="text-sm text-yellow-600">
+                            Similar to existing questions:
+                          </div>
+                          {duplicateCheck.results[idx]?.similarQuestions.map((sq, i) => (
+                            <div key={i} className="text-xs text-yellow-500 mt-1 pl-4">
+                              • {sq.question} (Similarity: {Math.round(sq.similarity * 100)}%)
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-between items-center px-6 py-4 border-t bg-gray-50">
+                <div className="text-sm text-gray-600">
+                  {validationResults.duplicates.length > 0 && (
+                    <span className="text-red-600">
+                      Cannot save {validationResults.duplicates.length} high-similarity questions
+                    </span>
+                  )}
+                  {validationResults.warnings.length > 0 && (
+                    <span className="text-yellow-600 ml-2">
+                      {validationResults.warnings.length} questions need review
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setShowDuplicateModal(false)}>
+                    Review Questions
+                  </Button>
+                  {validationResults.canSave && (
+                    <Button 
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={async () => {
+                        setShowDuplicateModal(false);
+                        await saveSelectedQuestions();
+                      }}
+                    >
+                      Save Non-Duplicate Questions
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Top Section: Fields, Topics, Levels */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fields
-            </label>
-            <div className="relative" ref={fieldDropdownRef}>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.fields.map((field) => (
-                  <span
-                    key={field}
+            {/* Fields Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fields
+              </label>
+              {/* Selected Fields Tags */}
+              {formData.fields.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.fields.map((fieldName) => (
+                    <span
+                      key={fieldName}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
+                    >
+                      {fieldName}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Remove field and filter out topics that are no longer supported
+                          const remainingFields = formData.fields.filter(f => f !== fieldName);
+                          const supportedTopics = formData.topics.filter(topicName => {
+                            const topic = PREDEFINED_TOPICS.find(t => t.name === topicName);
+                            if (!topic) return false;
+                            return remainingFields.some(remainingFieldName => {
+                              const fieldId = PREDEFINED_FIELDS.find(pf => pf.name === remainingFieldName)?.id;
+                              return fieldId && FIELD_TOPICS_MAP[fieldId]?.includes(topic.id);
+                            });
+                          });
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            fields: remainingFields,
+                            topics: supportedTopics
+                          }));
+                        }}
+                        className="ml-1 inline-flex items-center justify-center h-4 w-4 rounded-full hover:bg-indigo-200"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {/* Dropdown for adding fields */}
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                value=""
+                onChange={(e) => {
+                  if (e.target.value && !formData.fields.includes(e.target.value)) {
+                    setFormData(prev => ({ ...prev, fields: [...prev.fields, e.target.value] }));
+                  }
+                }}
+              >
+                <option value="">Select a field...</option>
+                {PREDEFINED_FIELDS.filter(field => !formData.fields.includes(field.name)).map(field => (
+                  <option key={field.id} value={field.name}>{field.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Topics Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Topics
+              </label>
+              {/* Selected Topics Tags */}
+              {formData.topics.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.topics.map((topicName) => (
+                    <span
+                      key={topicName}
                       className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                  >
-                    {field}
-                    <button
-                      type="button"
-                      onClick={() => removeField(field)}
+                    >
+                      {topicName}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Remove topic and remove related fields that are no longer supported by remaining topics
+                          const remainingTopics = formData.topics.filter(t => t !== topicName);
+                          
+                          // Find fields that are still supported by the remaining topics
+                          const supportedFields = formData.fields.filter(fieldName => {
+                            const field = PREDEFINED_FIELDS.find(f => f.name === fieldName);
+                            if (!field) return true; // Keep custom fields
+                            
+                            // Check if this field is supported by any remaining topic
+                            return remainingTopics.some(remainingTopicName => {
+                              const remainingTopic = PREDEFINED_TOPICS.find(t => t.name === remainingTopicName);
+                              return remainingTopic && FIELD_TOPICS_MAP[field.id]?.includes(remainingTopic.id);
+                            });
+                          });
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            topics: remainingTopics,
+                            fields: supportedFields
+                          }));
+                        }}
                         className="ml-1 inline-flex items-center justify-center h-4 w-4 rounded-full hover:bg-blue-200"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex">
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Add a field..."
-                  value={fieldInputValue}
-                  onChange={(e) => {
-                    setFieldInputValue(e.target.value);
-                    setIsFieldOpen(true);
-                  }}
-                  onFocus={() => setIsFieldOpen(true)}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (fieldInputValue && !formData.fields.includes(fieldInputValue)) {
-                      setFormData(prev => ({
-                        ...prev,
-                        fields: [...prev.fields, fieldInputValue]
-                      }));
-                      setFieldInputValue('');
-                    }
-                  }}
-                    className="ml-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Add
-                </button>
-              </div>
-              {isFieldOpen && filteredFields.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                  {filteredFields.map((field) => (
-                    <div
-                      key={field}
-                        className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-blue-100"
-                      onClick={() => handleFieldSelect(field)}
-                    >
-                      {field}
-                    </div>
+                      >
+                        ×
+                      </button>
+                    </span>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Topics
-            </label>
-            <div className="relative" ref={topicDropdownRef}>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {formData.topics.map((topic) => (
-                  <span
-                    key={topic}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
-                  >
-                    {topic}
-                    <button
-                      type="button"
-                      onClick={() => removeTopic(topic)}
-                      className="ml-1 inline-flex items-center justify-center h-4 w-4 rounded-full hover:bg-indigo-200"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex">
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Add a topic..."
-                  value={topicInputValue}
-                  onChange={(e) => {
-                    setTopicInputValue(e.target.value);
-                    setIsTopicOpen(true);
-                  }}
-                  onFocus={() => setIsTopicOpen(true)}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (topicInputValue && !formData.topics.includes(topicInputValue)) {
-                      setFormData(prev => ({
-                        ...prev,
-                        topics: [...prev.topics, topicInputValue]
+              {/* Dropdown for adding topics */}
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                value=""
+                onChange={(e) => {
+                  if (e.target.value && !formData.topics.includes(e.target.value)) {
+                    // Add topic and auto-fill related fields
+                    const topic = PREDEFINED_TOPICS.find(t => t.name === e.target.value);
+                    if (topic) {
+                      const relatedFields = PREDEFINED_FIELDS.filter(field => 
+                        FIELD_TOPICS_MAP[field.id]?.includes(topic.id)
+                      ).map(field => field.name);
+                      
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        topics: [...prev.topics, e.target.value],
+                        fields: Array.from(new Set([...prev.fields, ...relatedFields]))
                       }));
-                      setTopicInputValue('');
                     }
-                  }}
-                  className="ml-2 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Add
-                </button>
-              </div>
-              {isTopicOpen && filteredTopics.length > 0 && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm">
-                  {filteredTopics.map((topic) => (
-                    <div
-                      key={topic}
-                      className="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-indigo-100"
-                      onClick={() => handleTopicSelect(topic)}
-                    >
-                      {topic}
-                    </div>
-                  ))}
+                  }
+                }}
+              >
+                <option value="">Select a topic...</option>
+                {PREDEFINED_TOPICS.filter(topic => !formData.topics.includes(topic.name)).map(topic => (
+                  <option key={topic.id} value={topic.name}>{topic.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Levels Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Levels
+              </label>
+              {/* Selected Levels Tags */}
+              {formData.levels.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.levels.map((levelValue) => {
+                    const level = PREDEFINED_LEVELS.find(l => l.value === levelValue);
+                    return (
+                      <span
+                        key={levelValue}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                      >
+                        {level?.label || levelValue}
+                        <button
+                          type="button"
+                          onClick={() => toggleLevel(levelValue)}
+                          className="ml-1 inline-flex items-center justify-center h-4 w-4 rounded-full hover:bg-green-200"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
                 </div>
               )}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Levels
-            </label>
-            <div className="space-y-2">
-              {['junior', 'middle', 'senior'].map((level) => (
-                <div key={level} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id={`level-${level}`}
-                    checked={formData.levels.includes(level)}
-                    onChange={() => toggleLevel(level)}
-                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                  />
-                  <label
-                    htmlFor={`level-${level}`}
-                    className="ml-2 block text-sm text-gray-900 capitalize"
-                  >
-                    {level}
+              {/* Checkboxes for levels */}
+              <div className="space-y-2">
+                {PREDEFINED_LEVELS.map(level => (
+                  <label key={level.value} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.levels.includes(level.value)}
+                      onChange={() => toggleLevel(level.value)}
+                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">{level.label}</span>
                   </label>
-                </div>
-              ))}
+                ))}
               </div>
             </div>
           </div>
