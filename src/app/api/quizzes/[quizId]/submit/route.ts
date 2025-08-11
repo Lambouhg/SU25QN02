@@ -17,7 +17,7 @@ export async function POST(
       return (NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
     }
 
-    const { userAnswers } = await req.json();
+    const { userAnswers, timeUsed } = await req.json();
     const { quizId } = await params;
 
     // Lấy quiz với questions gốc (có isCorrect)
@@ -127,6 +127,7 @@ export async function POST(
       data: {
         userAnswers,
         score,
+        timeUsed: timeUsed || 0, // Save timeUsed from request
         completedAt: new Date(),
       },
     });

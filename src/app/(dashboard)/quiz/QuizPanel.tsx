@@ -262,9 +262,9 @@ export default function QuizPanel({
             })}
             onRetryQuiz={(retryQuiz) => {
               console.log('Retry quiz received:', retryQuiz);
-              // Set quiz data đã shuffle và chuyển về session step
-              setQuiz(retryQuiz);
-              setStep('session');
+              // Navigate to new quiz page instead of setting quiz in same component
+              // This prevents data conflict and reload issues
+              router.push(`/quiz/${retryQuiz.id}`);
             }}
             onViewProfile={handleViewProfile}
           />

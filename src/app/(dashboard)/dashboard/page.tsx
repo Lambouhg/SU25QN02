@@ -27,6 +27,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePet } from '@/hooks/usePet';
+import { PetDisplay } from '@/components/pet/PetDisplay';
+import { getPetEvolutionStages } from '@/utils/petLogic';
 
 interface SkillProgress {
   name: string;
@@ -127,38 +130,8 @@ export default function DashboardPage() {
   const currentStreak = progress?.stats?.studyStreak || 0;
   const totalActivities = progress?.allActivities?.length || 0;
 
-  // Tính level và evolution của pet dựa vào tổng số activities
-  let petLevel = 1;
-  let petEvolution: 'egg' | 'baby' | 'teen' | 'adult' | 'master' = 'egg';
-  if (totalActivities >= 100) {
-    petLevel = 5; petEvolution = 'master';
-  } else if (totalActivities >= 75) {
-    petLevel = 4; petEvolution = 'adult';
-  } else if (totalActivities >= 50) {
-    petLevel = 3; petEvolution = 'teen';
-  } else if (totalActivities >= 25) {
-    petLevel = 2; petEvolution = 'baby';
-  } else if (totalActivities >= 10) {
-    petLevel = 2; petEvolution = 'baby'; // Sửa: 10-24 activities = level 2
-  } else {
-    petLevel = 1; petEvolution = 'egg'; // 0-9 activities = level 1
-  }
-
-  // Tính target activities cho level tiếp theo
-  const getTargetActivities = (level: number) => {
-    switch (level) {
-      case 1: return 10; // Level 1 cần 10 activities để lên level 2
-      case 2: return 25; // Level 2 cần 25 activities để lên level 3
-      case 3: return 50; // Level 3 cần 50 activities để lên level 4
-      case 4: return 75; // Level 4 cần 75 activities để lên level 5
-      case 5: return 100; // Level 5 cần 100 activities để lên level 6 (nếu có)
-      default: return 10;
-    }
-  };
-
-  const targetActivities = getTargetActivities(petLevel);
-  const currentActivities = Math.min(totalActivities, targetActivities);
-  const happinessPercentage = (currentActivities / targetActivities) * 100;
+  // Sử dụng usePet hook thay vì logic cũ
+  const petData = usePet({ totalActivities, currentStreak });
 
   const streakData = {
     currentStreak,
@@ -167,11 +140,11 @@ export default function DashboardPage() {
       next: 0,
     },
     pet: {
-      name: 'Chuck Chicken',
-      level: petLevel,
-      happiness: happinessPercentage,
-      evolution: petEvolution,
-      isAlive: true,
+      name: petData.name,
+      level: petData.level,
+      happiness: petData.happinessPercentage,
+      evolution: petData.evolution,
+      isAlive: petData.isAlive,
     },
   };
   const getStreakBadge = (streak: number) => {
@@ -200,17 +173,6 @@ export default function DashboardPage() {
     if (streak >= 10) return 'from-orange-500 via-red-500 to-pink-500';
     if (streak >= 3) return 'from-green-500 via-green-600 to-teal-500';
     return 'from-gray-400 via-gray-500 to-gray-600';
-  };
-  const getPetEmoji = (evolution: 'egg' | 'baby' | 'teen' | 'adult' | 'master', isAlive: boolean) => {
-    if (!isAlive) return '💀';
-    switch (evolution) {
-      case 'egg': return '🥚';
-      case 'baby': return '🐣';
-      case 'teen': return '🐤';
-      case 'adult': return '🐦';
-      case 'master': return '🦅';
-      default: return '🥚';
-    }
   };
 
 
@@ -359,38 +321,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
-            {/* Pet bên phải */}
-            <div className="flex flex-col items-center justify-center px-2">
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2.5 w-32">
-                <div className="text-3xl mb-1 text-center">
-                  {getPetEmoji(streakData.pet.evolution, streakData.pet.isAlive)}
-                </div>
-                <h3 className="text-sm font-bold mb-1 text-center truncate">{streakData.pet.name}</h3>
-                <p className="text-xs opacity-80 mb-1 text-center">
-                  Level {streakData.pet.level} • {streakData.pet.evolution}
-                </p>
-                {/* Pet Happiness Bar */}
-                <div className="mb-1">
-                  <div className="flex justify-between text-xs mb-0.5">
-                    <span>Progress</span>
-                    <span>{currentActivities}/{targetActivities}</span>
-                  </div>
-                  <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-green-400 to-blue-400 rounded-full transition-all duration-500"
-                      style={{ width: `${happinessPercentage}%` }}
-                    />
-                  </div>
-                </div>
-                <Button
-                  onClick={() => setShowStreakModal(true)}
-                  variant="outline"
-                  className="bg-white/20 border-white/30 text-white hover:bg-white/30 text-xs px-2 py-1 mt-1 w-full"
-                >
-                  Pet Details
-                </Button>
-              </div>
-            </div>
+            {/* Pet bên phải - sử dụng component mới */}
+            <PetDisplay
+              totalActivities={totalActivities}
+              currentStreak={currentStreak}
+              onShowDetails={() => setShowStreakModal(true)}
+              compact={true}
+            />
           </div>
         </div>
 
@@ -829,42 +766,21 @@ export default function DashboardPage() {
               </Button>
             </div>
             <div className="text-center mb-6">
-              <div className="text-8xl mb-4">{getPetEmoji(streakData.pet.evolution, streakData.pet.isAlive)}</div>
-              <h4 className="text-2xl font-bold mb-2">{streakData.pet.name}</h4>
-              <p className="text-gray-600">
-                Level {streakData.pet.level} • {streakData.pet.evolution}
-              </p>
+              <PetDisplay
+                totalActivities={totalActivities}
+                currentStreak={currentStreak}
+                compact={false}
+              />
             </div>
             <div className="space-y-4">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="font-medium">Progress</span>
-                  <span>{currentActivities}/{targetActivities}</span>
-                </div>
-                <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-green-400 to-blue-400 rounded-full transition-all duration-500"
-                    style={{ width: `${happinessPercentage}%` }}
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {totalActivities} activities completed • {targetActivities - currentActivities} more to next level
-                </p>
-              </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <h5 className="font-semibold mb-2">Pet Evolution Stages</h5>
                 <div className="space-y-2">
-                  {[
-                    { stage: 'egg', level: 1, emoji: '🥚', name: 'Egg', requirement: '0-9 activities' },
-                    { stage: 'baby', level: 2, emoji: '🐣', name: 'Baby', requirement: '10-24 activities' },
-                    { stage: 'teen', level: 3, emoji: '🐤', name: 'Teen', requirement: '25-49 activities' },
-                    { stage: 'adult', level: 4, emoji: '🐦', name: 'Adult', requirement: '50-74 activities' },
-                    { stage: 'master', level: 5, emoji: '🦅', name: 'Master', requirement: '75+ activities' },
-                  ].map((evolution) => (
+                  {getPetEvolutionStages().map((evolution) => (
                     <div
                       key={evolution.stage}
                       className={`flex items-center gap-3 p-2 rounded ${
-                        streakData.pet.evolution === evolution.stage ? 'bg-blue-100 border border-blue-300' : 'bg-white'
+                        petData.evolution === evolution.stage ? 'bg-blue-100 border border-blue-300' : 'bg-white'
                       }`}
                     >
                       <span className="text-2xl">{evolution.emoji}</span>
@@ -873,7 +789,7 @@ export default function DashboardPage() {
                         <span className="text-sm text-gray-500 ml-2">Level {evolution.level}</span>
                         <div className="text-xs text-gray-400">{evolution.requirement}</div>
                       </div>
-                      {streakData.pet.level >= evolution.level && (
+                      {petData.level >= evolution.level && (
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       )}
                     </div>

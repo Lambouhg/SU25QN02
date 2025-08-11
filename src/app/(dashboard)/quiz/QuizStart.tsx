@@ -46,7 +46,6 @@ const PREDEFINED_FIELDS = [
   { id: "qa", name: "QA", icon: "🔍", color: "from-yellow-500 to-orange-500" },
   { id: "mobile-app", name: "Mobile App", icon: "📱", color: "from-violet-500 to-purple-500" },
   { id: "database", name: "Database Admin", icon: "🗄️", color: "from-green-700 to-blue-700" },
-  { id: "others", name: "All", icon: "❓", color: "from-gray-400 to-gray-600" },
 ]
 
 const PREDEFINED_TOPICS = [
@@ -113,7 +112,7 @@ const FIELD_TOPICS_MAP: Record<string, string[]> = {
   "product-manager": [
     "system-design", "code-review", "design-architecture"
   ],
-  qa: [
+  "qa": [
     "code-review", "api-design", "javascript"
   ],
   "mobile-app": [
@@ -122,16 +121,6 @@ const FIELD_TOPICS_MAP: Record<string, string[]> = {
   database: [
     "sql", "mongodb", "redis", "database-design", "performance-tuning", "backup-recovery"
   ],
-  others: [
-    "react", "vue", "angular", "javascript", "typescript",
-    "design-system", "design-architecture", "nodejs", "java", "spring-boot",
-    "python", "go", "rust", "graphql", "api-design", "system-design",
-    "php", "aspnet-core", "docker", "kubernetes", "linux", "terraform",
-    "cloudflare", "aws", "prompt-engineering", "ai-agents", "ai-red-teaming",
-    "sql", "mongodb", "data-structures", "cpp", "code-review",
-    "react-native", "flutter", "redis", "database-design",
-    "performance-tuning", "backup-recovery"
-  ] ,
 }
 
 const experienceLevels = [
@@ -146,18 +135,13 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
   const [selectedTopic, setSelectedTopic] = useState<string>("")
   const [questionCount, setQuestionCount] = useState("") // ban đầu rỗng
   const [timeLimit, setTimeLimit] = useState("") // ban đầu rỗng
-  const [customField] = useState("");
-  const [customTopic] = useState("");
-  const [fieldError, setFieldError] = useState("");
-  const [topicError, setTopicError] = useState("");
   const [level, setLevel] = useState(""); // ban đầu rỗng
   const [isGenerating, setIsGenerating] = useState(false);
   const [levelUnlock, setLevelUnlock] = useState<{ junior: boolean; middle: boolean; senior: boolean }>({ junior: true, middle: false, senior: false });
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // currentFields = PREDEFINED_FIELDS; currentTopics = filteredTopics;
-  // Lọc topic theo field đã chọn, hoặc hiển thị tất cả nếu chưa chọn field
-  const filteredTopics = selectedField && selectedField !== "others"
+  // Lọc topic theo field đã chọn
+  const filteredTopics = selectedField
     ? PREDEFINED_TOPICS.filter(topic => FIELD_TOPICS_MAP[selectedField]?.includes(topic.id))
     : PREDEFINED_TOPICS;
 
@@ -193,24 +177,8 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
     setStep("config")
   }
 
-  const isFieldOthers = selectedField === "others";
-  const isTopicOthers = selectedTopic === "others";
-
   const validateCustomInputs = () => {
-    let valid = true;
-    if (isFieldOthers && !customField.trim()) {
-      setFieldError("Field cannot be empty");
-      valid = false;
-    } else {
-      setFieldError("");
-    }
-    if (isTopicOthers && !customTopic.trim()) {
-      setTopicError("Topic cannot be empty");
-      valid = false;
-    } else {
-      setTopicError("");
-    }
-    return valid;
+    return true; // No custom inputs anymore
   };
 
   const handleStartQuiz = async () => {
@@ -223,8 +191,8 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          field: isFieldOthers ? customField : PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field, // ✅ Capitalize field
-          topic: isTopicOthers ? customTopic : PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic, // ✅ Capitalize topic
+          field: PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field,
+          topic: PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic,
           level: level || "junior",
           count: Number(questionCount),
           timeLimit: Number(timeLimit),
@@ -346,24 +314,18 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-600">Specialization:</span>
               <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                {isFieldOthers ? customField : PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field}
+                {PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field}
               </span>
             </div>
-            {isFieldOthers && fieldError && (
-              <span id="field-error" className="text-xs text-red-600 mt-1">{fieldError}</span>
-            )}
           </div>
           <div className="w-px h-12 bg-gray-300"></div>
           <div className="flex flex-col items-start gap-1">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-600">Topic:</span>
               <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                {isTopicOthers ? customTopic : PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic}
+                {PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic}
               </span>
             </div>
-            {isTopicOthers && topicError && (
-              <span id="topic-error" className="text-xs text-red-600 mt-1">{topicError}</span>
-            )}
           </div>
         </div>
 

@@ -98,13 +98,17 @@ export default function AdminUsersPage() {
           'Pragma': 'no-cache'
         }
       });
+      
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
+        showToast('Users refreshed successfully', 'success');
+      } else {
+        showToast('Failed to refresh users', 'error');
       }
     } catch (error) {
-      console.error('Error fetching users:', error);
-      showToast('Failed to fetch users', 'error');
+      console.error('Error refreshing users:', error);
+      showToast('Error refreshing users', 'error');
     }
   };
 

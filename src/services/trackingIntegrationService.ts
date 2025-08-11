@@ -245,9 +245,6 @@ export class TrackingIntegrationService {
           ]
         };
       }
-
-      // Get full progress report for existing users
-      console.log('User activity found, generating full progress report for user:', userId);
       const report = await UserActivityService.getProgressReport(userId);
       return report;
     } catch (error) {
