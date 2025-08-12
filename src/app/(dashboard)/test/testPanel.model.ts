@@ -53,4 +53,10 @@ export interface HistoryStage {
   };
   topic: string;
   timestamp: string;
+  questionNumber?: number; // Thêm số thứ tự câu hỏi
+}
+
+export interface InterviewConfig {
+  maxQuestions: number; // Giới hạn số câu hỏi chính thức
+  reviewTimeSeconds: number; // Thời gian review sau câu cuối
 } 

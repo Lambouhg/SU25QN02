@@ -1,7 +1,9 @@
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BookOpen, Brain, Award, RotateCcw } from 'lucide-react';
+import { BookOpen, Brain, Award, RotateCcw, MessageSquare } from 'lucide-react';
+import { QuestionHistoryViewer } from './QuestionHistoryViewer';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
@@ -36,6 +38,8 @@ interface ResultsSummaryProps {
 }
 
 export function ResultsSummary({ results, realTimeScores, onReset }: Omit<ResultsSummaryProps, 'settings'>) {
+  const [showQuestionHistory, setShowQuestionHistory] = useState(false);
+  
   const categoryList = [
     { key: 'fundamental', label: 'Fundamental Knowledge', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
     { key: 'logic', label: 'Logical Reasoning', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
@@ -182,6 +186,41 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
             </CardContent>
           </Card>
         </div>
+        
+        {/* Questions Review Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Interview Questions Review
+            </CardTitle>
+            <CardDescription>
+              View your recent interview questions and answers from database
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-gray-600">
+                Click below to view your interview history with detailed questions and feedback.
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowQuestionHistory(!showQuestionHistory)}
+                className="flex items-center gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                {showQuestionHistory ? 'Hide' : 'View'} Question History
+              </Button>
+            </div>
+            
+            {showQuestionHistory && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <QuestionHistoryViewer />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
         <div className="flex justify-end">
           <Button variant="outline" onClick={onReset} className="flex items-center gap-2">
             <RotateCcw className="w-4 h-4" />

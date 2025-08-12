@@ -33,6 +33,10 @@ interface InterviewChatProps {
     };
   };
   lastFeedback?: string | null;
+  isReviewing?: boolean; // Thêm prop để biết đang review
+  reviewCountdown?: number; // Thêm countdown  
+  officialQuestionCount?: number; // Số câu hỏi đã hỏi
+  maxQuestions?: number; // Số câu hỏi tối đa
 }
 
 export const InterviewChat: React.FC<InterviewChatProps> = ({
@@ -46,6 +50,10 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
   onEndInterview,
   duration,
   realTimeScores,
+  isReviewing = false,
+  reviewCountdown = 0,
+  officialQuestionCount = 0,
+  maxQuestions = 10,
 }) => {
   const [secondsLeft, setSecondsLeft] = React.useState(duration * 60);
   React.useEffect(() => {
@@ -113,7 +121,21 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           <h2 className="text-2xl font-bold mb-1">Interview in Progress</h2>
           <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
             <Badge variant="outline">{position}</Badge>
-            <span className={`inline-flex items-center gap-1 font-mono text-lg ${timerColor}`}><svg width="18" height="18" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="2"/><path d="M12 6v6l4 2" stroke="#888" strokeWidth="2" strokeLinecap="round"/></svg> {timer}</span>
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              Question {officialQuestionCount}/{maxQuestions}
+            </Badge>
+            <span className={`inline-flex items-center gap-1 font-mono text-lg ${timerColor}`}>
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="2"/>
+                <path d="M12 6v6l4 2" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
+              </svg> 
+              {timer}
+            </span>
+            {isReviewing && (
+              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 animate-pulse">
+                Review Time: {reviewCountdown}s
+              </Badge>
+            )}
           </div>
         </div>
         <Card className="flex-1 flex flex-col">
@@ -137,13 +159,19 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           </CardContent>
           <div className="p-4 border-t flex items-center gap-2">
             <Textarea
-              placeholder="Enter your answer..."
+              placeholder={isReviewing ? "Please wait while reviewing..." : "Enter your answer..."}
               value={message}
               onChange={onMessageChange}
               className="flex-1 min-h-[44px] max-h-[120px] resize-none"
-              disabled={isAiThinking}
+              disabled={isAiThinking || isReviewing}
             />
-            <Button onClick={onSendMessage} disabled={!message.trim() || isAiThinking} className="h-12 px-6">Send</Button>
+            <Button 
+              onClick={onSendMessage} 
+              disabled={!message.trim() || isAiThinking || isReviewing} 
+              className="h-12 px-6"
+            >
+              Send
+            </Button>
           </div>
         </Card>
         {latestEvaluation && (
@@ -188,40 +216,62 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Real-time Scoring</CardTitle>
-            <div className="text-muted-foreground text-xs">Based on your responses</div>
+            <CardTitle>Interview Progress</CardTitle>
+            <div className="text-muted-foreground text-xs">
+              Questions answered: {officialQuestionCount}/{maxQuestions}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Progress bar cho số câu hỏi */}
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium">Fundamental Knowledge</span>
-                <span className="font-bold text-blue-500">{scores.fundamental * 10}%</span>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">Question Progress</span>
+                <span className="font-bold text-blue-500">
+                  {Math.round((officialQuestionCount / maxQuestions) * 100)}%
+                </span>
               </div>
-              <Progress value={scores.fundamental * 10} />
-              <div className="text-xs text-muted-foreground">{scores.suggestions.fundamental || 'Needs improvement'}</div>
+              <Progress value={(officialQuestionCount / maxQuestions) * 100} />
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium">Logical Reasoning</span>
-                <span className="font-bold text-red-500">{scores.logic * 10}%</span>
+            
+            {/* Real-time scores */}
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Real-time Scoring</h4>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium">Fundamental Knowledge</span>
+                    <span className="font-bold text-blue-500">{Math.round(scores.fundamental)}%</span>
+                  </div>
+                  <Progress value={scores.fundamental} />
+                  <div className="text-xs text-muted-foreground">{scores.suggestions.fundamental || 'Needs improvement'}</div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium">Logical Reasoning</span>
+                    <span className="font-bold text-red-500">{Math.round(scores.logic)}%</span>
+                  </div>
+                  <Progress value={scores.logic} />
+                  <div className="text-xs text-muted-foreground">{scores.suggestions.logic || 'Needs improvement'}</div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium">Language Fluency</span>
+                    <span className="font-bold text-red-500">{Math.round(scores.language)}%</span>
+                  </div>
+                  <Progress value={scores.language} />
+                  <div className="text-xs text-muted-foreground">{scores.suggestions.language || 'Needs improvement'}</div>
+                </div>
               </div>
-              <Progress value={scores.logic * 10} />
-              <div className="text-xs text-muted-foreground">{scores.suggestions.logic || 'Needs improvement'}</div>
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-medium">Language Fluency</span>
-                <span className="font-bold text-red-500">{scores.language * 10}%</span>
-              </div>
-              <Progress value={scores.language * 10} />
-              <div className="text-xs text-muted-foreground">{scores.suggestions.language || 'Needs improvement'}</div>
-            </div>
-            <Button variant="outline" className="w-full mt-4" onClick={() => {
-  if (onEndInterview) {
-    const minutesLeft = secondsLeft / 60;
-    onEndInterview(minutesLeft);
-  }
-}}>End Interview Early</Button>
+            
+            {!isReviewing && (
+              <Button variant="outline" className="w-full mt-4" onClick={() => {
+                if (onEndInterview) {
+                  const minutesLeft = secondsLeft / 60;
+                  onEndInterview(minutesLeft);
+                }
+              }}>End Interview Early</Button>
+            )}
           </CardContent>
         </Card>
       </div>

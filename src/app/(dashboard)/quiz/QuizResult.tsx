@@ -236,6 +236,8 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
       toast.success(`Successfully saved ${savedCount} questions for later study!`)
       setShowSaveWarning(false)
       setPendingNavigation(null)
+      // Redirect to saved questions page after successful save
+      router.push("/saved")
     } else {
       toast.error("Failed to save questions. Please try again.")
     }

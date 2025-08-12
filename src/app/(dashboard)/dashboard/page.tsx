@@ -203,9 +203,16 @@ export default function DashboardPage() {
   }, [isLoaded, user]);
 
   useEffect(() => {
-    if (!progress || !progress.recentActivities) return;
-    const activities = progress.recentActivities;
+    if (!progress) return;
     
+    // Sử dụng allActivities thay vì recentActivities để có đầy đủ dữ liệu
+    const activities = progress.allActivities || progress.recentActivities || [];
+    
+    console.log('Dashboard Chart Debug:', {
+      totalActivities: activities.length,
+      quizActivities: activities.filter(a => a.type === 'quiz').length,
+      activities: activities.map(a => ({ type: a.type, timestamp: a.timestamp }))
+    });
 
     
     const groupKey = (date: Date): string => {
@@ -235,7 +242,7 @@ export default function DashboardPage() {
           interview: vals.interview.length ? (vals.interview.reduce((a, b) => a + b, 0) / vals.interview.length) : 0,
         };
       } else {
-        // Sử dụng số lượng thực tế từ recentActivities
+        // Sử dụng số lượng thực tế từ allActivities
         return {
           period,
           quiz: vals.quiz.length,
@@ -245,6 +252,7 @@ export default function DashboardPage() {
       }
     }).sort((a, b) => a.period.localeCompare(b.period));
     
+    console.log('Chart Data Generated:', chartData);
 
     setLineChartData(chartData);
   }, [progress, viewMode, lineMode]);
@@ -692,8 +700,9 @@ export default function DashboardPage() {
                 <Input
                   id="totalActivities"
                   type="number"
+                  min="0"
                   value={personalTargets.totalActivities}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, totalActivities: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, totalActivities: Math.max(0, parseInt(e.target.value) || 0) }))}
                 />
               </div>
               <div>
@@ -704,7 +713,7 @@ export default function DashboardPage() {
                   min="0"
                   max="100"
                   value={personalTargets.averageScore}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, averageScore: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, averageScore: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
                 />
               </div>
               <div>
@@ -715,7 +724,7 @@ export default function DashboardPage() {
                   step="0.1"
                   min="0"
                   value={personalTargets.studyTime}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, studyTime: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, studyTime: Math.max(0, parseFloat(e.target.value) || 0) }))}
                 />
               </div>
               <div>
@@ -726,7 +735,7 @@ export default function DashboardPage() {
                   min="0"
                   max="100"
                   value={personalTargets.completionRate}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, completionRate: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, completionRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
                 />
               </div>
               <div>
@@ -734,8 +743,9 @@ export default function DashboardPage() {
                 <Input
                   id="learningFrequency"
                   type="number"
+                  min="0"
                   value={personalTargets.learningFrequency}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, learningFrequency: parseInt(e.target.value) || 0 }))}
+                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, learningFrequency: Math.max(0, parseInt(e.target.value) || 0) }))}
                 />
               </div>
             </div>

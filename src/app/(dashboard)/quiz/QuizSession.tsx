@@ -330,54 +330,36 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
             
               {/* Navigation Buttons - Fixed at bottom */}
               <div className="p-6 border-t border-gray-200 bg-gray-50/50">
-                <div className="flex justify-between items-center">
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePrevious}
-                  disabled={currentQuestionIndex === 0}
-                      className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 ${
-                    currentQuestionIndex === 0
-                      ? "opacity-50 cursor-not-allowed border-gray-200 text-gray-400"
-                      : "border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
-                  }`}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
-                </button>
+                <div className="flex justify-end items-center">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handlePrevious}
+                      disabled={currentQuestionIndex === 0}
+                          className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 ${
+                        currentQuestionIndex === 0
+                          ? "opacity-50 cursor-not-allowed border-gray-200 text-gray-400"
+                          : "border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </button>
 
-                <button
-                  onClick={handleNext}
-                  disabled={currentQuestionIndex === quiz.questions.length - 1}
-                      className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 ${
-                    currentQuestionIndex === quiz.questions.length - 1
-                      ? "opacity-50 cursor-not-allowed border-gray-200 text-gray-400"
-                      : "border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
-                  }`}
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                    <button
+                      onClick={handleNext}
+                      disabled={currentQuestionIndex === quiz.questions.length - 1}
+                          className={`flex items-center gap-2 px-4 py-2 border-2 rounded-lg font-medium transition-all duration-300 ${
+                        currentQuestionIndex === quiz.questions.length - 1
+                          ? "opacity-50 cursor-not-allowed border-gray-200 text-gray-400"
+                          : "border-gray-300 text-gray-700 hover:border-purple-300 hover:bg-purple-50"
+                      }`}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
-
-                <button
-                  onClick={handleSubmitClick}
-                  disabled={isSubmitting}
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold text-white shadow-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      Submit Quiz
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
             </div>
           </div>
 
@@ -453,6 +435,27 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                     <span>Time Limit:</span>
                     <span className="font-medium">{quiz.timeLimit} min</span>
                   </div>
+                </div>
+                
+                {/* Submit Button */}
+                <div className="mt-4">
+                  <button
+                    onClick={handleSubmitClick}
+                    disabled={isSubmitting}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-bold text-white shadow-lg transition-all duration-300 transform hover:scale-105 disabled:hover:scale-100"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span className="text-sm">Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="text-sm">Submit Quiz</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

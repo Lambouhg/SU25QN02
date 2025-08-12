@@ -28,8 +28,9 @@ const StartScreen: React.FC<StartScreenProps> = ({
   CATEGORY_ROLE_OPTIONS, levelOptions
 }) => {
   const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
+  
   return (
-    <Card className="bg-white rounded-lg shadow p-6">
+    <Card className="bg-slate-50/60 rounded-lg shadow border border-slate-300/30">
       <CardHeader>
         <CardTitle>Select interview field</CardTitle>
         <CardDescription>
@@ -37,7 +38,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <Label htmlFor="category">Industry/Field</Label>
             <Select 
@@ -77,6 +78,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             </Select>
           </div>
         </div>
+
         {/* Cấp độ phỏng vấn */}
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
           <h3 className="font-medium text-blue-800 mb-2 flex items-center">
@@ -98,6 +100,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             ))}
           </div>
         </div>
+
         {/* Thời gian phỏng vấn */}
         <div className="space-y-2">
           <div className="flex justify-between">
@@ -116,6 +119,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             ))}
           </div>
         </div>
+
         {/* Thông tin phỏng vấn */}
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
           <h3 className="font-medium mb-2">Interview information:</h3>

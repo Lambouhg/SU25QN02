@@ -53,13 +53,14 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Kiểm tra hạn mức testQuizEQ
-    const used = activeUserPackage.testQuizEQUsed;
+    // Kiểm tra hạn mức testQuizEQ (credit system: testQuizEQUsed = số lần còn lại)
+    const remaining = activeUserPackage.testQuizEQUsed;
     const limit = activeUserPackage.servicePackage.testQuizEQLimit;
+    const actualUsed = limit - remaining;
     
-    if (used >= limit) {
+    if (remaining <= 0) {
       return NextResponse.json({ 
-        error: `Test/EQ usage exceeded: ${used}/${limit}. Please upgrade your package.` 
+        error: `Test/EQ usage exceeded: ${actualUsed}/${limit}. Please upgrade your package.` 
       }, { status: 403 });
     }
 
@@ -189,6 +190,18 @@ export async function POST(request: NextRequest) {
         position: true,
       },
     });
+
+    // Cập nhật usage count sau khi tạo assessment thành công (credit system: giảm số lần còn lại)
+    if (type === 'test') {
+      const newRemaining = Math.max(0, activeUserPackage.testQuizEQUsed - 1);
+      await prisma.userPackage.update({
+        where: { id: activeUserPackage.id },
+        data: {
+          testQuizEQUsed: newRemaining
+        }
+      });
+      console.log(`[Assessment API] Decremented testQuizEQ remaining: ${activeUserPackage.testQuizEQUsed} -> ${newRemaining}`);
+    }
     // Track assessment completion với database user ID
     try {
       await TrackingIntegrationService.trackAssessmentCompletion(dbUser.id, assessment, { clerkId: userId });

@@ -45,15 +45,16 @@ export const extractTopics = async (introduction: string) => {
 /**
  * Generate a list of questions for a topic (5 questions, from basic to advanced)
  */
-export const generateQuestionsForTopic = async (topic: string, level?: string) => {
+export const generateQuestionsForTopic = async (topic: string, level?: string, position?: string) => {
   const levelText = level ? ` at the ${level} level` : '';
-  const systemPrompt = `You are a technical interviewer interviewing a candidate on the topic of "${topic}"${levelText}. Generate 5 interview questions in order from basic to advanced. Each question should be concise, clear, and practical. Return a JSON object:
+  const positionText = position ? ` for the position of ${position}` : '';
+  const systemPrompt = `You are a technical interviewer interviewing a candidate${positionText}${levelText}. Generate 5 interview questions specifically related to "${topic}" and relevant to ${position || 'this role'}. Each question should be concise, clear, and practical for the specific position. Return a JSON object:
 {
   "questions": string[]
 }`;
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
-    { role: "user", content: `Please generate the list of questions.` }
+    { role: "user", content: `Please generate the list of questions focused on ${topic} skills needed for ${position || 'this position'}.` }
   ];
   try {
     const response = await callOpenAI(messages);
