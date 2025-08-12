@@ -1,14 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Send, MessageSquareText, TrendingUp, Lightbulb, Users } from 'lucide-react';
 import { SessionState } from '../HeygenConfig';
-import Tooltip from '@mui/material/Tooltip';
-import dayjs from 'dayjs';
 
 interface Message {
   id: string;
@@ -54,23 +52,22 @@ const ChatControls: React.FC<ChatControlsProps> = ({
   coveredTopics = [],
   progress = 0
 }) => {
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const chatPanelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const prevMsgCountRef = useRef<number>(conversation.length);
 
-  // Debug conversation structure
+  // Chỉ scroll trong panel chat khi có tin nhắn mới
   useEffect(() => {
-   
-    if (conversation && conversation.length > 0) {
+    if (conversation.length > prevMsgCountRef.current && chatPanelRef.current) {
+      chatPanelRef.current.scrollTo({
+        top: chatPanelRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
     }
-  }, [conversation]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [conversation]);
+    prevMsgCountRef.current = conversation.length;
+  }, [conversation.length]);
 
   const handleKeyPress = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' && !event.shiftKey && !isAvatarTalking && !isThinking) {
@@ -93,90 +90,58 @@ const ChatControls: React.FC<ChatControlsProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 flex flex-col p-0">
-          <div className="flex-1 p-4 h-[calc(60vh)] overflow-y-auto space-y-4 bg-gray-50">
-            {conversation.map((message, index) => {
-              if (!message || !message.sender || !message.text) {
-                return null;
-              }
-              const isUser = message.sender === 'user';
-              const isAI = message.sender === 'ai';
-              
-              const bubbleColor = isUser
-                ? 'bg-blue-500 text-white'
-                : isAI
-                ? 'bg-gray-100 text-gray-900'
-                : 'bg-yellow-50 text-yellow-800 italic border border-yellow-200';
+          <div ref={chatPanelRef} className="flex-1 p-4 max-h-[400px] overflow-y-auto space-y-4 bg-gray-50">
+            {conversation.map((msg, index) => {
+              if (!msg || !msg.sender || !msg.text) return null;
+              const isUser = msg.sender === 'user';
+              // const isAI = msg.sender === 'ai';
               const align = isUser ? 'justify-end' : 'justify-start';
-              const borderRadius = isUser
-                ? 'rounded-xl rounded-br-none'
-                : isAI
-                ? 'rounded-xl rounded-bl-none'
-                : 'rounded-xl';
-              const shadow = isUser
-                ? 'shadow-md'
-                : isAI
-                ? 'shadow'
-                : '';
-              const errorStyle = message.isError ? 'bg-red-500 text-white' : '';
-              const time = message.timestamp ? dayjs(message.timestamp).format('HH:mm') : '';
-              const fullTime = message.timestamp ? dayjs(message.timestamp).format('YYYY-MM-DD HH:mm:ss') : '';
               return (
-                <div key={message.id || index} className={`flex ${align}`}>
-                  <div className="flex flex-col items-end max-w-[80%]">
-                    <div
-                      className={`p-3 ${bubbleColor} ${borderRadius} ${shadow} text-sm ${errorStyle} break-words`}
-                      style={{ wordBreak: 'break-word', minWidth: 40 }}
-                    >
-                      {message.text}
-                    </div>
-                    <div className="flex items-center gap-1 mt-1">
-                      <Tooltip title={fullTime} arrow>
-                        <span className="text-xs text-gray-400 select-none">
-                          {time}
-                        </span>
-                      </Tooltip>
-                      {message.isPartial && (
-                        <span className="text-xs text-blue-400 ml-1">Đang gửi...</span>
-                      )}
-                      {message.isError && (
-                        <span className="text-xs text-red-400 ml-1">Lỗi</span>
-                      )}
-                    </div>
+                <div key={msg.id || index} className={`mb-4 flex ${align}`}>
+                  <div className={`rounded-lg px-4 py-2 max-w-[80%] ${isUser ? 'bg-blue-500 text-white' : 'bg-gray-100 border border-yellow-300 text-yellow-900'}`}>
+                    <div className="text-xs font-medium mb-1">{isUser ? 'Bạn' : 'AI Interviewer'}</div>
+                    <div className="whitespace-pre-line">{msg.text}</div>
                   </div>
                 </div>
               );
             })}
+            {/* Hiệu ứng loading khi avatar đang trả lời */}
+            {isThinking && (
+              <div className="mb-4 flex justify-start">
+                <div className="rounded-lg px-4 py-2 bg-gray-100 border border-yellow-300 text-yellow-900 max-w-[80%]">
+                  <div className="text-xs font-medium mb-1">AI Interviewer</div>
+                  <div>AI is thinking...</div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
-          <div className="border-t border-gray-200 p-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder={
-                  isInterviewComplete
-                    ? 'Phỏng vấn đã kết thúc'
-                    : isAvatarTalking
-                    ? 'Đang nói...'
-                    : isThinking
-                    ? 'Đang suy nghĩ...'
-                    : 'Nhập câu trả lời của bạn...'
-                }
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={sessionState !== SessionState.CONNECTED || isAvatarTalking || isThinking || isInterviewComplete}
-                className="flex-1 bg-gray-100 border-gray-200 text-gray-900 focus:ring-blue-500 focus:border-blue-500 rounded-md"
-                ref={inputRef}
-              />
-              <Button
-                onClick={() => onSendMessage()}
-                size="icon"
-                disabled={!inputText.trim() || sessionState !== SessionState.CONNECTED || isAvatarTalking || isThinking || isInterviewComplete}
-                className="bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-              >
-                <Send className="w-5 h-5" />
-                <span className="sr-only">Gửi tin nhắn</span>
-              </Button>
-            </div>
+          <div className="p-4 border-t flex items-center gap-2">
+            <Textarea
+              placeholder={
+                isInterviewComplete
+                  ? 'Phỏng vấn đã kết thúc'
+                  : isAvatarTalking
+                  ? 'Đang nói...'
+                  : isThinking
+                  ? 'Đang suy nghĩ...'
+                  : 'Nhập câu trả lời của bạn...'
+              }
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={sessionState !== SessionState.CONNECTED || isAvatarTalking || isThinking || isInterviewComplete}
+              className="flex-1 min-h-[44px] max-h-[120px] resize-none bg-gray-100 border-gray-200 text-gray-900 focus:ring-blue-500 focus:border-blue-500 rounded-md"
+              ref={inputRef}
+            />
+            <Button
+              onClick={() => onSendMessage()}
+              disabled={!inputText.trim() || sessionState !== SessionState.CONNECTED || isAvatarTalking || isThinking || isInterviewComplete}
+              className="h-12 px-6 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+            >
+              <Send className="w-5 h-5" />
+              <span className="sr-only">Gửi tin nhắn</span>
+            </Button>
           </div>
         </CardContent>
       </Card>

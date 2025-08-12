@@ -237,7 +237,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
 
   const initializeSession = useCallback(async () => {
     // Kiểm tra điều kiện bắt buộc
-    if (!positionKey || !positionType) {
+    if (!positionName || !positionType) {
       addMessage('Vui lòng chọn đầy đủ vị trí và cấp bậc trước khi bắt đầu phỏng vấn.', 'system', true);
       return;
     }
@@ -247,14 +247,22 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       setInterviewStartTime(new Date());
       setElapsedTime(0);
       await startSession(config);
-      await aiStartNewInterview(positionKey, positionType);
+      
+      // Normalize position name for AI to avoid confusion
+      const normalizedPosition = positionName
+        .replace(/\s*Developer?\s*/gi, '') // Remove "Developer" or "Dev"
+        .replace(/\s*Engineer?\s*/gi, '') // Remove "Engineer"
+        .trim();
+      
+      console.log('Starting interview with normalized position:', normalizedPosition, 'level:', positionType);
+      await aiStartNewInterview(normalizedPosition, positionType);
     } catch (error) {
       console.error('Error starting session:', error);
       addMessage('Failed to start session: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
     } finally {
       setIsInitializingInterview(false);
     }
-  }, [positionKey, positionType, setIsInterviewComplete, setInterviewStartTime, setElapsedTime, startSession, config, aiStartNewInterview, addMessage]);
+  }, [positionName, positionType, setIsInterviewComplete, setInterviewStartTime, setElapsedTime, startSession, config, aiStartNewInterview, addMessage]);
 
   const handleInterviewCompleteInternal = useCallback(async (progress: number) => {
     if (isSubmitting) return;
@@ -275,8 +283,8 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
     try {
       const evaluation = await generateInterviewEvaluation(
         aiConversationHistory,
-        positionKey,
-        positionId,
+        positionName,  // Use positionName instead of positionKey
+        positionType,  // Use positionType as level
         config.language === 'vi' ? 'vi-VN' : 'en-US'
       );
       const messages = conversation as unknown as ConversationMessage[];
@@ -374,7 +382,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       setIsSubmitting(false);
       setIsSavingInterview(false); // Kết thúc loading lưu kết quả
     }
-  }, [isSubmitting, setIsSubmitting, setIsInterviewComplete, isLoaded, isSignedIn, userId, router, aiConversationHistory, positionKey, positionId, config, conversation, interviewStartTime, getToken, saveInterview, questionCount, interviewState, endSession, setIsAvatarTalking, setMessage, onEndSession, positionName, positionType, addMessage]);
+  }, [isSubmitting, setIsSubmitting, setIsInterviewComplete, isLoaded, isSignedIn, userId, router, aiConversationHistory, positionName, positionId, config, conversation, interviewStartTime, getToken, saveInterview, questionCount, interviewState, endSession, setIsAvatarTalking, setMessage, onEndSession, positionType, addMessage]);
 
 
   // Đặt handleEndSession lên trước để tránh lỗi hoisting

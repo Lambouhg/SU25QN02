@@ -29,13 +29,6 @@ export default function AvatarInterviewPage() {
           {isInterviewStarted ? (
             // Interview Session View
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h1 className="text-2xl font-semibold text-gray-900">AI Avatar Interview</h1>
-                  <p className="text-gray-600 mt-1">Interview session in progress</p>
-                </div>
-                  
-              </div>
               <InteractiveAvatar onEndSession={handleEndSessionClick}/>
             </div>
           ) : (

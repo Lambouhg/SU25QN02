@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, CircularProgress } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, IconButton, Tooltip } from '@mui/material';
+import MicIcon from '@mui/icons-material/Mic';
+import MicOffIcon from '@mui/icons-material/MicOff';
+
 import { StopCircle, VolumeX } from 'lucide-react';
+import { useAzureVoiceInteraction } from '@/hooks/useAzureVoiceInteraction';
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -18,6 +22,9 @@ interface VideoPlayerProps {
   isAvatarTalking?: boolean;
   isInterrupting?: boolean;
   elapsedTime?: string;
+  onSpeechResult: (text: string) => void;
+  voiceDisabled?: boolean;
+  voiceLanguage?: 'vi-VN' | 'en-US';
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -31,11 +38,40 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onInterruptAvatar,
   isAvatarTalking = false,
   isInterrupting: externalIsInterrupting = false,
-  elapsedTime
+  elapsedTime,
+  onSpeechResult,
+  voiceDisabled = false,
+  voiceLanguage = 'vi-VN'
 }) => {
   const [isEnding, setIsEnding] = useState(false);
   const [localIsInterrupting, setLocalIsInterrupting] = useState(false);
-  
+  // VoiceInteraction state/logic
+  const [error, setError] = useState<string | null>(null);
+  // const [interimTranscript, setInterimTranscript] = useState<string>('');
+  const {
+    isListening,
+    isInitializing,
+    startListening,
+    stopListening
+  } = useAzureVoiceInteraction({
+    onSpeechResult: (text: string) => {
+      onSpeechResult(text);
+    },
+    onError: setError,
+  // onInterimResult: setInterimTranscript,
+    language: voiceLanguage,
+    silenceTimeout: 2000
+  });
+  const toggleMicrophone = async () => {
+    if (voiceDisabled) return;
+    if (isAvatarTalking) return;
+    if (isListening) {
+      await stopListening();
+    } else {
+      await startListening();
+    }
+  };
+ 
   // Use external isInterrupting state if available, otherwise use local state
   const isInterrupting = externalIsInterrupting || localIsInterrupting;
 
@@ -100,7 +136,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [isAvatarTalking, isInterrupting, sessionState, SessionState.CONNECTED, onInterruptAvatar, handleInterruptSpeech]);
 
   return (
-    <Box sx={{ position: 'relative', width: '100%', height: '60vh', minHeight: '400px' }}>
+    <Box sx={{ position: 'relative', width: '100%', height: '80vh', minHeight: '500px' }}>
       {sessionState === SessionState.INACTIVE ? (
         <Box
           sx={{
@@ -218,7 +254,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         
       </Box>
 
-      {/* Avatar Name and Status */}
+      {/* Avatar Name, Status, VoiceInteraction, End Session */}
       <Box
         sx={{
           position: 'absolute',
@@ -266,8 +302,47 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             />
           )}
           <Typography variant="body2" sx={{ color: 'white' }}>
-            {avatarName} {isAvatarTalking ? '(Speaking...)' : ''}
+            {avatarName}
           </Typography>
+        </Box>
+        {/* VoiceInteraction UI */}
+  <Box sx={{ ml: 2, display: 'flex', alignItems: 'center', gap: 1, position: 'relative', minWidth: 48 }}>
+          <Tooltip title={isListening ? 'Dừng nói' : 'Bắt đầu nói'}>
+            <IconButton
+              onClick={toggleMicrophone}
+              disabled={voiceDisabled || isAvatarTalking || isInitializing}
+              color={isListening ? 'error' : 'primary'}
+              sx={{
+                bgcolor: isListening ? 'error.main' : 'primary.main',
+                color: 'white',
+                '&:hover': {
+                  bgcolor: isListening ? 'error.dark' : 'primary.dark',
+                },
+                '&.Mui-disabled': {
+                  bgcolor: 'action.disabledBackground',
+                  color: 'action.disabled',
+                }
+              }}
+            >
+              {isInitializing ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : isListening ? (
+                <MicIcon />
+              ) : (
+                <MicOffIcon />
+              )}
+            </IconButton>
+          </Tooltip>
+          {/* Không hiển thị transcript bên cạnh mic */}
+          {error && (
+            <Typography
+              variant="caption"
+              color="error"
+              sx={{ ml: 2, animation: 'fadeOut 5s forwards', '@keyframes fadeOut': { '0%': { opacity: 1 }, '80%': { opacity: 1 }, '100%': { opacity: 0 } } }}
+            >
+              {error}
+            </Typography>
+          )}
         </Box>
         {sessionState === SessionState.CONNECTED && (
           <Button

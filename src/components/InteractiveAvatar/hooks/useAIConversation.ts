@@ -28,7 +28,7 @@ interface UseAIConversationProps {
 }
 
 // Constants for auto-prompt feature
-const AUTO_PROMPT_DELAY = 20000; // 30 seconds
+const AUTO_PROMPT_DELAY = 30000; // 20 seconds
 const MAX_AUTO_PROMPTS = 3; // Maximum number of auto prompts before ending interview
 
 // Initial state for interview metrics
@@ -214,11 +214,15 @@ export const useAIConversation = ({
       setInterviewState(initialInterviewState);
       setAutoPromptCount(0);
 
-      // Set initial system context
+      // Set initial system context with detailed logging
       const systemMessage: ChatMessage = {
         role: 'system',
         content: `Position: ${field} at ${level} level\nLanguage: ${language}`
       };
+      
+      console.log('🎯 Starting interview with field:', field, 'level:', level);
+      console.log('📝 System message created:', systemMessage.content);
+      
       setConversationHistory([systemMessage]);
 
       // Get initial question from AI
@@ -232,10 +236,16 @@ export const useAIConversation = ({
         throw new Error('Failed to get initial question');
       }
 
+      console.log('🤖 AI Initial response:', response.answer);
+      console.log('📊 Response details:', { currentTopic: response.currentTopic, progress: response.interviewProgress });
+
       // Process initial response
       updateInterviewState(response);
       await onAnswer(response.answer);
-      setQuestionCount(1);
+      
+      // Set initial question count to 0 since this is just the greeting/introduction
+      // AI will manage the actual question count based on meaningful questions asked
+      setQuestionCount(0);
       
         // Không tự động start auto-prompt timer ở đây nữa, chỉ start khi avatar dừng nói (bên ngoài gọi)
 
@@ -259,21 +269,44 @@ export const useAIConversation = ({
 
       // Use externalHistory if provided, otherwise use local state
       const baseHistory = externalHistory ?? conversationHistory;
-
+      
+      // Ensure system message is preserved when using external history
+      let updatedHistory: ChatMessage[];
+      if (externalHistory) {
+        // Check if external history has system message
+        const hasSystemMessage = externalHistory.some(msg => msg.role === 'system');
+        console.log('🔍 External history check - has system message:', hasSystemMessage);
+        console.log('📝 External history length:', externalHistory.length);
+        
+        if (!hasSystemMessage && conversationHistory.length > 0) {
+          // Add our system message from local history
+          const systemMessage = conversationHistory.find(msg => msg.role === 'system');
+          if (systemMessage) {
+            updatedHistory = [systemMessage, ...externalHistory];
+            console.log('✅ Added system message to external history:', systemMessage.content);
+          } else {
+            updatedHistory = externalHistory;
+            console.log('⚠️ No system message found in local history');
+          }
+        } else {
+          updatedHistory = externalHistory;
+          if (hasSystemMessage) {
+            const systemMsg = externalHistory.find(msg => msg.role === 'system');
+            console.log('✅ Using existing system message:', systemMsg?.content);
+          }
+        }
+      } else {
+        // Add user message to local history
+        const nextUserMessage: ChatMessage = {
+          role: 'user',
+          content: text
+        };
+        updatedHistory = [...baseHistory, nextUserMessage];
+        console.log('📝 Using local history with user message');
+      }
+      
       setIsThinking(true);
       try {
-        // Add user message to history if not already present (only if using local state)
-        let updatedHistory: ChatMessage[];
-        if (externalHistory) {
-          updatedHistory = externalHistory;
-        } else {
-          const nextUserMessage: ChatMessage = {
-            role: 'user',
-            content: text
-          };
-          updatedHistory = [...baseHistory, nextUserMessage];
-        }
-        
         setConversationHistory(updatedHistory);
 
         // Process response with updated history
@@ -282,7 +315,6 @@ export const useAIConversation = ({
         if (!response || !response.answer) {
           throw new Error('Failed to get AI response');
         }
-
 
         // Add AI response to history
         const nextAssistantMessage: ChatMessage = {
@@ -300,8 +332,9 @@ export const useAIConversation = ({
           onFollowUpQuestion(response.followUpQuestion);
         }
 
-        // Update question count
-        setQuestionCount(prev => prev + 1);
+        // Use question count from AI response instead of manual calculation
+        // AI knows exactly how many actual technical questions have been asked
+        setQuestionCount(response.questionCount || 0);
         
         // Không tự động start auto-prompt timer ở đây nữa, chỉ start khi avatar dừng nói (bên ngoài gọi)
 

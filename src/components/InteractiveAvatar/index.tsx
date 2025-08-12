@@ -3,7 +3,6 @@ import { Box } from '@mui/material';
 import VideoPlayer from './subcomponents/VideoPlayer';
 import ChatControls from './subcomponents/ChatControls';
 import PreInterviewSetup from './subcomponents/PreInterviewSetup';
-import VoiceInteraction from './subcomponents/VoiceInteraction';
 import InterviewResult from './subcomponents/InterviewResult';
 import AutoPromptIndicator from './subcomponents/AutoPromptIndicator';
 import { AVATARS, STT_LANGUAGE_LIST, SessionState } from './HeygenConfig';
@@ -163,15 +162,11 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
               isAvatarTalking={isAvatarTalking}
               isInterrupting={isInterrupting}
               elapsedTime={formatElapsedTime(elapsedTime)}
+              onSpeechResult={handleSpeechResultWithReset}
+              voiceDisabled={sessionState !== SessionState.CONNECTED || isInterviewComplete || isSubmitting}
+              voiceLanguage={config.language === 'en' ? 'en-US' : 'vi-VN'}
             />
-            <Box sx={{ p: 2 }}>
-              <VoiceInteraction
-                onSpeechResult={handleSpeechResultWithReset}
-                disabled={sessionState !== SessionState.CONNECTED || isInterviewComplete || isSubmitting}
-                language={config.language === 'en' ? 'en-US' : 'vi-VN'}
-                isAvatarTalking={isAvatarTalking}
-              />
-            </Box>
+            
             <ChatControls
               sessionState={sessionState}
               inputText={message}
