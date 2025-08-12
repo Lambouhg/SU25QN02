@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { X, CreditCard, Star } from 'lucide-react';
 import {Brain, Award, BookOpen } from 'lucide-react';
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
 import StartScreen from './StartScreen';
@@ -125,6 +126,12 @@ const CATEGORY_ROLE_OPTIONS = [
 
 const levelOptions = ['Junior', 'Mid-level', 'Senior', 'Lead'];
 
+// Cấu hình cho interview
+const INTERVIEW_CONFIG = {
+  maxQuestions: 10, // Giới hạn 10 câu hỏi chính thức (không tính giới thiệu)
+  reviewTimeSeconds: 10 // 10 giây để review sau câu cuối
+};
+
 export interface ConversationMessage {
   id: string | number;
   sender: 'user' | 'ai';
@@ -168,6 +175,7 @@ interface HistoryStage {
   };
   topic: string;
   timestamp: string;
+  questionNumber?: number; // Thêm số thứ tự câu hỏi
 }
 
 interface InterviewState {
@@ -177,6 +185,25 @@ interface InterviewState {
   questions: string[];
   currentQuestionIndex: number;
 }
+
+// Get default topics based on position when introduction doesn't provide relevant topics
+const getDefaultTopicsForPosition = (position: string): string[] => {
+  const lowerPosition = position.toLowerCase();
+  if (lowerPosition.includes('frontend')) {
+    return ['HTML/CSS', 'JavaScript', 'React', 'Responsive Design', 'UI/UX'];
+  } else if (lowerPosition.includes('backend')) {
+    return ['API Development', 'Database', 'Server Architecture', 'Authentication', 'Security'];
+  } else if (lowerPosition.includes('fullstack')) {
+    return ['Frontend Development', 'Backend Development', 'Database', 'API Integration', 'Full Stack Architecture'];
+  } else if (lowerPosition.includes('mobile')) {
+    return ['Mobile Development', 'App Architecture', 'Mobile UI/UX', 'Platform APIs', 'Performance'];
+  } else if (lowerPosition.includes('devops')) {
+    return ['CI/CD', 'Cloud Services', 'Containerization', 'Infrastructure', 'Monitoring'];
+  } else if (lowerPosition.includes('qa') || lowerPosition.includes('test')) {
+    return ['Testing Methodologies', 'Test Automation', 'Bug Tracking', 'Quality Assurance', 'Test Planning'];
+  }
+  return ['Programming', 'Problem Solving', 'Software Development', 'Technical Skills', 'Best Practices'];
+};
 
 // Định nghĩa lại createMessage đúng vị trí
 const createMessage = (sender: 'user' | 'ai', text: string, isError = false): ConversationMessage => ({
@@ -206,6 +233,13 @@ export default function TestPanel() {
   const [hasSentInitialMessage, setHasSentInitialMessage] = useState(false);
   const [history, setHistory] = useState<HistoryStage[]>([]);
 
+  // Thêm state để theo dõi số câu hỏi chính thức đã hỏi
+  const [officialQuestionCount, setOfficialQuestionCount] = useState(0);
+  
+  // Thêm state để theo dõi review countdown
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [reviewCountdown, setReviewCountdown] = useState(0);
+
   const [showResult, setShowResult] = useState(false);
 
   // Thêm state lưu điểm real-time
@@ -229,6 +263,17 @@ export default function TestPanel() {
   // Thêm state lưu thời gian còn lại
   const [remainingTime, setRemainingTime] = useState<number>(duration);
 
+  // State cho package limit check
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [packageLimitInfo, setPackageLimitInfo] = useState({
+    currentUsage: 0,
+    totalLimit: 0,
+    packageName: ''
+  });
+
+  // State để lưu assessment ID cho real-time updates
+  const [currentAssessmentId, setCurrentAssessmentId] = useState<string | null>(null);
+
   useEffect(() => {
     if (messageListRef.current) {
       messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
@@ -247,7 +292,71 @@ export default function TestPanel() {
 
 
 
-  const startInterview = () => {
+  const startInterview = async () => {
+    // Kiểm tra hạn mức trước khi bắt đầu interview
+    try {
+      const res = await fetch('/api/user-package/check-active', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      
+      console.log('Package check response:', data); // Debug log
+      
+      // Validate response structure
+      if (!data || typeof data.hasActivePackage !== 'boolean') {
+        throw new Error('Invalid response structure from package check API');
+      }
+      
+      // Validate usage data structure
+      if (!data.usage || !data.usage.testQuizEQ) {
+        throw new Error('Missing testQuizEQ usage data in package check response');
+      }
+      
+      // Kiểm tra cụ thể cho testQuizEQ service (test-mode sử dụng)
+      if (!data.usage.testQuizEQ.canUse) {
+        // Lấy thông tin gói hiện tại để hiển thị
+        setPackageLimitInfo({
+          currentUsage: data.usage.testQuizEQ.currentUsage || 0,
+          totalLimit: data.usage.testQuizEQ.serviceLimit || 0,
+          packageName: data.selectedPackage?.name || 'Gói hiện tại'
+        });
+        setShowUpgradeModal(true);
+        return;
+      }
+      
+      // Kiểm tra thêm: nếu không có gói active
+      if (!data.hasActivePackage) {
+        setPackageLimitInfo({
+          currentUsage: 0,
+          totalLimit: 0,
+          packageName: 'Chưa có gói'
+        });
+        setShowUpgradeModal(true);
+        return;
+      }
+      
+      console.log('✅ Package check passed, starting interview...');
+    } catch (error) {
+      console.error('Error checking package limits:', error);
+      // Hiển thị modal lỗi
+      setPackageLimitInfo({
+        currentUsage: 0,
+        totalLimit: 0,
+        packageName: 'Lỗi kiểm tra gói'
+      });
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    // Nếu pass được check limit, tiếp tục start interview
     setShowResult(false);
     setInterviewing(true);
     setInterviewState({
@@ -259,6 +368,9 @@ export default function TestPanel() {
     });
     setHasSentInitialMessage(false);
     setHistory([]);
+    setOfficialQuestionCount(0); // Reset số câu hỏi chính thức
+    setIsReviewing(false); // Reset review state
+    setReviewCountdown(0); // Reset countdown
     setRealTimeScores({
       fundamental: 0,
       logic: 0,
@@ -273,6 +385,36 @@ export default function TestPanel() {
     setMessage('');
     setLastFeedback(null); // Reset AI feedback khi bắt đầu phiên mới
     setInterviewStartTime(Date.now()); // Lưu thời điểm bắt đầu
+
+    // ✨ NEW: Tạo draft assessment ngay từ đầu
+    try {
+      const response = await fetch('/api/assessment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'test',
+          position: position,
+          level: level,
+          duration: duration,
+          category: category,
+          history: JSON.stringify([]), // Empty history initially
+          status: 'in_progress'
+        }),
+      });
+
+      if (response.ok) {
+        const assessmentData = await response.json();
+        setCurrentAssessmentId(assessmentData.id);
+        console.log(`✅ Created draft assessment: ${assessmentData.id}`);
+        console.log('🔵 [DEBUG] Current assessment ID set to:', assessmentData.id);
+      } else {
+        console.error('Failed to create draft assessment:', response.status);
+      }
+    } catch (error) {
+      console.error('Error creating draft assessment:', error);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -340,13 +482,50 @@ export default function TestPanel() {
       return;
     }
     const technicalKeywords = ['frontend', 'backend', 'fullstack', 'react', 'angular', 'vue', 'javascript', 'html', 'css', 'api', 'database', 'sql', 'python', 'java', 'c++', 'c#', 'devops', 'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'mobile', 'ios', 'android', 'qa', 'testing', 'ui/ux', 'next.js', 'tailwind css'];
+    
+    // Define position-specific keywords for better topic prioritization
+    const getPositionKeywords = (position: string): string[] => {
+      const lowerPosition = position.toLowerCase();
+      if (lowerPosition.includes('frontend')) {
+        return ['html', 'css', 'javascript', 'react', 'angular', 'vue', 'ui/ux', 'responsive', 'browser', 'dom', 'frontend'];
+      } else if (lowerPosition.includes('backend')) {
+        return ['api', 'database', 'sql', 'server', 'node.js', 'express', 'backend', 'authentication', 'security'];
+      } else if (lowerPosition.includes('fullstack')) {
+        return ['html', 'css', 'javascript', 'react', 'api', 'database', 'fullstack', 'integration'];
+      } else if (lowerPosition.includes('mobile')) {
+        return ['mobile', 'ios', 'android', 'react native', 'flutter', 'app'];
+      } else if (lowerPosition.includes('devops')) {
+        return ['devops', 'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'ci/cd', 'deployment'];
+      }
+      return technicalKeywords;
+    };
+
+    const positionKeywords = getPositionKeywords(position);
+    
     const prioritizedTopics = topics.sort((a: string, b: string) => {
+      // First priority: position-specific keywords
+      const aIsPositionRelevant = positionKeywords.some(keyword => a.toLowerCase().includes(keyword)) ? 2 : 0;
+      const bIsPositionRelevant = positionKeywords.some(keyword => b.toLowerCase().includes(keyword)) ? 2 : 0;
+      
+      // Second priority: general technical keywords
       const aIsTechnical = technicalKeywords.some(keyword => a.toLowerCase().includes(keyword)) ? 1 : 0;
       const bIsTechnical = technicalKeywords.some(keyword => b.toLowerCase().includes(keyword)) ? 1 : 0;
-      return bIsTechnical - aIsTechnical;
+      
+      const aScore = aIsPositionRelevant + aIsTechnical;
+      const bScore = bIsPositionRelevant + bIsTechnical;
+      
+      return bScore - aScore;
     });
-    const firstTopic = prioritizedTopics[0];
-    const questions = await generateQuestionsForTopic(firstTopic, level);
+    
+    let firstTopic = prioritizedTopics[0];
+    
+    // If no relevant topics found from introduction, use position-based default topics
+    if (!firstTopic || !positionKeywords.some(keyword => firstTopic.toLowerCase().includes(keyword))) {
+      const defaultTopics = getDefaultTopicsForPosition(position);
+      firstTopic = defaultTopics[0];
+    }
+    
+    const questions = await generateQuestionsForTopic(firstTopic, level, position);
     if (!questions || questions.length === 0) {
       const noQuestionsMessage = createMessage(
         'ai',
@@ -377,9 +556,13 @@ export default function TestPanel() {
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
     setInterviewing: React.Dispatch<React.SetStateAction<boolean>>
   ) => {
+    console.log(`🔍 [DEBUG] handleInterviewingPhase called with message: "${message.substring(0, 50)}..."`);
+    
     // FIX: Always evaluate answer against the last question sent
     const lastQuestionIndex = interviewState.currentQuestionIndex;
     const currentQuestion = interviewState.questions[lastQuestionIndex];
+    console.log(`🔍 [DEBUG] currentQuestion: ${currentQuestion ? 'exists' : 'null'}, questionIndex: ${lastQuestionIndex}`);
+    
     if (!currentQuestion) {
       const errorMessage = createMessage(
         'ai',
@@ -391,17 +574,20 @@ export default function TestPanel() {
       return;
     }
     const evaluation = await evaluateAnswer(currentQuestion, message, getHistorySummary());
-    // Cập nhật điểm real-time
+    console.log(`🔍 [DEBUG] evaluation result:`, evaluation);
+    
+    // Cập nhật điểm real-time (chuyển từ thang 0-10 sang 0-100)
     if (evaluation && evaluation.scores) {
       setRealTimeScores({
-        fundamental: evaluation.scores.fundamental,
-        logic: evaluation.scores.logic,
-        language: evaluation.scores.language,
+        fundamental: evaluation.scores.fundamental * 10,
+        logic: evaluation.scores.logic * 10,
+        language: evaluation.scores.language * 10,
         suggestions: evaluation.suggestions || realTimeScores.suggestions
       });
     }
     // Nếu câu trả lời không liên quan, hỏi lại câu hỏi hiện tại với lời nhắc thân thiện
     if (evaluation && evaluation.isRelevant === false) {
+      console.log(`⚠️ [DEBUG] Answer not relevant, asking again`);
       const friendlyReminder = createMessage(
         'ai',
         `It seems your answer didn't address the question. No worries! Could you please try answering again?\n\n${currentQuestion}`
@@ -410,14 +596,20 @@ export default function TestPanel() {
       setLastFeedback("Let's try to answer the question above as clearly as you can!");
       return;
     }
-    // Lưu vào history
+    // Lưu vào history với số thứ tự câu hỏi
+    console.log(`✅ [DEBUG] About to call addHistoryStage for question ${officialQuestionCount + 1}`);
     addHistoryStage({
       question: currentQuestion,
       answer: message,
       evaluation,
       topic: interviewState.topics[interviewState.currentTopicIndex],
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      questionNumber: officialQuestionCount + 1 // Thêm số thứ tự câu hỏi
     });
+
+    // Tăng số câu hỏi chính thức đã hỏi
+    const newQuestionCount = officialQuestionCount + 1;
+    setOfficialQuestionCount(newQuestionCount);
     if (!evaluation || typeof evaluation.isComplete === 'undefined') {
       const errorMessage = createMessage(
         'ai',
@@ -448,6 +640,14 @@ export default function TestPanel() {
     }
     // set feedback thay vì add vào chat
     setLastFeedback(responseText);
+    
+    // Kiểm tra nếu đã hỏi đủ 10 câu hỏi chính thức
+    if (newQuestionCount >= INTERVIEW_CONFIG.maxQuestions) {
+      // Bắt đầu countdown 10 giây để review
+      startReviewCountdown();
+      return;
+    }
+    
     // Nếu vẫn muốn AI hỏi tiếp, chỉ add câu hỏi tiếp theo vào chat
     if (nextQuestion) {
       const nextQuestionMessage = createMessage('ai', nextQuestion);
@@ -487,7 +687,7 @@ export default function TestPanel() {
     const nextTopicIndex = interviewState.currentTopicIndex + 1;
     if (nextTopicIndex < interviewState.topics.length) {
       const nextTopic = interviewState.topics[nextTopicIndex];
-      const nextTopicQuestions = await generateQuestionsForTopic(nextTopic, level);
+      const nextTopicQuestions = await generateQuestionsForTopic(nextTopic, level, position);
       if (!nextTopicQuestions || nextTopicQuestions.length === 0) {
         const noQuestionsMessage = createMessage(
           'ai',
@@ -520,7 +720,7 @@ export default function TestPanel() {
     await endInterview(setInterviewState, setInterviewing, setConversation);
   };
 
-  const endInterview = async (
+  const endInterview = useCallback(async (
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
     setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>
@@ -544,25 +744,42 @@ export default function TestPanel() {
       totalTime = Math.ceil(diffMs / 60000); // làm tròn lên phút
     }
 
-    // Gọi API lưu kết quả xuống DB
+    // ✨ UPDATED: Cập nhật assessment hiện tại thay vì tạo mới
     try {
-      await fetch('/api/assessment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'test', // Thêm trường type
-          duration,
-          position,
-          level,
-          history,
-          realTimeScores,
-          totalTime,
-        })
-      });
+      if (currentAssessmentId) {
+        // PATCH để hoàn thành assessment
+        await fetch(`/api/assessment/${currentAssessmentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            realTimeScores,
+            totalTime,
+            isComplete: true, // Đánh dấu hoàn thành
+            status: 'completed'
+          })
+        });
+        console.log(`✅ Interview completed and saved for assessment: ${currentAssessmentId}`);
+      } else {
+        // Fallback: Tạo assessment mới nếu không có ID (backward compatibility)
+        console.warn('No assessment ID found, creating new assessment as fallback');
+        await fetch('/api/assessment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'test',
+            duration,
+            position,
+            level,
+            history,
+            realTimeScores,
+            totalTime,
+          })
+        });
+      }
     } catch (error) {
       console.error('Error saving interview result:', error);
     }
-  };
+  }, [duration, position, level, history, realTimeScores, interviewStartTime, currentAssessmentId]);
 
   // Hàm luyện tập lại
   const handleReset = () => {
@@ -577,6 +794,9 @@ export default function TestPanel() {
       questions: [],
       currentQuestionIndex: 0
     });
+    setOfficialQuestionCount(0); // Reset số câu hỏi
+    setIsReviewing(false); // Reset review state
+    setReviewCountdown(0); // Reset countdown
   };
 
   // Hàm tính điểm trung bình cho 3 tiêu chí
@@ -640,9 +860,78 @@ export default function TestPanel() {
   };
 
   // BỔ SUNG hàm addHistoryStage để tránh lỗi khi gọi trong handleInterviewingPhase
-  const addHistoryStage = (stage: HistoryStage) => {
+  const addHistoryStage = async (stage: HistoryStage) => {
+    console.log('🔵 [DEBUG] addHistoryStage called with:', stage);
     setHistory(prev => [...prev, stage]);
+
+    // ✨ NEW: Lưu real-time vào database nếu có assessment ID
+    if (currentAssessmentId) {
+      console.log('🔵 [DEBUG] Saving real-time to assessment:', currentAssessmentId);
+      try {
+        const response = await fetch(`/api/assessment/${currentAssessmentId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            question: stage.question,
+            answer: stage.answer,
+            evaluation: stage.evaluation,
+            topic: stage.topic,
+            questionNumber: stage.questionNumber,
+            realTimeScores: realTimeScores,
+            isComplete: false // Chưa hoàn thành
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log(`✅ Real-time saved question ${stage.questionNumber}, total history: ${result.historyCount}`);
+        } else {
+          console.error('Failed to save real-time:', response.status);
+        }
+      } catch (error) {
+        console.error('Error saving real-time:', error);
+      }
+    } else {
+      console.log('🔴 [DEBUG] No currentAssessmentId, skipping real-time save');
+    }
   };
+
+  // Hàm bắt đầu countdown review sau câu hỏi cuối
+  const startReviewCountdown = () => {
+    setIsReviewing(true);
+    setReviewCountdown(INTERVIEW_CONFIG.reviewTimeSeconds);
+    
+    // Hiển thị thông báo cho user
+    const reviewMessage = createMessage(
+      'ai', 
+      `You have completed all ${INTERVIEW_CONFIG.maxQuestions} interview questions! Please take ${INTERVIEW_CONFIG.reviewTimeSeconds} seconds to review your answers. The interview will end automatically.`
+    );
+    addMessageToConversation(setConversation, reviewMessage);
+  };
+
+  // Effect để countdown review time
+  useEffect(() => {
+    if (isReviewing && reviewCountdown > 0) {
+      const timer = setTimeout(() => {
+        setReviewCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (isReviewing && reviewCountdown === 0) {
+      // Hết thời gian review, tự động kết thúc interview
+      const finalMessage = createMessage(
+        'ai',
+        'Time\'s up! Thank you for participating in the interview. We will now provide your final evaluation.'
+      );
+      addMessageToConversation(setConversation, finalMessage);
+      
+      // Delay một chút rồi kết thúc
+      setTimeout(() => {
+        endInterview(setInterviewState, setInterviewing, setConversation);
+      }, 2000);
+    }
+  }, [isReviewing, reviewCountdown, endInterview]);
 
   // Callback nhận thời gian còn lại từ InterviewScreen/InterviewChat
   const handleEndInterviewWithTime = (minutesLeft: number) => {
@@ -658,7 +947,7 @@ export default function TestPanel() {
           duration,
           position,
           level,
-          history,
+          history, // history đã chứa đầy đủ thông tin để review
           realTimeScores,
           totalTime,
         })
@@ -673,171 +962,345 @@ export default function TestPanel() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          {showResult ? (
-            <ResultScreen
-              results={{
-                duration,
-                position,
-                level,
-                scores: calculateFinalScores(),
-                messages: conversation,
-                timestamp: new Date().toISOString(),
-                totalTime: Math.ceil(duration - remainingTime),
-              }}
-              realTimeScores={realTimeScores}
-              onReset={handleReset}
-            />
-          ) : !interviewing ? (
-            <StartScreen
-              category={category}
-              position={position}
-              level={level}
-              duration={duration}
-              setCategory={setCategory}
-              setPosition={setPosition}
-              setLevel={setLevel}
-              setDuration={setDuration}
-              startInterview={startInterview}
-              CATEGORY_ROLE_OPTIONS={CATEGORY_ROLE_OPTIONS}
-              levelOptions={levelOptions}
-            />
-          ) : (
-            <InterviewScreen
-              position={position}
-              conversation={conversation.map(msg => ({
-                role: msg.sender,
-                content: msg.text
-              }))}
-              message={message}
-              isAiThinking={isAiThinking}
-              onSendMessage={handleSendMessage}
-              onMessageChange={(e) => setMessage(e.target.value)}
-              onEndInterview={handleEndInterviewWithTime}
-              messageListRef={messageListRef}
-              duration={duration}
-              realTimeScores={{
-                fundamental: realTimeScores.fundamental,
-                logic: realTimeScores.logic,
-                language: realTimeScores.language
-              } as Record<string, number>}
-              lastFeedback={lastFeedback}
-            />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <div className="max-w-7xl mx-auto p-6 space-y-10">
+        {/* Top Section: Main Content + Selected Position Sidebar */}
+        <div className={`grid gap-8 ${interviewing ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-4'}`}>
+          <div className={interviewing ? 'col-span-1' : 'lg:col-span-3'}>
+            {showResult ? (
+              <ResultScreen
+                results={{
+                  duration,
+                  position,
+                  level,
+                  scores: calculateFinalScores(),
+                  messages: conversation,
+                  timestamp: new Date().toISOString(),
+                  totalTime: Math.ceil(duration - remainingTime),
+                }}
+                realTimeScores={realTimeScores}
+                onReset={handleReset}
+              />
+            ) : !interviewing ? (
+              <div className="bg-slate-50/80 rounded-2xl shadow-lg border border-slate-300/40 overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
+                  <h1 className="text-2xl font-bold text-white mb-2">Test Mode - Interview Practice</h1>
+                  <p className="text-blue-100">Choose your settings and start practicing for your dream job</p>
+                </div>
+                <div className="p-8">
+                  <StartScreen
+                    category={category}
+                    position={position}
+                    level={level}
+                    duration={duration}
+                    setCategory={setCategory}
+                    setPosition={setPosition}
+                    setLevel={setLevel}
+                    setDuration={setDuration}
+                    startInterview={startInterview}
+                    CATEGORY_ROLE_OPTIONS={CATEGORY_ROLE_OPTIONS}
+                    levelOptions={levelOptions}
+                  />
+                </div>
+              </div>
+            ) : (
+              <InterviewScreen
+                position={position}
+                conversation={conversation.map(msg => ({
+                  role: msg.sender,
+                  content: msg.text
+                }))}
+                message={message}
+                isAiThinking={isAiThinking}
+                onSendMessage={handleSendMessage}
+                onMessageChange={(e) => setMessage(e.target.value)}
+                onEndInterview={handleEndInterviewWithTime}
+                messageListRef={messageListRef}
+                duration={duration}
+                realTimeScores={{
+                  fundamental: realTimeScores.fundamental,
+                  logic: realTimeScores.logic,
+                  language: realTimeScores.language
+                } as Record<string, number>}
+                lastFeedback={lastFeedback}
+                isReviewing={isReviewing}
+                reviewCountdown={reviewCountdown}
+                officialQuestionCount={officialQuestionCount}
+                maxQuestions={INTERVIEW_CONFIG.maxQuestions}
+              />
+            )}
+          </div>
+
+          {/* Selected Position Sidebar - Enhanced - Hidden during interview */}
+          {!interviewing && (
+            <div className="lg:col-span-1">
+              <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden sticky top-6">
+                <CardHeader className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-6">
+                  <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    Selected Position
+                  </CardTitle>
+                  <p className="text-emerald-100 text-sm mt-1">Your current interview setup</p>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
+                        <span className="text-sm font-medium text-slate-600">Field</span>
+                      </div>
+                      <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 font-medium px-3 py-1">
+                        {category}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-slate-600">Position</span>
+                      </div>
+                      <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-200 font-medium px-3 py-1">
+                        {position}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-slate-600">Level</span>
+                      </div>
+                      <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-200 font-medium px-3 py-1">
+                        {level}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-3 bg-green-50 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-sm font-medium text-slate-600">Duration</span>
+                      </div>
+                      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200 font-medium px-3 py-1">
+                        {duration} min
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </div>
-        <div className="space-y-6">
-          {/* Card tiêu chí đánh giá */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-white">
-              <CardTitle className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Evaluation criteria
+
+        {/* Bottom Section: Enhanced Info Cards - Hidden during interview */}
+        {!interviewing && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Evaluation Criteria Card - Enhanced */}
+          <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6">
+              <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                Evaluation Criteria
               </CardTitle>
+              <p className="text-blue-100 text-sm mt-1">How we assess your performance</p>
             </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              <div className="flex items-center space-x-3 p-3.5 bg-blue-50 rounded-lg border border-blue-100 hover:border-blue-300 transition-colors">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-blue-600" />
+            <CardContent className="p-6 space-y-4">
+              <div className="space-y-4">
+                <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors duration-200">
+                  <div className="flex-shrink-0 w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <BookOpen className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-slate-800 mb-1">Basic Knowledge</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">Technical concepts and domain-specific understanding</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Basic knowledge</h4>
-                  <p className="text-sm text-gray-600 mt-0.5">Evaluate basic knowledge, knowledge related to the topic.</p>
+                
+                <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-xl border border-amber-100 hover:bg-amber-100 transition-colors duration-200">
+                  <div className="flex-shrink-0 w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Brain className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-slate-800 mb-1">Logical Thinking</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">Problem-solving approach and reasoning skills</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center space-x-3 p-3.5 bg-amber-50 rounded-lg border border-amber-100 hover:border-amber-300 transition-colors">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                  <Brain className="h-5 w-5 text-amber-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Logical thinking</h4>
-                  <p className="text-sm text-gray-600 mt-0.5">Evaluate problem-solving and reasoning capabilities.</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3 p-3.5 bg-green-50 rounded-lg border border-green-100 hover:border-green-300 transition-colors">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <Award className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Language proficiency</h4>
-                  <p className="text-sm text-gray-600 mt-0.5">Evaluate vocabulary usage and grammatical accuracy.</p>
+                
+                <div className="flex items-start gap-4 p-4 bg-green-50 rounded-xl border border-green-100 hover:bg-green-100 transition-colors duration-200">
+                  <div className="flex-shrink-0 w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Award className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-slate-800 mb-1">Communication</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">Clarity of expression and language proficiency</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
-          {/* Card lý do luyện tập */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-2 bg-gradient-to-r from-indigo-50 to-white">
-              <CardTitle className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Why should you practice interviewing?
+          
+          {/* Why Practice Card - Enhanced */}
+          <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+            <CardHeader className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-6">
+              <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                Why Practice Interviewing?
               </CardTitle>
+              <p className="text-purple-100 text-sm mt-1">Benefits of regular interview practice</p>
             </CardHeader>
-            <CardContent className="space-y-4 pt-4">
-              <div className="flex items-start space-x-3.5">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-bold flex-shrink-0 shadow-sm">1</div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Build confidence</h4>
-                  <p className="text-sm text-gray-600 mt-1">Practicing beforehand helps you feel more confident when participating in the actual interview.</p>
+            <CardContent className="p-6">
+              <div className="space-y-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                    1
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <h4 className="font-semibold text-slate-800 mb-2">Build Confidence</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">Regular practice reduces anxiety and builds natural confidence for real interviews</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start space-x-3.5">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-bold flex-shrink-0 shadow-sm">2</div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Improve answering skills</h4>
-                  <p className="text-sm text-gray-600 mt-1">Receive detailed feedback to help you improve answering interview questions.</p>
+                
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                    2
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <h4 className="font-semibold text-slate-800 mb-2">Improve Skills</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">Get detailed AI feedback to continuously improve your answering techniques</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start space-x-3.5">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-blue-700 font-bold flex-shrink-0 shadow-sm">3</div>
-                <div>
-                  <h4 className="font-medium text-gray-900">Prepare thoroughly</h4>
-                  <p className="text-sm text-gray-600 mt-1">Get familiar with common questions in your field.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          {/* Card vị trí đã chọn */}
-          <Card className="shadow-sm">
-            <CardHeader className="pb-3 bg-gradient-to-r from-green-50 to-white">
-              <CardTitle className="flex items-center gap-2">
-                <svg className="h-5 w-5 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                Selected position
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-600">Field:</span>
-                  <Badge variant="outline" className="bg-gray-50 text-gray-800 hover:bg-gray-100">{category}</Badge>
-                </div>
-                <Separator className="my-0.5" />
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-600">Position:</span>
-                  <Badge variant="outline" className="bg-blue-50 text-blue-800 hover:bg-blue-100 border-blue-200">{position}</Badge>
-                </div>
-                <Separator className="my-0.5" />
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-600">Level:</span>
-                  <Badge variant="outline" className="bg-amber-50 text-amber-800 hover:bg-amber-100 border-amber-200">{level}</Badge>
-                </div>
-                <Separator className="my-0.5" />
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-600">Time:</span>
-                  <Badge variant="outline" className="bg-green-50 text-green-800 hover:bg-green-100 border-green-200">{duration} minutes</Badge>
+                
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                    3
+                  </div>
+                  <div className="flex-1 pt-1">
+                    <h4 className="font-semibold text-slate-800 mb-2">Learn Patterns</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">Familiarize yourself with common interview patterns in your field</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
+
+      {/* Upgrade Modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="relative bg-gradient-to-r from-red-500 to-pink-600 p-6 rounded-t-2xl">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-4 right-4 text-white hover:bg-white/20 rounded-full p-2"
+                onClick={() => setShowUpgradeModal(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              
+              <div className="text-center">
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CreditCard className="h-8 w-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Hạn mức đã hết
+                </h3>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              {/* Message */}
+              <p className="text-gray-600 mb-4">
+                {packageLimitInfo.packageName === 'Chưa có gói' 
+                  ? 'Bạn chưa có gói dịch vụ hoặc gói đã hết hạn.'
+                  : `Bạn đã sử dụng hết ${packageLimitInfo.currentUsage}/${packageLimitInfo.totalLimit} lượt Test/EQ của gói ${packageLimitInfo.packageName}.`
+                }
+              </p>
+              
+              {/* Usage Progress */}
+              {packageLimitInfo.packageName !== 'Chưa có gói' && packageLimitInfo.totalLimit > 0 && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Lượt sử dụng</span>
+                    <span>{packageLimitInfo.currentUsage}/{packageLimitInfo.totalLimit}</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.min((packageLimitInfo.currentUsage / packageLimitInfo.totalLimit) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Benefits */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-gray-900 mb-2">Lợi ích khi nâng cấp:</h4>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Không giới hạn số lần luyện tập
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Tiếp cận tất cả tính năng premium
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    AI feedback chi tiết và cá nhân hóa
+                  </li>
+                  <li className="flex items-center">
+                    <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Ưu tiên support 24/7
+                  </li>
+                </ul>
+              </div>
+              
+              {/* Actions */}
+              <div className="space-y-3">
+                <Button 
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 rounded-xl transition-all duration-300 transform hover:scale-105"
+                  onClick={() => {
+                    window.location.href = '/Pricing';
+                  }}
+                >
+                  <Star className="h-5 w-5 mr-2" />
+                  Nâng cấp ngay
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-3 rounded-xl"
+                  onClick={() => setShowUpgradeModal(false)}
+                >
+                  Để sau
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

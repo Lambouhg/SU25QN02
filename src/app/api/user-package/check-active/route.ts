@@ -273,12 +273,15 @@ export async function GET(req: NextRequest) {
             }
         };
 
-        // Debug log
+        // Debug log đầy đủ
+        console.log('Calculated usage:', totalUsage);
         console.log('Package check response:', {
             hasActivePackage: isTimeValid && (avatarInterview.canUse || testQuizEQ.canUse || jdUpload.canUse),
             selectedPackage: activePackage.servicePackage.name,
             avatarInterviewCanUse: avatarInterview.canUse,
             avatarInterviewUsage: `${avatarInterview.actualUsed}/${avatarInterview.serviceLimit}`,
+            testQuizEQCanUse: testQuizEQ.canUse,
+            testQuizEQUsage: `${testQuizEQ.actualUsed}/${testQuizEQ.serviceLimit}`,
             timeValid: isTimeValid
         });
 
