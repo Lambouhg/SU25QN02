@@ -112,46 +112,7 @@ export default function QuizSaveQuestionPage() {
     setSelectedQuestions(newSelected);
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedQuestions.size === 0) return;
-    if (!confirm(`Are you sure you want to remove ${selectedQuestions.size} questions?`)) return;
-
-    try {
-      await Promise.all(
-        Array.from(selectedQuestions).map((id) =>
-          fetch("/api/users/saved-questions", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ questionId: id }),
-          }),
-        ),
-      );
-      setSavedQuestions(savedQuestions.filter((q) => !selectedQuestions.has(q.id)));
-      setSelectedQuestions(new Set());
-      toast.success(`${selectedQuestions.size} questions removed!`);
-    } catch (error) {
-      console.error("Error bulk deleting:", error);
-      toast.error("Failed to remove questions");
-    }
-  };
-
   // Flash Card Functions
-  const startFlashCards = () => {
-    const questionsToStudy =
-      selectedQuestions.size > 0 ? savedQuestions.filter((q) => selectedQuestions.has(q.id)) : filteredQuestions;
-
-    if (questionsToStudy.length === 0) {
-      toast.error("No questions available for flash cards");
-      return;
-    }
-
-    setFlashCardQuestions(questionsToStudy);
-    setCurrentCardIndex(0);
-    setIsFlipped(false);
-    setShowFlashCards(true);
-    toast.success(`Starting flash cards with ${questionsToStudy.length} questions`);
-  };
-
   const shuffleCards = () => {
     const shuffled = [...flashCardQuestions].sort(() => Math.random() - 0.5);
     setFlashCardQuestions(shuffled);
@@ -378,52 +339,6 @@ export default function QuizSaveQuestionPage() {
                       </select>
                     </div>
                   </div>
-                  {/* Action Buttons Row */}
-                  <div className="flex flex-wrap gap-3 pt-2">
-                    <button
-                      onClick={() => {
-                        if (selectedQuestions.size === filteredQuestions.length) {
-                          setSelectedQuestions(new Set());
-                        } else {
-                          setSelectedQuestions(new Set(filteredQuestions.map((q) => q.id)));
-                        }
-                      }}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
-                        selectedQuestions.size === filteredQuestions.length
-                          ? "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                          : "bg-blue-100 hover:bg-blue-200 text-blue-700"
-                      }`}
-                    >
-                      {selectedQuestions.size === filteredQuestions.length ? (
-                        <>
-                          <XCircle className="w-4 h-4" />
-                          Clear
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4" />
-                          Select All
-                        </>
-                      )}
-                    </button>
-                    {selectedQuestions.size > 0 && (
-                      <button
-                        onClick={handleBulkDelete}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-all duration-300"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Remove Selected ({selectedQuestions.size})
-                      </button>
-                    )}
-                    <button
-                      onClick={startFlashCards}
-                      className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 hover:from-purple-200 hover:to-pink-200 text-purple-700 rounded-lg transition-all duration-300"
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      Flash Cards{" "}
-                      {selectedQuestions.size > 0 ? `(${selectedQuestions.size})` : `(${filteredQuestions.length})`}
-                    </button>
-                  </div>
                 </CardContent>
             </Card>
 
@@ -633,6 +548,39 @@ export default function QuizSaveQuestionPage() {
                       </>
                     )}
                   </button>
+
+                  <button
+                    onClick={() => {
+                      // Use selected questions if any, otherwise use all filtered questions
+                      const questionsToStudy = selectedQuestions.size > 0 
+                        ? savedQuestions.filter((q) => selectedQuestions.has(q.id))
+                        : filteredQuestions;
+
+                      if (questionsToStudy.length === 0) {
+                        toast.error("No questions available for flash cards");
+                        return;
+                      }
+
+                      setFlashCardQuestions(questionsToStudy);
+                      setCurrentCardIndex(0);
+                      setIsFlipped(false);
+                      setShowFlashCards(true);
+                      toast.success(`Starting flash cards with ${questionsToStudy.length} questions`);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 rounded-lg border border-purple-200 transition-all duration-300"
+                  >
+                    <CreditCard className="w-5 h-5 text-purple-600" />
+                    <span className="font-medium text-gray-800">
+                      Flash card {selectedQuestions.size > 0 ? `(${selectedQuestions.size})` : "(All)"}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Note about checkbox configuration */}
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-xs text-blue-700">
+                    <span className="font-medium">Note:</span> Can configure by checkbox selection for custom flash card sets.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -776,7 +724,7 @@ export default function QuizSaveQuestionPage() {
                   <div className="w-full flex-1 max-h-48 overflow-y-auto bg-gradient-to-br from-purple-50 to-blue-50 rounded-none p-0 shadow-none">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-6 py-3">
                       {currentCard.answers.map((answer, idx) => (
-                        <div key={idx} className="p-2 bg-gray-200 border border-gray-300 rounded-lg text-gray-800 w-full">
+                        <div key={idx} className="p-4 bg-purple-100 border-2 border-purple-300 rounded-lg text-purple-800 font-medium w-full">
                           {answer.content}
                         </div>
                       ))}
@@ -795,20 +743,22 @@ export default function QuizSaveQuestionPage() {
                   <div className="h-full w-full flex flex-col items-start justify-start">
                     <div className="flex items-center gap-2 mt-8 mb-4 w-full px-4">
                       <CheckCircle2 className="w-6 h-6 text-green-600" />
-                      <h4 className="text-lg font-bold text-gray-800">Correct Answers:</h4>
+                      <h4 className="text-lg font-bold text-gray-800">Answers:</h4>
                     </div>
                     <div className="w-full flex-1 max-h-48 overflow-y-auto bg-gradient-to-br from-green-50 to-emerald-50 rounded-none p-0 shadow-none mb-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full px-6 py-3">
-                        {currentCard.answers
-                          .filter((answer) => answer.isCorrect)
-                          .map((answer, index) => (
-                            <div
-                              key={answer.content + index}
-                              className="p-4 bg-green-200 border border-green-300 rounded-lg text-green-800 font-medium w-full"
-                            >
-                              ✓ {answer.content}
-                            </div>
-                          ))}
+                        {currentCard.answers.map((answer, index) => (
+                          <div
+                            key={answer.content + index}
+                            className={`p-4 border rounded-lg font-medium w-full ${
+                              answer.isCorrect
+                                ? "bg-green-200 border-green-300 text-green-800"
+                                : "bg-red-200 border-red-300 text-red-800"
+                            }`}
+                          >
+                            {answer.isCorrect ? "✓" : "✗"} {answer.content}
+                          </div>
+                        ))}
                       </div>
                     </div>
                     {currentCard.explanation && (

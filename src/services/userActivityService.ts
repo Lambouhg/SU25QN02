@@ -400,7 +400,7 @@ export class UserActivityService {
         if (diffDays === 1) {
           streak += 1;
         } else if (diffDays > 1) {
-          streak = 1;
+          streak = 0; // Reset về 0 để pet chết khi bỏ học > 1 ngày
         }
       }
 
