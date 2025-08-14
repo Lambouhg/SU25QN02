@@ -14,8 +14,6 @@ model User {
   firstName               String?
   lastName                String?
   avatar                  String?
-  location                String?
-  aboutMe                 String?
   bio                     String?
   phone                   String?
   department              String?
@@ -23,19 +21,8 @@ model User {
   joinDate                String?
   status                  String?          @default("Hoạt động")
   experienceLevel         ExperienceLevel? @default(mid)
-  preferredInterviewTypes String[]
-  cvUrl                   String?
-  socialLinks             Json?
   role                    UserRole         @default(user)
-  companyId               String?
   skills                  String[]
-  appliedJobs             String[]
-  interviewPractices      String[]
-  interviewStats          Json?
-  experience              Json?
-  education               Json?
-  languages               String[]
-  evaluations             Json?
   lastLogin               DateTime?
   lastSignInAt            DateTime?
   lastActivity            DateTime?
@@ -94,7 +81,6 @@ model Quiz {
   quizHistoryUser   User?      @relation("QuizHistory", fields: [quizHistoryUserId], references: [id])
   user              User       @relation(fields: [userId], references: [id])
   questions         Question[] @relation("QuizQuestions")
-  savedQuestions    Question[] @relation("QuizSavedQuestions")
 }
 
 model Question {
@@ -110,7 +96,6 @@ model Question {
   createdById  String?
   createdBy    User?       @relation("QuestionsCreated", fields: [createdById], references: [id])
   quizzes      Quiz[]      @relation("QuizQuestions")
-  quizzesSaved Quiz[]      @relation("QuizSavedQuestions")
   usersSaved   User[]      @relation("SavedQuestions")
 }
 
