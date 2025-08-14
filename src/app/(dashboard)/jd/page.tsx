@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { getAIResponse } from '../../../services/azureAiservicesforJD';
 import { questionSetService } from '@/services/questionSetService';
@@ -326,7 +327,7 @@ const UploadJDPageContent = () => {
 
       const aiResponse = await getAIResponse(text, [], {
         questionType: questionType,
-        language: 'vi',
+        language: 'en',
         level: level
       });
 
@@ -491,8 +492,21 @@ const UploadJDPageContent = () => {
     <DashboardLayout>
       <div className="container mx-auto p-6 max-w-6xl">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Job Description</h1>
-          <p className="text-gray-600 text-lg">Upload your job description file and we&apos;ll generate tailored interview questions for you.</p>
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Job Description</h1>
+              <p className="text-gray-600 text-lg">Upload your job description file and we&apos;ll generate tailored interview questions for you.</p>
+            </div>
+            <Link 
+              href="/jd-interview-history"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              View History
+            </Link>
+          </div>
         </div>        {/* Upload Section */}
         <div className="mb-12">
           <UploadSection 

@@ -153,6 +153,36 @@ model JdQuestions {
   fileName       String?
   createdAt      DateTime?       @default(now())
   updatedAt      DateTime?       @updatedAt
+  
+  // Relationship to answers
+  jdAnswers      JdAnswers[]
+}
+
+model JdAnswers {
+  id                String        @id @default(uuid())
+  userId            String
+  jdQuestionSetId   String
+  questionIndex     Int
+  questionText      String
+  userAnswer        String
+  feedback          String?
+  scores            Json?         // Store detailed scores like {technical: 8, communication: 7}
+  overallScore      Float?        // Overall score from 0-10
+  strengths         String[]      // Array of strength points
+  improvements      String[]      // Array of improvement suggestions
+  skillAssessment   Json?         // Detailed skill breakdown
+  timeSpent         Int?          // Time spent answering in seconds
+  
+  answeredAt        DateTime      @default(now())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // Relationships
+  jdQuestionSet     JdQuestions   @relation(fields: [jdQuestionSetId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([jdQuestionSetId])
+  @@index([answeredAt])
 }
 
 model Assessment {

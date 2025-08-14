@@ -430,14 +430,14 @@ function ActivityHistory({ }: ActivityHistoryProps) {
               {activities.length === 0 ? (
                 <>
                   <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Chưa có hoạt động nào</p>
-                  <p className="text-sm text-gray-500">Bắt đầu sử dụng hệ thống để xem lịch sử hoạt động của bạn</p>
-                </>
-              ) : (
-                <>
-                  <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Không tìm thấy hoạt động nào</p>
-                  <p className="text-sm text-gray-500">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                    <p className="text-gray-600 mb-2">No activities yet</p>
+                    <p className="text-sm text-gray-500">Start using the system to see your activity history</p>
+                  </>
+                  ) : (
+                  <>
+                    <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600 mb-2">No activities found</p>
+                    <p className="text-sm text-gray-500">Try changing the filters or search keywords</p>
                   <Button 
                     variant="outline" 
                     size="sm" 

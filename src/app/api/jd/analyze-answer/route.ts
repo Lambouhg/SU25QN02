@@ -25,11 +25,9 @@ Please provide feedback in the following JSON format:
 {
   "feedback": "Detailed written feedback with strengths, areas for improvement, and suggestions",
   "detailedScores": {
-    "content": number (1-10, độ phong phú và chính xác của nội dung),
-    "structure": number (1-10, cấu trúc và tổ chức câu trả lời),
-    "relevance": number (1-10, độ liên quan đến câu hỏi),
-    "examples": number (1-10, chất lượng ví dụ thực tế),
-    "clarity": number (1-10, độ rõ ràng và dễ hiểu),
+    "content": number (1-10, độ phong phú, chính xác và chất lượng nội dung),
+    "relevance": number (1-10, độ liên quan và phù hợp với câu hỏi),
+    "clarity": number (1-10, độ rõ ràng, logic và dễ hiểu),
     "overall": number (1-10, điểm tổng thể)
   },
   "strengths": [
@@ -65,9 +63,7 @@ Ensure all scores are realistic and based on the actual quality of the answer. B
         feedback: response,
         detailedScores: {
           content: 6,
-          structure: 6,
           relevance: 6,
-          examples: 6,
           clarity: 6,
           overall: 6
         },

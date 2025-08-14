@@ -395,7 +395,7 @@ export default function DashboardLayout({
               onClick={() => setIsSidebarOpen(false)}
               className="block"
             >
-              <div className="p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors">
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 ring-2 ring-white shadow-sm">
                     {user?.imageUrl ? (
