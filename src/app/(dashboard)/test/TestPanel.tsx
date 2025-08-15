@@ -398,9 +398,8 @@ export default function TestPanel() {
           position: position,
           level: level,
           duration: duration,
-          category: category,
-          history: JSON.stringify([]), // Empty history initially
-          status: 'in_progress'
+          selectedCategory: category, // Sử dụng selectedCategory thay vì category
+          history: [], // Empty history array, không cần JSON.stringify
         }),
       });
 
@@ -409,6 +408,7 @@ export default function TestPanel() {
         setCurrentAssessmentId(assessmentData.id);
         console.log(`✅ Created draft assessment: ${assessmentData.id}`);
         console.log('🔵 [DEBUG] Current assessment ID set to:', assessmentData.id);
+        console.log('🔵 [DEBUG] Assessment data:', assessmentData);
       } else {
         console.error('Failed to create draft assessment:', response.status);
       }
@@ -729,6 +729,10 @@ export default function TestPanel() {
       ...prev,
       phase: 'completed'
     }));
+    console.log('🔵 [DEBUG] handleEndInterview called');
+    console.log('🔵 [DEBUG] currentAssessmentId:', currentAssessmentId);
+    console.log('🔵 [DEBUG] history length:', history.length);
+    
     const endingMessage = createMessage(
       'ai',
       'Thank you for participating in the interview. We will summarize the results now.'
@@ -754,8 +758,7 @@ export default function TestPanel() {
           body: JSON.stringify({
             realTimeScores,
             totalTime,
-            isComplete: true, // Đánh dấu hoàn thành
-            status: 'completed'
+            isComplete: true // Đánh dấu hoàn thành
           })
         });
         console.log(`✅ Interview completed and saved for assessment: ${currentAssessmentId}`);
@@ -935,31 +938,64 @@ export default function TestPanel() {
 
   // Callback nhận thời gian còn lại từ InterviewScreen/InterviewChat
   const handleEndInterviewWithTime = (minutesLeft: number) => {
-    setRemainingTime(minutesLeft);
-    const totalTime = Math.ceil(duration - minutesLeft);
-    // Lưu kết quả
-    try {
+  setRemainingTime(minutesLeft);
+  const totalTime = Math.ceil(duration - minutesLeft);
+
+  // Tính finalScores với trường overall
+  const finalScores = calculateFinalScores();
+
+  try {
+    if (currentAssessmentId) {
+      // Cập nhật assessment hiện tại
+      fetch(`/api/assessment/${currentAssessmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          realTimeScores,
+          finalScores: {
+            fundamental: finalScores.fundamentalKnowledge,
+            logic: finalScores.logicalReasoning,
+            language: finalScores.languageFluency,
+            overall: finalScores.overall
+          },
+          totalTime,
+          status: 'completed',
+          isComplete: true
+        })
+      }).catch(error => {
+        console.error('[DEBUG] API error updating assessment:', error);
+      });
+    } else {
+      // Fallback: Tạo assessment mới nếu không có ID
       fetch('/api/assessment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'test', // Thêm trường type
+          type: 'test',
           duration,
           position,
           level,
-          history, // history đã chứa đầy đủ thông tin để review
+          history,
           realTimeScores,
+          finalScores: {
+            fundamental: finalScores.fundamentalKnowledge,
+            logic: finalScores.logicalReasoning,
+            language: finalScores.languageFluency,
+            overall: finalScores.overall
+          },
           totalTime,
+          status: 'completed',
         })
       }).catch(error => {
-        console.error('[DEBUG] API error from handleEndInterviewWithTime:', error);
+        console.error('[DEBUG] API error creating new assessment:', error);
       });
-    } catch (error) {
-      console.error('Error saving interview result:', error);
     }
-    setShowResult(true);
-    setInterviewing(false);
-  };
+  } catch (error) {
+    console.error('Error saving interview result:', error);
+  }
+  setShowResult(true);
+  setInterviewing(false);
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">

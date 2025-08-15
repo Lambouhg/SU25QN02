@@ -64,11 +64,19 @@ export async function POST(request: NextRequest) {
       }, { status: 403 });
     }
 
-    // Xây dựng data object
+    // Xây dựng data object với các trường bắt buộc
     const data = {
       userId,
       type: type as AssessmentType,
-      ...rest,
+      level: rest.level || 'Junior', // Default level if not provided
+      duration: rest.duration || 15, // Default duration if not provided
+      totalTime: rest.totalTime || 0, // Use totalTime from request body or default to 0
+      selectedCategory: rest.selectedCategory || null, // Optional category
+      // Chỉ include các trường hợp lệ cho Assessment model
+      ...(rest.history && { history: rest.history }),
+      ...(rest.realTimeScores && { realTimeScores: rest.realTimeScores }),
+      ...(rest.finalScores && { finalScores: rest.finalScores }),
+      // Loại bỏ các trường không hợp lệ như status, category
     };
 
     // Xử lý topic cho test mode - lưu vào realTimeScores

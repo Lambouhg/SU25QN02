@@ -8,37 +8,37 @@ datasource db {
 }
 
 model User {
-  id                      String           @id @default(uuid())
-  email                   String           @unique
-  clerkId                 String           @unique
-  firstName               String?
-  lastName                String?
-  avatar                  String?
-  bio                     String?
-  phone                   String?
-  department              String?
-  position                String?
-  joinDate                String?
-  status                  String?          @default("Hoạt động")
-  experienceLevel         ExperienceLevel? @default(mid)
-  role                    UserRole         @default(user)
-  skills                  String[]
-  lastLogin               DateTime?
-  lastSignInAt            DateTime?
-  lastActivity            DateTime?
-  isOnline                Boolean          @default(false)
-  clerkSessionActive      Boolean          @default(false)
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @updatedAt
-  userActivityId          String?          @unique
-  interviews              Interview[]
-  questionsCreated        Question[]       @relation("QuestionsCreated")
-  quizHistory             Quiz[]           @relation("QuizHistory")
-  quizzes                 Quiz[]
-  userActivity            UserActivity?
-  userPackages            UserPackage[]
-  paymentHistory          PaymentHistory[]
-  savedQuestions          Question[]       @relation("SavedQuestions")
+  id                 String           @id @default(uuid())
+  email              String           @unique
+  clerkId            String           @unique
+  firstName          String?
+  lastName           String?
+  avatar             String?
+  bio                String?
+  phone              String?
+  department         String?
+  position           String?
+  joinDate           String?
+  status             String?          @default("Hoạt động")
+  experienceLevel    ExperienceLevel? @default(mid)
+  role               UserRole         @default(user)
+  skills             String[]
+  lastLogin          DateTime?
+  lastSignInAt       DateTime?
+  lastActivity       DateTime?
+  isOnline           Boolean          @default(false)
+  clerkSessionActive Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  userActivityId     String?          @unique
+  interviews         Interview[]
+  paymentHistory     PaymentHistory[]
+  questionsCreated   Question[]       @relation("QuestionsCreated")
+  quizHistory        Quiz[]           @relation("QuizHistory")
+  quizzes            Quiz[]
+  userActivity       UserActivity?
+  userPackages       UserPackage[]
+  savedQuestions     Question[]       @relation("SavedQuestions")
 }
 
 model Interview {
@@ -76,27 +76,27 @@ model Quiz {
   timeUsed          Int
   completedAt       DateTime?
   retryCount        Int?       @default(0)
-  answerMapping     Json?      // Lưu mapping vị trí câu trả lời: { questionId: [newIndexes] }
   quizHistoryUserId String?
+  answerMapping     Json?
   quizHistoryUser   User?      @relation("QuizHistory", fields: [quizHistoryUserId], references: [id])
   user              User       @relation(fields: [userId], references: [id])
   questions         Question[] @relation("QuizQuestions")
 }
 
 model Question {
-  id           String      @id @default(uuid())
-  question     String
-  answers      Json?
-  fields       String[]
-  topics       String[]
-  levels       QuizLevel[]
-  explanation  String?
-  createdAt    DateTime?   @default(now())
-  updatedAt    DateTime?   @updatedAt
-  createdById  String?
-  createdBy    User?       @relation("QuestionsCreated", fields: [createdById], references: [id])
-  quizzes      Quiz[]      @relation("QuizQuestions")
-  usersSaved   User[]      @relation("SavedQuestions")
+  id          String      @id @default(uuid())
+  question    String
+  answers     Json?
+  fields      String[]
+  topics      String[]
+  levels      QuizLevel[]
+  explanation String?
+  createdAt   DateTime?   @default(now())
+  updatedAt   DateTime?   @updatedAt
+  createdById String?
+  createdBy   User?       @relation("QuestionsCreated", fields: [createdById], references: [id])
+  quizzes     Quiz[]      @relation("QuizQuestions")
+  usersSaved  User[]      @relation("SavedQuestions")
 }
 
 model Position {
@@ -138,33 +138,28 @@ model JdQuestions {
   fileName       String?
   createdAt      DateTime?       @default(now())
   updatedAt      DateTime?       @updatedAt
-  
-  // Relationship to answers
   jdAnswers      JdAnswers[]
 }
 
 model JdAnswers {
-  id                String        @id @default(uuid())
-  userId            String
-  jdQuestionSetId   String
-  questionIndex     Int
-  questionText      String
-  userAnswer        String
-  feedback          String?
-  scores            Json?         // Store detailed scores like {technical: 8, communication: 7}
-  overallScore      Float?        // Overall score from 0-10
-  strengths         String[]      // Array of strength points
-  improvements      String[]      // Array of improvement suggestions
-  skillAssessment   Json?         // Detailed skill breakdown
-  timeSpent         Int?          // Time spent answering in seconds
-  
-  answeredAt        DateTime      @default(now())
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
-  // Relationships
-  jdQuestionSet     JdQuestions   @relation(fields: [jdQuestionSetId], references: [id], onDelete: Cascade)
-  
+  id              String      @id @default(uuid())
+  userId          String
+  jdQuestionSetId String
+  questionIndex   Int
+  questionText    String
+  userAnswer      String
+  feedback        String?
+  scores          Json?
+  overallScore    Float?
+  strengths       String[]
+  improvements    String[]
+  skillAssessment Json?
+  timeSpent       Int?
+  answeredAt      DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  jdQuestionSet   JdQuestions @relation(fields: [jdQuestionSetId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([jdQuestionSetId])
   @@index([answeredAt])
@@ -182,6 +177,8 @@ model Assessment {
   history          Json?
   realTimeScores   Json?
   finalScores      Json?
+  status           AssessmentStatus @default(in_progress)
+  overallFeedback String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime?      @updatedAt
   position         Position?      @relation(fields: [positionId], references: [id])
@@ -190,20 +187,20 @@ model Assessment {
 }
 
 model ServicePackage {
-  id                   String        @id @default(uuid())
+  id                   String           @id @default(uuid())
   name                 String
   price                Int
   duration             Int
-  avatarInterviewLimit Int           @default(0)
-  testQuizEQLimit      Int           @default(0)
-  jdUploadLimit        Int           @default(0)
+  avatarInterviewLimit Int              @default(0)
+  testQuizEQLimit      Int              @default(0)
+  jdUploadLimit        Int              @default(0)
   description          String?
-  highlight            Boolean       @default(false)
-  createdAt            DateTime      @default(now())
-  isActive             Boolean       @default(true)
-  updatedAt            DateTime      @updatedAt
-  userPackages         UserPackage[]
+  highlight            Boolean          @default(false)
+  createdAt            DateTime         @default(now())
+  isActive             Boolean          @default(true)
+  updatedAt            DateTime         @updatedAt
   paymentHistory       PaymentHistory[]
+  userPackages         UserPackage[]
 
   @@index([name])
   @@index([price])
@@ -229,6 +226,33 @@ model UserPackage {
   @@index([userId])
   @@index([servicePackageId])
   @@index([isActive])
+}
+
+model PaymentHistory {
+  id               String         @id @default(uuid())
+  userId           String
+  servicePackageId String
+  orderCode        String         @unique
+  amount           Int
+  refundAmount     Int            @default(0)
+  description      String
+  status           PaymentStatus  @default(pending)
+  paymentMethod    String?
+  transactionId    String?
+  checkoutUrl      String?
+  qrCode           String?
+  returnUrl        String?
+  cancelUrl        String?
+  paidAt           DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  servicePackage   ServicePackage @relation(fields: [servicePackageId], references: [id])
+  user             User           @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([servicePackageId])
+  @@index([status])
+  @@index([orderCode])
 }
 
 enum ExperienceLevel {
@@ -312,30 +336,7 @@ enum PaymentStatus {
   cancelled
 }
 
-model PaymentHistory {
-  id                String           @id @default(uuid())
-  userId            String
-  servicePackageId  String
-  orderCode         String           @unique
-  amount            Int              // Số tiền thanh toán
-  refundAmount      Int              @default(0) // Số tiền hoàn
-  description       String
-  status            PaymentStatus    @default(pending)
-  paymentMethod     String?          // Phương thức thanh toán
-  transactionId     String?          // ID giao dịch từ PayOS
-  checkoutUrl       String?          // URL thanh toán
-  qrCode            String?          // QR code
-  returnUrl         String?          // URL return
-  cancelUrl         String?          // URL cancel
-  paidAt            DateTime?        // Thời gian thanh toán thành công
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
-  user              User             @relation(fields: [userId], references: [id])
-  servicePackage    ServicePackage   @relation(fields: [servicePackageId], references: [id])
-
-  @@index([userId])
-  @@index([servicePackageId])
-  @@index([status])
-  @@index([orderCode])
+enum AssessmentStatus {
+  in_progress
+  completed
 }

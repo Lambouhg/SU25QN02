@@ -39,38 +39,29 @@ interface ResultsSummaryProps {
 
 export function ResultsSummary({ results, realTimeScores, onReset }: Omit<ResultsSummaryProps, 'settings'>) {
   const [showQuestionHistory, setShowQuestionHistory] = useState(false);
-  
+
   const categoryList = [
     { key: 'fundamental', label: 'Fundamental Knowledge', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
     { key: 'logic', label: 'Logical Reasoning', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
     { key: 'language', label: 'Language Proficiency', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
   ];
 
+  // Luôn lấy điểm từ finalScores (results.scores) cho chart
+  const chartScores: Record<string, number> = {
+  fundamental: (results.scores.fundamentalKnowledge ?? 0) * 10,
+  logic: (results.scores.logicalReasoning ?? 0) * 10,
+  language: (results.scores.languageFluency ?? 0) * 10,
+};
 
-  // Nếu có realTimeScores thì dùng luôn, không tính lại từ messages
-  // Tất cả đều là phần trăm (0-100)
-  const scores: Record<string, number> = realTimeScores
-    ? {
-        fundamental: realTimeScores.fundamental,
-        logic: realTimeScores.logic,
-        language: realTimeScores.language,
-      }
-    : {
-        fundamental: results.scores.fundamentalKnowledge,
-        logic: results.scores.logicalReasoning,
-        language: results.scores.languageFluency,
-      };
+  // Sử dụng chartScores cho mọi phần hiển thị điểm
+  const scores: Record<string, number> = chartScores;
 
   const suggestions: Record<string, string> = realTimeScores
     ? realTimeScores.suggestions
     : { fundamental: '', logic: '', language: '' };
 
-  // overall là trung bình cộng 3 tiêu chí, làm tròn
-  const overall = Math.round((scores.fundamental + scores.logic + scores.language) / 3);
-
-  // Chuẩn hóa dữ liệu cho biểu đồ
-  // Dữ liệu cho biểu đồ (0-100)
-  const chartScores = scores;
+  // Tính overall từ finalScores (chartScores)
+  const overall = Math.round((chartScores.fundamental + chartScores.logic + chartScores.language) / 3);
 
   const radarChartData = [
     { subject: 'Fundamental Knowledge', A: chartScores.fundamental, fullMark: 100 },

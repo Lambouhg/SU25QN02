@@ -56,11 +56,40 @@ export const QuestionHistoryViewer: React.FC<QuestionHistoryViewerProps> = ({ cl
       const response = await fetch('/api/assessment?type=test');
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 [QuestionHistoryViewer] Raw assessments data:', data);
+
+        // Parse history string to array for each assessment
+        const parsedData = data.map((assessment: Assessment) => ({
+          ...assessment,
+          history:
+            typeof assessment.history === 'string'
+              ? JSON.parse(assessment.history)
+              : Array.isArray(assessment.history)
+                ? assessment.history
+                : [],
+        }));
+
         // Filter only assessments that have history data
-        const assessmentsWithHistory = data.filter((assessment: Assessment) => 
+        const assessmentsWithHistory = parsedData.filter((assessment: Assessment) =>
           assessment.history && Array.isArray(assessment.history) && assessment.history.length > 0
         );
-        setAssessments(assessmentsWithHistory);
+
+        console.log('🔍 [QuestionHistoryViewer] Assessments with history:', assessmentsWithHistory);
+
+        // Sort by most recent first, but prioritize assessments with history
+        const sortedAssessments = assessmentsWithHistory.sort((a: Assessment, b: Assessment) => {
+          const aHasHistory = a.history && a.history.length > 0;
+          const bHasHistory = b.history && b.history.length > 0;
+
+          if (aHasHistory && !bHasHistory) return -1;
+          if (!aHasHistory && bHasHistory) return 1;
+
+          // If both have history or both don't have history, sort by date
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        console.log('🔍 [QuestionHistoryViewer] Final sorted assessments:', sortedAssessments);
+        setAssessments(sortedAssessments);
       }
     } catch (error) {
       console.error('Error fetching assessments:', error);
