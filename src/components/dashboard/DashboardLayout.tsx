@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
   Star, Settings, Menu, X, Search, Bell, LogOut, Shield,
-  ChevronRight, ChevronDown
+  ChevronRight, ChevronDown, BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import { UserButton, useUser, useClerk } from '@clerk/nextjs';
@@ -164,6 +164,12 @@ export default function DashboardLayout({
       href: '/saved',
       key: 'saved'
     },
+          { 
+        icon: BookOpen, 
+        label: 'Review Question', 
+        href: '/review',
+        key: 'review'
+      },
 
   ], []);
 
