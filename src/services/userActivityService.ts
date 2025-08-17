@@ -707,6 +707,10 @@ export class UserActivityService {
     try {
       // Tính toán điểm tổng thể từ skillScores nếu có
       const updatedActivity = {...activity};
+      // Nếu là quiz thì chuyển score về hệ số 10 nếu đang ở hệ số 100
+      if (updatedActivity.type === 'quiz' && typeof updatedActivity.score === 'number' && updatedActivity.score > 10) {
+        updatedActivity.score = Math.round(updatedActivity.score / 10);
+      }
       if (updatedActivity.skillScores && (!updatedActivity.score || updatedActivity.score === 0)) {
         const skillScoreValues = Object.values(updatedActivity.skillScores);
         if (skillScoreValues.length > 0) {

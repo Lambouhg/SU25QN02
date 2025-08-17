@@ -119,7 +119,7 @@ export async function POST(
     });
 
     // Tính điểm
-    const score = Math.round((correctCount / quiz.questions.length) * 100);
+    const score = Math.round((correctCount / quiz.questions.length) * 10);
 
     // Update quiz với kết quả
     const updatedQuiz = await prisma.quiz.update({
