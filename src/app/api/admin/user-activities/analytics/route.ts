@@ -13,7 +13,16 @@ type ProcessedUserActivity = {
     firstName?: string | null;
     lastName?: string | null;
     email?: string | null;
-    role?: string | null;
+    role?: {
+      id: string;
+      name: string;
+      displayName: string;
+      description?: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      isActive: boolean;
+      isDefault: boolean;
+    };
     createdAt?: Date;
   };
 };
@@ -29,10 +38,10 @@ export async function GET(request: NextRequest) {
     // Check if user is admin
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      select: { role: true }
+      include: { role: true }
     });
     
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role?.name !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
@@ -62,22 +71,7 @@ export async function GET(request: NextRequest) {
 
     // Process activities data
     const allActivities: Record<string, unknown>[] = [];
-    const processedUserActivities = userActivities.map((ua: {
-      activities?: unknown;
-      skills?: unknown;
-      goals?: unknown;
-      learningStats?: unknown;
-      userId?: string;
-      user?: {
-        id: string;
-        firstName?: string | null;
-        lastName?: string | null;
-        email?: string | null;
-        role?: string | null;
-        createdAt?: Date;
-      };
-      [key: string]: unknown;
-    }) => {
+    const processedUserActivities = userActivities.map((ua) => {
       const activities = Array.isArray(ua.activities) ? ua.activities as Record<string, unknown>[] : [];
       const skills = Array.isArray(ua.skills) ? ua.skills as Record<string, unknown>[] : [];
       const goals = Array.isArray(ua.goals) ? ua.goals as Record<string, unknown>[] : [];

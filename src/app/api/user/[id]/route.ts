@@ -19,7 +19,10 @@ export async function GET(
     
     // Tìm user theo clerkId
     const user = await prisma.user.findUnique({
-      where: { clerkId: id }
+      where: { clerkId: id },
+      include: {
+        role: true
+      }
     });
     
     if (!user) {
@@ -39,7 +42,8 @@ export async function GET(
       firstName: user.firstName,
       lastName: user.lastName,
       fullName,
-      role: user.role,
+      role: user.role?.name || 'user', // Return role name for consistency
+      roleId: user.roleId,
       status: user.status,
       avatar: user.avatar,
       imageUrl: user.avatar, // Add imageUrl alias
@@ -73,7 +77,10 @@ export async function PATCH(
     
     // Tìm user trước khi cập nhật
     const existingUser = await prisma.user.findUnique({
-      where: { clerkId: id }
+      where: { clerkId: id },
+      include: {
+        role: true
+      }
     });
     
     if (!existingUser) {
@@ -87,11 +94,29 @@ export async function PATCH(
     const updateData: Record<string, unknown> & {
       updatedAt: Date;
     } = { ...body, updatedAt: new Date() };
+
+    // Handle role update if provided
+    if (body.role && typeof body.role === 'string') {
+      // Find the role by name to get its ID
+      const roleRecord = await prisma.role.findUnique({
+        where: { name: body.role }
+      });
+      
+      if (roleRecord) {
+        updateData.roleId = roleRecord.id;
+      }
+      
+      // Remove the role field since we're using roleId
+      delete updateData.role;
+    }
     
     // Cập nhật user
     const user = await prisma.user.update({
       where: { clerkId: id },
-      data: updateData
+      data: updateData,
+      include: {
+        role: true
+      }
     });
 
     // Calculate fullName from updated user data
@@ -109,7 +134,8 @@ export async function PATCH(
         firstName: user.firstName,
         lastName: user.lastName,
         fullName,
-        role: user.role,
+        role: user.role?.name || 'user', // Return role name for consistency
+        roleId: user.roleId,
         status: user.status,
         avatar: user.avatar,
         imageUrl: user.avatar // Add imageUrl alias

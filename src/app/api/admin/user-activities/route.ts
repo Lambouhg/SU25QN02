@@ -13,10 +13,10 @@ export async function GET(request: NextRequest) {
     // Check if user is admin
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      select: { role: true }
+      include: { role: true }
     });
     
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role?.name !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 

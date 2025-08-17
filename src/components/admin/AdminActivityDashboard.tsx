@@ -73,7 +73,7 @@ export default function AdminActivityDashboard() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="bg-white p-6 rounded-lg shadow ">
             <div className="flex items-center">
               <Users className="h-8 w-8 text-blue-500" />
               <div className="ml-4">
@@ -83,7 +83,7 @@ export default function AdminActivityDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="bg-white p-6 rounded-lg shadow ">
             <div className="flex items-center">
               <Zap className="h-8 w-8 text-green-500" />
               <div className="ml-4">
@@ -94,7 +94,7 @@ export default function AdminActivityDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="bg-white p-6 rounded-lg shadow ">
             <div className="flex items-center">
               <Activity className="h-8 w-8 text-yellow-500" />
               <div className="ml-4">
@@ -105,7 +105,7 @@ export default function AdminActivityDashboard() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="bg-white p-6 rounded-lg shadow ">
             <div className="flex items-center">
               <Clock className="h-8 w-8 text-purple-500" />
               <div className="ml-4">
@@ -119,7 +119,7 @@ export default function AdminActivityDashboard() {
       )}
 
       {/* User Activity Table */}
-      <div className="bg-white rounded-lg shadow border">
+      <div className="bg-white rounded-lg shadow ">
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Real-time User Activity</h3>

@@ -33,7 +33,9 @@ export default function Header() {
               <p className="text-sm font-medium text-gray-900">
                 {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
               </p>
-              <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+              <p className="text-xs text-gray-500 capitalize">
+                {typeof user.role === 'string' ? user.role : user.role?.name || 'user'}
+              </p>
             </div>
             
             {/* Logout Button */}

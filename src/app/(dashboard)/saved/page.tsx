@@ -206,7 +206,7 @@ export default function QuizSaveQuestionPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="min-h-screen to-indigo-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
           <div className="absolute inset-0">
             <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-200/30 rounded-full blur-3xl animate-pulse" />
@@ -223,7 +223,7 @@ export default function QuizSaveQuestionPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+      <div className="min-h-screen">
         {/* Background Effects */}
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
         <div className="absolute inset-0">

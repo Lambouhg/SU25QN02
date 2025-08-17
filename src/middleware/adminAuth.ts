@@ -32,7 +32,10 @@ export async function withAdminAuth(
 
       const userData = await userResponse.json();
       
-      if (userData.role !== 'admin') {
+      // Check if user has admin role (compatible with new schema)
+      const userRole = typeof userData.role === 'string' ? userData.role : userData.role?.name;
+      
+      if (userRole !== 'admin') {
         return NextResponse.json(
           { error: 'Forbidden - Admin access required' }, 
           { status: 403 }

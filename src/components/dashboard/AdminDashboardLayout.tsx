@@ -180,10 +180,10 @@ export default function AdminDashboardLayout({
               {/* Sign Out Button */}
               <button
                 onClick={() => setShowLogoutConfirm(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                className="flex items-center gap-2 px-2 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg text-sm font-medium transition-all duration-200"
+                title="Sign Out"
               >
                 <LogOut className="w-4 h-4" />
-                Sign Out
               </button>
               
               <UserButton afterSignOutUrl="/" />
@@ -305,8 +305,46 @@ export default function AdminDashboardLayout({
           </div>
 
           {/* Admin Profile Section - Fixed at Bottom */}
-          <div className="flex-shrink-0 p-3 border-t border-gray-200 bg-gray-50">
-            <div className="p-3 bg-white rounded-lg border hover:bg-gray-50 transition-colors">
+                    <div >
+                      <Link 
+                        href="/profile" 
+                        onClick={() => setIsSidebarOpen(false)}
+                        className="block"
+                      >
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 ring-2 ring-white shadow-sm">
+                              {user?.imageUrl ? (
+                                <Image
+                                  src={user.imageUrl}
+                                  alt="Profile"
+                                  width={40}
+                                  height={40}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+                                  {getInitials(user?.fullName || 'User')}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {user?.fullName || 'User'}
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-gray-500 truncate">
+                                   System Administrator
+                                </p>
+                              </div>
+                            </div>
+                            <Settings className="w-4 h-4 text-gray-400" />
+                          </div>
+                        </div>
+                      </Link>
+                    </div>
+          {/* <div className="flex-shrink-0 p-3 border-t border-gray-200 bg-gray-50">
+            <div className="p-3 bg-white rounded-lg  transition-colors">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 ring-2 ring-red-200 shadow-sm">
                   {user?.imageUrl ? (
@@ -336,7 +374,7 @@ export default function AdminDashboardLayout({
                 <Settings className="w-4 h-4 text-gray-400" />
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </aside>
 

@@ -154,7 +154,7 @@ export default function ReviewQuestionPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <div className="relative">
               <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-6"></div>
@@ -170,7 +170,7 @@ export default function ReviewQuestionPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div >
         <div className="container mx-auto px-4 py-8">
           {/* Header Section */}
           <div className="mb-8">

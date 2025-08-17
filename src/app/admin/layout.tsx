@@ -20,10 +20,10 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
   try {
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      select: { role: true }
+      include: { role: true }
     });
     
-    if (!user || user.role !== 'admin') {
+    if (!user || user.role?.name !== 'admin') {
       redirect('/access-denied');
     }
   } catch (error) {

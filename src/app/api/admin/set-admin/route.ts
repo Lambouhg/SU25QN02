@@ -22,7 +22,14 @@ export async function POST(request: NextRequest) {
         email: true,
         firstName: true,
         lastName: true,
-        role: true
+        roleId: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        }
       }
     });
     
@@ -37,14 +44,21 @@ export async function POST(request: NextRequest) {
     const updatedUser = await prisma.user.update({
       where,
       data: {
-        role: 'admin'
+        roleId: 'admin_role_id'
       },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
-        role: true
+        roleId: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        }
       }
     });
 
@@ -54,7 +68,8 @@ export async function POST(request: NextRequest) {
         id: updatedUser.id,
         email: updatedUser.email,
         fullName: `${updatedUser.firstName || ''} ${updatedUser.lastName || ''}`.trim(),
-        role: updatedUser.role
+        roleId: updatedUser.roleId,
+        role: updatedUser.role?.name || 'admin'
       }
     });
     
@@ -70,28 +85,29 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   try {
     // Lấy danh sách tất cả admin
+    const adminRole = await prisma.role.findUnique({
+      where: { name: 'admin' }
+    });
+
+    if (!adminRole) {
+      return NextResponse.json({ message: "Admin role not found" }, { status: 500 });
+    }
+
     const admins = await prisma.user.findMany({
-      where: { role: 'admin' },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        createdAt: true
+      where: { roleId: adminRole.id },
+      include: {
+        role: true
       }
     });
     
-    const adminsWithFullName = admins.map((admin: {
-      id: string;
-      email: string;
-      firstName?: string | null;
-      lastName?: string | null;
-      role: string;
-      createdAt: Date;
-    }) => ({
-      ...admin,
-      fullName: `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+    const adminsWithFullName = admins.map((admin) => ({
+      id: admin.id,
+      email: admin.email,
+      firstName: admin.firstName,
+      lastName: admin.lastName,
+      fullName: `${admin.firstName || ''} ${admin.lastName || ''}`.trim(),
+      roleName: admin.role?.name || 'admin',
+      createdAt: admin.createdAt
     }));
     
     return NextResponse.json({

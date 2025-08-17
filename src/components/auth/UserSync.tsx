@@ -12,7 +12,7 @@ interface User {
   firstName?: string;
   lastName?: string;
   avatar?: string;
-  role?: string;
+  role?: string | { name: string; id: string; };
   clerkId?: string;
 }
 

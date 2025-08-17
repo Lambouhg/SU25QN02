@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Users, Edit, Shield, UserCheck, MoreVertical, Trash2 } from 'lucide-react';
+import { Users, Shield, UserCheck, MoreVertical, Trash2 } from 'lucide-react';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import EditUserModal from '@/components/admin/EditUserModal';
+// import EditUserModal from '@/components/admin/EditUserModal';
 import ConfirmDeleteModal from '@/components/admin/ConfirmDeleteModal';
 import Toast from '@/components/ui/Toast';
 import { useRole } from '@/context/RoleContext';
@@ -19,7 +19,7 @@ interface User {
   lastName?: string;
   fullName: string;
   imageUrl?: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | { name: string; id: string; };
   lastActivity?: string;
   isOnline?: boolean;
   clerkSessionActive?: boolean;
@@ -32,6 +32,11 @@ export default function AdminUsersPage() {
   const { loading } = useRole();
   const { refreshRole } = useRole();
   const { broadcastRoleInvalidation } = useRoleInvalidation();
+
+  // Helper function to get role name
+  const getRoleName = (role: 'admin' | 'user' | { name: string; id: string; }): string => {
+    return typeof role === 'string' ? role : role?.name || 'user';
+  };
 
   // Helper function to get user initials
   const getUserInitials = (fullName: string | undefined): string => {
@@ -51,7 +56,6 @@ export default function AdminUsersPage() {
   };
 
   const [users, setUsers] = useState<User[]>([]);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [toast, setToast] = useState<{ 
@@ -154,39 +158,39 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleEditUser = async (userData: { firstName: string; lastName: string; email: string; role: 'admin' | 'user' }) => {
-    if (!editingUser) return;
+  // const handleEditUser = async (userData: { firstName: string; lastName: string; email: string; role: 'admin' | 'user' }) => {
+  //   if (!editingUser) return;
 
-    try {
-      const response = await fetch(`/api/user/${editingUser.clerkId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+  //   try {
+  //     const response = await fetch(`/api/user/${editingUser.clerkId}`, {
+  //       method: 'PATCH',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(userData),
+  //     });
 
-      if (response.ok) {
-        setUsers(users.map(u => 
-          u._id === editingUser._id ? {
-            ...u,
-            email: userData.email,
-            role: userData.role,
-            fullName: `${userData.firstName} ${userData.lastName}`
-          } : u
-        ));
+  //     if (response.ok) {
+  //       setUsers(users.map(u => 
+  //         u._id === editingUser._id ? {
+  //           ...u,
+  //           email: userData.email,
+  //           role: userData.role,
+  //           fullName: `${userData.firstName} ${userData.lastName}`
+  //         } : u
+  //       ));
 
-        setEditingUser(null);
-        showToast(`Successfully updated ${userData.firstName} ${userData.lastName}`, 'success');
-      } else {
-        showToast('Failed to update user', 'error');
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      showToast(`Failed to update user information`, 'error');
-      throw error;
-    }
-  };
+  //       setEditingUser(null);
+  //       showToast(`Successfully updated ${userData.firstName} ${userData.lastName}`, 'success');
+  //     } else {
+  //       showToast('Failed to update user', 'error');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error updating user:', error);
+  //     showToast(`Failed to update user information`, 'error');
+  //     throw error;
+  //   }
+  // };
 
   const handleDeleteUser = async () => {
     if (!deletingUser) return;
@@ -296,16 +300,16 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        user.role === 'admin' 
+                        getRoleName(user.role) === 'admin'
                           ? 'bg-red-100 text-red-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {user.role === 'admin' ? (
+                        {getRoleName(user.role) === 'admin' ? (
                           <Shield className="w-3 h-3 mr-1" />
                         ) : (
                           <UserCheck className="w-3 h-3 mr-1" />
                         )}
-                        {user.role}
+                        {getRoleName(user.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -317,14 +321,14 @@ export default function AdminUsersPage() {
                             </button>
                           }
                         >
-                          <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                          {/* <DropdownMenuItem onClick={() => setEditingUser(user)}>
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
-                          </DropdownMenuItem>
+                          </DropdownMenuItem> */}
                           <DropdownMenuItem 
-                            onClick={() => changeUserRole(user._id, user.role === 'admin' ? 'user' : 'admin')}
+                            onClick={() => changeUserRole(user._id, getRoleName(user.role) === 'admin' ? 'user' : 'admin')}
                           >
-                            {user.role === 'admin' ? (
+                            {getRoleName(user.role) === 'admin' ? (
                               <>
                                 <UserCheck className="w-4 h-4 mr-2" />
                                 Demote to User
@@ -358,7 +362,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
 
-        <EditUserModal
+        {/* <EditUserModal
           user={editingUser ? {
             ...editingUser,
             ...(!editingUser.firstName || !editingUser.lastName ? parseNameParts(editingUser.fullName) : {
@@ -369,7 +373,7 @@ export default function AdminUsersPage() {
           isOpen={!!editingUser}
           onClose={() => setEditingUser(null)}
           onSave={handleEditUser}
-        />
+        /> */}
 
         <ConfirmDeleteModal
           user={deletingUser ? {

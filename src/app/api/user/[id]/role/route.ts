@@ -18,8 +18,7 @@ export async function GET(
     // Find user by clerkId - only select role field for faster query
     const user = await prisma.user.findUnique({
       where: { clerkId: id },
-      select: {
-        clerkId: true,
+      include: {
         role: true
       }
     });
@@ -33,7 +32,7 @@ export async function GET(
 
     return NextResponse.json({
       clerkId: user.clerkId,
-      role: user.role || 'user'
+      role: user.role?.name || 'user'
     });
     
   } catch (error) {
