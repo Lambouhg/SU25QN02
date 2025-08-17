@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { questionSetService, QuestionSetData } from '@/services/questionSetService';
+import { useAzureVoiceInteraction } from '@/hooks/useAzureVoiceInteraction';
 
 interface AnalysisResult {
   feedback: string;
@@ -39,7 +40,32 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [answerStartTime, setAnswerStartTime] = useState<Date | null>(null);
-  const [useEnhancedAnalytics, setUseEnhancedAnalytics] = useState(true); // Default to true for better experience
+
+  // Azure Speech-to-Text integration
+  const {
+    isListening,
+    startListening,
+    stopListening
+  } = useAzureVoiceInteraction({
+    onSpeechResult: (result: string) => {
+      console.log('Speech result received:', result);
+      // Append the speech result to the current answer
+      setAnswer(prev => {
+        const newAnswer = prev + (prev ? ' ' : '') + result;
+        // Start timing when user first starts speaking (if not already started)
+        if (!answerStartTime && newAnswer.length > 0) {
+          setAnswerStartTime(new Date());
+        }
+        return newAnswer;
+      });
+    },
+    onError: (error: string) => {
+      console.error('Speech recognition error:', error);
+    },
+    language: 'en-US' // Set language to English
+  });
+
+  console.log('Speech hook state:', { isListening });
 
   // Initialize interview question from URL if available
   const getInitialInterviewQuestion = () => {
@@ -391,8 +417,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
             suggestions: analysisData.suggestions
           }
         },
-        timeSpent,
-        useEnhancedAnalytics // Include enhanced analytics flag
+        timeSpent
       };
 
       let saveResponse;
@@ -514,51 +539,83 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                 </div>
               </div>
 
-              {/* Answer Input Box */}
               <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
                 <div className="mb-6">
                   <h4 className="text-xl font-semibold text-gray-900 mb-2">Your Answer</h4>
-                  <p className="text-gray-600">Write your response below. Be specific and use examples from your experience.</p>
+                  <p className="text-gray-600">Write your response below or use the microphone to speak your answer. Be specific and use examples from your experience.</p>
+                  
+                  {/* Test Debug Button */}
+                  <div className="mt-2 mb-4">
+                    <button
+                      onClick={() => {
+                        console.log('🔍 DEBUG: Speech hook state:', { isListening });
+                        alert(`Speech hook state: isListening = ${isListening}`);
+                      }}
+                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm"
+                    >
+                      🔍 Debug Speech State (isListening: {isListening ? 'true' : 'false'})
+                    </button>
+                  </div>
                 </div>
                 
-                <textarea
-                  value={answer}
-                  onChange={(e) => {
-                    setAnswer(e.target.value);
-                    // Start timing when user first starts typing
-                    if (!answerStartTime && e.target.value.length === 1) {
-                      setAnswerStartTime(new Date());
-                    }
-                  }}
-                  className="w-full h-64 bg-white border-2 border-gray-300 rounded-xl p-6 text-gray-900 text-lg resize-none focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200"
-                  placeholder="Type your answer here... Be specific and include examples from your experience."
-                  disabled={isSubmitted}
-                />
+                <div className="relative">
+                  <textarea
+                    value={answer}
+                    onChange={(e) => {
+                      setAnswer(e.target.value);
+                      // Start timing when user first starts typing
+                      if (!answerStartTime && e.target.value.length === 1) {
+                        setAnswerStartTime(new Date());
+                      }
+                    }}
+                    className="w-full h-64 bg-white border-2 border-gray-300 rounded-xl p-6 text-gray-900 text-lg resize-none focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200 pr-16"
+                    placeholder="Type your answer here or click the microphone to speak... Be specific and include examples from your experience."
+                    disabled={isSubmitted}
+                  />
+                  
+                  {/* Speech-to-Text Button */}
+                  <button
+                    onClick={() => {
+                      console.log('🎤 Microphone button clicked, isListening:', isListening);
+                      if (isListening) {
+                        stopListening();
+                      } else {
+                        startListening();
+                      }
+                    }}
+                    disabled={isSubmitted}
+                    className={`absolute top-4 right-4 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
+                      isListening 
+                        ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                        : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed z-50 border-2 border-white`}
+                    title={isListening ? 'Stop recording' : 'Start voice input'}
+                  >
+                    {isListening ? (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a2 2 0 114 0v4a2 2 0 11-4 0V7z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                  
+                  {/* Recording indicator */}
+                  {isListening && (
+                    <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                      Recording...
+                    </div>
+                  )}
+                </div>
                 
                 <div className="flex justify-between items-center mt-6">
                   <div className="space-y-2">
                     <div className="text-sm text-gray-500">
                       <span className="font-medium">{answer.length}</span> characters
                       <span className="ml-4 text-gray-400">Recommended: 200-500 words</span>
-                    </div>
-                    
-                    {/* Enhanced Analytics Toggle */}
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 text-sm text-gray-600">
-                        <input
-                          type="checkbox"
-                          checked={useEnhancedAnalytics}
-                          onChange={(e) => setUseEnhancedAnalytics(e.target.checked)}
-                          className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 focus:ring-2"
-                        />
-                        <span className="font-medium">📊 Enhanced Analytics</span>
-                      </label>
-                      <div className="group relative">
-                        <span className="text-gray-400 cursor-help">ℹ️</span>
-                        <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap">
-                          Track detailed metrics, keywords, sentiment, and version history
-                        </div>
-                      </div>
                     </div>
                   </div>
                   

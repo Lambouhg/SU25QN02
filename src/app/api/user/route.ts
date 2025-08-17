@@ -29,7 +29,14 @@ export async function GET() {
         firstName: true,
         lastName: true,
         avatar: true,
-        role: true,
+        roleId: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        },
         status: true,
         lastLogin: true,
         lastActivity: true,
@@ -53,7 +60,8 @@ export async function GET() {
       return {
         ...user,
         fullName,
-        imageUrl: user.avatar // Add imageUrl as alias for avatar
+        imageUrl: user.avatar, // Add imageUrl as alias for avatar
+        role: (user.role as { name: string })?.name || 'user' // Backward compatibility: extract role name
       };
     });
 
@@ -135,7 +143,7 @@ export async function POST(request: Request) {
         lastName: lastName || '',
         avatar: avatar || '',
         lastLogin: new Date(),
-        role: 'user'
+        roleId: 'user_role_id'
       },
       select: {
         id: true,
@@ -143,7 +151,14 @@ export async function POST(request: Request) {
         firstName: true,
         lastName: true,
         clerkId: true,
-        role: true,
+        roleId: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        },
         avatar: true,
         lastLogin: true
       }
@@ -241,7 +256,13 @@ export async function POST(request: Request) {
     // Clear user list cache
     setUserListCache({ success: true, users: [], totalCount: 0 });
 
-    return (NextResponse.json(result));
+    // Transform result for backward compatibility
+    const transformedResult = {
+      ...result,
+      role: (result.role as { name: string })?.name || 'user'
+    };
+
+    return (NextResponse.json(transformedResult));
   } catch (error) {
     console.error("Error in user API:", error);
     return (NextResponse.json(

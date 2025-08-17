@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 export async function POST() {
@@ -9,13 +9,28 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Update user's last activity and online status
-    await prisma.user.update({
+    // Get user info from Clerk
+    const user = await currentUser();
+    
+    // Upsert user - create if not exists, update if exists
+    await prisma.user.upsert({
       where: { clerkId },
-      data: {
+      update: {
         lastActivity: new Date(),
         isOnline: true,
         clerkSessionActive: true
+      },
+      create: {
+        clerkId,
+        email: user?.emailAddresses?.[0]?.emailAddress || '',
+        firstName: user?.firstName || null,
+        lastName: user?.lastName || null,
+        avatar: user?.imageUrl || null,
+        roleId: 'user_role_id', // Default role
+        lastActivity: new Date(),
+        isOnline: true,
+        clerkSessionActive: true,
+        skills: []
       }
     });
 

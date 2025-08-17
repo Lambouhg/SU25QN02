@@ -7,46 +7,90 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  displayName String
+  description String?
+  isActive    Boolean          @default(true)
+  isDefault   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  permissions RolePermission[]
+  users       User[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  displayName String
+  description String?
+  category    String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  roles       RolePermission[]
+
+  @@index([name])
+  @@index([category])
+  @@index([isActive])
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+}
+
 model User {
-  id                 String           @id @default(uuid())
-  email              String           @unique
-  clerkId            String           @unique
-  firstName          String?
-  lastName           String?
-  avatar             String?
-  bio                String?
-  phone              String?
-  department         String?
-  joinDate           String?
-  status             String?          @default("Hoạt động")
-  experienceLevel    ExperienceLevel? @default(mid)
-  role               UserRole         @default(user)
-  skills             String[]
-  lastLogin          DateTime?
-  lastSignInAt       DateTime?
-  lastActivity       DateTime?
-  isOnline           Boolean          @default(false)
-  clerkSessionActive Boolean          @default(false)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  userActivityId     String?          @unique
-  
-  // Interview Personalization Fields
-  preferredJobRoleId String?
-  preferredLanguage  String?          @default("vi")
-  interviewPreferences Json?          // Lưu các tùy chọn phỏng vấn
-  autoStartWithPreferences Boolean    @default(true)
-  z
-  // Relations
-  preferredJobRole   JobRole?         @relation("UserPreferredJobRole", fields: [preferredJobRoleId], references: [id])
-  interviews         Interview[]
-  paymentHistory     PaymentHistory[]
-  questionsCreated   Question[]       @relation("QuestionsCreated")
-  quizHistory        Quiz[]           @relation("QuizHistory")
-  quizzes            Quiz[]
-  userActivity       UserActivity?
-  userPackages       UserPackage[]
-  savedQuestions     Question[]       @relation("SavedQuestions")
+  id                       String           @id @default(uuid())
+  email                    String           @unique
+  clerkId                  String           @unique
+  firstName                String?
+  lastName                 String?
+  avatar                   String?
+  bio                      String?
+  phone                    String?
+  department               String?
+  joinDate                 String?
+  status                   String?          @default("Hoạt động")
+  experienceLevel          ExperienceLevel? @default(mid)
+  roleId                   String           @default("user_role_id")
+  skills                   String[]
+  lastLogin                DateTime?
+  lastSignInAt             DateTime?
+  lastActivity             DateTime?
+  isOnline                 Boolean          @default(false)
+  clerkSessionActive       Boolean          @default(false)
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  userActivityId           String?          @unique
+  preferredJobRoleId       String?
+  preferredLanguage        String?          @default("vi")
+  interviewPreferences     Json?
+  autoStartWithPreferences Boolean          @default(true)
+  interviews               Interview[]
+  paymentHistory           PaymentHistory[]
+  questionsCreated         Question[]       @relation("QuestionsCreated")
+  quizHistory              Quiz[]           @relation("QuizHistory")
+  quizzes                  Quiz[]
+  preferredJobRole         JobRole?         @relation("UserPreferredJobRole", fields: [preferredJobRoleId], references: [id])
+  role                     Role             @relation(fields: [roleId], references: [id])
+  userActivity             UserActivity?
+  userPackages             UserPackage[]
+  savedQuestions           Question[]       @relation("SavedQuestions")
+
+  @@index([roleId])
 }
 
 model Interview {
@@ -107,9 +151,6 @@ model Question {
   usersSaved  User[]      @relation("SavedQuestions")
 }
 
-
-
-
 model UserActivity {
   id              String    @id @default(uuid())
   userId          String    @unique
@@ -164,7 +205,7 @@ model JdAnswers {
 }
 
 model Assessment {
-  id               String         @id @default(uuid())
+  id               String           @id @default(uuid())
   userId           String
   type             AssessmentType
   jobRoleId        String?
@@ -176,10 +217,10 @@ model Assessment {
   realTimeScores   Json?
   finalScores      Json?
   status           AssessmentStatus @default(in_progress)
-  overallFeedback String?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime?      @updatedAt
-  jobRole          JobRole?       @relation(fields: [jobRoleId], references: [id])
+  overallFeedback  String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime?        @updatedAt
+  jobRole          JobRole?         @relation(fields: [jobRoleId], references: [id])
 
   @@index([jobRoleId])
 }
@@ -253,15 +294,48 @@ model PaymentHistory {
   @@index([orderCode])
 }
 
+model JobCategory {
+  id              String              @id @default(uuid())
+  name            String              @unique
+  jobRoles        JobRole[]
+  specializations JobSpecialization[]
+}
+
+model JobSpecialization {
+  id         String      @id @default(uuid())
+  name       String      @unique
+  categoryId String
+  jobRoles   JobRole[]
+  category   JobCategory @relation(fields: [categoryId], references: [id])
+}
+
+model JobRole {
+  id               String             @id @default(uuid())
+  key              String             @unique
+  title            String
+  level            JobLevel
+  description      String?
+  minExperience    Int                @default(0)
+  maxExperience    Int?
+  order            Int                @default(0)
+  categoryId       String?
+  specializationId String?
+  assessments      Assessment[]
+  interviews       Interview[]
+  category         JobCategory?       @relation(fields: [categoryId], references: [id])
+  specialization   JobSpecialization? @relation(fields: [specializationId], references: [id])
+  usersPreferred   User[]             @relation("UserPreferredJobRole")
+
+  @@index([title])
+  @@index([level])
+  @@index([categoryId])
+  @@index([specializationId])
+}
+
 enum ExperienceLevel {
   junior
   mid
   senior
-}
-
-enum UserRole {
-  user
-  admin
 }
 
 enum InterviewStatus {

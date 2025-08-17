@@ -7,8 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, MapPin, Calendar, Mail, Phone, Building, Briefcase, FileText, UserCheck } from "lucide-react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { User, Mail, Phone, Building, Briefcase, FileText, UserCheck } from "lucide-react";
 
 interface PersonalInfoFormProps {
   formData: {
@@ -214,8 +220,8 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                   Vị trí ưa thích
                 </Label>
                 <Select
-                  value={formData.preferredJobRoleId}
-                  onValueChange={(value) => handleFieldChange('preferredJobRoleId', value)}
+                  value={formData.preferredJobRoleId || 'none'}
+                  onValueChange={(value) => handleFieldChange('preferredJobRoleId', value === 'none' ? '' : value)}
                   disabled={!isEditing}
                 >
                   <SelectTrigger className={`transition-all duration-200 ${
@@ -226,7 +232,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                     <SelectValue placeholder="Chọn vị trí công việc" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Không chọn</SelectItem>
+                    <SelectItem value="none">Không chọn</SelectItem>
                     {/* TODO: Add job role options here */}
                   </SelectContent>
                 </Select>
@@ -254,76 +260,6 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           </div>
 
           <Separator />
-
-          {/* Activity Status Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800 border-b-2 border-green-200 pb-2 flex items-center gap-2">
-              <div className="w-2 h-6 bg-gradient-to-b from-green-500 to-blue-500 rounded-full"></div>
-              Trạng thái hoạt động
-            </h3>
-            
-            {/* Enhanced Status Card */}
-            <div className="relative overflow-hidden p-4 bg-gradient-to-r from-green-50 via-blue-50 to-purple-50 border border-green-200 rounded-xl shadow-sm">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-400/20 to-blue-400/20 rounded-full -mr-10 -mt-10"></div>
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded-full animate-pulse"></div>
-                    <div className="absolute inset-0 w-4 h-4 bg-green-500 rounded-full animate-ping opacity-30"></div>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-green-800 text-lg">Đang hoạt động</span>
-                    <p className="text-sm text-green-600">Lần cuối: vừa xong</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                    Online
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400 transition-all duration-200"
-                  >
-                    Ẩn trạng thái
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Enhanced Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="group hover:scale-105 transition-all duration-200 flex items-center gap-3 p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl shadow-sm">
-                <div className="p-2 bg-blue-500 rounded-lg shadow-md">
-                  <Calendar className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-blue-600 font-medium">Ngày tham gia</p>
-                  <p className="font-semibold text-blue-800">Tháng 3, 2024</p>
-                </div>
-              </div>
-              
-              <div className="group hover:scale-105 transition-all duration-200 flex items-center gap-3 p-4 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl shadow-sm">
-                <div className="p-2 bg-purple-500 rounded-lg shadow-md">
-                  <MapPin className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-purple-600 font-medium">Phòng ban</p>
-                  <p className="font-semibold text-purple-800">{formData.department || "Chưa cập nhật"}</p>
-                </div>
-              </div>
-
-              <div className="group hover:scale-105 transition-all duration-200 flex items-center gap-3 p-4 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl shadow-sm">
-                <div className="p-2 bg-orange-500 rounded-lg shadow-md">
-                  <Briefcase className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-orange-600 font-medium">Vị trí</p>
-                  <p className="font-semibold text-orange-800">{formData.preferredJobRoleId || "Chưa cập nhật"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

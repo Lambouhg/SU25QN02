@@ -37,22 +37,33 @@ export async function GET() {
         lastName: clerkUser?.lastName || "",
         phone: "",
         department: "",
-        position: "",
         bio: "",
         skills: [],
+        roleId: "user_role_id", // Default role
         joinDate: new Date().toLocaleDateString('vi-VN'),
         lastLogin: new Date(),
         status: "Hoạt động"
       },
       update: {
         lastLogin: new Date()
+      },
+      include: {
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        },
+        preferredJobRole: true
       }
     });
 
     // Add computed fullName to response
     const responseUser = {
       ...user,
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null,
+      role: user.role?.name || 'user' // Backward compatibility
     };
 
     return NextResponse.json(responseUser);
@@ -107,11 +118,11 @@ export async function PUT(request: Request) {
         preferredJobRoleId: data.preferredJobRoleId || null,
         bio: data.bio || "",
         skills: data.skills || [],
+        roleId: "user_role_id", // Default role
         joinDate: new Date().toLocaleDateString('vi-VN'),
         lastLogin: new Date(),
         status: "Hoạt động",
-        experienceLevel: data.experienceLevel || 'mid',
-        preferredJobRoleId: data.preferredJobRoleId || null
+        experienceLevel: data.experienceLevel || 'mid'
       },
       update: {
         firstName: data.firstName !== undefined ? data.firstName : undefined,
@@ -123,15 +134,25 @@ export async function PUT(request: Request) {
         bio: data.bio !== undefined ? data.bio : undefined,
         skills: data.skills !== undefined ? data.skills : undefined,
         lastLogin: new Date(),
-        experienceLevel: data.experienceLevel !== undefined ? data.experienceLevel : undefined,
-        preferredJobRoleId: data.preferredJobRoleId !== undefined ? data.preferredJobRoleId : undefined
+        experienceLevel: data.experienceLevel !== undefined ? data.experienceLevel : undefined
+      },
+      include: {
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        },
+        preferredJobRole: true
       }
     });
 
     // Add computed fullName to response
     const responseUser = {
       ...user,
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null,
+      role: user.role?.name || 'user' // Backward compatibility
     };
 
     return NextResponse.json(responseUser);
