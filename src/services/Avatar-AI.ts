@@ -5,6 +5,9 @@ export interface InterviewConfig {
   field: string;
   level: string;
   language: 'vi-VN' | 'en-US';
+  specialization?: string;
+  minExperience?: number;
+  maxExperience?: number;
 }
 
 const FIXED_QUESTIONS = 10;
@@ -183,32 +186,6 @@ SENIOR LEVEL (${field}) - Focus on:
 - Industry trends and future planning
 AVOID: Basic syntax questions, simple coding problems`}
 
-FIELD-SPECIFIC TECHNICAL AREAS for ${field}:
-${field === 'Frontend' ? `
-- HTML/CSS/JavaScript fundamentals and advanced concepts
-- Modern frameworks (React, Vue, Angular) and their ecosystems
-- State management and component architecture
-- Browser APIs, performance optimization, and debugging
-- Responsive design, accessibility, and cross-browser compatibility
-- Build tools, bundlers, and development workflow
-- Testing strategies for frontend applications
-- UI/UX principles and user-centered design` : field === 'Backend' ? `
-- Server-side programming languages and frameworks
-- Database design, optimization, and management
-- API development (REST, GraphQL) and microservices
-- System architecture, scalability, and distributed systems
-- Security best practices and authentication/authorization
-- Performance optimization, caching, and monitoring
-- DevOps practices, CI/CD, and deployment strategies
-- Data structures, algorithms, and system design` : `
-- Full-stack architecture and technology integration
-- Frontend and backend communication patterns
-- Database to UI data flow and state management
-- API design and consumption best practices
-- Technology stack selection and justification
-- End-to-end development lifecycle
-- Performance optimization across the entire stack
-- Deployment and DevOps for full-stack applications`}
 
 Your topics should naturally emerge from the conversation and be:
 - Appropriate for the candidate's stated level (${level})
@@ -230,12 +207,16 @@ INTERVIEW GUIDELINES:
    - End with a polite conclusion
 
 4. Question Guidelines:
-   - Ask only ONE question at a time
+   - Ask ONLY ONE question per response (CRITICAL)
+   - Keep questions CONCISE but NATURAL (2-3 sentences for context + question)
    - Ensure questions cover all required topics within ${field} scope
    - Distribute questions evenly across topics
    - Keep questions focused and relevant to the level
    - Each question should have clear evaluation criteria
    - Make questions practical and scenario-based when possible
+   - Use natural conversation flow like a real interviewer
+   - NEVER include multiple questions in a single response
+   - Show genuine interest and provide context before asking
 
    **MANDATORY QUESTION VALIDATION - Before asking any question:**
    a) Field Check: "Is this question 100% relevant to ${field} work?"
@@ -243,18 +224,7 @@ INTERVIEW GUIDELINES:
    c) Practical Check: "Does this reflect real-world ${field} scenarios?"
    d) Progressive Check: "Does this build appropriately on previous questions?"
    
-   **QUESTION EXAMPLES BY LEVEL:**
-   ${level === 'junior' ? `
-   ✅ GOOD for Junior ${field}: "Explain how you would [basic task relevant to ${field}]"
-   ✅ GOOD: "What is [fundamental concept] and when would you use it?"
-   ❌ AVOID: Complex system design, advanced architecture questions` : level === 'mid-level' ? `
-   ✅ GOOD for Mid-level ${field}: "How would you optimize [specific ${field} scenario]?"
-   ✅ GOOD: "Describe a challenging project where you [relevant experience]"
-   ❌ AVOID: Too basic syntax questions, overly complex enterprise architecture` : `
-   ✅ GOOD for Senior ${field}: "How would you architect a system to [complex requirement]?"
-   ✅ GOOD: "What technical decisions would you make when [strategic scenario]?"
-   ❌ AVOID: Basic syntax, simple coding problems`}
-
+ 
 5. Auto-Prompt Handling:
    - If the user message starts with "INSTRUCTION:", treat it as a special system instruction
    - For auto-prompt instructions: Generate ONE brief, contextual reminder (not a new question)
@@ -294,10 +264,14 @@ INTERVIEW GUIDELINES:
    - Be fair but accurate in assessment
 
 RESPONSE GUIDELINES:
-- Follow natural interview conversation patterns
+- Ask ONLY ONE question per response
+- Keep questions CONCISE but NATURAL (2-3 sentences for context + question)
 - Be encouraging but maintain professional standards
+- Acknowledge candidate's responses before asking next question
 - Ask follow-up questions when answers need clarification
-- Acknowledge good answers before moving to next question
+- Use natural conversation flow like a real interviewer
+- NEVER ask multiple questions in one response
+- Show genuine interest in candidate's background and experience
 
 RESPONSE STRUCTURE FORMAT:
 Return responses in this exact structure:
@@ -324,7 +298,7 @@ Return responses in this exact structure:
 CRITICAL: YOU MUST RESPOND WITH VALID JSON ONLY!
 USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
 {
-  "answer": "Your response or question in complete sentences",
+  "answer": "Your response or question in NATURAL, PROFESSIONAL tone (2-3 sentences for context + question, ONLY ONE question)",
   "currentTopic": "Current topic from required list",
   "nextTopic": "Next planned topic if needed",
   "shouldMoveToNewTopic": boolean,
@@ -336,12 +310,29 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
   "completionDetails": {
     "coveredTopics": ["topics", "covered", "so far"],
     "skillAssessment": {
-      "technical": number (1-10),
-      "communication": number (1-10),
-      "problemSolving": number (1-10)
+      "technical": number (1-10, based on technical knowledge and depth demonstrated),
+      "communication": number (1-10, based on clarity and articulation of responses),
+      "problemSolving": number (1-10, based on logical thinking and approach to problems)
     }
   }
-}`
+}
+
+IMPORTANT: You MUST provide realistic skillAssessment scores based on the candidate's responses:
+- technical: Evaluate based on technical knowledge, depth, and accuracy
+- communication: Evaluate based on clarity, articulation, and explanation quality  
+- problemSolving: Evaluate based on logical thinking, approach, and methodology
+
+SCORING GUIDELINES:
+- Start from 0 and build up based on demonstrated capabilities
+- 0: No demonstration of skill yet
+- 1-3: Basic understanding or attempt
+- 4-6: Moderate proficiency shown
+- 7-8: Good proficiency demonstrated
+- 9-10: Excellent proficiency shown
+
+Score realistically based on what the candidate has actually demonstrated in their responses.
+
+QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE question per response. Use natural conversation flow like a real interviewer. Show genuine interest in candidate's responses.`
       },
       ...conversationHistory,
       { role: 'user', content: userMessage }
@@ -372,14 +363,14 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
           shouldMoveToNewTopic: false,
           interviewProgress: currentProgress,
           isInterviewComplete: questionsAsked >= FIXED_QUESTIONS,
-          currentScore: 0,
+          currentScore: 0, // Start from 0
           questionCount: questionsAsked, // Use calculated question count
           completionDetails: {
             coveredTopics: [],
             skillAssessment: {
-              technical: 0,
-              communication: 0,
-              problemSolving: 0
+              technical: 0, // Start from 0
+              communication: 0, // Start from 0
+              problemSolving: 0 // Start from 0
             }
           }
         };
@@ -393,20 +384,38 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
         shouldMoveToNewTopic: false,
         interviewProgress: currentProgress,
         isInterviewComplete: questionsAsked >= FIXED_QUESTIONS,
-        currentScore: 0,
+        currentScore: 0, // Start from 0
         questionCount: questionsAsked, // Use calculated question count
         completionDetails: {
           coveredTopics: [],
           skillAssessment: {
-            technical: 0,
-            communication: 0,
-            problemSolving: 0
+            technical: 0, // Start from 0
+            communication: 0, // Start from 0
+            problemSolving: 0 // Start from 0
           }
         }
       };
     }
 
     const isComplete = questionsAsked >= FIXED_QUESTIONS || result.isInterviewComplete || isEndingInstruction;
+
+    // Calculate skill assessment from AI response or use defaults
+    const skillAssessment = result.completionDetails?.skillAssessment || result.skillAssessment || {
+      technical: Math.max(0, Math.min(10, result.currentScore || 0)), // Use currentScore as base for technical, start from 0
+      communication: 0, // Start from 0
+      problemSolving: 0 // Start from 0
+    };
+
+    // For now, use the current skill assessment directly
+    // In a real implementation, you would need to track skill assessment history separately
+    const cumulativeSkillAssessment = skillAssessment;
+
+    // Ensure all skill scores are within valid range (0-10)
+    const validatedSkillAssessment = {
+      technical: Math.max(0, Math.min(10, cumulativeSkillAssessment.technical || 0)),
+      communication: Math.max(0, Math.min(10, cumulativeSkillAssessment.communication || 0)),
+      problemSolving: Math.max(0, Math.min(10, cumulativeSkillAssessment.problemSolving || 0))
+    };
 
     return {
       answer: result.answer || '',
@@ -416,15 +425,11 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
       followUpQuestion: result.followUpQuestion,
       interviewProgress: isEndingInstruction ? 100 : currentProgress,
       isInterviewComplete: isComplete,
-      currentScore: result.currentScore || 5,
+      currentScore: result.currentScore || 0,
       questionCount: result.questionCount || questionsAsked, // Use AI response or fallback to calculated
-      completionDetails: result.completionDetails || {
-        coveredTopics: result.coveredTopics || [],
-        skillAssessment: result.skillAssessment || {
-          technical: 0,
-          communication: 0,
-          problemSolving: 0
-        }
+      completionDetails: {
+        coveredTopics: result.completionDetails?.coveredTopics || result.coveredTopics || [],
+        skillAssessment: validatedSkillAssessment
       }
     };
 
@@ -438,14 +443,14 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
       shouldMoveToNewTopic: false,
       interviewProgress: 0,
       isInterviewComplete: false,
-      currentScore: 0,
+      currentScore: 0, // Start from 0
       questionCount: 0,
       completionDetails: {
         coveredTopics: [],
         skillAssessment: {
-          technical: 0,
-          communication: 0,
-          problemSolving: 0
+          technical: 0, // Start from 0
+          communication: 0, // Start from 0
+          problemSolving: 0 // Start from 0
         }
       }
     };
@@ -457,37 +462,46 @@ export async function startInterview(config: InterviewConfig): Promise<Interview
     const messages: ChatMessage[] = [
       { 
         role: 'system', 
-        content: `You are a senior technical interviewer with extensive experience in ${config.field}. Your goal is to conduct a professional technical interview that simulates a real-world interview experience.
+        content: `You are a senior technical interviewer with extensive experience in ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}. Your goal is to conduct a professional technical interview that simulates a real-world interview experience.
 IMPORTANT: You must ONLY respond in ${config.language === 'vi-VN' ? 'Vietnamese' : 'English'} language.
+
+CANDIDATE CONTEXT:
+- Reported Experience: ${config.minExperience !== undefined && config.maxExperience !== undefined ? `${config.minExperience}-${config.maxExperience} years` : 'unspecified'}
 
 INTERVIEWER PERSONA:
 - Be professional but friendly
-- Ask questions that are relevant to real-world scenarios
+- Ask questions that are relevant to real-world ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} scenarios
 - Probe deeper when answers are superficial
 - Provide constructive feedback
 - Adapt questions based on candidate's responses
 
-INTERVIEW STRATEGY FOR ${config.level.toUpperCase()} ${config.field.toUpperCase()} POSITION:
+INTERVIEW STRATEGY FOR ${config.level.toUpperCase()} ${config.field.toUpperCase()}${config.specialization ? ` - ${config.specialization.toUpperCase()}` : ''} POSITION:
 ${config.level === 'junior' ? `
-- Start with fundamental concepts
+- Start with fundamental concepts in ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}
 - Focus on practical coding experience
 - Ask about personal projects
 - Verify basic problem-solving skills
 - Assess willingness to learn` : config.level === 'mid-level' ? `
-- Deep dive into technical implementations
+- Deep dive into technical implementations in ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}
 - Focus on system design considerations
 - Assess problem-solving methodology
 - Evaluate architectural decisions
 - Check team collaboration experience` : `
-- Focus on architecture and system design
+- Focus on architecture and system design for ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}
 - Evaluate technical leadership
 - Discuss complex project challenges
 - Assess mentorship experience
 - Technical decision making process`}
 
+EXPERIENCE-BASED CALIBRATION:
+- If experience is 0-1 years: prefer fundamentals and simple practical tasks
+- If 2-3 years: include mid-depth implementation and debugging scenarios
+- If 4-5 years: include system design tradeoffs and scaling considerations
+- If 6+ years: emphasize architecture, leadership, and complex tradeoffs
+
 RESPONSE FORMAT (STRICT JSON):
 {
-  "answer": "Your question or response in ${config.language === 'vi-VN' ? 'Vietnamese' : 'English'}",
+  "answer": "Your question or response in ${config.language === 'vi-VN' ? 'Vietnamese' : 'English'} (NATURAL and PROFESSIONAL, ONLY ONE question)",
   "feedback": "Constructive feedback on their answer",
   "currentTopic": "Current technical topic being discussed",
   "shouldMoveToNewTopic": boolean,
@@ -501,7 +515,7 @@ GUIDELINES:
    - Include practical scenarios
    - End with candidate's questions
 
-2. Question Types for ${config.field}:
+2. Question Types for ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}:
    - Technical knowledge verification
    - Problem-solving scenarios
    - Past experience discussion
@@ -521,21 +535,24 @@ GUIDELINES:
    - Allow time for thinking
    - Natural conversation flow
    - Professional feedback
+   - Keep questions NATURAL and PROFESSIONAL
+   - Ask ONLY ONE question per response
 
-Always maintain professional demeanor and provide constructive feedback.` 
+Always maintain professional demeanor and provide constructive feedback. Use natural conversation flow like a real interviewer. Show genuine interest in candidate's responses.` 
       },
       { 
         role: 'user', 
         content: config.language === 'vi-VN'
-          ? `Bắt đầu cuộc phỏng vấn cho vị trí ${config.field}.`
-          : `Start the interview for ${config.field} position.`
+          ? `Bắt đầu cuộc phỏng vấn cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''}.`
+          : `Start the interview for ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position.`
       }
     ];
 
     console.log('🎯 Starting interview with config:', {
       field: config.field,
       level: config.level,
-      language: config.language
+      language: config.language,
+      specialization: config.specialization
     });
 
     const response = await callOpenAI(messages);
@@ -549,8 +566,31 @@ Always maintain professional demeanor and provide constructive feedback.`
       
       return {
         answer: result.answer || (config.language === 'vi-VN' 
-          ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field} của bạn không?` 
-          : `Hello! I am your AI interviewer for the ${config.level} ${config.field} position. Could you tell me about your ${config.field} experience and skills?`),
+          ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field}${config.specialization ? ` và ${config.specialization}` : ''} của bạn không?` 
+          : `Hello! I am your AI interviewer for the ${config.level} ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position. Could you tell me about your ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} experience and skills?`),
+        currentTopic: "introduction",
+        shouldMoveToNewTopic: false,
+        interviewProgress: 0,
+        isInterviewComplete: false,
+        currentScore: 0, // Start from 0
+        questionCount: 0, // Starting interview, no questions asked yet
+        completionDetails: {
+          coveredTopics: [],
+          skillAssessment: {
+            technical: 0, // Start from 0
+            communication: 0, // Start from 0
+            problemSolving: 0 // Start from 0
+          }
+        }
+      };
+    } catch {
+      // Fallback if JSON parsing fails
+      const fallbackGreeting = config.language === 'vi-VN' 
+        ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field}${config.specialization ? ` và ${config.specialization}` : ''} của bạn không?` 
+        : `Hello! I am your AI interviewer for the ${config.level} ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position. Could you tell me about your ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} experience and skills?`;
+        
+      return {
+        answer: fallbackGreeting,
         currentTopic: "introduction",
         shouldMoveToNewTopic: false,
         interviewProgress: 0,
@@ -560,32 +600,9 @@ Always maintain professional demeanor and provide constructive feedback.`
         completionDetails: {
           coveredTopics: [],
           skillAssessment: {
-            technical: 0,
-            communication: 0,
-            problemSolving: 0
-          }
-        }
-      };
-    } catch {
-      // Fallback if JSON parsing fails
-      const fallbackGreeting = config.language === 'vi-VN' 
-        ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field} của bạn không?` 
-        : `Hello! I am your AI interviewer for the ${config.level} ${config.field} position. Could you tell me about your ${config.field} experience and skills?`;
-        
-      return {
-        answer: fallbackGreeting,
-        currentTopic: "introduction",
-        shouldMoveToNewTopic: false,
-        interviewProgress: 0,
-        isInterviewComplete: false,
-        currentScore: 5,
-        questionCount: 0, // Starting interview, no questions asked yet
-        completionDetails: {
-          coveredTopics: [],
-          skillAssessment: {
-            technical: 0,
-            communication: 0,
-            problemSolving: 0
+            technical: 0, // Start from 0
+            communication: 0, // Start from 0
+            problemSolving: 0 // Start from 0
           }
         }
       };
@@ -594,8 +611,8 @@ Always maintain professional demeanor and provide constructive feedback.`
   } catch (error) {
     console.error('Error starting interview:', error);
     const fallbackGreeting = config.language === 'vi-VN' 
-      ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field} của bạn không?` 
-      : `Hello! I am your AI interviewer for the ${config.level} ${config.field} position. Could you tell me about your ${config.field} experience and skills?`;
+      ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field}${config.specialization ? ` và ${config.specialization}` : ''} của bạn không?` 
+      : `Hello! I am your AI interviewer for the ${config.level} ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position. Could you tell me about your ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} experience and skills?`;
       
     return {
       answer: fallbackGreeting,
@@ -603,14 +620,14 @@ Always maintain professional demeanor and provide constructive feedback.`
       shouldMoveToNewTopic: false,
       interviewProgress: 0,
       isInterviewComplete: false,
-      currentScore: 5,
+      currentScore: 0,
       questionCount: 0, // Starting interview, no questions asked yet
       completionDetails: {
         coveredTopics: [],
         skillAssessment: {
-          technical: 0,
-          communication: 0,
-          problemSolving: 0
+          technical: 0, // Start from 0
+          communication: 0, // Start from 0
+          problemSolving: 0 // Start from 0
         }
       }
     };

@@ -31,8 +31,8 @@ interface Assessment {
   totalTime: number;
   history: HistoryItem[];
   createdAt: string;
-  position?: {
-    positionName: string;
+  jobRole?: {
+    title: string; 
   };
 }
 
@@ -141,7 +141,7 @@ export const QuestionHistoryViewer: React.FC<QuestionHistoryViewerProps> = ({ cl
               >
                 <div className="flex-1">
                   <CardTitle className="text-lg">
-                    {assessment.position?.positionName || 'Interview Session'}
+                    {assessment.jobRole?.title || 'Interview Session'}
                   </CardTitle>
                   <CardDescription className="flex items-center gap-4 mt-1">
                     <span className="flex items-center gap-1">

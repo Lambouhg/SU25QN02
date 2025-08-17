@@ -10,8 +10,36 @@ export async function GET(req: NextRequest) {
             orderBy: { price: 'asc' }
         });
 
-        // Lấy userPackage nếu có user đăng nhập
-        let userPackage = null;
+        // Lấy tất cả các gói active của user nếu có user đăng nhập
+    type UserPackageWithService = {
+        id: string;
+        userId: string;
+        servicePackageId: string;
+        orderCode?: string | null;
+        startDate: Date;
+        endDate: Date;
+        avatarInterviewUsed: number;
+        testQuizEQUsed: number;
+        jdUploadUsed: number;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        servicePackage: {
+            id: string;
+            name: string;
+            price: number;
+            duration: number;
+            avatarInterviewLimit: number;
+            testQuizEQLimit: number;
+            jdUploadLimit: number;
+            description?: string | null;
+            highlight: boolean;
+            createdAt: Date;
+            isActive: boolean;
+            updatedAt: Date;
+        };
+    };
+    let userPackages: UserPackageWithService[] = [];
         try {
             const { userId } = await getAuth(req);
             if (userId) {
@@ -19,10 +47,9 @@ export async function GET(req: NextRequest) {
                 const user = await prisma.user.findUnique({
                     where: { clerkId: userId }
                 });
-                
                 if (user) {
-                    // Tìm gói active còn hạn
-                    const active = await prisma.userPackage.findFirst({
+                    // Tìm tất cả các gói active còn hạn
+                    userPackages = await prisma.userPackage.findMany({
                         where: {
                             userId: user.id,
                             isActive: true,
@@ -30,14 +57,13 @@ export async function GET(req: NextRequest) {
                         },
                         include: { servicePackage: true }
                     });
-                    userPackage = active || null;
                 }
             }
         } catch (error) {
-            console.error('Error fetching user package:', error);
+            console.error('Error fetching user packages:', error);
         }
 
-        return NextResponse.json({ packages, userPackage });
+        return NextResponse.json({ packages, userPackages });
     } catch (error) {
         console.error('Error fetching service packages:', error);
         return NextResponse.json(

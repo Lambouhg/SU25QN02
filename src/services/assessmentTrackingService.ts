@@ -250,14 +250,14 @@ export class AssessmentTrackingService {
         let skillName = 'Technical Test';
         let skillCategory = '';
         
-        if (assessment.positionId) {
-          // Tìm position từ positionId
-          const position = await prisma.position.findUnique({
-            where: { id: assessment.positionId }
+        if (assessment.jobRoleId) {
+          // Tìm jobRole từ jobRoleId
+          const jobRole = await prisma.jobRole.findUnique({
+            where: { id: assessment.jobRoleId }
           });
-          if (position) {
-            skillName = position.positionName;
-            skillCategory = position.level; // Sử dụng level từ position
+          if (jobRole) {
+            skillName = jobRole.title;
+            skillCategory = jobRole.level; // Sử dụng level từ jobRole
           }
         }
         

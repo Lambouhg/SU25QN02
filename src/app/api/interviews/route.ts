@@ -5,16 +5,13 @@ import { TrackingIntegrationService } from '@/services/trackingIntegrationServic
 
 type PrismaError = Error & { code?: string };
 
-interface InterviewStats {
-  totalInterviews: number;
-  [key: string]: number;
-}
+
 
 
 
 // Request data interface
 interface CreateInterviewRequest {
-  positionId: string;
+  jobRoleId: string;
   language?: string;
   startTime?: string | Date;
   endTime?: string | Date;
@@ -46,8 +43,8 @@ function validateInterviewData(data: unknown): data is CreateInterviewRequest {
 
   const request = data as Partial<CreateInterviewRequest>;
 
-  if (!request.positionId || typeof request.positionId !== 'string') {
-    throw new Error('positionId is required and must be a string');
+  if (!request.jobRoleId || typeof request.jobRoleId !== 'string') {
+    throw new Error('jobRoleId is required and must be a string');
   }
 
   // Validate dates if provided
@@ -103,10 +100,17 @@ function validateInterviewData(data: unknown): data is CreateInterviewRequest {
 type Interview = {
   id: string;
   userId: string;
-  positionId: string;
-  position: {
+  jobRoleId: string;
+  jobRole: {
     key: string;
     level: string;
+    title: string;
+    category?: {
+      name: string;
+    } | null;
+    specialization?: {
+      name: string;
+    } | null;
   };
   language: string;
   startTime: Date | string;
@@ -192,7 +196,7 @@ export async function POST(req: NextRequest) {
     const newInterview = await prisma.interview.create({
       data: {
         userId: dbUser.id,
-        positionId: data.positionId,
+        jobRoleId: data.jobRoleId,
         language: data.language || 'vi-VN',
         startTime: data.startTime ? new Date(data.startTime) : new Date(),
         endTime: data.endTime ? new Date(data.endTime) : undefined,
@@ -220,16 +224,6 @@ export async function POST(req: NextRequest) {
     // Nếu là completed thì trừ lượt và tracking
     if (data.status === 'completed') {
       await TrackingIntegrationService.trackInterviewCompletion(dbUser.id, newInterview);
-      const currentStats = dbUser.interviewStats as InterviewStats || { totalInterviews: 0 };
-      await prisma.user.update({
-        where: { id: dbUser.id },
-        data: {
-          interviewStats: {
-            ...currentStats,
-            totalInterviews: currentStats.totalInterviews + 1
-          }
-        }
-      });
       await prisma.userPackage.update({
         where: { id: selectedPackage.id },
         data: {
@@ -315,7 +309,7 @@ export async function GET(req: NextRequest) {
       where,
       orderBy: { startTime: 'desc' },
       include: {
-        position: true
+        jobRole: true
       }
     });
 
@@ -349,8 +343,8 @@ export async function GET(req: NextRequest) {
 
     // Group by field and level
     interviews.forEach((interview: InterviewPrisma) => {
-      const fieldKey = interview.position.key.split('_')[0] || 'other';
-      const levelKey = interview.position.level || 'unknown';
+      const fieldKey = interview.jobRole?.category?.name || 'other';
+      const levelKey = interview.jobRole?.level || 'unknown';
       
       stats.byField[fieldKey] = (stats.byField[fieldKey] || 0) + 1;
       stats.byLevel[levelKey] = (stats.byLevel[levelKey] || 0) + 1;

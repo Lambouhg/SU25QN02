@@ -104,14 +104,14 @@ export async function PUT(request: Request) {
         email: data.email || "",
         phone: data.phone || "",
         department: data.department || "",
-        position: data.position || "",
+        preferredJobRoleId: data.preferredJobRoleId || null,
         bio: data.bio || "",
         skills: data.skills || [],
         joinDate: new Date().toLocaleDateString('vi-VN'),
         lastLogin: new Date(),
         status: "Hoạt động",
         experienceLevel: data.experienceLevel || 'mid',
-        preferredInterviewTypes: data.preferredInterviewTypes || []
+        preferredJobRoleId: data.preferredJobRoleId || null
       },
       update: {
         firstName: data.firstName !== undefined ? data.firstName : undefined,
@@ -119,12 +119,12 @@ export async function PUT(request: Request) {
         email: data.email !== undefined ? data.email : undefined,
         phone: data.phone !== undefined ? data.phone : undefined,
         department: data.department !== undefined ? data.department : undefined,
-        position: data.position !== undefined ? data.position : undefined,
+        preferredJobRoleId: data.preferredJobRoleId !== undefined ? data.preferredJobRoleId : undefined,
         bio: data.bio !== undefined ? data.bio : undefined,
         skills: data.skills !== undefined ? data.skills : undefined,
         lastLogin: new Date(),
         experienceLevel: data.experienceLevel !== undefined ? data.experienceLevel : undefined,
-        preferredInterviewTypes: data.preferredInterviewTypes !== undefined ? data.preferredInterviewTypes : undefined
+        preferredJobRoleId: data.preferredJobRoleId !== undefined ? data.preferredJobRoleId : undefined
       }
     });
 

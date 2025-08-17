@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type = 'test', positionId, position, topic, history, ...rest } = body;
+    const { type = 'test', jobRoleId, position, topic, history, ...rest } = body;
 
     // Kiểm tra type hợp lệ
     if (type !== 'test' && type !== 'eq') {
@@ -91,35 +91,37 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Xử lý position - ưu tiên positionId, sau đó position string
-    if (positionId) {
-      const positionRecord = await prisma.position.findUnique({
-        where: { id: positionId }
+    // Xử lý job role - ưu tiên jobRoleId, sau đó position string
+    if (jobRoleId) {
+      const jobRoleRecord = await prisma.jobRole.findUnique({
+        where: { id: jobRoleId }
       });
-      if (!positionRecord) {
+      if (!jobRoleRecord) {
         const ms = Date.now() - start;
         console.log(`POST /api/assessment 400 in ${ms}ms`);
         return NextResponse.json({ error: 'Position not found' }, { status: 400 });
       }
-      data.positionId = positionId;
+      data.jobRoleId = jobRoleId;
     } else if (position) {
-      // Tìm hoặc tạo position mới
-      let positionRecord = await prisma.position.findFirst({
-        where: { positionName: position }
+      // Tìm hoặc tạo jobRole mới
+      let jobRoleRecord = await prisma.jobRole.findFirst({
+        where: { title: position }
       });
       
-      if (!positionRecord) {
-        positionRecord = await prisma.position.create({
+      if (!jobRoleRecord) {
+        jobRoleRecord = await prisma.jobRole.create({
           data: {
             key: position.toLowerCase().replace(/\s+/g, '_'),
-            positionName: position,
+            title: position,
             level: 'Junior',
-            displayName: position,
-            order: 0
+            description: position,
+            order: 0,
+            minExperience: 0,
+            maxExperience: null
           }
         });
       }
-      data.positionId = positionRecord.id;
+      data.jobRoleId = jobRoleRecord.id;
     }
 
     // Tính toán finalScores cho EQ mode
@@ -195,7 +197,7 @@ export async function POST(request: NextRequest) {
     const assessment = await prisma.assessment.create({
       data,
       include: {
-        position: true,
+        jobRole: true,
       },
     });
 
@@ -270,7 +272,7 @@ export async function GET(request: NextRequest) {
         type?: AssessmentType;
       };
       include: {
-        position: boolean;
+        jobRole: boolean;
       };
       orderBy: {
         createdAt: 'desc';
@@ -281,7 +283,7 @@ export async function GET(request: NextRequest) {
     const queryOptions: QueryOptions = {
       where,
       include: {
-        position: true, // Include position data
+        jobRole: true, // Include jobRole data
       },
       orderBy: { createdAt: 'desc' },
     };

@@ -141,7 +141,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     const updatedAssessment = await prisma.assessment.update({
       where: { id },
       data: updateData,
-      include: { position: true }
+      include: { jobRole: true }
     });
 
     return NextResponse.json({
@@ -192,7 +192,7 @@ export async function PUT(
       where: { id },
       data: body,
       include: {
-        position: true,
+        jobRole: true,
       },
     });
 
@@ -229,7 +229,7 @@ export async function GET(
     const assessment = await prisma.assessment.findUnique({
       where: { id },
       include: {
-        position: true,
+        jobRole: true,
       },
     });
 

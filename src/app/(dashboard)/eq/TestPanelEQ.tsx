@@ -275,8 +275,8 @@ export default function TestPanelEQ() {
 			.then(res => res.json())
 			.then((data: Record<string, unknown>[]) => {
 				if (Array.isArray(data)) {
-					setPositionOptions(Array.from(new Set(data.map((p) => (p as { positionName: string }).positionName))));
-					if (!position && data.length > 0) setPosition((data[0] as { positionName: string }).positionName);
+					setPositionOptions(Array.from(new Set(data.map((p) => (p as { title: string }).title))));
+					if (!position && data.length > 0) setPosition((data[0] as { title: string }).title);
 				}
 			});
 	}, [position]);

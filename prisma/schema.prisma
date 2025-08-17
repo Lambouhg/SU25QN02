@@ -17,7 +17,6 @@ model User {
   bio                String?
   phone              String?
   department         String?
-  position           String?
   joinDate           String?
   status             String?          @default("Hoạt động")
   experienceLevel    ExperienceLevel? @default(mid)
@@ -31,6 +30,15 @@ model User {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
   userActivityId     String?          @unique
+  
+  // Interview Personalization Fields
+  preferredJobRoleId String?
+  preferredLanguage  String?          @default("vi")
+  interviewPreferences Json?          // Lưu các tùy chọn phỏng vấn
+  autoStartWithPreferences Boolean    @default(true)
+  z
+  // Relations
+  preferredJobRole   JobRole?         @relation("UserPreferredJobRole", fields: [preferredJobRoleId], references: [id])
   interviews         Interview[]
   paymentHistory     PaymentHistory[]
   questionsCreated   Question[]       @relation("QuestionsCreated")
@@ -44,7 +52,7 @@ model User {
 model Interview {
   id                  String          @id @default(uuid())
   userId              String
-  positionId          String
+  jobRoleId           String
   language            String
   startTime           DateTime
   endTime             DateTime?
@@ -56,11 +64,11 @@ model Interview {
   skillAssessment     Json
   progress            Int             @default(0)
   status              InterviewStatus @default(in_progress)
-  position            Position        @relation(fields: [positionId], references: [id])
+  jobRole             JobRole         @relation(fields: [jobRoleId], references: [id])
   user                User            @relation(fields: [userId], references: [id])
 
   @@index([userId])
-  @@index([positionId])
+  @@index([jobRoleId])
 }
 
 model Quiz {
@@ -99,18 +107,8 @@ model Question {
   usersSaved  User[]      @relation("SavedQuestions")
 }
 
-model Position {
-  id           String       @id @default(uuid())
-  key          String       @unique
-  positionName String
-  level        String
-  displayName  String
-  order        Int          @default(0)
-  assessments  Assessment[]
-  interviews   Interview[]
 
-  @@index([key])
-}
+
 
 model UserActivity {
   id              String    @id @default(uuid())
@@ -169,7 +167,7 @@ model Assessment {
   id               String         @id @default(uuid())
   userId           String
   type             AssessmentType
-  positionId       String?
+  jobRoleId        String?
   selectedCategory String?
   level            String
   duration         Int
@@ -181,9 +179,9 @@ model Assessment {
   overallFeedback String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime?      @updatedAt
-  position         Position?      @relation(fields: [positionId], references: [id])
+  jobRole          JobRole?       @relation(fields: [jobRoleId], references: [id])
 
-  @@index([positionId])
+  @@index([jobRoleId])
 }
 
 model ServicePackage {
@@ -339,4 +337,52 @@ enum PaymentStatus {
 enum AssessmentStatus {
   in_progress
   completed
+}
+
+enum JobLevel {
+  Intern
+  Junior
+  Mid
+  Senior
+  Lead
+}
+
+model JobCategory {
+  id              String              @id @default(uuid())
+  name            String              @unique   // Web Development, Mobile Development, Data Science...
+  jobRoles        JobRole[]
+  specializations JobSpecialization[]
+}
+
+model JobSpecialization {
+  id          String      @id @default(uuid())
+  name        String      @unique   // ReactJS, Flutter, AI, Cloud...
+  category    JobCategory @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  jobRoles    JobRole[]
+}
+
+model JobRole {
+  id              String             @id @default(uuid())
+  key             String             @unique
+  title           String             // Frontend Developer, Backend Developer...
+  level           JobLevel
+  description     String?
+  minExperience   Int                @default(0)
+  maxExperience   Int?               // null = không giới hạn
+  order           Int                @default(0)
+
+  category        JobCategory?       @relation(fields: [categoryId], references: [id])
+  categoryId      String?
+  specialization  JobSpecialization? @relation(fields: [specializationId], references: [id])
+  specializationId String?
+
+  assessments     Assessment[]
+  interviews      Interview[]
+  usersPreferred  User[]            @relation("UserPreferredJobRole")
+
+  @@index([title])
+  @@index([level])
+  @@index([categoryId])
+  @@index([specializationId])
 }

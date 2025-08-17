@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, MapPin, Calendar, Mail, Phone, Building, Briefcase, FileText, UserCheck } from "lucide-react";
 
 interface PersonalInfoFormProps {
@@ -16,7 +17,7 @@ interface PersonalInfoFormProps {
     email: string;
     phone: string;
     department: string;
-    position: string;
+    preferredJobRoleId: string;
     bio: string;
   };
   isEditing: boolean;
@@ -26,7 +27,7 @@ interface PersonalInfoFormProps {
     email: string;
     phone: string;
     department: string;
-    position: string;
+    preferredJobRoleId: string;
     bio: string;
   }) => void;
   onEditToggle: () => void;
@@ -51,7 +52,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
      (formData.email ? 1 : 0) + 
      (formData.phone ? 1 : 0) + 
      (formData.department ? 1 : 0) + 
-     (formData.position ? 1 : 0) + 
+     (formData.preferredJobRoleId ? 1 : 0) + 
      (formData.bio ? 1 : 0)) / 7 * 100
   );
 
@@ -208,23 +209,27 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="position" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Label htmlFor="preferredJobRoleId" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <Briefcase className="w-4 h-4 text-teal-500" />
-                  Vị trí
+                  Vị trí ưa thích
                 </Label>
-                <Input
-                  id="position"
-                  type="text"
-                  value={formData.position}
-                  onChange={(e) => handleFieldChange('position', e.target.value)}
+                <Select
+                  value={formData.preferredJobRoleId}
+                  onValueChange={(value) => handleFieldChange('preferredJobRoleId', value)}
                   disabled={!isEditing}
-                  className={`transition-all duration-200 ${
+                >
+                  <SelectTrigger className={`transition-all duration-200 ${
                     !isEditing 
                       ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                       : 'border-teal-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-100 hover:border-teal-400'
-                  }`}
-                  placeholder="Nhập vị trí công việc"
-                />
+                  }`}>
+                    <SelectValue placeholder="Chọn vị trí công việc" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Không chọn</SelectItem>
+                    {/* TODO: Add job role options here */}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -314,7 +319,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                 </div>
                 <div>
                   <p className="text-sm text-orange-600 font-medium">Vị trí</p>
-                  <p className="font-semibold text-orange-800">{formData.position || "Chưa cập nhật"}</p>
+                  <p className="font-semibold text-orange-800">{formData.preferredJobRoleId || "Chưa cập nhật"}</p>
                 </div>
               </div>
             </div>

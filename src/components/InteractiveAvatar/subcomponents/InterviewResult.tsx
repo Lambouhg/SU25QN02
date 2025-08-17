@@ -5,9 +5,9 @@ import { Separator } from "@/components/ui/separator";
 export interface Interview {
   id: string;
   userId: string;
-  positionId: string;
-  position: {
-    positionName: string;
+  jobRoleId: string;
+  jobRole: {
+    title: string;
     level: string;
     displayName: string;
   };
@@ -64,7 +64,7 @@ export default function InterviewResult({ interview, onBack, onViewEvaluation }:
       <div className="flex flex-wrap gap-4 justify-between mb-2">
         <div>
           <div className="mb-1 text-sm text-gray-500">Vị trí</div>
-          <div className="font-semibold text-base">{interview.position?.displayName}</div>
+          <div className="font-semibold text-base">{interview.jobRole?.displayName}</div>
         </div>
         <div>
           <div className="mb-1 text-sm text-gray-500">Thời gian</div>

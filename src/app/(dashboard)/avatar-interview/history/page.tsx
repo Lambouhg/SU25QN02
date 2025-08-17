@@ -12,9 +12,9 @@ import { Search } from "lucide-react";
 interface Interview {
   id: string;
   userId: string;
-  positionId: string;
-  position: {
-    positionName: string;
+  jobRoleId: string;
+  jobRole: {
+    title: string;
     level: string;
     displayName: string;
   };
@@ -54,7 +54,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
   // Mapping dữ liệu
   const candidateName = interview.userId || "Ứng viên";
   const interviewer = ""; // Nếu có trường interviewer thì lấy, không thì để trống
-  const position = interview.position.displayName;
+  const position = interview.jobRole.displayName;
   const date = new Date(interview.startTime).toLocaleString();
   const status = interview.status;
   const summary = interview.evaluation?.recommendations?.join(', ') || "";
@@ -221,8 +221,8 @@ export default function InterviewHistoryPage() {
     if (!searchTerm) return interviews;
     const lower = searchTerm.toLowerCase();
     return interviews.filter(i =>
-      i.position.displayName.toLowerCase().includes(lower) ||
-      i.position.positionName.toLowerCase().includes(lower)
+              i.jobRole.displayName.toLowerCase().includes(lower) ||
+        i.jobRole.title.toLowerCase().includes(lower)
     );
   }, [searchTerm, interviews]);
 
@@ -299,9 +299,9 @@ export default function InterviewHistoryPage() {
                     className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
                   >
                     <div className="grid gap-1 flex-grow">
-                      <h3 className="font-semibold text-lg">{i.position.displayName}</h3>
+                      <h3 className="font-semibold text-lg">{i.jobRole.displayName}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Vị trí: {i.position.positionName} &middot; Ngày: {new Date(i.startTime).toLocaleString()}
+                                                  Vị trí: {i.jobRole.title} &middot; Ngày: {new Date(i.startTime).toLocaleString()}
                       </p>
                       <p className="text-sm text-muted-foreground line-clamp-1">Số câu hỏi: {i.questionCount} &middot; Điểm tổng: <span className="font-bold text-yellow-600">{i.evaluation?.overallRating ?? 'N/A'}</span></p>
                 </div>

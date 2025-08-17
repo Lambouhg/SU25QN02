@@ -59,7 +59,7 @@ export async function GET(
         userId: user.id
       },
       include: {
-        position: true
+        jobRole: true
       }
     });
 
@@ -108,8 +108,8 @@ export async function GET(
       sessionDuration,
       totalQuestions: interview.questionCount || 0,
       completedAt: interview.endTime || interview.startTime,
-      positionName: interview.position?.positionName || 'Không xác định',
-      positionLevel: interview.position?.level || 'Không xác định'
+      jobRoleTitle: interview.jobRole?.title || 'Không xác định',
+      jobRoleLevel: interview.jobRole?.level || 'Không xác định'
     };
 
     return NextResponse.json(evaluationData);

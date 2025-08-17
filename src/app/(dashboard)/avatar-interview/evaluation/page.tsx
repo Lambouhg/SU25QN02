@@ -26,8 +26,8 @@ interface InterviewEvaluation {
   sessionDuration: number;
   totalQuestions: number;
   completedAt: string;
-  positionName: string;
-  positionLevel: string;
+  jobRoleTitle: string;
+  jobRoleLevel: string;
 }
 
 interface ConversationMessage {
@@ -159,7 +159,7 @@ const InterviewEvaluationContent: React.FC = () => {
           <div className="text-right">
             <h1 className="text-2xl font-bold text-white">Đánh giá phỏng vấn</h1>
             <p className="text-gray-400">
-              {typeof evaluation.positionName === 'string' ? evaluation.positionName : 'Không xác định'} - {typeof evaluation.positionLevel === 'string' ? evaluation.positionLevel : 'Không xác định'}
+                              {typeof evaluation.jobRoleTitle === 'string' ? evaluation.jobRoleTitle : 'Không xác định'} - {typeof evaluation.jobRoleLevel === 'string' ? evaluation.jobRoleLevel : 'Không xác định'}
             </p>
           </div>
         </div>

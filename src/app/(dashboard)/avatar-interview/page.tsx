@@ -15,30 +15,27 @@ const InteractiveAvatar = dynamic(
 export default function AvatarInterviewPage() {
   const [isInterviewStarted, setIsInterviewStarted] = useState(false);
 
-
   const handleEndSessionClick = () => {
     setIsInterviewStarted(false);
   };
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
-        <div className="max-w-1xl mx-auto">
-        
-          
-          {isInterviewStarted ? (
-            // Interview Session View
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-              <InteractiveAvatar onEndSession={handleEndSessionClick}/>
-            </div>
-          ) : (
-            // Welcome & Setup View
+      {isInterviewStarted ? (
+        // Interview Session View - Full screen
+        <div className="w-full h-screen">
+          <InteractiveAvatar onEndSession={handleEndSessionClick}/>
+        </div>
+      ) : (
+        // Welcome & Setup View
+        <div className="min-h-screen bg-gray-50 py-8 px-4">
+          <div className="max-w-1xl mx-auto">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
               <div className="flex justify-end mb-4">
-            <Link href="/avatar-interview/history">
-              <button className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-all">History</button>
-            </Link>
-          </div>
+                <Link href="/avatar-interview/history">
+                  <button className="px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-all">History</button>
+                </Link>
+              </div>
               <div className="text-center mb-8">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto mb-4 flex items-center justify-center">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -46,9 +43,9 @@ export default function AvatarInterviewPage() {
                   </svg>
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Avatar Interview Practice</h1>
-                  <p className="text-gray-600 text-lg">
-                    Practice your interview skills with our AI avatar interviewer and receive real-time feedback
-                  </p>
+                <p className="text-gray-600 text-lg">
+                  Practice your interview skills with our AI avatar interviewer and receive real-time feedback
+                </p>
               </div>
 
               {/* Features Grid */}
@@ -141,9 +138,9 @@ export default function AvatarInterviewPage() {
                 </p>
               </div>
             </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </DashboardLayout>
   );
 }

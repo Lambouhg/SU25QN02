@@ -48,7 +48,7 @@ const PricingContent: React.FC = () => {
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState('');
   const [success, setSuccess] = useState('');
-  const [userPackage, setUserPackage] = useState<UserPackage | null>(null);
+  const [userPackages, setUserPackages] = useState<UserPackage[]>([]);
 
   useEffect(() => {
     fetch('/api/service-package')
@@ -56,8 +56,7 @@ const PricingContent: React.FC = () => {
       .then(data => {
         if (data && Array.isArray(data.packages)) {
           setPackages(data.packages);
-          setUserPackage(data.userPackage || null);
-          
+          setUserPackages(data.userPackages || []);
           // Kiểm tra xem có tham số package trong URL không
           const packageParam = searchParams.get('package');
           if (packageParam) {
@@ -69,7 +68,7 @@ const PricingContent: React.FC = () => {
           }
         } else {
           setPackages([]);
-          setUserPackage(null);
+          setUserPackages([]);
         }
         setLoading(false);
       })
@@ -105,20 +104,18 @@ const PricingContent: React.FC = () => {
   };
 
   const handleSelect = (id: string) => {
-    // Kiểm tra xem gói có phải là gói hiện tại không
-    const isCurrentPackage = userPackage && 
-      userPackage.servicePackageId === id && 
-      userPackage.isActive && 
-      new Date(userPackage.endDate) >= new Date();
-    
+    // Kiểm tra xem gói có phải là gói đã mua (active) hoặc là gói free
+    const isCurrentPackage = userPackages.some(pkg =>
+      pkg.servicePackageId === id &&
+      pkg.isActive &&
+      new Date(pkg.endDate) >= new Date()
+    );
     // Tìm gói được chọn
     const selectedPackage = packages.find(pkg => pkg.id === id);
-    
-    // Nếu là gói hiện tại hoặc gói free thì không cho phép chọn
+    // Nếu là gói đã mua hoặc gói free thì không cho phép chọn
     if (isCurrentPackage || (selectedPackage && selectedPackage.price === 0)) {
       return;
     }
-    
     setSelectedId(id);
   };
 
@@ -135,11 +132,11 @@ const PricingContent: React.FC = () => {
 
   const getPlanStyle = (pkg: ServicePackage, index: number) => {
     const isPopular = index === 1;
-    const isCurrent = userPackage && 
-      userPackage.servicePackageId === pkg.id && 
-      userPackage.isActive && 
-      new Date(userPackage.endDate) >= new Date();
-    
+    const isCurrent = userPackages.some(userPkg =>
+      userPkg.servicePackageId === pkg.id &&
+      userPkg.isActive &&
+      new Date(userPkg.endDate) >= new Date()
+    );
     // Gói free luôn được kích hoạt sẵn
     if (pkg.price === 0) {
       return {
@@ -151,7 +148,6 @@ const PricingContent: React.FC = () => {
         disabled: true // Disabled vì đã được kích hoạt sẵn
       };
     }
-    
     if (isCurrent) {
       return {
         iconBg: "bg-gradient-to-br from-green-500 to-emerald-600",
@@ -162,7 +158,6 @@ const PricingContent: React.FC = () => {
         disabled: true
       };
     }
-    
     if (pkg.price <= 100000) {
       return {
         iconBg: "bg-gradient-to-br from-gray-500 to-slate-600",
@@ -244,10 +239,11 @@ const PricingContent: React.FC = () => {
             <div className="grid md:grid-cols-3 gap-8">
               {packages.map((pkg, index) => {
                 const planStyle = getPlanStyle(pkg, index);
-                const isCurrent = userPackage && 
-                  userPackage.servicePackageId === pkg.id && 
-                  userPackage.isActive && 
-                  new Date(userPackage.endDate) >= new Date();
+                const isCurrent = userPackages.some(userPkg =>
+                  userPkg.servicePackageId === pkg.id &&
+                  userPkg.isActive &&
+                  new Date(userPkg.endDate) >= new Date()
+                );
                 const isSelected = selectedId === pkg.id;
 
                 return (
@@ -467,11 +463,10 @@ const PricingContent: React.FC = () => {
                       className="px-16 py-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold text-xl rounded-3xl shadow-2xl hover:shadow-3xl transition-all duration-300"
                       disabled={
                         buying ||
-                        !!(
-                          userPackage &&
-                          userPackage.servicePackageId === selectedId &&
-                          userPackage.isActive &&
-                          new Date(userPackage.endDate) >= new Date()
+                        userPackages.some(userPkg =>
+                          userPkg.servicePackageId === selectedId &&
+                          userPkg.isActive &&
+                          new Date(userPkg.endDate) >= new Date()
                         )
                       }
                       onClick={selectedPackage.price === 0 ? () => {} : handleBuy}
@@ -537,4 +532,4 @@ const PricingPage: React.FC = () => {
   );
 };
 
-export default PricingPage; 
+export default PricingPage;
