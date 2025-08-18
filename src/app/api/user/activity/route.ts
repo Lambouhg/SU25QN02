@@ -26,7 +26,7 @@ export async function POST() {
         firstName: user?.firstName || null,
         lastName: user?.lastName || null,
         avatar: user?.imageUrl || null,
-        roleId: 'user_role_id', // Default role
+        roleId: 'user_role_id', // Default role - this should match the seeded role ID
         lastActivity: new Date(),
         isOnline: true,
         clerkSessionActive: true,

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
                 clerkId: userId,
                 firstName: firstName || '',
                 lastName: lastName || '',
-                role: 'user'
+                roleId: 'user_role_id'
             }
         });
 

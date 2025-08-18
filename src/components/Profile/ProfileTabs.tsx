@@ -16,7 +16,7 @@ interface ProfileTabsProps {
     email: string;
     phone: string;
     department: string;
-    position: string;
+    preferredJobRoleId: string;
     bio: string;
   };
   isEditing: boolean;
@@ -26,7 +26,7 @@ interface ProfileTabsProps {
     email: string;
     phone: string;
     department: string;
-    position: string;
+    preferredJobRoleId: string;
     bio: string;
   }) => void;
   onEditToggle: () => void;

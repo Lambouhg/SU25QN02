@@ -297,6 +297,7 @@ model PaymentHistory {
 model JobCategory {
   id              String              @id @default(uuid())
   name            String              @unique
+  skills          String[]            // Array of skills like ["React", "Vite", "TypeScript"]
   jobRoles        JobRole[]
   specializations JobSpecialization[]
 }

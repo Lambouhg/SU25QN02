@@ -240,10 +240,10 @@ export async function GET(
     // Kiểm tra quyền sở hữu hoặc là admin
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
-      select: { role: true },
+      include: { role: true },
     });
 
-    if (assessment.userId !== userId && user?.role !== 'admin') {
+    if (assessment.userId !== userId && user?.role?.name !== 'admin') {
       return (NextResponse.json({ error: 'Permission denied' }, { status: 403 }));
     }
 
@@ -284,10 +284,10 @@ export async function DELETE(
     // Kiểm tra quyền sở hữu hoặc là admin
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
-      select: { role: true },
+      include: { role: true },
     });
 
-    if (existingAssessment.userId !== userId && user?.role !== 'admin') {
+    if (existingAssessment.userId !== userId && user?.role?.name !== 'admin') {
       return (NextResponse.json({ error: 'Permission denied' }, { status: 403 }));
     }
 

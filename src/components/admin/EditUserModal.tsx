@@ -33,7 +33,7 @@ export default function EditUserModal({ user, isOpen, onClose, onSave }: EditUse
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
-        role: user.role
+        role: 'user'
       });
     }
   }, [user]);

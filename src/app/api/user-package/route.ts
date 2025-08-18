@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
                         clerkId: userId,
                         firstName: '',
                         lastName: '',
-                        role: 'user'
+                        roleId: 'user_role_id'
                     }
                 });
             } catch (createError) {

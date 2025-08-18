@@ -274,7 +274,7 @@ export class ClerkActivityService {
           clerkSessionActive: true,
           lastActivity: now,
           lastSignInAt: now,
-          role: 'user' // Thêm role mặc định
+          roleId: 'user_role_id' // Thêm role mặc định
         },
         update: {
           isOnline: true,

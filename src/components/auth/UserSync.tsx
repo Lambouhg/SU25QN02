@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Merge Clerk data với database data
             setUser({
               ...userData,
-              role: dbUser.role || 'user',
+              role: dbUser.role?.name || 'user',
               ...dbUser,
             });
           } else {

@@ -27,7 +27,7 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState({
     phone: "",
     department: "",
-                preferredJobRoleId: "",
+    preferredJobRoleId: "",
     bio: "",
   });
 

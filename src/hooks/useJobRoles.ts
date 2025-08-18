@@ -12,6 +12,7 @@ export interface JobRole {
   category?: {
     id: string;
     name: string;
+    skills?: string[];
   };
   categoryId?: string;
   specialization?: {
