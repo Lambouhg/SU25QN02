@@ -17,6 +17,7 @@ import CelebrationModal from '@/components/ui/CelebrationModal';
 import { useRole } from '@/context/RoleContext';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
 import { useActivityHeartbeat } from '@/hooks/useActivityHeartbeat';
+import OnboardingGuard from '@/components/OnboardingGuard';
 
 
 export default function DashboardLayout({
@@ -109,6 +110,15 @@ export default function DashboardLayout({
                 localStorage.setItem('activityReminderShown', today);
               }, 2000); // Show after 2 seconds
             }
+          }
+
+          // NEW: force show reminder once right after onboarding
+          const forceReminder = localStorage.getItem('showStreakReminderAfterOnboarding');
+          if (forceReminder === '1') {
+            setTimeout(() => {
+              setShowActivityReminder(true);
+              localStorage.removeItem('showStreakReminderAfterOnboarding');
+            }, 1500);
           }
         }
       } catch {
@@ -226,9 +236,10 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
-      <nav className="fixed top-0 z-50 w-full bg-white border-b border-gray-200">
+    <OnboardingGuard>
+      <div className="min-h-screen bg-gray-50">
+        {/* Top Navigation */}
+        <nav className="fixed top-0 z-50 w-full bg-white border-b border-gray-200">
         <div className="px-4 py-3 lg:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -483,6 +494,7 @@ export default function DashboardLayout({
         />
       )}
       
-    </div>
-  );
+        </div>
+      </OnboardingGuard>
+    );
 }
