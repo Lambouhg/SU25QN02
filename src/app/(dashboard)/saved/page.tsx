@@ -60,7 +60,7 @@ export default function QuizSaveQuestionPage() {
   const fetchSavedQuestions = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/users/saved-questions");
+  const response = await fetch("/api/questions/saved-questions");
       if (!response.ok) throw new Error("Failed to fetch saved questions");
       const data = await response.json();
       setSavedQuestions(data);
@@ -78,7 +78,7 @@ export default function QuizSaveQuestionPage() {
 
   const handleUnsaveQuestion = async (questionId: string) => {
     try {
-      const response = await fetch("/api/users/saved-questions", {
+  const response = await fetch("/api/questions/saved-questions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionId }),

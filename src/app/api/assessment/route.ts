@@ -212,13 +212,19 @@ export async function POST(request: NextRequest) {
       });
       console.log(`[Assessment API] Decremented testQuizEQ remaining: ${activeUserPackage.testQuizEQUsed} -> ${newRemaining}`);
     }
-    // Track assessment completion với database user ID
-    try {
-      await TrackingIntegrationService.trackAssessmentCompletion(dbUser.id, assessment, { clerkId: userId });
-      console.log(`[Assessment API] Successfully tracked ${type} assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
-    } catch (trackingError) {
-      console.error(`[Assessment API] Error tracking ${type} completion:`, trackingError);
-      // Continue despite error
+    // Track assessment completion với database user ID chỉ khi có điểm số thực tế
+    // Không track assessment mới tạo mà chưa có finalScores
+    if ((type === 'test' && data.finalScores && data.finalScores.overall !== undefined) || 
+        (type === 'eq' && data.finalScores && data.finalScores.overall !== undefined)) {
+      try {
+        await TrackingIntegrationService.trackAssessmentCompletion(dbUser.id, assessment, { clerkId: userId });
+        console.log(`[Assessment API] Successfully tracked ${type} assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
+      } catch (trackingError) {
+        console.error(`[Assessment API] Error tracking ${type} completion:`, trackingError);
+        // Continue despite error
+      }
+    } else {
+      console.log(`[Assessment API] Skipping tracking for ${type} assessment ${assessment.id} - no final scores yet`);
     }
 
     // Prepare response based on type

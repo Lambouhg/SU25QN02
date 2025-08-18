@@ -720,6 +720,61 @@ export default function TestPanel() {
     await endInterview(setInterviewState, setInterviewing, setConversation);
   };
 
+  // Hàm tính điểm trung bình cho 3 tiêu chí
+  const calculateFinalScores = React.useCallback((): EvaluationScores => {
+    if (history.length === 0) {
+      return {
+        fundamentalKnowledge: 0,
+        logicalReasoning: 0,
+        languageFluency: 0,
+        overall: 0
+      };
+    }
+  
+    // Lọc ra các stage có đánh giá hợp lệ
+    const validStages = history.filter(stage => 
+      stage.evaluation?.scores && 
+      typeof stage.evaluation.scores.fundamental === 'number' &&
+      typeof stage.evaluation.scores.logic === 'number' &&
+      typeof stage.evaluation.scores.language === 'number'
+    );
+  
+    if (validStages.length === 0) {
+      return {
+        fundamentalKnowledge: 0,
+        logicalReasoning: 0,
+        languageFluency: 0,
+        overall: 0
+      };
+    }
+  
+    // Tính tổng điểm cho từng tiêu chí
+    const totalScores = validStages.reduce((acc, stage) => ({
+      fundamentalKnowledge: acc.fundamentalKnowledge + stage.evaluation.scores.fundamental,
+      logicalReasoning: acc.logicalReasoning + stage.evaluation.scores.logic,
+      languageFluency: acc.languageFluency + stage.evaluation.scores.language
+    }), {
+      fundamentalKnowledge: 0,
+      logicalReasoning: 0,
+      languageFluency: 0
+    });
+  
+    // Tính điểm trung bình
+    const averageScores = {
+      fundamentalKnowledge: totalScores.fundamentalKnowledge / validStages.length,
+      logicalReasoning: totalScores.logicalReasoning / validStages.length,
+      languageFluency: totalScores.languageFluency / validStages.length
+    };
+  
+    // Tính điểm tổng thể
+    return {
+      ...averageScores,
+      overall: (averageScores.fundamentalKnowledge + averageScores.logicalReasoning + averageScores.languageFluency) / 3
+    };
+  }, [history]);
+  
+  // (Removed duplicate calculateFinalScores function)
+  
   const endInterview = useCallback(async (
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
     setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
@@ -740,25 +795,35 @@ export default function TestPanel() {
     addMessageToConversation(setConversation, endingMessage);
     setInterviewing(false);
     setShowResult(true);
-
+  
     // Tính tổng thời gian làm bài (làm tròn lên phút)
     let totalTime = null;
     if (interviewStartTime) {
       const diffMs = Date.now() - interviewStartTime;
       totalTime = Math.ceil(diffMs / 60000); // làm tròn lên phút
     }
-
+  
     // ✨ UPDATED: Cập nhật assessment hiện tại thay vì tạo mới
     try {
       if (currentAssessmentId) {
+        // Tính finalScores với trường overall
+        const finalScores = calculateFinalScores();
+        
         // PATCH để hoàn thành assessment
         await fetch(`/api/assessment/${currentAssessmentId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             realTimeScores,
+            finalScores: {
+              fundamental: finalScores.fundamentalKnowledge,
+              logic: finalScores.logicalReasoning,
+              language: finalScores.languageFluency,
+              overall: finalScores.overall
+            },
             totalTime,
-            isComplete: true // Đánh dấu hoàn thành
+            status: 'completed', // ✅ Sử dụng status thay vì isComplete
+            isComplete: true // Giữ lại để backward compatibility
           })
         });
         console.log(`✅ Interview completed and saved for assessment: ${currentAssessmentId}`);
@@ -782,8 +847,8 @@ export default function TestPanel() {
     } catch (error) {
       console.error('Error saving interview result:', error);
     }
-  }, [duration, position, level, history, realTimeScores, interviewStartTime, currentAssessmentId]);
-
+  }, [duration, position, level, history, realTimeScores, interviewStartTime, currentAssessmentId, calculateFinalScores]);
+  
   // Hàm luyện tập lại
   const handleReset = () => {
     setShowResult(false);
@@ -800,59 +865,6 @@ export default function TestPanel() {
     setOfficialQuestionCount(0); // Reset số câu hỏi
     setIsReviewing(false); // Reset review state
     setReviewCountdown(0); // Reset countdown
-  };
-
-  // Hàm tính điểm trung bình cho 3 tiêu chí
-  const calculateFinalScores = (): EvaluationScores => {
-    if (history.length === 0) {
-      return {
-        fundamentalKnowledge: 0,
-        logicalReasoning: 0,
-        languageFluency: 0,
-        overall: 0
-      };
-    }
-
-    // Lọc ra các stage có đánh giá hợp lệ
-    const validStages = history.filter(stage => 
-      stage.evaluation?.scores && 
-      typeof stage.evaluation.scores.fundamental === 'number' &&
-      typeof stage.evaluation.scores.logic === 'number' &&
-      typeof stage.evaluation.scores.language === 'number'
-    );
-
-    if (validStages.length === 0) {
-      return {
-        fundamentalKnowledge: 0,
-        logicalReasoning: 0,
-        languageFluency: 0,
-        overall: 0
-      };
-    }
-
-    // Tính tổng điểm cho từng tiêu chí
-    const totalScores = validStages.reduce((acc, stage) => ({
-      fundamentalKnowledge: acc.fundamentalKnowledge + stage.evaluation.scores.fundamental,
-      logicalReasoning: acc.logicalReasoning + stage.evaluation.scores.logic,
-      languageFluency: acc.languageFluency + stage.evaluation.scores.language
-    }), {
-      fundamentalKnowledge: 0,
-      logicalReasoning: 0,
-      languageFluency: 0
-    });
-
-    // Tính điểm trung bình
-    const averageScores = {
-      fundamentalKnowledge: totalScores.fundamentalKnowledge / validStages.length,
-      logicalReasoning: totalScores.logicalReasoning / validStages.length,
-      languageFluency: totalScores.languageFluency / validStages.length
-    };
-
-    // Tính điểm tổng thể
-    return {
-      ...averageScores,
-      overall: (averageScores.fundamentalKnowledge + averageScores.logicalReasoning + averageScores.languageFluency) / 3
-    };
   };
 
   const addMessageToConversation = (

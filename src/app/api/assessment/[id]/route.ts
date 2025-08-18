@@ -119,10 +119,15 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         }
       });
       if (count > 0) {
+        const avgFundamental = Math.round((totalFundamental / count) * 100) / 100;
+        const avgLogic = Math.round((totalLogic / count) * 100) / 100;
+        const avgLanguage = Math.round((totalLanguage / count) * 100) / 100;
+        
         calculatedFinalScores = {
-          fundamental: Math.round((totalFundamental / count) * 100) / 100,
-          logic: Math.round((totalLogic / count) * 100) / 100,
-          language: Math.round((totalLanguage / count) * 100) / 100,
+          fundamental: avgFundamental,
+          logic: avgLogic,
+          language: avgLanguage,
+          overall: Math.round(((avgFundamental + avgLogic + avgLanguage) / 3) * 100) / 100
         };
       }
     }
@@ -133,8 +138,20 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       updatedAt: new Date(),
       overallFeedback: allFeedbacks
     };
-    if (latestRealTimeScores) updateData.realTimeScores = latestRealTimeScores;
-    if (calculatedFinalScores) updateData.finalScores = calculatedFinalScores;
+    
+    // Chỉ update realTimeScores nếu không phải final completion
+    if (latestRealTimeScores && status !== 'completed') {
+      updateData.realTimeScores = latestRealTimeScores;
+    }
+    
+    // Chỉ update finalScores khi thực sự completed hoặc có finalScores được gửi explicit
+    if (status === 'completed' && calculatedFinalScores) {
+      updateData.finalScores = calculatedFinalScores;
+    } else if (status === 'completed' && finalScores) {
+      // Sử dụng finalScores từ request body nếu có và đã completed
+      updateData.finalScores = finalScores;
+    }
+    
     if (status) updateData.status = status;
 
     // Update assessment
@@ -143,6 +160,25 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       data: updateData,
       include: { jobRole: true }
     });
+
+    // Track khi assessment hoàn thành (có status: 'completed' và finalScores)
+    if (status === 'completed' && (calculatedFinalScores || finalScores)) {
+      try {
+        // Tìm database user ID từ Clerk user ID
+        const dbUser = await prisma.user.findUnique({
+          where: { clerkId: userId },
+          select: { id: true }
+        });
+
+        if (dbUser) {
+          await TrackingIntegrationService.trackAssessmentCompletion(dbUser.id, updatedAssessment, { clerkId: userId });
+          console.log(`[Assessment API] Successfully tracked assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
+        }
+      } catch (trackingError) {
+        console.error(`[Assessment API] Error tracking assessment completion:`, trackingError);
+        // Continue despite error
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -38,7 +38,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
   useEffect(() => {
     const fetchSavedQuestions = async () => {
       try {
-        const response = await fetch("/api/users/saved-questions")
+  const response = await fetch("/api/questions/saved-questions")
         if (!response.ok) throw new Error("Failed to fetch saved questions")
         const data = await response.json()
         const savedIds = data.map((q: { id: string }) => q.id);
@@ -107,7 +107,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
 
   const handleSaveQuestion = async (questionId: string) => {
     try {
-      const response = await fetch("/api/users/saved-questions", {
+  const response = await fetch("/api/questions/saved-questions", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -216,7 +216,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
 
     for (const question of unsavedIncorrect) {
       try {
-        const response = await fetch("/api/users/saved-questions", {
+  const response = await fetch("/api/questions/saved-questions", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",

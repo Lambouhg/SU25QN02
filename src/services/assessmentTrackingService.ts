@@ -97,6 +97,27 @@ export class AssessmentTrackingService {
         }
       }
       
+      // Check if activity already exists for this assessment to avoid duplicates
+      try {
+        const existingUserActivity = await prisma.userActivity.findUnique({
+          where: { userId },
+          select: { activities: true }
+        });
+        
+        if (existingUserActivity) {
+          const activities = existingUserActivity.activities as Array<{ referenceId?: string }>;
+          const alreadyTracked = activities.some(activity => activity.referenceId === assessment.id);
+          
+          if (alreadyTracked) {
+            console.log(`[AssessmentTrackingService] Assessment ${assessment.id} already tracked, skipping duplicate`);
+            return;
+          }
+        }
+      } catch (checkError) {
+        console.error(`[AssessmentTrackingService] Error checking existing activities:`, checkError);
+        // Continue despite error
+      }
+      
       // Tạo activity mới dựa trên loại assessment
       // Đảm bảo type được chuyển đổi chính xác từ AssessmentType sang ActivityType
       console.log(`[AssessmentTrackingService] Assessment type received: "${assessment.type}", converting to ActivityType`);
@@ -168,10 +189,25 @@ export class AssessmentTrackingService {
   private static extractScore(assessment: Assessment): number {
     try {
       if (assessment.type === 'test') {
-        // Điểm từ bài test thường là finalScores hoặc realTimeScores
+        // Ưu tiên finalScores.overall trước (điểm tổng)
+        const finalScores = assessment.finalScores as Record<string, number>;
+        if (finalScores && finalScores.overall !== undefined) {
+          return finalScores.overall;
+        }
+        // Fallback: Tính trung bình từ finalScores nếu có
+        if (finalScores && (finalScores.fundamental !== undefined || finalScores.logic !== undefined || finalScores.language !== undefined)) {
+          const scores = [finalScores.fundamental, finalScores.logic, finalScores.language].filter(s => s !== undefined);
+          if (scores.length > 0) {
+            return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+          }
+        }
+        // Fallback cuối: realTimeScores nếu không có finalScores
         const realTimeScores = assessment.realTimeScores as Record<string, number>;
-        if (realTimeScores && 'finalScore' in realTimeScores) {
-          return realTimeScores.finalScore;
+        if (realTimeScores && (realTimeScores.fundamental !== undefined || realTimeScores.logic !== undefined || realTimeScores.language !== undefined)) {
+          const scores = [realTimeScores.fundamental, realTimeScores.logic, realTimeScores.language].filter(s => s !== undefined);
+          if (scores.length > 0) {
+            return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+          }
         }
         return 0;
       } else if (assessment.type === 'eq') {
@@ -198,26 +234,41 @@ export class AssessmentTrackingService {
   private static extractSkillScores(assessment: Assessment): Record<string, number> | undefined {
     try {
       if (assessment.type === 'test') {
-        // Trích xuất điểm kỹ năng từ bài test
-        const realTimeScores = assessment.realTimeScores as Record<string, number>;
-        if (!realTimeScores) return undefined;
-        
-        // Loại bỏ các trường không phải điểm kỹ năng (như finalScore, totalCorrect, etc)
-        const skillScores: Record<string, number> = {};
-        const excludedFields = ['finalScore', 'totalCorrect', 'totalQuestions', 'timeSpent'];
-        
-        for (const [key, value] of Object.entries(realTimeScores)) {
-          if (!excludedFields.includes(key) && typeof value === 'number') {
-            skillScores[key] = value;
+        // Ưu tiên finalScores trước (điểm kỹ năng chính thức)
+        const finalScores = assessment.finalScores as Record<string, number>;
+        if (finalScores) {
+          const skillScores: Record<string, number> = {};
+          
+          // Lấy điểm kỹ năng cụ thể
+          if (finalScores.fundamental !== undefined) skillScores.fundamental = finalScores.fundamental;
+          if (finalScores.logic !== undefined) skillScores.logic = finalScores.logic;
+          if (finalScores.language !== undefined) skillScores.language = finalScores.language;
+          if (finalScores.overall !== undefined) skillScores.overall = finalScores.overall;
+          
+          if (Object.keys(skillScores).length > 0) {
+            return skillScores;
           }
         }
         
-        // Nếu không có điểm kỹ năng cụ thể, lưu điểm tổng vào "overall"
-        if (Object.keys(skillScores).length === 0 && 'finalScore' in realTimeScores) {
-          skillScores.overall = realTimeScores.finalScore;
+        // Fallback: realTimeScores nếu không có finalScores
+        const realTimeScores = assessment.realTimeScores as Record<string, number>;
+        if (realTimeScores) {
+          const skillScores: Record<string, number> = {};
+          
+          // Lấy điểm kỹ năng cụ thể từ realTimeScores
+          if (realTimeScores.fundamental !== undefined) skillScores.fundamental = realTimeScores.fundamental;
+          if (realTimeScores.logic !== undefined) skillScores.logic = realTimeScores.logic;
+          if (realTimeScores.language !== undefined) skillScores.language = realTimeScores.language;
+          
+          // Tính overall từ trung bình nếu không có
+          if (Object.keys(skillScores).length > 0) {
+            const scores = Object.values(skillScores);
+            skillScores.overall = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+            return skillScores;
+          }
         }
         
-        return Object.keys(skillScores).length > 0 ? skillScores : undefined;
+        return undefined;
       } 
       else if (assessment.type === 'eq') {
         // Trích xuất điểm kỹ năng từ bài EQ
