@@ -20,11 +20,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type = 'test', jobRoleId, position, topic, history, ...rest } = body;
 
-    // Kiểm tra type hợp lệ
-    if (type !== 'test' && type !== 'eq') {
+    // Kiểm tra type hợp lệ (chỉ còn 'test')
+    if (type !== 'test') {
       const ms = Date.now() - start;
       console.log(`POST /api/assessment 400 in ${ms}ms`);
-      return NextResponse.json({ error: 'Invalid type. Must be "test" or "eq"' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid type. Must be "test"' }, { status: 400 });
     }
 
     // Tìm database user
@@ -124,74 +124,7 @@ export async function POST(request: NextRequest) {
       data.jobRoleId = jobRoleRecord.id;
     }
 
-    // Tính toán finalScores cho EQ mode
-    if (type === 'eq' && history) {
-      const calculateFinalScores = () => {
-        if (!history || history.length === 0) {
-          return {
-            emotionalAwareness: 0,
-            conflictResolution: 0,
-            communication: 0,
-            overall: 0
-          };
-        }
-
-        interface HistoryStage {
-          evaluation?: {
-            scores?: {
-              emotionalAwareness?: number;
-              conflictResolution?: number;
-              communication?: number;
-            };
-          };
-        }
-
-        const validStages = history.filter((stage: HistoryStage) => 
-          stage.evaluation?.scores && 
-          typeof stage.evaluation.scores.emotionalAwareness === 'number' &&
-          typeof stage.evaluation.scores.conflictResolution === 'number' &&
-          typeof stage.evaluation.scores.communication === 'number'
-        );
-
-        if (validStages.length === 0) {
-          return {
-            emotionalAwareness: 0,
-            conflictResolution: 0,
-            communication: 0,
-            overall: 0
-          };
-        }
-
-        interface ScoreAccumulator {
-          emotionalAwareness: number;
-          conflictResolution: number;
-          communication: number;
-        }
-
-        const totalScores = validStages.reduce((acc: ScoreAccumulator, stage: HistoryStage) => ({
-          emotionalAwareness: acc.emotionalAwareness + (stage.evaluation?.scores?.emotionalAwareness || 0),
-          conflictResolution: acc.conflictResolution + (stage.evaluation?.scores?.conflictResolution || 0),
-          communication: acc.communication + (stage.evaluation?.scores?.communication || 0)
-        }), {
-          emotionalAwareness: 0,
-          conflictResolution: 0,
-          communication: 0
-        });
-
-        const averageScores = {
-          emotionalAwareness: totalScores.emotionalAwareness / validStages.length,
-          conflictResolution: totalScores.conflictResolution / validStages.length,
-          communication: totalScores.communication / validStages.length
-        };
-
-        return {
-          ...averageScores,
-          overall: (averageScores.emotionalAwareness + averageScores.conflictResolution + averageScores.communication) / 3
-        };
-      };
-
-      data.finalScores = calculateFinalScores();
-    }
+    // EQ mode removed: no EQ-specific score calculation
 
     console.log(`[Assessment API] Creating assessment with type: "${type}"`);
     const assessment = await prisma.assessment.create({
@@ -214,8 +147,7 @@ export async function POST(request: NextRequest) {
     }
     // Track assessment completion với database user ID chỉ khi có điểm số thực tế
     // Không track assessment mới tạo mà chưa có finalScores
-    if ((type === 'test' && data.finalScores && data.finalScores.overall !== undefined) || 
-        (type === 'eq' && data.finalScores && data.finalScores.overall !== undefined)) {
+    if ((type === 'test' && data.finalScores && data.finalScores.overall !== undefined)) {
       try {
         await TrackingIntegrationService.trackAssessmentCompletion(dbUser.id, assessment, { clerkId: userId });
         console.log(`[Assessment API] Successfully tracked ${type} assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
@@ -227,24 +159,14 @@ export async function POST(request: NextRequest) {
       console.log(`[Assessment API] Skipping tracking for ${type} assessment ${assessment.id} - no final scores yet`);
     }
 
-    // Prepare response based on type
-    if (type === 'eq') {
-      return NextResponse.json({ 
-        success: true, 
-        id: assessment.id,
-        scores: data.finalScores,
-        assessment
-      }, { status: 201 });
-    } else {
-      // For test mode, include both Clerk and DB user IDs
-      const responseData = {
-        ...assessment,
-        userId,
-        clerkId: userId,
-        dbUserId: dbUser.id
-      };
-      return NextResponse.json(responseData, { status: 201 });
-    }
+    // Response for test mode (only mode supported)
+    const responseData = {
+      ...assessment,
+      userId,
+      clerkId: userId,
+      dbUserId: dbUser.id
+    };
+    return NextResponse.json(responseData, { status: 201 });
 
   } catch (error) {
     console.error('Error creating assessment:', error);
@@ -263,13 +185,13 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const typeParam = searchParams.get('type'); // 'test' hoặc 'eq'
+    const typeParam = searchParams.get('type'); // 'test'
     const limitParam = searchParams.get('limit');
 
     // Nếu có type, filter theo type. Nếu không, lấy tất cả
     const where = {
       userId,
-      ...(typeParam === 'test' || typeParam === 'eq' ? { type: typeParam as AssessmentType } : {})
+      ...(typeParam === 'test' ? { type: typeParam as AssessmentType } : {})
     };
 
     interface QueryOptions {
@@ -294,7 +216,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     };
 
-    // Apply limit if specified (for EQ mode compatibility)
+    // Apply limit if specified
     if (limitParam) {
       const limit = parseInt(limitParam, 10);
       if (!isNaN(limit) && limit > 0) {
@@ -304,12 +226,8 @@ export async function GET(request: NextRequest) {
 
     const assessments = await prisma.assessment.findMany(queryOptions);
 
-    // Return different formats based on type for backward compatibility
-    if (typeParam === 'eq') {
-      return NextResponse.json({ results: assessments });
-    } else {
-      return NextResponse.json(assessments);
-    }
+    // Return assessments (only 'test' supported)
+    return NextResponse.json(assessments);
   } catch (error) {
     console.error('Error fetching assessments:', error);
     return NextResponse.json({ 

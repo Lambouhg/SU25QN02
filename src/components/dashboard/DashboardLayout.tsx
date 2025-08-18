@@ -147,7 +147,6 @@ export default function DashboardLayout({
         { label: 'Avatar Interview', href: '/avatar-interview' },
         { label: 'Quiz Mode', href: '/quiz' },
         { label: 'Test Mode', href: '/test' },
-        { label: 'EQ Test Mode', href: '/eq' },
       ]
     },
     { 
