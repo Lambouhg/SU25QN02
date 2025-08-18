@@ -30,7 +30,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
   
   return (
-    <Card className="bg-slate-50/60 rounded-lg shadow border border-slate-300/30">
+    <Card className="bg-white/60 backdrop-blur-sm rounded-xl shadow border border-slate-200">
       <CardHeader>
         <CardTitle>Select interview field</CardTitle>
         <CardDescription>
@@ -80,7 +80,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
 
         {/* Cấp độ phỏng vấn */}
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+        <div className="bg-blue-50/70 p-4 rounded-lg border border-blue-100">
           <h3 className="font-medium text-blue-800 mb-2 flex items-center">
             <Briefcase className="w-5 h-5 mr-2" />
             Select interview level:
@@ -89,7 +89,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
             {levelOptions.filter(lv => lv === 'Junior' || lv === 'Mid-level' || lv === 'Senior').map((lv) => (
               <div
                 key={lv}
-                className={`border rounded-lg p-3 cursor-pointer ${level === lv ? 'bg-amber-50 border-amber-300 shadow-sm' : 'hover:border-gray-300 hover:bg-gray-50'}`}
+                className={`border rounded-xl p-3 cursor-pointer transition-colors ${level === lv ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200 shadow-sm' : 'bg-white/70 border-slate-200 hover:bg-slate-50'}`}
                 onClick={() => setLevel(lv)}
               >
                 <div className="font-medium mb-1">{lv}</div>
@@ -106,12 +106,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
           <div className="flex justify-between">
             <Label htmlFor="duration">Interview duration: {duration} minutes</Label>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {[5, 10, 15, 20, 30].map((t) => (
               <Button
                 key={t}
                 variant={t === duration ? 'default' : 'outline'}
                 size="sm"
+                className={`rounded-full px-4 ${t === duration ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600' : 'border-slate-300 text-slate-700 hover:bg-slate-100'}`}
                 onClick={() => setDuration(t)}
               >
                 {t} minutes
@@ -121,7 +122,7 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
 
         {/* Thông tin phỏng vấn */}
-        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <div className="bg-gray-50/70 p-4 rounded-lg border border-gray-200">
           <h3 className="font-medium mb-2">Interview information:</h3>
           <ul className="space-y-2 text-gray-700">
             <li className="flex items-start"><CheckCircle className="w-4 h-4 mr-2 mt-0.5 text-green-500 flex-shrink-0" /><span><strong>Real interview question</strong> for position {position}</span></li>
@@ -132,7 +133,13 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </div>
       </CardContent>
       <CardFooter>
-        <Button onClick={startInterview} className="w-full text-lg font-semibold" disabled={isLoading}>Start interview</Button>
+        <Button
+          onClick={startInterview}
+          className="w-full h-12 rounded-xl text-lg font-semibold bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white shadow-md hover:shadow-lg focus-visible:ring-2 focus-visible:ring-sky-300 focus-visible:ring-offset-0 transition-colors"
+          disabled={isLoading}
+        >
+          Start interview
+        </Button>
       </CardFooter>
     </Card>
   );

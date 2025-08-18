@@ -172,6 +172,7 @@ interface HistoryStage {
       logic: string;
       language: string;
     };
+    isRelevant?: boolean;
   };
   topic: string;
   timestamp: string;
@@ -577,11 +578,12 @@ export default function TestPanel() {
     console.log(`🔍 [DEBUG] evaluation result:`, evaluation);
     
     // Cập nhật điểm real-time (chuyển từ thang 0-10 sang 0-100)
-    if (evaluation && evaluation.scores) {
+    // Chỉ cập nhật nếu câu trả lời liên quan; tránh ghi đè điểm bằng 0 khi user trả lời lạc đề
+    if (evaluation && evaluation.scores && evaluation.isRelevant !== false) {
       setRealTimeScores({
-        fundamental: evaluation.scores.fundamental * 10,
-        logic: evaluation.scores.logic * 10,
-        language: evaluation.scores.language * 10,
+        fundamental: Math.max(0, Math.min(100, Math.round((evaluation.scores.fundamental || 0) * 10))),
+        logic: Math.max(0, Math.min(100, Math.round((evaluation.scores.logic || 0) * 10))),
+        language: Math.max(0, Math.min(100, Math.round((evaluation.scores.language || 0) * 10))),
         suggestions: evaluation.suggestions || realTimeScores.suggestions
       });
     }
@@ -594,6 +596,7 @@ export default function TestPanel() {
       );
       addMessageToConversation(setConversation, friendlyReminder);
       setLastFeedback("Let's try to answer the question above as clearly as you can!");
+      // Không cập nhật real-time scores khi câu trả lời không liên quan
       return;
     }
     // Lưu vào history với số thứ tự câu hỏi
@@ -878,9 +881,7 @@ export default function TestPanel() {
   const addHistoryStage = async (stage: HistoryStage) => {
     console.log('🔵 [DEBUG] addHistoryStage called with:', stage);
     setHistory(prev => [...prev, stage]);
-
-    // ✨ NEW: Lưu real-time vào database nếu có assessment ID
-    if (currentAssessmentId) {
+    if (currentAssessmentId && (!stage.evaluation || stage.evaluation.isRelevant !== false)) {
       console.log('🔵 [DEBUG] Saving real-time to assessment:', currentAssessmentId);
       try {
         const response = await fetch(`/api/assessment/${currentAssessmentId}`, {
@@ -1030,7 +1031,7 @@ export default function TestPanel() {
                 onReset={handleReset}
               />
             ) : !interviewing ? (
-              <div className="bg-slate-50/80 rounded-2xl shadow-lg border border-slate-300/40 overflow-hidden">
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow border border-slate-200 overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
                   <h1 className="text-2xl font-bold text-white mb-2">Test Mode - Interview Practice</h1>
                   <p className="text-blue-100">Choose your settings and start practicing for your dream job</p>
@@ -1146,7 +1147,7 @@ export default function TestPanel() {
         {!interviewing && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Evaluation Criteria Card - Enhanced */}
-          <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+          <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
             <CardHeader className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6">
               <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
@@ -1194,7 +1195,7 @@ export default function TestPanel() {
           </Card>
           
           {/* Why Practice Card - Enhanced */}
-          <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+          <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
             <CardHeader className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-6">
               <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">

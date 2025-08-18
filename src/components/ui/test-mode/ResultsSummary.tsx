@@ -92,27 +92,30 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto mt-10">
-      <CardHeader>
-        <div className="flex justify-between items-start">
+    <Card className="w-full max-w-5xl mx-auto mt-10 border-0 shadow-xl">
+      <CardHeader className="bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 text-white rounded-t-2xl">
+        <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
-            <CardTitle className="text-2xl">Interview Result</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl text-white">Interview Summary</CardTitle>
+            <CardDescription className="text-white/80">
               {new Date(results.timestamp).toLocaleString()} • {results.position} ({results.level})
               {typeof results.totalTime === 'number' && results.totalTime > 0 && (
-                <span className="ml-2 text-green-700 font-semibold">• Total time spent: {results.totalTime} minute{results.totalTime > 1 ? 's' : ''}</span>
+                <span className="ml-2 font-semibold">• Total time: {results.totalTime} min</span>
               )}
             </CardDescription>
           </div>
-          <Badge variant="outline" className="text-lg px-3 py-1">
-            {overall}%
-          </Badge>
+          <div className="flex items-center gap-2">
+            <span className="text-sm opacity-80">Overall</span>
+            <Badge variant="outline" className="text-lg px-3 py-1 bg-white/10 text-white border-white/30">
+              {overall}%
+            </Badge>
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {categoryList.map(cat => (
-            <Card key={cat.key}>
+            <Card key={cat.key} className="border border-gray-200 shadow-sm">
               <CardContent className="pt-6 flex flex-col items-center text-center">
                 {cat.icon}
                 <h3 className="font-medium">{cat.label}</h3>
@@ -123,7 +126,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
             </Card>
           ))}
         </div>
-        <Card className="mb-6">
+        <Card className="mb-6 border border-gray-200">
           <CardHeader>
             <CardTitle>Feedback & Recommendations</CardTitle>
           </CardHeader>
@@ -140,7 +143,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
           </CardContent>
         </Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <Card>
+          <Card className="border border-gray-200">
             <CardHeader>
               <CardTitle>Performance Summary</CardTitle>
             </CardHeader>
@@ -158,7 +161,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border border-gray-200">
             <CardHeader>
               <CardTitle>Detailed Score Breakdown</CardTitle>
             </CardHeader>
@@ -213,7 +216,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
         </Card>
         
         <div className="flex justify-end">
-          <Button variant="outline" onClick={onReset} className="flex items-center gap-2">
+          <Button variant="outline" onClick={onReset} className="flex items-center gap-2 border-indigo-200 text-indigo-700">
             <RotateCcw className="w-4 h-4" />
             Practice again
           </Button>
