@@ -12,7 +12,7 @@ interface User {
   firstName?: string;
   lastName?: string;
   avatar?: string;
-  role?: string | { name: string; id: string; };
+  role?: string;
   clerkId?: string;
 }
 
@@ -75,8 +75,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Merge Clerk data với database data
             setUser({
               ...userData,
-              role: dbUser.role?.name || 'user',
               ...dbUser,
+              role: dbUser.role || 'user', // Ensure role is a string, not an object
             });
           } else {
             // Nếu không có trong database, chỉ dùng Clerk data
@@ -159,6 +159,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(prevUser => ({
           ...prevUser!,
           ...userData,
+          role: userData.role || 'user', // Ensure role is a string, not an object
         }));
 
       }

@@ -368,7 +368,7 @@ export default function UserActivitiesList({
                         {activity.user.firstName} {activity.user.lastName}
                       </p>
                       {getStatusBadge(activity.user)}
-                      {activity.user.role === 'admin' && (
+                      {(typeof activity.user.role === 'string' ? activity.user.role : 'user') === 'admin' && (
                         <Badge variant="secondary">Admin</Badge>
                       )}
                     </div>

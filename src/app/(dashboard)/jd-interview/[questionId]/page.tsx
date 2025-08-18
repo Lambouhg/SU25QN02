@@ -65,7 +65,6 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
     language: 'en-US' // Set language to English
   });
 
-  console.log('Speech hook state:', { isListening });
 
   // Initialize interview question from URL if available
   const getInitialInterviewQuestion = () => {
@@ -354,15 +353,20 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       });
 
       const data = await response.json();
+    
+      
       if (data.success) {
+        
         setFeedback(data.feedback);
         setAnalysisResult(data);
         setIsSubmitted(true);
         
         // Save answer to database after successful analysis
+        
         await saveAnswerToDatabase(data);
+        
       } else {
-        console.error('Error:', data.error);
+        console.error('❌ Analysis failed:', data.error);
       }
     } catch (error) {
       console.error('Failed to analyze answer:', error);
@@ -374,24 +378,30 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
   // Function to save answer and analysis to database
   const saveAnswerToDatabase = async (analysisData: AnalysisResult) => {
     try {
+      
+      
       // Get current question set ID from localStorage or URL
       const questionSetIdFromURL = searchParams.get('questionSetId');
+      
+      
       let jdQuestionSetId = questionSetIdFromURL;
       
       // If no question set ID from URL, try to get from localStorage
       if (!jdQuestionSetId) {
         const savedState = localStorage.getItem('jd_page_state');
+
         if (savedState) {
           const state = JSON.parse(savedState);
           jdQuestionSetId = state.currentQuestionSetId;
+          
         }
       }
       
       // If still no question set ID, skip saving
       if (!jdQuestionSetId) {
-        console.warn('No question set ID found, skipping database save');
         return;
       }
+
 
       const timeSpent = answerStartTime ? 
         Math.floor((new Date().getTime() - answerStartTime.getTime()) / 1000) : undefined;
@@ -424,7 +434,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       
       if (checkData.success && checkData.exists) {
         // Update existing answer
-        console.log('Updating existing answer for this question');
+       
         saveResponse = await fetch(`/api/jd-answers/${checkData.answerId}`, {
           method: 'PUT',
           headers: {
@@ -433,8 +443,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
           body: JSON.stringify(answerData),
         });
       } else {
-        // Create new answer
-        console.log('Creating new answer for this question');
+        
         saveResponse = await fetch('/api/jd-answers', {
           method: 'POST',
           headers: {
@@ -445,10 +454,12 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       }
 
       const saveData = await saveResponse.json();
+  
+      
       if (saveData.success) {
-        console.log(`Answer ${checkData.exists ? 'updated' : 'saved'} successfully to database`);
+       
       } else {
-        console.error('Failed to save answer:', saveData.error);
+        console.error('❌ Failed to save answer:', saveData.error);
       }
     } catch (error) {
       console.error('Error saving answer to database:', error);
@@ -456,6 +467,11 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
   };
 
   const handleSubmit = () => {
+    // Record the time when user starts submitting if not already recorded
+    if (!answerStartTime) {
+      setAnswerStartTime(new Date());
+    }
+    
     analyzeAnswer();
     // Increment questions answered when submitting
     setQuestionsAnswered(prev => prev + 1);
@@ -543,19 +559,6 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                 <div className="mb-6">
                   <h4 className="text-xl font-semibold text-gray-900 mb-2">Your Answer</h4>
                   <p className="text-gray-600">Write your response below or use the microphone to speak your answer. Be specific and use examples from your experience.</p>
-                  
-                  {/* Test Debug Button */}
-                  <div className="mt-2 mb-4">
-                    <button
-                      onClick={() => {
-                        console.log('🔍 DEBUG: Speech hook state:', { isListening });
-                        alert(`Speech hook state: isListening = ${isListening}`);
-                      }}
-                      className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded text-sm"
-                    >
-                      🔍 Debug Speech State (isListening: {isListening ? 'true' : 'false'})
-                    </button>
-                  </div>
                 </div>
                 
                 <div className="relative">
@@ -576,7 +579,6 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                   {/* Speech-to-Text Button */}
                   <button
                     onClick={() => {
-                      console.log('🎤 Microphone button clicked, isListening:', isListening);
                       if (isListening) {
                         stopListening();
                       } else {

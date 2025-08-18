@@ -18,7 +18,14 @@ export async function PATCH(
     // Check if user is admin
     const adminUser = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      include: { role: true }
+      include: {
+        role: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
+      }
     });
     
     if (!adminUser || adminUser.role?.name !== 'admin') {
@@ -228,7 +235,14 @@ export async function DELETE(
     // Check if user is admin
     const adminUser = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      include: { role: true }
+      include: {
+        role: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
+      }
     });
     
     if (!adminUser || adminUser.role?.name !== 'admin') {

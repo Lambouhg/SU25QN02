@@ -14,7 +14,8 @@ import {
   Brain,
   CheckCircle,
   Circle,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import {
   Select,
@@ -96,6 +97,7 @@ interface UserActivityDetail {
     score?: number;
     duration: number;
     timestamp: string;
+    referenceId?: string; // Add referenceId to identify JD activities
   }>;
 }
 
@@ -110,6 +112,11 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
   const [timeRange, setTimeRange] = useState('30');
   const [activityType, setActivityType] = useState('all');
 
+  // Helper function to check if activity is JD-related
+  const isJdActivity = (activity: { type: string; referenceId?: string }) => {
+    return activity.type === 'jd';
+  };
+
   const fetchUserActivity = useCallback(async () => {
     try {
       setLoading(true);
@@ -120,8 +127,13 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
 
       const response = await fetch(`/api/admin/user-activities/${userId}?${params}`);
       const result = await response.json();
+      console.log('👤 User activity data:', result);
 
       if (response.ok) {
+        // Log recent timeline to check referenceId
+        if (result.recentTimeline) {
+          console.log('📋 Recent timeline activities:', result.recentTimeline);
+        }
         setData(result);
       } else {
         console.error('Error fetching user activity:', result.error);
@@ -180,6 +192,7 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
       case 'quiz': return <Brain className="h-4 w-4 text-blue-600" />;
       case 'practice': return <Book className="h-4 w-4 text-green-600" />;
       case 'learning': return <Star className="h-4 w-4 text-yellow-600" />;
+      case 'jd': return <FileText className="h-4 w-4 text-purple-600" />;
       default: return <Activity className="h-4 w-4 text-gray-600" />;
     }
   };
@@ -239,7 +252,7 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
           <Badge className={data.user.isOnline ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
             {data.user.isOnline ? 'Online' : 'Offline'}
           </Badge>
-          {data.user.role === 'admin' && (
+          {(typeof data.user.role === 'string' ? data.user.role : 'user') === 'admin' && (
             <Badge variant="secondary">Admin</Badge>
           )}
         </div>
@@ -466,9 +479,22 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
                 {getActivityTypeIcon(activity.type)}
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="font-medium capitalize">{activity.type}</p>
-                    {activity.score && (
-                      <Badge variant="outline">{safeNumber(activity.score)}%</Badge>
+                    <p className="font-medium capitalize">
+                      {(() => {
+                        // Debug info
+                        console.log('🔍 Processing activity:', activity);
+                        return isJdActivity(activity) ? 'JD Practice' : activity.type;
+                      })()}
+                    </p>
+                    {/* Show different badges for JD vs other activities */}
+                    {isJdActivity(activity) ? (
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                        Completed
+                      </Badge>
+                    ) : (
+                      activity.score && (
+                        <Badge variant="outline">{safeNumber(activity.score)}%</Badge>
+                      )
                     )}
                   </div>
                   <p className="text-sm text-gray-600">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { JdAnswerService, JdAnswerData, AnalysisResult } from '@/services/jdAnswerService';
+import { UserActivityService } from '@/services/userActivityService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,6 +72,28 @@ export async function POST(request: NextRequest) {
     } else {
       // Create new answer
       result = await JdAnswerService.saveAnswer(answerData);
+    }
+
+    // Track activity for admin analytics (without score to avoid confusion)
+    console.log('📊 Attempting to track JD activity:', {
+      userId,
+      jdQuestionSetId,
+      timeSpent: timeSpent || 0,
+      note: 'JD activity tracking - no score calculated'
+    });
+    
+    try {
+      await UserActivityService.addActivity(userId, {
+        type: 'jd',
+        referenceId: jdQuestionSetId,
+        score: undefined, // Don't track score for JD activities
+        duration: timeSpent || 0,
+        timestamp: new Date()
+      });
+      console.log('✅ JD activity tracking successful');
+    } catch (activityError) {
+      console.error('❌ Error tracking JD activity:', activityError);
+      // Don't fail the main operation if activity tracking fails
     }
 
     return NextResponse.json({

@@ -13,7 +13,14 @@ export async function GET(request: NextRequest) {
     // Check if user is admin
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      include: { role: true }
+      include: {
+        role: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
+      }
     });
     
     if (!user || user.role?.name !== 'admin') {

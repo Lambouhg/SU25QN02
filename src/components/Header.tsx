@@ -34,7 +34,7 @@ export default function Header() {
                 {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
               </p>
               <p className="text-xs text-gray-500 capitalize">
-                {typeof user.role === 'string' ? user.role : user.role?.name || 'user'}
+                {typeof user.role === 'string' ? user.role : 'user'}
               </p>
             </div>
             

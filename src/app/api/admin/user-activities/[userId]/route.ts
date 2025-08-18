@@ -18,7 +18,14 @@ export async function GET(
     // Check if user is admin
     const adminUser = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      include: { role: true }
+      include: {
+        role: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
+      }
     });
     
     if (!adminUser || adminUser.role?.name !== 'admin') {
@@ -111,6 +118,7 @@ export async function GET(
         score: activity.score,
         duration: activity.duration,
         timestamp: activity.timestamp,
+        referenceId: activity.referenceId, // Add referenceId for JD activity identification
         details: activity.details || {}
       }));
 

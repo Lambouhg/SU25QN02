@@ -52,8 +52,35 @@ export async function GET() {
       ]
     });
 
+    // Define a type for the user role
+    type UserRole = {
+      id: string;
+      name?: string;
+      displayName?: string;
+    };
+
+    // Define a type for the user
+    type UserType = {
+      id: string;
+      clerkId: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      avatar: string | null;
+      roleId: string;
+      role: UserRole | null;
+      status: string | null;
+      lastLogin: Date | null;
+      lastActivity: Date | null;
+      lastSignInAt: Date | null;
+      isOnline: boolean | null;
+      clerkSessionActive: boolean | null;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+
     // Transform the users to ensure fullName and imageUrl are properly set
-    const transformedUsers = users.map((user: { [key: string]: unknown }) => {
+    const transformedUsers = users.map((user: UserType) => {
       // Calculate fullName from firstName and lastName
       const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
 
@@ -61,7 +88,8 @@ export async function GET() {
         ...user,
         fullName,
         imageUrl: user.avatar, // Add imageUrl as alias for avatar
-        role: (user.role as { name: string })?.name || 'user' // Backward compatibility: extract role name
+        
+        role: user.role?.name || user.role?.displayName || 'user' // Backward compatibility: extract role name
       };
     });
 

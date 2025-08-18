@@ -14,14 +14,8 @@ type ProcessedUserActivity = {
     lastName?: string | null;
     email?: string | null;
     role?: {
-      id: string;
       name: string;
-      displayName: string;
-      description?: string | null;
-      createdAt: Date;
-      updatedAt: Date;
-      isActive: boolean;
-      isDefault: boolean;
+      displayName?: string;
     };
     createdAt?: Date;
   };
@@ -38,7 +32,14 @@ export async function GET(request: NextRequest) {
     // Check if user is admin
     const user = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      include: { role: true }
+      include: {
+        role: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
+      }
     });
     
     if (!user || user.role?.name !== 'admin') {
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     const days = parseInt(timeframe);
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    // Get all user activities with user info
+    // Get all user activities with user info - include role relation properly
     const userActivities = await prisma.userActivity.findMany({
       include: {
         user: {
@@ -59,8 +60,13 @@ export async function GET(request: NextRequest) {
             firstName: true,
             lastName: true,
             email: true,
-            role: true,
-            createdAt: true
+            createdAt: true,
+            role: {
+              select: {
+                name: true,
+                displayName: true
+              }
+            }
           }
         }
       }
@@ -110,16 +116,23 @@ export async function GET(request: NextRequest) {
       return timestamp && new Date(timestamp) >= startDate;
     });
 
+    // Helper function to check if an activity is a JD activity
+    const isJDActivity = (activity: Record<string, unknown>) => {
+      return activity.type === 'jd';
+    };
+
     const activityStats = {
-      totalInterviews: allActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
+      totalInterviews: allActivities.filter((a: Record<string, unknown>) => a.type === 'interview' && !isJDActivity(a)).length,
       totalQuizzes: allActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
       totalTests: allActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
       totalEQs: allActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
+      totalJDs: allActivities.filter(isJDActivity).length,
       totalPractice: allActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
-      recentInterviews: recentActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
+      recentInterviews: recentActivities.filter((a: Record<string, unknown>) => a.type === 'interview' && !isJDActivity(a)).length,
       recentQuizzes: recentActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
       recentTests: recentActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
       recentEQs: recentActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
+      recentJDs: recentActivities.filter(isJDActivity).length,
       recentPractice: recentActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
       averageScore: allActivities.length > 0
         ? allActivities.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.score) || 0), 0) / allActivities.length
@@ -217,10 +230,11 @@ export async function GET(request: NextRequest) {
 
       activityTrends.push({
         date: dayStart.toISOString().split('T')[0],
-        interviews: dayActivities.filter((a: Record<string, unknown>) => a.type === 'interview').length,
+        interviews: dayActivities.filter((a: Record<string, unknown>) => a.type === 'interview' && !isJDActivity(a)).length,
         quizzes: dayActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
         tests: dayActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
         eqs: dayActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
+        jds: dayActivities.filter(isJDActivity).length,
         practice: dayActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
         total: dayActivities.length,
         averageScore: dayActivities.length > 0
@@ -299,6 +313,7 @@ export async function GET(request: NextRequest) {
         userId: activity.userId,
         userName: activity.userName,
         userEmail: activity.userEmail,
+        referenceId: activity.referenceId, // Add referenceId for JD activity detection
         details: activity.details || {}
       }));
 

@@ -6,6 +6,7 @@ import StatisticsChart from '@/components/admin/StatisticsChart';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
 
 
+
 interface DashboardMetrics {
   totalUsers: number;
   averageScore: number;
@@ -27,6 +28,12 @@ export default function AdminDashboard() {
     if (typeof role === 'string') return role;
     if (role && typeof role === 'object' && 'name' in role) {
       return (role as { name: string }).name;
+    }
+    // Handle case where role might be an object with different structure
+    if (role && typeof role === 'object') {
+      const roleObj = role as Record<string, unknown>;
+      if (roleObj.displayName) return roleObj.displayName as string;
+      if (roleObj.name) return roleObj.name as string;
     }
     return 'user';
   };
@@ -94,6 +101,7 @@ export default function AdminDashboard() {
     <AdminRouteGuard>
       <div className="min-h-screen bg-gray-50 p-6">
           <div className="max-w-7xl mx-auto">
+    
             {/* Header */}
             <div className="mb-8 flex justify-between items-center">
               <div>

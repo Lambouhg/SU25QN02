@@ -358,7 +358,7 @@ const UploadJDPageContent = () => {
       // Tự động lưu question set vào database
       try {
         const jobTitle = questionSetService.extractJobTitle(file.name, text);
-        await questionSetService.saveQuestionSet({
+        const savedQuestionSet = await questionSetService.saveQuestionSet({
           jobTitle,
           questionType: questionType as 'technical' | 'behavioral',
           level,
@@ -366,6 +366,12 @@ const UploadJDPageContent = () => {
           originalJDText: text,
           fileName: file.name
         });
+        
+        // Update current question set ID with the newly saved set
+        if (savedQuestionSet && savedQuestionSet.id) {
+          setCurrentQuestionSetId(savedQuestionSet.id);
+         
+        }
         
         // Show save success toast after a delay
         setTimeout(() => {

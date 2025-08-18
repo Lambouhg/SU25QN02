@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { 
   History, 
   Calendar, 
@@ -64,6 +65,8 @@ export default function JdInterviewHistoryPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<JdAnswer | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [answerToDelete, setAnswerToDelete] = useState<string | null>(null);
   
   // Enhanced filtering and search
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,19 +107,24 @@ export default function JdInterviewHistoryPage() {
   };
 
   const handleDeleteAnswer = async (answerId: string) => {
-    if (!confirm('Are you sure you want to delete this answer?')) return;
+    setAnswerToDelete(answerId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteAnswer = async () => {
+    if (!answerToDelete) return;
 
     try {
-      setDeleteLoading(answerId);
-      const response = await fetch(`/api/jd-answers?answerId=${answerId}`, {
+      setDeleteLoading(answerToDelete);
+      const response = await fetch(`/api/jd-answers?answerId=${answerToDelete}`, {
         method: 'DELETE',
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setAnswers(prev => prev.filter(answer => answer.id !== answerId));
-        if (selectedAnswer?.id === answerId) {
+        setAnswers(prev => prev.filter(answer => answer.id !== answerToDelete));
+        if (selectedAnswer?.id === answerToDelete) {
           setShowDetailModal(false);
           setSelectedAnswer(null);
         }
@@ -128,7 +136,14 @@ export default function JdInterviewHistoryPage() {
       alert('Failed to delete answer');
     } finally {
       setDeleteLoading(null);
+      setShowDeleteConfirm(false);
+      setAnswerToDelete(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setAnswerToDelete(null);
   };
 
   const openDetailModal = (answer: JdAnswer) => {
@@ -1023,6 +1038,18 @@ export default function JdInterviewHistoryPage() {
             </div>
           </div>
         )}
+
+        {/* Confirmation Modal for Delete */}
+        <ConfirmationModal
+          isOpen={showDeleteConfirm}
+          onClose={cancelDelete}
+          onConfirm={confirmDeleteAnswer}
+          title="Delete Answer"
+          message="Are you sure you want to delete this answer? This action cannot be undone."
+          confirmText="Delete"
+          cancelText="Cancel"
+          type="danger"
+        />
       </div>
     </div>
   );
