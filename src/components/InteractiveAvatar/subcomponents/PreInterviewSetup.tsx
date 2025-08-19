@@ -80,8 +80,19 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [packageLimitInfo, setPackageLimitInfo] = useState<PackageLimitInfo | null>(null);
+  
+  // Question bank stats
+  const [questionBankStats, setQuestionBankStats] = useState<{
+    totalQuestions: number;
+    fields: string[];
+    topics: string[];
+    levels: string[];
+    fieldStats: Array<{ field: string; count: number }>;
+    topicStats: Array<{ topic: string; count: number }>;
+    levelStats: Array<{ level: string; count: number }>;
+  } | null>(null);
 
-  // Load user preferences on component mount
+  // Load user preferences and question bank stats on component mount
   useEffect(() => {
     const loadUserPreferences = async () => {
       if (!userId) return;
@@ -112,7 +123,20 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       }
     };
 
+    const loadQuestionBankStats = async () => {
+      try {
+        const response = await fetch('/api/questions/stats');
+        if (response.ok) {
+          const stats = await response.json();
+          setQuestionBankStats(stats);
+        }
+      } catch (error) {
+        console.error('Error loading question bank stats:', error);
+      }
+    };
+
     loadUserPreferences();
+    loadQuestionBankStats();
   }, [userId, jobRoles, onJobRoleIdChange, onPositionKeyChange, config, onConfigChange]);
 
   // Helper functions for error management
@@ -407,6 +431,108 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
               </div>
             )}
        </div>
+
+       {/* Question Bank Info */}
+       {questionBankStats && (
+         <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+           <div className="flex items-center justify-between mb-3">
+             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+               <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+               </svg>
+               Question Bank Integration
+             </h3>
+             <span className="text-sm text-blue-600 font-medium">
+               {questionBankStats.totalQuestions} questions available
+             </span>
+           </div>
+           
+           {selectedJobRole && (
+             <div className="space-y-2">
+               <div className="flex items-center text-sm text-gray-600">
+                 <span className="font-medium mr-2">Field:</span>
+                 <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
+                   {selectedJobRole.category?.name || 'Unknown'}
+                 </span>
+                 {selectedJobRole.category?.name && (
+                   <span className="ml-2 text-gray-500">
+                     {(() => {
+                       // Field mapping logic
+                       const fieldMapping: Record<string, string[]> = {
+                         'Frontend': ['Frontend Development', 'Web Development'],
+                         'Backend': ['Backend Development', 'Server Development'],
+                         'Full Stack': ['Full Stack Development', 'Web Development'],
+                         'Mobile': ['Mobile Development', 'iOS Development', 'Android Development'],
+                         'Data Science': ['Data Science', 'Machine Learning', 'AI'],
+                         'DevOps': ['DevOps', 'Infrastructure', 'Cloud'],
+                         'QA': ['Quality Assurance', 'Testing', 'QA'],
+                         'UI/UX': ['UI/UX Design', 'Design', 'User Experience'],
+                         'Web Development': ['Frontend Development', 'Web Development'],
+                         'Mobile Development': ['Mobile Development', 'iOS Development', 'Android Development'],
+                         'AI/ML': ['Data Science', 'Machine Learning', 'AI'],
+                         'Product Management': ['Product Management'],
+                         'Software Development': ['Frontend Development', 'Backend Development', 'Web Development'],
+                         'Cloud': ['Cloud Computing', 'DevOps', 'Infrastructure'],
+                         'Security': ['Security', 'Web Security'],
+                         'Design': ['UI/UX Design', 'Design', 'User Experience'],
+                         'Data': ['Data Science', 'Machine Learning', 'AI']
+                       };
+                       
+                       const mappedFields = fieldMapping[selectedJobRole.category?.name] || [selectedJobRole.category?.name];
+                       const totalCount = mappedFields.reduce((total, field) => {
+                         const fieldStat = questionBankStats.fieldStats.find(f => f.field === field);
+                         return total + (fieldStat?.count || 0);
+                       }, 0);
+                       
+                       return `(${totalCount} questions)`;
+                     })()}
+                   </span>
+                 )}
+               </div>
+               
+               <div className="flex items-center text-sm text-gray-600">
+                 <span className="font-medium mr-2">Level:</span>
+                 <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                   {selectedJobRole.level}
+                 </span>
+                                    <span className="ml-2 text-gray-500">
+                     {(() => {
+                       // Level mapping logic - API stats returns JobRole level names
+                       const levelMapping: Record<string, string[]> = {
+                         'Intern': ['Intern'],
+                         'Junior': ['Junior'],
+                         'Mid': ['Mid'],
+                         'Senior': ['Senior'],
+                         'Lead': ['Senior']
+                       };
+                       
+                       const mappedLevels = levelMapping[selectedJobRole.level] || [selectedJobRole.level];
+                       const totalCount = mappedLevels.reduce((total, level) => {
+                         const levelStat = questionBankStats.levelStats.find(l => l.level === level);
+                         return total + (levelStat?.count || 0);
+                       }, 0);
+                       
+                       return `(${totalCount} questions)`;
+                     })()}
+                   </span>
+               </div>
+               
+               {selectedJobRole.specialization?.name && (
+                 <div className="flex items-center text-sm text-gray-600">
+                   <span className="font-medium mr-2">Specialization:</span>
+                   <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
+                     {selectedJobRole.specialization.name}
+                   </span>
+                 </div>
+               )}
+             </div>
+           )}
+           
+           <div className="mt-3 text-xs text-gray-500">
+             AI will use questions from our curated question bank to conduct your interview
+           </div>
+         </div>
+       )}
 
        {/* Start Button */}
           <div className="pt-6">

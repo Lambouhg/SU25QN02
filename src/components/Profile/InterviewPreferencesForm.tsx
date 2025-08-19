@@ -44,11 +44,16 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
 
   const [selectedJobRole, setSelectedJobRole] = useState<JobRole | null>(null);
   
-  // Step-by-step selection states
+  // Step-by-step selection states (Title → Level → Category → Specialization)
+  const [selectedTitle, setSelectedTitle] = useState<string>('');
+  const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
-  const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [selectedExperience, setSelectedExperience] = useState<string>('');
+  const [showAdvancedSelector, setShowAdvancedSelector] = useState(false);
+  // Simple selector filters (aligned with onboarding)
+  const [filterCategory, setFilterCategory] = useState<string>('');
+  const [filterSpecialization, setFilterSpecialization] = useState<string>('');
 
   // Current step tracking
   const [currentStep, setCurrentStep] = useState(1);
@@ -76,19 +81,22 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
           if (data.preferredJobRole) {
             setSelectedJobRole(data.preferredJobRole);
             // Auto-fill step-by-step selection
+            setSelectedTitle(data.preferredJobRole.title || '');
+            setSelectedLevel(data.preferredJobRole.level || '');
             setSelectedCategory(data.preferredJobRole.category?.name || '');
             setSelectedSpecialization(data.preferredJobRole.specialization?.name || '');
-            setSelectedLevel(data.preferredJobRole.level || '');
             setSelectedExperience(`${data.preferredJobRole.minExperience}-${data.preferredJobRole.maxExperience || '∞'}`);
             
             // Set current step based on what's filled
             if (data.preferredJobRole.minExperience !== undefined) {
-              setCurrentStep(4);
-            } else if (data.preferredJobRole.level) {
-              setCurrentStep(3);
+              setCurrentStep(5);
             } else if (data.preferredJobRole.specialization?.name) {
-              setCurrentStep(2);
+              setCurrentStep(4);
             } else if (data.preferredJobRole.category?.name) {
+              setCurrentStep(3);
+            } else if (data.preferredJobRole.level) {
+              setCurrentStep(2);
+            } else if (data.preferredJobRole.title) {
               setCurrentStep(1);
             }
           }
@@ -103,60 +111,134 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
     }
   }, [userId]);
 
-  // Get unique categories from jobRoles
-  const categories = React.useMemo(() => {
-    if (!jobRoles || jobRoles.length === 0) return [];
-    return Array.from(new Set(
-      jobRoles
-        .map(role => role.category?.name)
-        .filter(Boolean)
-    )).sort();
+  // NEW: store user skills and prefill flag
+  const [userSkills, setUserSkills] = useState<string[]>([]);
+  const [skillsPrefilled, setSkillsPrefilled] = useState(false);
+
+  // NEW: fetch current user to get skills
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const res = await fetch('/api/user/current');
+        if (res.ok) {
+          const u = await res.json();
+          setUserSkills(Array.isArray(u.skills) ? u.skills : []);
+        }
+      } catch (e) {
+        console.error('Error loading user skills:', e);
+      }
+    };
+    loadUser();
+  }, []);
+
+  // Get unique titles from jobRoles
+  const titles = React.useMemo(() => {
+    if (!jobRoles || jobRoles.length === 0) return [] as string[];
+    return Array.from(new Set(jobRoles.map(role => role.title))).sort();
   }, [jobRoles]);
 
-  // Get specializations for selected category
-  const specializations = React.useMemo(() => {
-    if (!selectedCategory || !jobRoles) return [];
+  // Simple selector: categories & specializations independent of wizard filters
+  const categoriesSimple = React.useMemo(() => {
+    if (!jobRoles || jobRoles.length === 0) return [] as string[];
+    return Array.from(new Set(jobRoles.map(role => role.category?.name).filter(Boolean))) as string[];
+  }, [jobRoles]);
+
+  const specializationsSimple = React.useMemo(() => {
+    if (!jobRoles || jobRoles.length === 0) return [] as string[];
     return Array.from(new Set(
       jobRoles
-        .filter(role => role.category?.name === selectedCategory)
+        .filter(role => (filterCategory ? role.category?.name === filterCategory : true))
         .map(role => role.specialization?.name)
         .filter(Boolean)
-    )).sort();
-  }, [selectedCategory, jobRoles]);
+    )) as string[];
+  }, [jobRoles, filterCategory]);
 
-  // Get levels for selected category and specialization
-  const levels = React.useMemo(() => {
-    if (!selectedCategory || !jobRoles) return [];
+  // Get unique categories from jobRoles filtered by title and level
+  const categories = React.useMemo(() => {
+    if (!jobRoles || jobRoles.length === 0) return [] as string[];
+    return Array.from(new Set(
+      jobRoles
+        .filter(role => (selectedTitle ? role.title === selectedTitle : true) && (selectedLevel ? role.level === selectedLevel : true))
+        .map(role => role.category?.name)
+        .filter(Boolean)
+    )).sort() as string[];
+  }, [jobRoles, selectedTitle, selectedLevel]);
+
+  // Get specializations for selected category (respecting title/level filters)
+  const specializations = React.useMemo(() => {
+    if (!selectedCategory || !jobRoles) return [] as string[];
     return Array.from(new Set(
       jobRoles
         .filter(role => 
           role.category?.name === selectedCategory &&
+          (selectedTitle ? role.title === selectedTitle : true) &&
+          (selectedLevel ? role.level === selectedLevel : true)
+        )
+        .map(role => role.specialization?.name)
+        .filter(Boolean)
+    )).sort() as string[];
+  }, [selectedCategory, selectedTitle, selectedLevel, jobRoles]);
+
+  // Get levels for selected title/category/specialization
+  const levels = React.useMemo(() => {
+    if (!jobRoles) return [] as string[];
+    return Array.from(new Set(
+      jobRoles
+        .filter(role => 
+          (selectedTitle ? role.title === selectedTitle : true) &&
+          (selectedCategory ? role.category?.name === selectedCategory : true) &&
           (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true)
         )
         .map(role => role.level)
-    )).sort();
-  }, [selectedCategory, selectedSpecialization, jobRoles]);
+    )).sort() as string[];
+  }, [selectedTitle, selectedCategory, selectedSpecialization, jobRoles]);
 
   // Get experience ranges for selected filters
   const experienceRanges = React.useMemo(() => {
-    if (!selectedCategory || !selectedLevel || !jobRoles) return [];
+    if (!selectedLevel || !jobRoles) return [] as string[];
     return Array.from(new Set(
       jobRoles
         .filter(role => 
-          role.category?.name === selectedCategory &&
+          (selectedTitle ? role.title === selectedTitle : true) &&
+          (selectedCategory ? role.category?.name === selectedCategory : true) &&
           (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true) &&
           role.level === selectedLevel
         )
         .map(role => `${role.minExperience}-${role.maxExperience || '∞'}`)
-    )).sort();
-  }, [selectedCategory, selectedSpecialization, selectedLevel, jobRoles]);
+    )).sort() as string[];
+  }, [selectedTitle, selectedCategory, selectedSpecialization, selectedLevel, jobRoles]);
 
   // Get skills for selected category from JobCategory
   const categorySkills = React.useMemo(() => {
-    if (!selectedCategory || !jobRoles) return [];
-    const category = jobRoles.find(role => role.category?.name === selectedCategory)?.category;
-    return category?.skills || [];
+    if (!selectedCategory || !jobRoles) return [] as string[];
+    const roleWithCategory = jobRoles.find(role => role.category?.name === selectedCategory);
+    return roleWithCategory?.category?.skills || [];
   }, [selectedCategory, jobRoles]);
+
+  // NEW: auto-select intersection(userSkills, categorySkills) once per category unless user already selected
+  useEffect(() => {
+    if (!selectedCategory) return;
+    const alreadySelected = preferences.interviewPreferences.selectedSkills?.length || 0;
+    if (alreadySelected > 0) return; // do not overwrite manual selection
+    if (skillsPrefilled) return;
+
+    const intersection = categorySkills.filter(s => userSkills.includes(s));
+    if (intersection.length > 0) {
+      setPreferences(prev => ({
+        ...prev,
+        interviewPreferences: {
+          ...prev.interviewPreferences,
+          selectedSkills: intersection
+        }
+      }));
+    }
+    setSkillsPrefilled(true);
+  }, [selectedCategory, categorySkills, userSkills, preferences.interviewPreferences.selectedSkills, skillsPrefilled]);
+
+  // NEW: reset prefill flag when category changes
+  useEffect(() => {
+    setSkillsPrefilled(false);
+  }, [selectedCategory]);
 
 
 
@@ -178,10 +260,11 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
   // Check if step is completed
   const isStepCompleted = (step: number) => {
     switch (step) {
-      case 1: return !!selectedCategory;
-      case 2: return !!selectedSpecialization;
-      case 3: return !!selectedLevel;
-      case 4: return !!selectedExperience;
+      case 1: return !!selectedTitle;
+      case 2: return !!selectedLevel;
+      case 3: return !!selectedCategory;
+      case 4: return !!selectedSpecialization || categories.length > 0 && specializations.length === 0 && !!selectedCategory;
+      case 5: return !!selectedExperience;
       default: return false;
     }
   };
@@ -190,9 +273,10 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
   const isStepAccessible = (step: number) => {
     switch (step) {
       case 1: return true;
-      case 2: return !!selectedCategory;
-      case 3: return !!selectedCategory && !!selectedSpecialization;
-      case 4: return !!selectedCategory && !!selectedSpecialization && !!selectedLevel;
+      case 2: return !!selectedTitle;
+      case 3: return !!selectedTitle && !!selectedLevel;
+      case 4: return !!selectedTitle && !!selectedLevel && !!selectedCategory;
+      case 5: return !!selectedTitle && !!selectedLevel && !!selectedCategory && (specializations.length === 0 || !!selectedSpecialization);
       default: return false;
     }
   };
@@ -302,8 +386,102 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
         </p>
       </div>
 
+      {/* Simple Job Role Selection (Aligned with Onboarding) */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6" />
+            </svg>
+            <h4 className="text-lg font-medium text-gray-900">Select Job Role</h4>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAdvancedSelector(prev => !prev)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            {showAdvancedSelector ? 'Use simple selector' : 'Use advanced selector'}
+          </button>
+        </div>
+
+        {/* Simple filters: Category & Specialization */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <select
+              value={filterCategory}
+              onChange={(e) => {
+                setFilterCategory(e.target.value);
+                setFilterSpecialization('');
+                setPreferences(prev => ({ ...prev, preferredJobRoleId: undefined }));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All categories</option>
+              {categoriesSimple.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Specialization</label>
+            <select
+              value={filterSpecialization}
+              onChange={(e) => {
+                setFilterSpecialization(e.target.value);
+                setPreferences(prev => ({ ...prev, preferredJobRoleId: undefined }));
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All specializations</option>
+              {specializationsSimple.map((sp) => (
+                <option key={sp} value={sp}>{sp}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <select
+          value={preferences.preferredJobRoleId || ''}
+          onChange={(e) => {
+            const roleId = e.target.value;
+            const role = jobRoles.find(r => r.id === roleId) || null;
+            setSelectedJobRole(role);
+            setPreferences(prev => ({ ...prev, preferredJobRoleId: roleId || undefined }));
+
+            if (role) {
+              // Auto-fill step fields so summary and skill suggestions work seamlessly
+              setSelectedTitle(role.title || '');
+              setSelectedLevel(role.level || '');
+              setSelectedCategory(role.category?.name || '');
+              setSelectedSpecialization(role.specialization?.name || '');
+              setSelectedExperience(`${role.minExperience}-${role.maxExperience || '∞'}`);
+            } else {
+              setSelectedTitle('');
+              setSelectedLevel('');
+              setSelectedCategory('');
+              setSelectedSpecialization('');
+              setSelectedExperience('');
+            }
+          }}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white shadow-sm text-lg"
+        >
+          <option value="">Choose a job role...</option>
+          {jobRoles
+            .filter(role => (filterCategory ? role.category?.name === filterCategory : true))
+            .filter(role => (filterSpecialization ? role.specialization?.name === filterSpecialization : true))
+            .map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.title} • {role.level} • {role.category?.name}
+              {role.specialization?.name ? ` (${role.specialization.name})` : ''}
+              {` • ${role.minExperience}-${role.maxExperience || '∞'} years`}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Job Role Selection Summary */}
-      {(selectedCategory || selectedSpecialization || selectedLevel || selectedExperience) && (
+      {(selectedTitle || selectedLevel || selectedCategory || selectedSpecialization || selectedExperience) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -312,6 +490,16 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
             Selected Job Position
           </h4>
           <div className="flex flex-wrap gap-2">
+            {selectedTitle && (
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                {selectedTitle}
+              </span>
+            )}
+            {selectedLevel && (
+              <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full">
+                {selectedLevel}
+              </span>
+            )}
             {selectedCategory && (
               <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
                 {selectedCategory}
@@ -320,11 +508,6 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
             {selectedSpecialization && (
               <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
                 {selectedSpecialization}
-              </span>
-            )}
-            {selectedLevel && (
-              <span className="px-3 py-1 bg-purple-100 text-purple-800 text-sm font-medium rounded-full">
-                {selectedLevel}
               </span>
             )}
             {selectedExperience && (
@@ -336,7 +519,8 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
         </div>
       )}
 
-      {/* Job Role Selection Wizard */}
+      {/* Job Role Selection Wizard (Advanced) */}
+      {showAdvancedSelector && (
       <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
         <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
           <h4 className="text-lg font-medium text-gray-900 flex items-center gap-2">
@@ -350,14 +534,15 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
           </p>
         </div>
 
-        {/* Stepper Header */}
+        {/* Stepper Header (Title → Level → Category → Specialization → Experience) */}
         <div className="px-6 py-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {[
-              { number: 1, title: 'Industry', icon: '🏢' },
-              { number: 2, title: 'Specialization', icon: '🎯' },
-              { number: 3, title: 'Level', icon: '📊' },
-              { number: 4, title: 'Experience', icon: '⏰' }
+              { number: 1, title: 'Title', icon: '💼' },
+              { number: 2, title: 'Level', icon: '📊' },
+              { number: 3, title: 'Category', icon: '🏢' },
+              { number: 4, title: 'Specialization', icon: '🎯' },
+              { number: 5, title: 'Experience', icon: '⏰' }
             ].map((step) => (
               <div key={step.number} className="flex flex-col items-center">
                 <button
@@ -382,7 +567,7 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
                   )}
                 </button>
                 <span className="text-xs text-gray-600 mt-2 text-center">{step.title}</span>
-                {step.number < 4 && (
+                {step.number < 5 && (
                   <div className={`w-12 h-0.5 mt-2 ${
                     isStepCompleted(step.number + 1) ? 'bg-green-500' : 'bg-gray-200'
                   }`} />
@@ -394,104 +579,56 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
 
         {/* Step Content */}
         <div className="p-6">
-          {/* Step 1: Industry Selection */}
+          {/* Step 1: Title Selection */}
           {currentStep === 1 && (
             <div className="space-y-4">
               <div className="text-center mb-6">
-                <div className="text-4xl mb-2">🏢</div>
-                <h5 className="text-lg font-medium text-gray-900">Select Main Industry</h5>
-                <p className="text-sm text-gray-600">Choose the broad industry field you&apos;re interested in</p>
+                <div className="text-4xl mb-2">💼</div>
+                <h5 className="text-lg font-medium text-gray-900">Select Job Title</h5>
+                <p className="text-sm text-gray-600">Choose the role title you aim for</p>
               </div>
               
               <select
-                value={selectedCategory}
+                value={selectedTitle}
                 onChange={(e) => {
-                  const categoryName = e.target.value;
-                  setSelectedCategory(categoryName);
-                  setSelectedSpecialization('');
+                  const title = e.target.value;
+                  setSelectedTitle(title);
                   setSelectedLevel('');
+                  setSelectedCategory('');
+                  setSelectedSpecialization('');
                   setSelectedExperience('');
                   setSelectedJobRole(null);
                   setPreferences(prev => ({ ...prev, preferredJobRoleId: undefined }));
-                  if (categoryName) setCurrentStep(2);
+                  if (title) setCurrentStep(2);
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white shadow-sm text-lg"
               >
-                <option value="">Choose your main industry...</option>
-                {categories.map((categoryName) => (
-                  <option key={categoryName} value={categoryName}>
-                    {categoryName}
+                <option value="">Choose your job title...</option>
+                {titles.map((title) => (
+                  <option key={title} value={title}>
+                    {title}
                   </option>
                 ))}
               </select>
 
-              {selectedCategory && (
+              {selectedTitle && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-sm text-blue-800 text-center">
-                    <strong>Selected:</strong> {selectedCategory}
+                    <strong>Selected:</strong> {selectedTitle}
                   </p>
                   <button
                     onClick={() => setCurrentStep(2)}
                     className="mt-3 w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Continue to Specialization →
+                    Continue to Level →
                   </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Step 2: Specialization Selection */}
+          {/* Step 2: Level Selection */}
           {currentStep === 2 && (
-            <div className="space-y-4">
-              <div className="text-center mb-6">
-                <div className="text-4xl mb-2">🎯</div>
-                <h5 className="text-lg font-medium text-gray-900">Select Specialization</h5>
-                <p className="text-sm text-gray-600">Choose your specific area of expertise within {selectedCategory}</p>
-              </div>
-              
-              <select
-                value={selectedSpecialization}
-                onChange={(e) => {
-                  const specializationName = e.target.value;
-                  setSelectedSpecialization(specializationName);
-                  setSelectedLevel('');
-                  setSelectedExperience('');
-                  setSelectedJobRole(null);
-                  setPreferences(prev => ({ ...prev, preferredJobRoleId: undefined }));
-                  if (specializationName) setCurrentStep(3);
-                }}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white shadow-sm text-lg"
-              >
-                <option value="">Choose your specialization...</option>
-                {specializations.map((specializationName) => (
-                  <option key={specializationName} value={specializationName}>
-                    {specializationName}
-                  </option>
-                ))}
-              </select>
-
-              <div className="flex gap-3 mt-4">
-                <button
-                  onClick={() => setCurrentStep(1)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                >
-                  ← Back to Industry
-                </button>
-                {selectedSpecialization && (
-                  <button
-                    onClick={() => setCurrentStep(3)}
-                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Continue to Level →
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Level Selection */}
-          {currentStep === 3 && (
             <div className="space-y-4">
               <div className="text-center mb-6">
                 <div className="text-4xl mb-2">📊</div>
@@ -504,21 +641,69 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
                 onChange={(e) => {
                   const level = e.target.value;
                   setSelectedLevel(level);
+                  setSelectedCategory('');
+                  setSelectedSpecialization('');
                   setSelectedExperience('');
                   setSelectedJobRole(null);
                   setPreferences(prev => ({ ...prev, preferredJobRoleId: undefined }));
-                  if (level) setCurrentStep(4);
+                  if (level) setCurrentStep(3);
                 }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white shadow-sm text-lg"
               >
                 <option value="">Choose your experience level...</option>
                 {levels.map((level) => (
                   <option key={level} value={level}>
-                    {level === 'Intern' ? 'Intern (Entry Level)' :
-                     level === 'Junior' ? 'Junior (Fresh Graduate)' :
-                     level === 'Mid' ? 'Mid-level (Experienced)' :
-                     level === 'Senior' ? 'Senior (Advanced)' :
-                     level === 'Lead' ? 'Lead (Team Management)' : level}
+                    {level}
+                  </option>
+                ))}
+              </select>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => setCurrentStep(1)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  ← Back to Title
+                </button>
+                {selectedLevel && (
+                  <button
+                    onClick={() => setCurrentStep(3)}
+                    className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Continue to Category →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Category Selection */}
+          {currentStep === 3 && (
+            <div className="space-y-4">
+              <div className="text-center mb-6">
+                <div className="text-4xl mb-2">🏢</div>
+                <h5 className="text-lg font-medium text-gray-900">Select Main Category</h5>
+                <p className="text-sm text-gray-600">Choose the broad industry field you&apos;re interested in</p>
+              </div>
+              
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  const categoryName = e.target.value;
+                  setSelectedCategory(categoryName);
+                  setSelectedSpecialization('');
+                  setSelectedExperience('');
+                  setSelectedJobRole(null);
+                  setPreferences(prev => ({ ...prev, preferredJobRoleId: undefined }));
+                  setSkillsPrefilled(false); // allow re-prefill for new category
+                  if (categoryName) setCurrentStep(4);
+                }}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white shadow-sm text-lg"
+              >
+                <option value="">Choose your main category...</option>
+                {categories.map((categoryName) => (
+                  <option key={categoryName} value={categoryName}>
+                    {categoryName}
                   </option>
                 ))}
               </select>
@@ -528,22 +713,91 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
                   onClick={() => setCurrentStep(2)}
                   className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
                 >
-                  ← Back to Specialization
+                  ← Back to Level
                 </button>
-                {selectedLevel && (
+                {selectedCategory && (
                   <button
                     onClick={() => setCurrentStep(4)}
                     className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
                   >
-                    Continue to Experience →
+                    Continue to Specialization →
                   </button>
                 )}
               </div>
             </div>
           )}
 
-          {/* Step 4: Experience Selection */}
+          {/* Step 4: Specialization Selection */}
           {currentStep === 4 && (
+            <div className="space-y-4">
+              <div className="text-center mb-6">
+                <div className="text-4xl mb-2">🎯</div>
+                <h5 className="text-lg font-medium text-gray-900">Select Specialization</h5>
+                <p className="text-sm text-gray-600">Choose your specific area of expertise within {selectedCategory || 'the category'}</p>
+              </div>
+              {specializations.length > 0 ? (
+                <>
+                  <select
+                    value={selectedSpecialization}
+                    onChange={(e) => {
+                      const specializationName = e.target.value;
+                      setSelectedSpecialization(specializationName);
+                      setSelectedExperience('');
+                      setSelectedJobRole(null);
+                      setPreferences(prev => ({ ...prev, preferredJobRoleId: undefined }));
+                      if (specializationName) setCurrentStep(5);
+                    }}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white shadow-sm text-lg"
+                  >
+                    <option value="">Choose your specialization...</option>
+                    {specializations.map((specializationName) => (
+                      <option key={specializationName} value={specializationName}>
+                        {specializationName}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={() => setCurrentStep(3)}
+                      className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      ← Back to Category
+                    </button>
+                    {selectedSpecialization && (
+                      <button
+                        onClick={() => setCurrentStep(5)}
+                        className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Continue to Experience →
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                  <p className="text-sm text-blue-800">No specialization for this category. You can skip to the next step.</p>
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={() => setCurrentStep(3)}
+                      className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      ← Back to Category
+                    </button>
+                    <button
+                      onClick={() => setCurrentStep(5)}
+                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Skip to Experience →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 5: Experience Selection */}
+          {currentStep === 5 && (
             <div className="space-y-4">
               <div className="text-center mb-6">
                 <div className="text-4xl mb-2">⏰</div>
@@ -559,7 +813,8 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
                   
                   // Find matching job role
                   const matchingRole = jobRoles.find(role => 
-                    role.category?.name === selectedCategory &&
+                    role.title === selectedTitle &&
+                    (selectedCategory ? role.category?.name === selectedCategory : true) &&
                     (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true) &&
                     role.level === selectedLevel &&
                     `${role.minExperience}-${role.maxExperience || '∞'}` === experience
@@ -589,10 +844,10 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
 
               <div className="flex gap-3 mt-4">
                 <button
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => setCurrentStep( specializations.length > 0 ? 4 : 3)}
                   className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
                 >
-                  ← Back to Level
+                  ← Back
                 </button>
                 {selectedExperience && (
                   <button
@@ -607,6 +862,7 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
           )}
         </div>
       </div>
+      )}
         
       {/* Selected job role display */}
       {selectedJobRole && (

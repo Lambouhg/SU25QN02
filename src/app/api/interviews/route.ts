@@ -309,7 +309,12 @@ export async function GET(req: NextRequest) {
       where,
       orderBy: { startTime: 'desc' },
       include: {
-        jobRole: true
+        jobRole: {
+          include: {
+            category: true,
+            specialization: true
+          }
+        }
       }
     });
 

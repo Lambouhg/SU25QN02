@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, ChevronLeft, ChevronRight, User, Briefcase, Star, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -48,9 +47,10 @@ interface OnboardingStepsProps {
 }
 
 const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
-  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
   const [suggestedSkills, setSuggestedSkills] = useState<string[]>([]);
   const FALLBACK_SKILLS_BY_ROLE: Record<string, string[]> = {
     frontend: ['React', 'Next.js', 'TypeScript', 'JavaScript', 'Tailwind', 'Redux', 'HTML5', 'CSS3'],
@@ -87,6 +87,8 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   const [newSkill, setNewSkill] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [initialUserSkills, setInitialUserSkills] = useState<string[] | null>(null);
+  const [skillsPrefilled, setSkillsPrefilled] = useState(false);
   
   const getSkillIcon = (skillName: string) => {
     const key = skillName.trim().toLowerCase();
@@ -157,6 +159,28 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
     } catch {}
   };
 
+  // Derived filters for Category and Specialization (based on available JobRoles)
+  const categories = React.useMemo(() => {
+    return Array.from(
+      new Set(
+        jobRoles
+          .map((r) => r.category?.name)
+          .filter((n): n is string => Boolean(n))
+      )
+    ).sort();
+  }, [jobRoles]);
+
+  const specializations = React.useMemo(() => {
+    return Array.from(
+      new Set(
+        jobRoles
+          .filter((r) => (selectedCategory ? r.category?.name === selectedCategory : true))
+          .map((r) => r.specialization?.name)
+          .filter((n): n is string => Boolean(n))
+      )
+    ).sort();
+  }, [jobRoles, selectedCategory]);
+
   // Update suggested skills when job role changes
   useEffect(() => {
     if (!data.jobRoleId) {
@@ -173,6 +197,24 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
     setSuggestedSkills(categorySkills);
   }, [data.jobRoleId, jobRoles]);
 
+  // Prefill user's selected skills as intersection(user skills, category skills) once per role selection
+  useEffect(() => {
+    if (!data.jobRoleId) return;
+    if (skillsPrefilled) return;
+    if ((suggestedSkills || []).length === 0) return;
+    const base = Array.isArray(initialUserSkills)
+      ? initialUserSkills
+      : (Array.isArray(data.skills) ? data.skills : []);
+    const currentSkills = Array.isArray(data.skills) ? data.skills : [];
+    const isUntouched = (currentSkills.length === 0) || (Array.isArray(initialUserSkills) && currentSkills.join('|') === initialUserSkills.join('|'));
+    if (!isUntouched) return;
+    const intersection = base.filter(s => suggestedSkills.includes(s));
+    if (intersection.length > 0) {
+      setData(prev => ({ ...prev, skills: Array.from(new Set(intersection)) }));
+      setSkillsPrefilled(true);
+    }
+  }, [data.jobRoleId, suggestedSkills, skillsPrefilled, initialUserSkills, data.skills]);
+
   const DRAFT_KEY = 'onboarding_draft_v1';
 
   const loadFromLocalDraftThenUser = async () => {
@@ -183,13 +225,22 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
         if (raw) {
           try {
             const draft = JSON.parse(raw);
-            const draftData = {
-              jobRoleId: draft['job-role']?.jobRoleId,
-              experienceLevel: draft['experience']?.experienceLevel,
-              skills: draft['skills']?.skills,
-              ...draft['profile']
-            } as Partial<OnboardingData>;
-            setData(prev => ({ ...prev, ...draftData }));
+            setData(prev => {
+              const draftSkills = draft?.['skills']?.skills;
+              const profile = draft?.['profile'] || {};
+              return {
+                ...prev,
+                jobRoleId: draft?.['job-role']?.jobRoleId ?? prev.jobRoleId,
+                experienceLevel: draft?.['experience']?.experienceLevel ?? prev.experienceLevel,
+                skills: Array.isArray(draftSkills) ? draftSkills : (Array.isArray(prev.skills) ? prev.skills : []),
+                firstName: profile.firstName ?? prev.firstName,
+                lastName: profile.lastName ?? prev.lastName,
+                phone: profile.phone ?? prev.phone,
+                bio: profile.bio ?? prev.bio,
+                department: profile.department ?? prev.department,
+                joinDate: profile.joinDate ?? prev.joinDate,
+              } as OnboardingData;
+            });
           } catch {}
         }
       }
@@ -202,7 +253,9 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
           ...prev,
           jobRoleId: prev.jobRoleId || user.preferredJobRoleId,
           experienceLevel: prev.experienceLevel || user.experienceLevel,
-          skills: prev.skills.length ? prev.skills : (user.skills || []),
+          skills: (Array.isArray(prev.skills) && prev.skills.length > 0)
+            ? prev.skills
+            : (Array.isArray(user.skills) ? user.skills : []),
           firstName: prev.firstName || user.firstName,
           lastName: prev.lastName || user.lastName,
           phone: prev.phone || user.phone,
@@ -210,6 +263,9 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
           department: prev.department || user.department,
           joinDate: prev.joinDate || user.joinDate
         }));
+        if (!initialUserSkills) {
+          setInitialUserSkills(Array.isArray(user.skills) ? user.skills : []);
+        }
       }
     } catch {}
   };
@@ -345,10 +401,11 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   };
 
   const addSkill = () => {
-    if (newSkill.trim() && !data.skills.includes(newSkill.trim())) {
+    const currentSkills = Array.isArray(data.skills) ? data.skills : [];
+    if (newSkill.trim() && !currentSkills.includes(newSkill.trim())) {
       setData(prev => ({
         ...prev,
-        skills: [...prev.skills, newSkill.trim()]
+        skills: [ ...(Array.isArray(prev.skills) ? prev.skills : []), newSkill.trim() ]
       }));
       setNewSkill('');
     }
@@ -357,7 +414,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   const removeSkill = (skillToRemove: string) => {
     setData(prev => ({
       ...prev,
-      skills: prev.skills.filter(skill => skill !== skillToRemove)
+      skills: (Array.isArray(prev.skills) ? prev.skills : []).filter(skill => skill !== skillToRemove)
     }));
   };
 
@@ -368,8 +425,48 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
       case 'job-role':
         return (
           <div className="space-y-4">
+            {/* Category & Specialization Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-1 block">Ngành/Lĩnh vực lớn (Category)</Label>
+                <Select value={selectedCategory} onValueChange={(val) => {
+                  setSelectedCategory(val);
+                  setSelectedSpecialization('');
+                  setData((prev) => ({ ...prev, jobRoleId: undefined }));
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-1 block">Chuyên môn (Specialization)</Label>
+                <Select value={selectedSpecialization} onValueChange={(val) => {
+                  setSelectedSpecialization(val);
+                  setData((prev) => ({ ...prev, jobRoleId: undefined }));
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn Specialization (tuỳ chọn)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {specializations.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {jobRoles.map((role) => (
+              {jobRoles
+                .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
+                .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
+                .map((role) => (
                 <Card
                   key={role.id}
                   className={`cursor-pointer transition-all ${
@@ -482,7 +579,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {data.skills.map((skill, index) => (
+              {(Array.isArray(data.skills) ? data.skills : []).map((skill, index) => (
                 <Badge
                   key={index}
                   variant="secondary"

@@ -4,19 +4,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { Search } from "lucide-react";
+import { Search, Clock, User, Briefcase, TrendingUp, Eye, Trash2, Award, MessageSquare } from "lucide-react";
 
 interface Interview {
   id: string;
   userId: string;
   jobRoleId: string;
   jobRole: {
+    key: string;
     title: string;
     level: string;
-    displayName: string;
+    category?: {
+      name: string;
+    } | null;
+    specialization?: {
+      name: string;
+    } | null;
   };
   language: string;
   startTime: string;
@@ -53,8 +58,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
 
   // Mapping dữ liệu
   const candidateName = interview.userId || "Ứng viên";
-  const interviewer = ""; // Nếu có trường interviewer thì lấy, không thì để trống
-  const position = interview.jobRole.displayName;
+  const position = interview.jobRole?.title || "Không có tên vị trí";
   const date = new Date(interview.startTime).toLocaleString();
   const status = interview.status;
   const summary = interview.evaluation?.recommendations?.join(', ') || "";
@@ -88,68 +92,133 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={handleOverlayClick}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-[700px] w-full max-h-[90vh] flex flex-col relative">
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 z-10">Đóng</button>
-        <div className="p-6 border-b">
-          <div className="text-xl font-bold">Chi tiết phiên phỏng vấn</div>
-          <div className="text-muted-foreground text-sm">Thông tin chi tiết về phiên phỏng vấn này.</div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={handleOverlayClick}>
+      <div className="bg-white rounded-3xl shadow-2xl max-w-[800px] w-full max-h-[90vh] flex flex-col relative border border-gray-100">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white rounded-t-3xl">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Chi tiết phiên phỏng vấn</h2>
+            <p className="text-gray-600 mt-1">Thông tin chi tiết về phiên phỏng vấn này</p>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onClose}
+            className="rounded-full p-2 hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </Button>
         </div>
-        <div className="overflow-y-auto flex-grow grid gap-4 py-4 pr-4">
-          <div className="grid grid-cols-4 items-center gap-4 px-6">
-            <span className="text-sm font-medium col-span-1">Ứng viên:</span>
-            <span className="col-span-3">{candidateName}</span>
+        
+        <div className="overflow-y-auto flex-grow p-6 space-y-6">
+          {/* Basic Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                <User className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Ứng viên</p>
+                  <p className="text-sm text-blue-700">{candidateName}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100">
+                <Briefcase className="h-5 w-5 text-purple-600" />
+                <div>
+                  <p className="text-sm font-medium text-purple-900">Vị trí</p>
+                  <p className="text-sm text-purple-700">{position}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
+                <Clock className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-green-900">Ngày</p>
+                  <p className="text-sm text-green-700">{date}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                <TrendingUp className="h-5 w-5 text-orange-600" />
+                <div>
+                  <p className="text-sm font-medium text-orange-900">Trạng thái</p>
+                  <Badge variant={getStatusVariant(status)} className="mt-1">{status}</Badge>
+                </div>
+              </div>
+              
+              {summary && (
+                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <p className="text-sm font-medium text-gray-900 mb-2">Tóm tắt</p>
+                  <p className="text-sm text-gray-700">{summary}</p>
+                </div>
+              )}
+              
+              {notes && (
+                <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <p className="text-sm font-medium text-gray-900 mb-2">Ghi chú</p>
+                  <p className="text-sm text-gray-700">{notes}</p>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4 px-6">
-            <span className="text-sm font-medium col-span-1">Người phỏng vấn:</span>
-            <span className="col-span-3">{interviewer}</span>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4 px-6">
-            <span className="text-sm font-medium col-span-1">Vị trí:</span>
-            <span className="col-span-3">{position}</span>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4 px-6">
-            <span className="text-sm font-medium col-span-1">Ngày:</span>
-            <span className="col-span-3">{date}</span>
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4 px-6">
-            <span className="text-sm font-medium col-span-1">Trạng thái:</span>
-            <Badge variant={getStatusVariant(status)} className="col-span-3 w-fit">{status}</Badge>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4 px-6">
-            <span className="text-sm font-medium col-span-1">Tóm tắt:</span>
-            <p className="col-span-3 text-sm text-muted-foreground">{summary}</p>
-          </div>
-          <div className="grid grid-cols-4 items-start gap-4 px-6">
-            <span className="text-sm font-medium col-span-1">Ghi chú:</span>
-            <p className="col-span-3 text-sm text-muted-foreground">{notes}</p>
-          </div>
+
+          {/* Conversation History */}
           {conversationHistory.length > 0 && (
-            <>
-              <Separator className="my-4" />
-              <h3 className="text-lg font-semibold mb-2 px-6">Lịch sử hội thoại</h3>
-              <div className="space-y-3 max-h-[200px] overflow-y-auto border rounded-md p-3 bg-gray-50 mx-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-indigo-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Lịch sử hội thoại</h3>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto space-y-3 border border-gray-200 rounded-xl p-4 bg-gray-50">
                 {conversationHistory.map((msg, index) => (
-                  <div key={index} className="text-sm">
-                    <span className="font-medium">{msg.speaker}:</span> {msg.text}
+                  <div key={index} className={`flex gap-3 ${msg.speaker === 'Bạn' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[80%] p-3 rounded-2xl ${
+                      msg.speaker === 'Bạn' 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-white text-gray-800 border border-gray-200'
+                    }`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium opacity-80">
+                          {msg.speaker === 'Bạn' ? 'Bạn' : 'AI Interviewer'}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed">{msg.text}</p>
+                    </div>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           )}
+
+          {/* Skill Assessment */}
           {skillScores && Object.keys(skillScores).length > 0 && (
-            <>
-              <Separator className="my-4" />
-              <h3 className="text-lg font-semibold mb-2 px-6">Đánh giá kỹ năng</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-amber-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Đánh giá kỹ năng</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {Object.entries(skillScores).map(([skill, score]) => (
-                  <div key={skill} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded-md">
-                    <span className="font-medium">{skill}:</span>
-                    <Badge variant="outline" className="bg-primary/10 text-primary-foreground">{score}/10</Badge>
+                  <div key={skill} className="flex items-center justify-between p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+                    <span className="font-medium text-amber-900">{skill}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 bg-amber-200 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-amber-500 to-orange-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(score / 10) * 100}%` }}
+                        ></div>
+                      </div>
+                      <Badge variant="outline" className="bg-white/80 text-amber-700 border-amber-300">
+                        {score}/10
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -193,15 +262,15 @@ export default function InterviewHistoryPage() {
     setDeleteId(id);
     confirmRef.current?.showModal();
   };
+  
   const confirmDelete = async () => {
     if (deleteId) {
       setIsDeleting(true);
-      confirmRef.current?.close(); // Đóng modal NGAY LẬP TỨC
+      confirmRef.current?.close();
       setDeleteId(null);
       const start = Date.now();
       await fetch(`/api/interviews/${deleteId}`, { method: 'DELETE' });
       setInterviews(prev => prev.filter(i => i.id !== deleteId));
-      // Đảm bảo loading tối thiểu 800ms
       const elapsed = Date.now() - start;
       const minDelay = 800;
       if (elapsed < minDelay) {
@@ -212,6 +281,7 @@ export default function InterviewHistoryPage() {
       setTimeout(() => setDeleteSuccess(false), 2000);
     }
   };
+  
   const cancelDelete = () => {
     setDeleteId(null);
     confirmRef.current?.close();
@@ -221,8 +291,9 @@ export default function InterviewHistoryPage() {
     if (!searchTerm) return interviews;
     const lower = searchTerm.toLowerCase();
     return interviews.filter(i =>
-              i.jobRole.displayName.toLowerCase().includes(lower) ||
-        i.jobRole.title.toLowerCase().includes(lower)
+      (i.jobRole?.title?.toLowerCase() || '').includes(lower) ||
+      (i.jobRole?.category?.name?.toLowerCase() || '').includes(lower) ||
+      (i.jobRole?.specialization?.name?.toLowerCase() || '').includes(lower)
     );
   }, [searchTerm, interviews]);
 
@@ -231,134 +302,247 @@ export default function InterviewHistoryPage() {
     return filteredInterviews.slice(start, start + pageSize);
   }, [filteredInterviews, page]);
 
-  const getStatusVariant = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "Hoàn thành":
       case "completed":
-        return "default";
+        return "text-green-600 bg-green-50 border-green-200";
       case "Đang chờ":
       case "pending":
-        return "secondary";
+        return "text-orange-600 bg-orange-50 border-orange-200";
       case "Đã hủy":
       case "cancelled":
-        return "destructive";
+        return "text-red-600 bg-red-50 border-red-200";
       default:
-        return "default";
+        return "text-gray-600 bg-gray-50 border-gray-200";
     }
   };
 
   return (
     <DashboardLayout>
-      <div className="w-full px-0"> {/* Bỏ max-w-3xl mx-auto */}
+      <div className="w-full px-0">
         {/* Loading overlay khi xóa */}
         {isDeleting && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-lg px-8 py-6 flex flex-col items-center shadow-lg">
-              <svg className="animate-spin mb-2" width="40" height="40" viewBox="0 0 48 48" fill="none">
-                <circle cx="24" cy="24" r="20" stroke="#3B82F6" strokeWidth="4" opacity="0.2" />
-                <path d="M44 24c0-11.046-8.954-20-20-20" stroke="#3B82F6" strokeWidth="4" strokeLinecap="round" />
-              </svg>
-              <span className="text-blue-600 font-medium">Đang xóa...</span>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl px-8 py-8 flex flex-col items-center shadow-2xl border border-gray-100">
+              <div className="relative mb-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                <div className="absolute inset-0 rounded-full h-12 w-12 border-4 border-transparent border-t-blue-400 animate-ping opacity-30"></div>
+              </div>
+              <span className="text-blue-600 font-medium text-lg">Đang xóa phiên phỏng vấn...</span>
             </div>
           </div>
         )}
+        
         {/* Toast báo xóa thành công */}
         {deleteSuccess && (
-          <div className="fixed top-6 right-6 z-[100] bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg shadow flex items-center gap-2 animate-fade-in">
-            <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>Xóa thành công!</span>
+          <div className="fixed top-6 right-6 z-[100] bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in border border-green-400">
+            <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <span className="font-medium">Xóa thành công!</span>
           </div>
         )}
-        <Card className="w-full"> {/* Bỏ max-w-3xl mx-auto */}
-          <CardHeader className="sticky top-0 bg-white z-10 pb-2"> {/* Sticky search bar */}
-            <CardTitle className="text-2xl font-bold">Lịch sử phiên phỏng vấn</CardTitle>
-            <CardDescription>Quản lý và xem chi tiết các phiên phỏng vấn đã diễn ra.</CardDescription>
-            <div className="relative mt-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Tìm kiếm theo vị trí..."
-                value={searchTerm}
-                onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
-                className="pl-9 pr-4 py-2 rounded-md border focus:ring-2 focus:ring-primary focus:border-primary"
-                aria-label="Tìm kiếm phiên phỏng vấn"
-              />
+        
+        <Card className="w-full border-0 shadow-lg">
+          <CardHeader className="sticky top-0 bg-white z-10 pb-6 border-b border-gray-100">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Clock className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-3xl font-bold text-gray-900">Lịch sử phiên phỏng vấn</CardTitle>
+                  <CardDescription className="text-lg text-gray-600 mt-1">
+                    Quản lý và xem chi tiết các phiên phỏng vấn đã diễn ra
+                  </CardDescription>
+                </div>
+              </div>
+              
+              <div className="relative max-w-md">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Input
+                  placeholder="Tìm kiếm theo vị trí..."
+                  value={searchTerm}
+                  onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
+                  className="pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base transition-all duration-200"
+                  aria-label="Tìm kiếm phiên phỏng vấn"
+                />
+              </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-      {isLoading ? (
-        <div className="flex justify-center items-center h-40"><span className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></span></div>
+           
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {isLoading ? (
+                <div className="flex justify-center items-center h-40">
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
+                    <div className="absolute inset-0 rounded-full h-12 w-12 border-4 border-transparent border-t-blue-400 animate-ping opacity-30"></div>
+                  </div>
+                </div>
               ) : paginatedInterviews.length === 0 ? (
-                <p className="text-center text-muted-foreground">Không tìm thấy phiên phỏng vấn nào.</p>
-      ) : (
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Clock className="h-10 w-10 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy phiên phỏng vấn nào</h3>
+                  <p className="text-gray-600">Hãy thử thay đổi từ khóa tìm kiếm hoặc bắt đầu một phiên phỏng vấn mới</p>
+                </div>
+              ) : (
                 paginatedInterviews.map(i => (
                   <Card
                     key={i.id}
-                    className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+                    className="group hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-blue-300 rounded-2xl overflow-hidden"
                   >
-                    <div className="grid gap-1 flex-grow">
-                      <h3 className="font-semibold text-lg">{i.jobRole.displayName}</h3>
-                      <p className="text-sm text-muted-foreground">
-                                                  Vị trí: {i.jobRole.title} &middot; Ngày: {new Date(i.startTime).toLocaleString()}
-                      </p>
-                      <p className="text-sm text-muted-foreground line-clamp-1">Số câu hỏi: {i.questionCount} &middot; Điểm tổng: <span className="font-bold text-yellow-600">{i.evaluation?.overallRating ?? 'N/A'}</span></p>
-                </div>
-                    <div className="flex items-center gap-3 mt-3 md:mt-0 md:ml-4">
-                      <Badge variant={getStatusVariant(i.status)}>{i.status}</Badge>
-                      <Button variant="outline" size="sm" onClick={() => handleViewDetail(i.id)}>
-                        Xem chi tiết
-                      </Button>
-                      {i.evaluation && (
-                        <Button 
-                          variant="default" 
-                          size="sm" 
-                          onClick={() => window.location.href = `/avatar-interview/evaluation?id=${i.id}`}
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          Xem đánh giá
-                        </Button>
-                      )}
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(i.id)}>
-                        Xóa
-                      </Button>
-                  </div>
+                    <div className="p-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                              <Briefcase className="h-6 w-6 text-white" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-xl text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
+                                {i.jobRole?.title || 'Không có tên vị trí'}
+                              </h3>
+                              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="h-4 w-4" />
+                                  {i.jobRole?.category?.name || i.jobRole?.specialization?.name || 'Không có vị trí'}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  {new Date(i.startTime).toLocaleDateString('vi-VN')}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <TrendingUp className="h-4 w-4" />
+                                  {i.jobRole?.level || 'Không có level'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                                <span className="flex items-center gap-1">
+                                  <MessageSquare className="h-4 w-4" />
+                                  {i.questionCount} câu hỏi
+                                </span>
+                                {i.evaluation?.overallRating && (
+                                  <span className="flex items-center gap-1">
+                                    <TrendingUp className="h-4 w-4" />
+                                    Điểm: <span className="font-bold text-amber-600">{i.evaluation.overallRating}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                          <Badge 
+                            variant="outline" 
+                            className={`px-4 py-2 rounded-full border-2 font-medium ${getStatusColor(i.status)}`}
+                          >
+                            {i.status}
+                          </Badge>
+                          
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleViewDetail(i.id)}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Chi tiết
+                            </Button>
+                            
+                            {i.evaluation && (
+                              <Button 
+                                variant="default" 
+                                size="sm" 
+                                onClick={() => window.location.href = `/avatar-interview/evaluation?id=${i.id}`}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                              >
+                                <Award className="h-4 w-4" />
+                                Đánh giá
+                              </Button>
+                            )}
+                            
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDelete(i.id)}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-200"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Xóa
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </Card>
                 ))
               )}
-                </div>
+            </div>
+            
             {/* Nút Xem thêm nếu còn dữ liệu */}
             {filteredInterviews.length > page * pageSize && (
-              <div className="flex justify-center mt-4">
-                <Button onClick={() => setPage(page + 1)} variant="outline">Xem thêm</Button>
+              <div className="flex justify-center mt-8">
+                <Button 
+                  onClick={() => setPage(page + 1)} 
+                  variant="outline"
+                  className="px-8 py-3 rounded-xl border-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200"
+                >
+                  Xem thêm ({filteredInterviews.length - page * pageSize} phiên còn lại)
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
+        
         {/* Modal xác nhận xóa và modal chi tiết giữ nguyên */}
         <InterviewDetailDialog
           interview={selectedInterview}
           isOpen={!!selectedInterview && showDetailDialog}
           onClose={() => { setShowDetailDialog(false); setSelectedInterview(null); }}
         />
+        
         {deleteId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="rounded-xl bg-white p-0 w-80 max-w-full shadow-2xl">
-        <div className="p-6">
-                <div className="font-bold text-lg mb-2 text-red-600 flex items-center gap-2">
-                  <HighlightOffIcon className="!w-6 !h-6" /> Xác nhận xóa
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="rounded-2xl bg-white p-0 w-96 max-w-full shadow-2xl border border-gray-100">
+              <div className="p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <HighlightOffIcon className="!w-6 !h-6 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Xác nhận xóa</h3>
+                    <p className="text-gray-600 text-sm">Bạn có chắc chắn muốn xóa phiên phỏng vấn này?</p>
+                  </div>
                 </div>
-          <div className="mb-4 text-gray-700">Bạn có chắc chắn muốn xóa phiên phỏng vấn này?</div>
-          <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={cancelDelete}>Hủy</Button>
-                  <Button variant="destructive" onClick={confirmDelete}>Xóa</Button>
-            </div>
+                <div className="flex justify-end gap-3">
+                  <Button 
+                    variant="outline" 
+                    onClick={cancelDelete}
+                    className="px-6 py-2 rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
+                  >
+                    Hủy
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={confirmDelete}
+                    className="px-6 py-2 rounded-xl bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    Xóa
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
     </DashboardLayout>
   );
 } 

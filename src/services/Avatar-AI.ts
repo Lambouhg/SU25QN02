@@ -1,5 +1,6 @@
 // src/services/azureAiService.ts
 import { ChatMessage, callOpenAI } from './openaiService';
+import { createSystemMessageWithQuestionBank } from './questionBankIntegration';
 
 export interface InterviewConfig {
   field: string;
@@ -10,7 +11,7 @@ export interface InterviewConfig {
   maxExperience?: number;
 }
 
-const FIXED_QUESTIONS = 10;
+const FIXED_QUESTIONS = 4 ;
 
 const INTERVIEW_STRUCTURE = {
   junior: {
@@ -116,6 +117,13 @@ export async function processInterviewResponse(
     const questionsAsked = Math.max(0, totalMessages.length - 1); // Subtract 1 for greeting
     const currentProgress = Math.min(100, Math.round((questionsAsked / FIXED_QUESTIONS) * 100));
     
+   
+    
+    
+    // Check if user has responded to the final question
+    const userResponses = conversationHistory.filter(msg => msg.role === 'user');
+    const hasUserRespondedToFinalQuestion = userResponses.length >= FIXED_QUESTIONS;
+    
     
     const messages: ChatMessage[] = [
       {
@@ -206,9 +214,18 @@ INTERVIEW GUIDELINES:
    - Ask ${FIXED_QUESTIONS} technical questions relevant to ${field}
    - End with a polite conclusion
 
-4. Question Guidelines:
+4. Interview Completion Rules:
+   - After asking exactly ${FIXED_QUESTIONS} questions, provide a professional conclusion
+   - In your conclusion, thank the candidate and mention that the interview is complete
+   - Set "isInterviewComplete": true when providing the conclusion
+   - Do NOT ask any more questions after the conclusion
+   - The conclusion should be warm and professional, acknowledging their participation
+   - IMPORTANT: Only conclude after the candidate has responded to your ${FIXED_QUESTIONS}th question
+   - If you just asked the ${FIXED_QUESTIONS}th question, wait for the candidate's response before concluding
+
+5. Question Guidelines:
    - Ask ONLY ONE question per response (CRITICAL)
-   - Keep questions CONCISE but NATURAL (2-3 sentences for context + question)
+   - Keep questions CONCISE but NATURAL (2 sentences for context + question)
    - Ensure questions cover all required topics within ${field} scope
    - Distribute questions evenly across topics
    - Keep questions focused and relevant to the level
@@ -225,14 +242,14 @@ INTERVIEW GUIDELINES:
    d) Progressive Check: "Does this build appropriately on previous questions?"
    
  
-5. Auto-Prompt Handling:
+6. Auto-Prompt Handling:
    - If the user message starts with "INSTRUCTION:", treat it as a special system instruction
    - For auto-prompt instructions: Generate ONE brief, contextual reminder (not a new question)
    - For ending instructions: Provide a professional conclusion and mark interview as complete
    - Adjust tone based on the prompt number (gentle → encouraging → final warning)
    - Keep prompts short and focused on encouraging response to the current question
 
-6. Evaluation & Scoring Guidelines:
+7. Evaluation & Scoring Guidelines:
    **Level-Calibrated Scoring (1-10 scale):**
    ${level === 'junior' ? `
    JUNIOR LEVEL EXPECTATIONS:
@@ -265,7 +282,7 @@ INTERVIEW GUIDELINES:
 
 RESPONSE GUIDELINES:
 - Ask ONLY ONE question per response
-- Keep questions CONCISE but NATURAL (2-3 sentences for context + question)
+- Keep questions CONCISE but NATURAL (2 sentences for context + question)
 - Be encouraging but maintain professional standards
 - Acknowledge candidate's responses before asking next question
 - Ask follow-up questions when answers need clarification
@@ -276,35 +293,36 @@ RESPONSE GUIDELINES:
 RESPONSE STRUCTURE FORMAT:
 Return responses in this exact structure:
 {
-  "currentQuestion": "${questionsAsked + 1}",
-  "interviewerMessage": "Professional response with follow-up question",
-  "questionCount": ${questionsAsked + 1},
-  "evaluation": {
-    "technicalScore": <1-10 rating based on ${level} level expectations>,
-    "communicationScore": <1-10 rating for clarity and explanation>,
-    "problemSolvingScore": <1-10 rating for logical thinking>,
-    "overallRating": <calculated average>,
-    "levelAppropriate": <true/false - does answer meet ${level} level standards>,
-    "feedback": "Specific ${level}-level feedback on the response",
-    "areasForImprovement": ["specific areas to develop for ${level} ${field} role"],
-    "strengths": ["demonstrated strengths at ${level} level"]
-  },
-  "isComplete": <true if interview should end (usually after 8-12 questions)>,
-  "topics": ["list of ${field} topics covered"],
-  "nextTopicHint": "What area to explore next for ${level} ${field} interview"
+  "answer": "Your response or question in NATURAL, PROFESSIONAL tone (2 sentences for context + question, ONLY ONE question). If this is the conclusion after the candidate has responded to your ${FIXED_QUESTIONS}th question, provide a warm thank you and conclusion message.",
+  "currentTopic": "Current topic from required list",
+  "nextTopic": "Next planned topic if needed",
+  "shouldMoveToNewTopic": boolean,
+  "followUpQuestion": "Optional follow-up for clarification",
+  "interviewProgress": number (0-100),
+  "isInterviewComplete": boolean (set to true when providing conclusion after candidate responds to ${FIXED_QUESTIONS}th question),
+  "currentScore": number (1-10),
+  "questionCount": number (exact count of technical questions you have asked so far, excluding greeting),
+  "completionDetails": {
+    "coveredTopics": ["topics", "covered", "so far"],
+    "skillAssessment": {
+      "technical": number (1-10, based on technical knowledge and depth demonstrated),
+      "communication": number (1-10, based on clarity and articulation of responses),
+      "problemSolving": number (1-10, based on logical thinking and approach to problems)
+    }
+  }
 }
 - If candidate mentions experience outside ${field}, politely redirect: "That's interesting! For this ${field} position, I'd like to focus on..."
 
 CRITICAL: YOU MUST RESPOND WITH VALID JSON ONLY!
 USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
 {
-  "answer": "Your response or question in NATURAL, PROFESSIONAL tone (2-3 sentences for context + question, ONLY ONE question)",
+  "answer": "Your response or question in NATURAL, PROFESSIONAL tone (2 sentences for context + question, ONLY ONE question). If this is the conclusion after the candidate has responded to your ${FIXED_QUESTIONS}th question, provide a warm thank you and conclusion message.",
   "currentTopic": "Current topic from required list",
   "nextTopic": "Next planned topic if needed",
   "shouldMoveToNewTopic": boolean,
   "followUpQuestion": "Optional follow-up for clarification",
   "interviewProgress": number (0-100),
-  "isInterviewComplete": boolean,
+  "isInterviewComplete": boolean (set to true when providing conclusion after candidate responds to ${FIXED_QUESTIONS}th question),
   "currentScore": number (1-10),
   "questionCount": number (exact count of technical questions you have asked so far, excluding greeting),
   "completionDetails": {
@@ -362,7 +380,7 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
           currentTopic: "general",
           shouldMoveToNewTopic: false,
           interviewProgress: currentProgress,
-          isInterviewComplete: questionsAsked >= FIXED_QUESTIONS,
+          isInterviewComplete: questionsAsked >= FIXED_QUESTIONS && hasUserRespondedToFinalQuestion,
           currentScore: 0, // Start from 0
           questionCount: questionsAsked, // Use calculated question count
           completionDetails: {
@@ -383,7 +401,7 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
         currentTopic: "general",
         shouldMoveToNewTopic: false,
         interviewProgress: currentProgress,
-        isInterviewComplete: questionsAsked >= FIXED_QUESTIONS,
+        isInterviewComplete: questionsAsked >= FIXED_QUESTIONS && hasUserRespondedToFinalQuestion,
         currentScore: 0, // Start from 0
         questionCount: questionsAsked, // Use calculated question count
         completionDetails: {
@@ -397,7 +415,25 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
       };
     }
 
-    const isComplete = questionsAsked >= FIXED_QUESTIONS || result.isInterviewComplete || isEndingInstruction;
+    const isComplete = (questionsAsked >= FIXED_QUESTIONS && hasUserRespondedToFinalQuestion) || result.isInterviewComplete || isEndingInstruction;
+
+    // Log completion status for debugging
+    if (isComplete) {
+      console.log('🎯 Interview completion triggered:', {
+        questionsAsked,
+        FIXED_QUESTIONS,
+        hasUserRespondedToFinalQuestion,
+        resultIsComplete: result.isInterviewComplete,
+        isEndingInstruction,
+        finalIsComplete: isComplete
+      });
+    } else if (questionsAsked >= FIXED_QUESTIONS && !hasUserRespondedToFinalQuestion) {
+      console.log('🎯 AI has asked the final question, waiting for user response:', {
+        questionsAsked,
+        FIXED_QUESTIONS,
+        hasUserRespondedToFinalQuestion
+      });
+    }
 
     // Calculate skill assessment from AI response or use defaults
     const skillAssessment = result.completionDetails?.skillAssessment || result.skillAssessment || {
@@ -459,87 +495,17 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
 
 export async function startInterview(config: InterviewConfig): Promise<InterviewResponse> {
   try {
+    // Tạo system message với question bank integration
+    const systemMessage = await createSystemMessageWithQuestionBank(
+      config.field,
+      config.level,
+      config.specialization,
+      config.language,
+      FIXED_QUESTIONS
+    );
+
     const messages: ChatMessage[] = [
-      { 
-        role: 'system', 
-        content: `You are a senior technical interviewer with extensive experience in ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}. Your goal is to conduct a professional technical interview that simulates a real-world interview experience.
-IMPORTANT: You must ONLY respond in ${config.language === 'vi-VN' ? 'Vietnamese' : 'English'} language.
-
-CANDIDATE CONTEXT:
-- Reported Experience: ${config.minExperience !== undefined && config.maxExperience !== undefined ? `${config.minExperience}-${config.maxExperience} years` : 'unspecified'}
-
-INTERVIEWER PERSONA:
-- Be professional but friendly
-- Ask questions that are relevant to real-world ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} scenarios
-- Probe deeper when answers are superficial
-- Provide constructive feedback
-- Adapt questions based on candidate's responses
-
-INTERVIEW STRATEGY FOR ${config.level.toUpperCase()} ${config.field.toUpperCase()}${config.specialization ? ` - ${config.specialization.toUpperCase()}` : ''} POSITION:
-${config.level === 'junior' ? `
-- Start with fundamental concepts in ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}
-- Focus on practical coding experience
-- Ask about personal projects
-- Verify basic problem-solving skills
-- Assess willingness to learn` : config.level === 'mid-level' ? `
-- Deep dive into technical implementations in ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}
-- Focus on system design considerations
-- Assess problem-solving methodology
-- Evaluate architectural decisions
-- Check team collaboration experience` : `
-- Focus on architecture and system design for ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}
-- Evaluate technical leadership
-- Discuss complex project challenges
-- Assess mentorship experience
-- Technical decision making process`}
-
-EXPERIENCE-BASED CALIBRATION:
-- If experience is 0-1 years: prefer fundamentals and simple practical tasks
-- If 2-3 years: include mid-depth implementation and debugging scenarios
-- If 4-5 years: include system design tradeoffs and scaling considerations
-- If 6+ years: emphasize architecture, leadership, and complex tradeoffs
-
-RESPONSE FORMAT (STRICT JSON):
-{
-  "answer": "Your question or response in ${config.language === 'vi-VN' ? 'Vietnamese' : 'English'} (NATURAL and PROFESSIONAL, ONLY ONE question)",
-  "feedback": "Constructive feedback on their answer",
-  "currentTopic": "Current technical topic being discussed",
-  "shouldMoveToNewTopic": boolean,
-  "followUpQuestion": "Follow-up question based on their response"
-}
-
-GUIDELINES:
-1. Follow real interview patterns:
-   - Start with background questions
-   - Progress to technical questions
-   - Include practical scenarios
-   - End with candidate's questions
-
-2. Question Types for ${config.field}${config.specialization ? ` and ${config.specialization}` : ''}:
-   - Technical knowledge verification
-   - Problem-solving scenarios
-   - Past experience discussion
-   - System design (for mid/senior)
-   - Code review discussions
-
-3. Response Evaluation:
-   - Technical accuracy
-   - Communication clarity
-   - Problem-solving approach
-   - Best practices awareness
-   - Real-world application
-
-4. Interview Flow:
-   - One topic at a time
-   - Progressive difficulty
-   - Allow time for thinking
-   - Natural conversation flow
-   - Professional feedback
-   - Keep questions NATURAL and PROFESSIONAL
-   - Ask ONLY ONE question per response
-
-Always maintain professional demeanor and provide constructive feedback. Use natural conversation flow like a real interviewer. Show genuine interest in candidate's responses.` 
-      },
+      systemMessage,
       { 
         role: 'user', 
         content: config.language === 'vi-VN'

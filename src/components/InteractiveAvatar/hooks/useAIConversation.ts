@@ -128,7 +128,7 @@ export const useAIConversation = ({
           clearAutoPromptTimer();
           setAutoPromptCount(0);
           if (onInterviewComplete) {
-            onInterviewComplete({ progress: 100 });
+            onInterviewComplete({ progress: 100, reason: 'timeout' });
           }
           if (onEndSession) {
             onEndSession();
@@ -161,7 +161,7 @@ export const useAIConversation = ({
           clearAutoPromptTimer();
           setAutoPromptCount(0);
           if (onInterviewComplete) {
-            onInterviewComplete({ progress: 100 });
+            onInterviewComplete({ progress: 100, reason: 'timeout' });
           }
         } else {
         // Không tự động start lại timer ở đây nữa, chỉ start lại khi avatar dừng nói (bên ngoài gọi)
@@ -195,10 +195,23 @@ export const useAIConversation = ({
 
       // Check if interview is complete
       if (response.isInterviewComplete && onInterviewComplete) {
+        console.log('🎯 Interview completed by AI! Question count:', response.questionCount, 'Progress:', response.interviewProgress);
+        console.log('🎯 AI response contains conclusion:', response.answer.substring(0, 100) + '...');
         clearAutoPromptTimer(); // Clear timer when interview completes
         setAutoPromptCount(0); // Reset auto prompt count
         onInterviewComplete({ progress: response.interviewProgress });
         return; // Exit early to prevent further processing
+      }
+
+      // Additional check: if question count reaches 10 AFTER user has responded, force completion
+      // This ensures AI can ask the 10th question and user can respond before completion
+      if (response.questionCount >= 10 && !response.isInterviewComplete && onInterviewComplete) {
+        console.log('🎯 User has responded to 10th question, forcing interview completion. Current count:', response.questionCount);
+        console.log('🎯 This should not happen if AI is properly concluding the interview');
+        clearAutoPromptTimer();
+        setAutoPromptCount(0);
+        onInterviewComplete({ progress: 100 });
+        return;
       }
     }
   }, [onInterviewComplete, clearAutoPromptTimer]);

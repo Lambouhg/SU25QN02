@@ -59,7 +59,12 @@ export async function GET(
         userId: user.id
       },
       include: {
-        jobRole: true
+        jobRole: {
+          include: {
+            category: true,
+            specialization: true
+          }
+        }
       }
     });
 
