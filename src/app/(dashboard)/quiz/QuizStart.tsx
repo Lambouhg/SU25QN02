@@ -469,15 +469,15 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
           }
         });
         
-        // Unlock logic based on best scores
+        // Unlock logic based on best scores (hệ số 10)
         const unlock = {
           junior: true, // Always unlocked
-          middle: bestJunior >= 90, // Unlock if best junior score >= 90
-          senior: bestMiddle >= 90, // Unlock if best middle score >= 90
+          middle: bestJunior >= 9, // Unlock if best junior score >= 9
+          senior: bestMiddle >= 9, // Unlock if best middle score >= 9
         };
-        
+
         setLevelUnlock(unlock);
-        
+
         // Debug logging
         console.log(`Field: ${fieldName}, Topic: ${topicName}`);
         console.log(`Best scores - Junior: ${bestJunior}, Middle: ${bestMiddle}, Senior: ${bestSenior}`);

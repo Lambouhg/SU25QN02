@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { toast } from 'react-hot-toast';
 import { useCallback } from 'react';
 import { Brain, Sparkles, CheckCircle2, ChevronLeft, Loader2, Bot, Check, ChevronDown, ChevronUp } from 'lucide-react';
@@ -36,46 +37,48 @@ const PREDEFINED_FIELDS = [
   { id: "mobile-app", name: "Mobile App", icon: "📱", color: "from-violet-500 to-purple-500" },
   { id: "database", name: "Database Admin", icon: "🗄️", color: "from-green-700 to-blue-700" },
 ];
+
 const PREDEFINED_TOPICS = [
-  { id: "sql", name: "SQL", icon: "🗄️" },
-  { id: "computer-science", name: "Computer Science", icon: "💻" },
-  { id: "react", name: "React", icon: "⚛️" },
-  { id: "vue", name: "Vue", icon: "💚" },
-  { id: "angular", name: "Angular", icon: "🅰️" },
-  { id: "javascript", name: "JavaScript", icon: "🟨" },
-  { id: "nodejs", name: "Node.js", icon: "🟢" },
-  { id: "typescript", name: "TypeScript", icon: "🔷" },
-  { id: "python", name: "Python", icon: "🐍" },
-  { id: "system-design", name: "System Design", icon: "🏗️" },
-  { id: "api-design", name: "API Design", icon: "🔌" },
-  { id: "aspnet-core", name: "ASP.NET Core", icon: "🔵" },
-  { id: "java", name: "Java", icon: "☕" },
-  { id: "cpp", name: "C++", icon: "⚡" },
-  { id: "flutter", name: "Flutter", icon: "🦋" },
-  { id: "spring-boot", name: "Spring Boot", icon: "🍃" },
-  { id: "go", name: "Go Roadmap", icon: "🐹" },
-  { id: "rust", name: "Rust", icon: "🦀" },
-  { id: "graphql", name: "GraphQL", icon: "📊" },
-  { id: "design-architecture", name: "Design and Architecture", icon: "🏛️" },
-  { id: "design-system", name: "Design System", icon: "🎨" },
-  { id: "react-native", name: "React Native", icon: "📱" },
-  { id: "aws", name: "AWS", icon: "☁️" },
-  { id: "code-review", name: "Code Review", icon: "👀" },
-  { id: "docker", name: "Docker", icon: "🐳" },
-  { id: "kubernetes", name: "Kubernetes", icon: "⚓" },
-  { id: "linux", name: "Linux", icon: "🐧" },
-  { id: "mongodb", name: "MongoDB", icon: "🍃" },
-  { id: "prompt-engineering", name: "Prompt Engineering", icon: "🎯" },
-  { id: "terraform", name: "Terraform", icon: "🏗️" },
-  { id: "data-structures", name: "Data Structures & Algorithms", icon: "🧮" },
-  { id: "git-github", name: "Git and GitHub", icon: "📚" },
-  { id: "redis", name: "Redis", icon: "🔴" },
-  { id: "php", name: "PHP", icon: "🐘" },
-  { id: "cloudflare", name: "Cloudflare", icon: "☁️" },
-  { id: "ai-agents", name: "AI Agents", icon: "🤖", isNew: true },
-  { id: "ai-red-teaming", name: "AI Red Teaming", icon: "🛡️", isNew: true },
-  { id: "backup-recovery", name: "Backup & Recovery", icon: "💾" },
+  { id: "sql", name: "SQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg" },
+  { id: "computer-science", name: "Computer Science", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/computercraft/computercraft-original.svg" },
+  { id: "react", name: "React", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
+  { id: "vue", name: "Vue", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg" },
+  { id: "angular", name: "Angular", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/angularjs/angularjs-original.svg" },
+  { id: "javascript", name: "JavaScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" },
+  { id: "nodejs", name: "Node.js", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" },
+  { id: "typescript", name: "TypeScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" },
+  { id: "python", name: "Python", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" },
+  { id: "system-design", name: "System Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
+  { id: "api-design", name: "API Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" },
+  { id: "aspnet-core", name: "ASP.NET Core", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dotnetcore/dotnetcore-original.svg" },
+  { id: "java", name: "Java", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg" },
+  { id: "cpp", name: "C++", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg" },
+  { id: "flutter", name: "Flutter", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg" },
+  { id: "spring-boot", name: "Spring Boot", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg" },
+  { id: "go", name: "Go Roadmap", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original.svg" },
+  { id: "rust", name: "Rust", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-plain.svg" },
+  { id: "graphql", name: "GraphQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" },
+  { id: "design-architecture", name: "Design and Architecture", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg" },
+  { id: "design-system", name: "Design System", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sketch/sketch-original.svg" },
+  { id: "react-native", name: "React Native", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
+  { id: "aws", name: "AWS", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" },
+  { id: "code-review", name: "Code Review", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" },
+  { id: "docker", name: "Docker", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" },
+  { id: "kubernetes", name: "Kubernetes", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
+  { id: "linux", name: "Linux", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg" },
+  { id: "mongodb", name: "MongoDB", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" },
+  { id: "prompt-engineering", name: "Prompt Engineering", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg" },
+  { id: "terraform", name: "Terraform", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg" },
+  { id: "data-structures", name: "Data Structures & Algorithms", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/algorithm/algorithm-original.svg" },
+  { id: "git-github", name: "Git and GitHub", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" },
+  { id: "redis", name: "Redis", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" },
+  { id: "php", name: "PHP", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg" },
+  { id: "cloudflare", name: "Cloudflare", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cloudflare/cloudflare-original.svg" },
+  { id: "ai-agents", name: "AI Agents", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg", isNew: true },
+  { id: "ai-red-teaming", name: "AI Red Teaming", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytorch/pytorch-original.svg", isNew: true },
+  { id: "backup-recovery", name: "Backup & Recovery", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" },
 ];
+
 const FIELD_TOPICS_MAP: Record<string, string[]> = {
   frontend: [
     "react", "vue", "angular", "javascript", "typescript", "design-system", "design-architecture"
@@ -98,7 +101,7 @@ const FIELD_TOPICS_MAP: Record<string, string[]> = {
   "product-manager": [
     "system-design", "code-review", "design-architecture"
   ],
-  qa: [
+  "qa": [
     "code-review", "api-design", "javascript"
   ],
   "mobile-app": [
@@ -620,7 +623,18 @@ export default function QuestionManager() {
                               setAIGenTopic(t.id);
                             }}
                           >
-                            <span className="text-2xl mb-1">{t.icon}</span>
+                            <div className="flex justify-center mb-1">
+                              <Image 
+                                src={t.icon} 
+                                alt={t.name}
+                                width={24}
+                                height={24}
+                                className="object-contain"
+                                onError={() => {
+                                  // Handle errors if needed
+                                }}
+                              />
+                            </div>
                             {t.name}
                             {aiGenTopic === t.id && <CheckCircle2 className="w-4 h-4 text-white mt-1" />}
                           </button>
@@ -869,19 +883,27 @@ export default function QuestionManager() {
                                 return (
                                   <Card
                                     key={idx}
-                                    className={`relative border-2 p-6 rounded-2xl shadow-lg transition-all group ${borderClass} ${aiGenSaved[idx] ? 'opacity-60' : ''} ${isEditLocal ? 'ring-2 ring-indigo-400' : ''}`}
-                                    onClick={() => {
-                                      if (!isDuplicateLocal) {
-                                        setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
-                                      }
-                                    }}
+                                    className={`relative border-2 p-6 pt-12 rounded-2xl shadow-lg transition-all group ${borderClass} ${aiGenSaved[idx] ? 'opacity-60' : ''} ${isEditLocal ? 'ring-2 ring-indigo-400' : ''}`}
                                   >
-                                    {/* Duplicate indicator */}
-                                    {(isDuplicateLocal || isWarningLocal) && (
-                                      <div className={`absolute top-2 right-28 z-20 px-2 py-1 rounded-full text-xs font-bold ${isDuplicateLocal ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'}`}>
-                                        {isDuplicateLocal ? '🚫 DUPLICATE' : '⚠️ SIMILAR'}
-                                      </div>
-                                    )}
+                                    {/* Checkbox select button & Duplicate indicator (left) */}
+                                    <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={aiGenSelected.includes(idx)}
+                                        disabled={isDuplicateLocal}
+                                        onChange={() => {
+                                          if (isDuplicateLocal) return;
+                                          setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
+                                        }}
+                                        className="w-5 h-5 accent-green-600 cursor-pointer"
+                                        title={isDuplicateLocal ? 'Cannot select duplicate' : 'Select to save'}
+                                      />
+                                      {(isDuplicateLocal || isWarningLocal) && (
+                                        <div className={`px-2 py-1 rounded-full text-xs font-bold ${isDuplicateLocal ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                                          {isDuplicateLocal ? '🚫 DUPLICATE' : '⚠️ SIMILAR'}
+                                        </div>
+                                      )}
+                                    </div>
                                     {/* Edit controls */}
                                     <div className="absolute top-2 right-2 z-20 flex gap-2">
                                       {!isEditLocal ? (
@@ -908,7 +930,7 @@ export default function QuestionManager() {
                                           <Button
                                             variant="default"
                                             size="sm"
-                                            className="bg-indigo-600 hover:bg-indigo-700"
+                                            className="bg-green-600 hover:bg-green-700 text-white"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               // Persist edits to the base question and exit edit mode
@@ -1051,8 +1073,8 @@ export default function QuestionManager() {
         
         {/* Duplicate Detection Modal */}
         {showDuplicateModal && (
-          <div className="fixed inset-0 z-50 w-screen h-screen bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          <div className="fixed inset-0 z-50 w-screen h-screen bg-white bg-opacity-40 backdrop-blur-sm flex items-center justify-center">
+            <div className="rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
               <div className="flex items-center justify-between px-6 py-4 border-b">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">⚠️</span>

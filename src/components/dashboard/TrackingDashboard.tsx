@@ -395,7 +395,7 @@ export default function TrackingDashboard() {
             <LineChart data={lineChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="period" />
-              <YAxis domain={[0, lineMode === 'score' ? 100 : 'auto']} />
+                <YAxis domain={[0, lineMode === 'score' ? 10 : 'auto']} />
               <Tooltip formatter={(value: number) => lineMode === 'score' ? value.toFixed(1) + '%' : value} />
               <Legend />
               <Line type="monotone" dataKey="quiz" name="Quiz" stroke="#7c3aed" strokeWidth={2} dot={false} />

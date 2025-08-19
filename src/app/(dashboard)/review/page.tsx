@@ -36,7 +36,7 @@ export default function ReviewQuestionPage() {
   const [filterField, setFilterField] = useState("all")
   const [filterTopic, setFilterTopic] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
+  const [viewMode, setViewMode] = useState<"list" | "grid">("grid")
   const [showFlashCards, setShowFlashCards] = useState(false)
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
@@ -182,57 +182,6 @@ export default function ReviewQuestionPage() {
                 <h1 className="text-3xl font-bold text-gray-800">Knowledge Explorer</h1>
                 <p className="text-gray-600">Discover and study question explanations at your own pace</p>
               </div>
-            </div>
-
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <BookOpen className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm opacity-90">Total Questions</p>
-                    <p className="text-xl font-bold">{questions.length}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Filter className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm opacity-90">Filtered Results</p>
-                    <p className="text-xl font-bold">{filteredQuestions.length}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white border-0">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Star className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm opacity-90">Bookmarked</p>
-                    <p className="text-xl font-bold">{bookmarkedQuestions.size}</p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white border-0">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-lg">
-                    <Eye className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm opacity-90">Study Specializations</p>
-                    <p className="text-xl font-bold">{fields.length}</p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
 
