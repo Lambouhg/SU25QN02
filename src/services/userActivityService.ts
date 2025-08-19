@@ -84,7 +84,7 @@ export class UserActivityService {
         if (existingActivity) {
           return existingActivity;
         }
-      } catch (findError) {
+      } catch {
       }
       try {
         const userExists = await prisma.user.findUnique({
@@ -94,7 +94,7 @@ export class UserActivityService {
         if (!userExists) {
           return null;
         }
-      } catch (userCheckError) {
+      } catch {
       }
       const initialData = {
         activities: [],
@@ -126,7 +126,7 @@ export class UserActivityService {
         }
         return null;
       }
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -567,7 +567,7 @@ export class UserActivityService {
         throw updateError;
       }
       return recommendations;
-    } catch (error) {
+    } catch {
       return [
         'Start with a practice interview to assess your current level',
         'Set up your learning goals in the dashboard',
@@ -716,8 +716,8 @@ export class UserActivityService {
       } catch (updateError) {
         throw updateError;
       }
-    } catch (error) {
-      throw error;
+    } catch {
+      throw new Error('Failed to update skill');
     }
   }
 
@@ -767,8 +767,8 @@ export class UserActivityService {
         });
       }
       await this.updateLearningStats(userId);
-    } catch (error) {
-      throw error;
+    } catch {
+      throw new Error('Failed to update goal progress');
     }
   }
 

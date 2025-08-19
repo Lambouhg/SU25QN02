@@ -25,6 +25,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+type Activity = {
+  id?: string;
+  _id?: string;
+  type: string;
+  score?: number;
+  duration: number;
+  timestamp: string;
+  referenceId?: string;
+};
+
 interface UserActivityDetail {
   user: {
     id: string;
@@ -52,14 +62,7 @@ interface UserActivityDetail {
     worstScore: number;
     averageDuration: number;
   };
-  activities: Array<{
-    _id: string;
-    type: string;
-    score?: number;
-    duration: number;
-    timestamp: string;
-    referenceId?: string;
-  }>;
+  activities?: Activity[];
   skills: Array<{
     _id: string;
     name: string;
@@ -71,11 +74,16 @@ interface UserActivityDetail {
     _id: string;
     title: string;
     description: string;
-    status: 'pending' | 'in-progress' | 'completed';
+    status: 'pending' | 'in-progress' | 'in_progress' | 'not_started' | 'completed';
     type: string;
     targetDate: string;
     completedDate?: string;
-  }>;
+  }> | {
+    total: number;
+    completed: number;
+    inProgress: number;
+    notStarted: number;
+  };
   learningStats: {
     totalStudyTime: number;
     weeklyStudyTime: number;
@@ -91,14 +99,7 @@ interface UserActivityDetail {
     totalDuration: number;
     averageScore: number;
   }>;
-  recentTimeline: Array<{
-    id: string;
-    type: string;
-    score?: number;
-    duration: number;
-    timestamp: string;
-    referenceId?: string; // Add referenceId to identify JD activities
-  }>;
+  recentTimeline?: Activity[];
 }
 
 interface UserActivityDetailViewProps {
@@ -127,13 +128,7 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
 
       const response = await fetch(`/api/admin/user-activities/${userId}?${params}`);
       const result = await response.json();
-      console.log('👤 User activity data:', result);
-
       if (response.ok) {
-        // Log recent timeline to check referenceId
-        if (result.recentTimeline) {
-          console.log('📋 Recent timeline activities:', result.recentTimeline);
-        }
         setData(result);
       } else {
         console.error('Error fetching user activity:', result.error);
@@ -199,24 +194,29 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50" onClick={onBack}></div>
+        <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl p-6">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <Button variant="outline" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <div className="h-8 bg-gray-200 rounded w-64 animate-pulse"></div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -224,18 +224,30 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
 
   if (!data) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">User activity not found.</p>
-        <Button variant="outline" onClick={onBack} className="mt-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50" onClick={onBack}></div>
+        <div className="relative w-full max-w-xl max-h-[80vh] overflow-y-auto bg-white rounded-xl shadow-2xl p-6">
+          <div className="text-center py-12">
+            <p className="text-gray-500">User activity not found.</p>
+            <Button variant="outline" onClick={onBack} className="mt-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Normalize goals structure to avoid runtime errors
+  const goalsArray = Array.isArray(data.goals) ? data.goals : [];
+  const goalsSummary = Array.isArray(data.goals) ? null : data.goals;
+
   return (
-    <div className="space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onBack}></div>
+      <div className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl p-6">
+        <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -393,11 +405,11 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
         {/* Skills */}
         <Card>
           <CardHeader>
-            <CardTitle>Skills ({data.skills.length})</CardTitle>
+            <CardTitle>Skills ({Array.isArray(data.skills) ? data.skills.length : 0})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {data.skills.slice(0, 10).map((skill) => (
+              {(Array.isArray(data.skills) ? data.skills : []).slice(0, 10).map((skill) => (
                 <div key={skill._id} className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -416,9 +428,9 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
                   </div>
                 </div>
               ))}
-              {data.skills.length > 10 && (
+              {(Array.isArray(data.skills) ? data.skills.length : 0) > 10 && (
                 <p className="text-sm text-gray-500 text-center">
-                  And {data.skills.length - 10} more skills...
+                  And {(Array.isArray(data.skills) ? data.skills.length : 0) - 10} more skills...
                 </p>
               )}
             </div>
@@ -428,41 +440,67 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
         {/* Goals */}
         <Card>
           <CardHeader>
-            <CardTitle>Goals ({data.goals.length})</CardTitle>
+            <CardTitle>
+              Goals {goalsSummary ? '' : `(${goalsArray.length})`}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {data.goals.slice(0, 10).map((goal) => (
-                <div key={goal._id} className="flex items-start gap-3">
-                  {getGoalStatusIcon(goal.status)}
-                  <div className="flex-1">
-                    <p className="font-medium">{goal.title}</p>
-                    <p className="text-sm text-gray-600">{goal.description}</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="outline">{goal.type}</Badge>
-                      <Badge 
-                        className={
-                          goal.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          goal.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }
-                      >
-                        {goal.status}
-                      </Badge>
+            {!goalsSummary ? (
+              <div className="space-y-4">
+                {goalsArray.slice(0, 10).map((goal) => {
+                  const status = (goal.status === 'in_progress' ? 'in-progress' : goal.status) as 'pending' | 'in-progress' | 'completed';
+                  return (
+                    <div key={goal._id} className="flex items-start gap-3">
+                      {getGoalStatusIcon(status)}
+                      <div className="flex-1">
+                        <p className="font-medium">{goal.title}</p>
+                        <p className="text-sm text-gray-600">{goal.description}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="outline">{goal.type}</Badge>
+                          <Badge 
+                            className={
+                              status === 'completed' ? 'bg-green-100 text-green-800' :
+                              status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }
+                          >
+                            {status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Target: {formatDate(goal.targetDate)}
+                          {goal.completedDate && ` • Completed: ${formatDate(goal.completedDate)}`}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Target: {formatDate(goal.targetDate)}
-                      {goal.completedDate && ` • Completed: ${formatDate(goal.completedDate)}`}
-                    </p>
-                  </div>
+                  );
+                })}
+                {goalsArray.length > 10 && (
+                  <p className="text-sm text-gray-500 text-center">
+                    And {goalsArray.length - 10} more goals...
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Total Goals</span>
+                  <span className="font-semibold">{goalsSummary.total}</span>
                 </div>
-              ))}
-              {data.goals.length > 10 && (
-                <p className="text-sm text-gray-500 text-center">
-                  And {data.goals.length - 10} more goals...
-                </p>
-              )}
-            </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Completed</span>
+                  <Badge className="bg-green-100 text-green-800">{goalsSummary.completed}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">In Progress</span>
+                  <Badge className="bg-blue-100 text-blue-800">{goalsSummary.inProgress}</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Not Started</span>
+                  <Badge className="bg-yellow-100 text-yellow-800">{goalsSummary.notStarted}</Badge>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -474,8 +512,9 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {data.recentTimeline.slice(0, 20).map((activity) => (
-              <div key={activity.id} className="flex items-center gap-4 p-3 border rounded-lg">
+            {(data.recentTimeline ?? data.activities ?? []).slice(0, 20).map((activity) => (
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              <div key={(activity as any).id ?? (activity as any)._id} className="flex items-center gap-4 p-3 border rounded-lg">
                 {getActivityTypeIcon(activity.type)}
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
@@ -515,64 +554,66 @@ export default function UserActivityDetailView({ userId, onBack }: UserActivityD
         </CardContent>
       </Card>
 
-      {/* Insights */}
-      {(data.strengths.length > 0 || data.weaknesses.length > 0 || data.recommendations.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {data.strengths.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-green-600">Strengths</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {data.strengths.map((strength, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <p className="text-sm">{strength}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {data.weaknesses.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-red-600">Areas for Improvement</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {data.weaknesses.map((weakness, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-red-600" />
-                      <p className="text-sm">{weakness}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {data.recommendations.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-blue-600">Recommendations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {data.recommendations.map((recommendation, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Star className="h-4 w-4 text-blue-600" />
-                      <p className="text-sm">{recommendation}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+        {/* Insights */}
+        {(((Array.isArray(data.strengths) ? data.strengths.length : 0) > 0) || ((Array.isArray(data.weaknesses) ? data.weaknesses.length : 0) > 0) || ((Array.isArray(data.recommendations) ? data.recommendations.length : 0) > 0)) && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {(Array.isArray(data.strengths) ? data.strengths.length : 0) > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-green-600">Strengths</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(Array.isArray(data.strengths) ? data.strengths : []).map((strength, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <p className="text-sm">{strength}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+ 
+            {(Array.isArray(data.weaknesses) ? data.weaknesses.length : 0) > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-red-600">Areas for Improvement</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(Array.isArray(data.weaknesses) ? data.weaknesses : []).map((weakness, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <p className="text-sm">{weakness}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+ 
+            {(Array.isArray(data.recommendations) ? data.recommendations.length : 0) > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-blue-600">Recommendations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(Array.isArray(data.recommendations) ? data.recommendations : []).map((recommendation, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Star className="h-4 w-4 text-blue-600" />
+                        <p className="text-sm">{recommendation}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

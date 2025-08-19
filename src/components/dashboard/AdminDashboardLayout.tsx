@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
-  Home, Users, Settings, Menu, X, Search, Bell, LogOut, Shield,
+  Home, Users, Settings, Menu, X, Search, LogOut, Shield,
   BarChart3, MessageSquare, UserCheck,
   ChevronRight, ChevronDown
 } from 'lucide-react';
@@ -163,10 +163,6 @@ export default function AdminDashboardLayout({
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="p-2 rounded-lg hover:bg-gray-100 relative">
-                <Bell className="w-6 h-6 text-gray-600" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">3</span>
-              </button>
               
               {/* Back to User Dashboard */}
               <Link

@@ -8,7 +8,6 @@ import UserActivityDetailView from '@/components/admin/UserActivityDetailView';
 import AdminActivityDashboard from '@/components/admin/AdminActivityDashboard';
 import { 
   BarChart3, 
-  Users, 
   Activity
 } from 'lucide-react';
 
@@ -91,27 +90,20 @@ export default function AdminUserActivitiesPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-gray-100 rounded-lg">
+        <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-gray-100 rounded-lg">
           <TabsTrigger 
             value="realtime" 
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
           >
-            <Activity className="h-4 w-4" />
+            <Activity className="h-6 w-4" />
             <span className="font-medium">Real-time Activity</span>
           </TabsTrigger>
           <TabsTrigger 
             value="overview" 
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
           >
-            <BarChart3 className="h-4 w-4" />
+            <BarChart3 className="h-6 w-4" />
             <span className="font-medium">Analytics Overview</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="users" 
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
-          >
-            <Users className="h-4 w-4" />
-            <span className="font-medium">User Activities</span>
           </TabsTrigger>
         </TabsList>
 

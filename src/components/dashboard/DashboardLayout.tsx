@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
-  Star, Settings, Menu, X, Search, Bell, LogOut, Shield,
+  Star, Settings, Menu, X, Search, LogOut, Shield,
   ChevronRight, ChevronDown, BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
@@ -269,10 +269,7 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <button className="p-2 rounded-lg hover:bg-gray-100">
-                <Bell className="w-6 h-6 text-gray-600" />
-              </button>     
+            <div className="flex items-center gap-4">  
               {/* Admin Panel Access - Only show for admins */}
               {isAdmin && (
                 <Link

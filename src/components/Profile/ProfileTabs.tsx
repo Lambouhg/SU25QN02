@@ -55,32 +55,32 @@ export default function ProfileTabs({
           className="flex items-center gap-2 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-200"
         >
           <User className="w-4 h-4" />
-          <span className="hidden sm:inline">Thông tin</span>
-          <span className="sm:hidden text-xs">Thông tin</span>
+          <span className="hidden sm:inline">Personal Info</span>
+          <span className="sm:hidden text-xs">Personal</span>
         </TabsTrigger>
         <TabsTrigger 
           value="activity" 
           className="flex items-center gap-2 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-200"
         >
           <Activity className="w-4 h-4" />
-          <span className="hidden sm:inline">Hoạt động</span>
-          <span className="sm:hidden text-xs">Hoạt động</span>
+          <span className="hidden sm:inline">Activity</span>
+          <span className="sm:hidden text-xs">Activity</span>
         </TabsTrigger>
         <TabsTrigger 
           value="payment" 
           className="flex items-center gap-2 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-200"
         >
           <CreditCard className="w-4 h-4" />
-          <span className="hidden sm:inline">Thanh toán</span>
-          <span className="sm:hidden text-xs">Thanh toán</span>
+          <span className="hidden sm:inline">Payment</span>
+          <span className="sm:hidden text-xs">Payment</span>
         </TabsTrigger>
         <TabsTrigger 
           value="preferences" 
           className="flex items-center gap-2 data-[state=active]:bg-black data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-gray-200"
         >
           <Settings className="w-4 h-4" />
-          <span className="hidden sm:inline">Phỏng vấn</span>
-          <span className="sm:hidden text-xs">Phỏng vấn</span>
+          <span className="hidden sm:inline">Interview</span>
+          <span className="sm:hidden text-xs">Interview</span>
         </TabsTrigger>
       </TabsList>
 
@@ -106,18 +106,18 @@ export default function ProfileTabs({
         {jobRolesLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Đang tải...</span>
+            <span className="ml-2 text-gray-600">Loading...</span>
           </div>
         ) : jobRolesError ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-red-600">Lỗi: {jobRolesError}</div>
+            <div className="text-red-600">Error: {jobRolesError}</div>
           </div>
         ) : (
           <InterviewPreferencesForm 
             jobRoles={jobRoles}
             onSave={(preferences) => {
               console.log('Preferences saved:', preferences);
-              // Có thể thêm toast notification ở đây
+              // You can add a toast notification here
             }}
           />
         )}

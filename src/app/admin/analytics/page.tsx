@@ -3,7 +3,6 @@
 import React from 'react';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
 import ActiveUsersMetrics from '@/components/admin/ActiveUsersMetrics';
-import OnlineUsersList from '@/components/admin/OnlineUsersList';
 
 export default function AdminAnalyticsPage() {
   return (
@@ -18,11 +17,7 @@ export default function AdminAnalyticsPage() {
           <ActiveUsersMetrics autoRefresh={true} refreshInterval={30000} />
 
           {/* Grid Layout for Additional Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-            {/* Online Users List */}
-            <div className="lg:col-span-1">
-              <OnlineUsersList maxUsers={15} refreshInterval={30000} />
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">         
           </div>
         </div>
     </AdminRouteGuard>

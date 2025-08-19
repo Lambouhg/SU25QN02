@@ -1,17 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { Users, Edit, Shield, UserCheck, MoreVertical, Trash2 } from 'lucide-react';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import EditUserModal from '@/components/admin/EditUserModal';
 import ConfirmDeleteModal from '@/components/admin/ConfirmDeleteModal';
 import Toast from '@/components/ui/Toast';
 import { useRole } from '@/context/RoleContext';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+import { X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface User {
+  id?: string;
   _id: string;
   clerkId: string;
   email: string;
@@ -51,9 +55,10 @@ export default function AdminUsersPage() {
   };
 
   const [users, setUsers] = useState<User[]>([]);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ 
     show: boolean; 
     message: string; 
@@ -63,52 +68,122 @@ export default function AdminUsersPage() {
     message: '', 
     type: 'info' 
   });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState<{ firstName: string; lastName: string; email: string; role: 'admin' | 'user' }>({ firstName: '', lastName: '', email: '', role: 'user' });
+
+  const [isFetching, setIsFetching] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await fetch('/api/user');
-        if (response.ok) {
-          const data = await response.json();
-          setUsers(data.users || []);
-        }
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        showToast('Failed to fetch users', 'error');
-      }
-    };
-    
-    fetchUsers();
+    void fetchUsers(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Thêm function fetchUsers để có thể gọi lại
-  const fetchUsers = async () => {
+  // Unified guarded fetch to avoid duplicate requests
+  const fetchUsers = async (clearCache: boolean = true) => {
+    if (isFetching) return;
     try {
-      // Clear cache trước khi fetch
-      await fetch('/api/user/clear-cache', {
-        method: 'POST'
-      });
-      
-      // Thêm timestamp để force refresh
+      setIsFetching(true);
+      if (clearCache) {
+        await fetch('/api/user/clear-cache', { method: 'POST' });
+      }
       const timestamp = Date.now();
       const response = await fetch(`/api/user?t=${timestamp}`, {
-        cache: 'no-store', // Đảm bảo không cache
+        cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         }
       });
-      
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
-        showToast('Users refreshed successfully', 'success');
       } else {
-        showToast('Failed to refresh users', 'error');
+        showToast('Failed to fetch users', 'error');
       }
     } catch (error) {
-      console.error('Error refreshing users:', error);
-      showToast('Error refreshing users', 'error');
+      console.error('Error fetching users:', error);
+      showToast('Error fetching users', 'error');
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedUserId) return;
+    const u = users.find(x => x._id === selectedUserId || x.id === selectedUserId || x.clerkId === selectedUserId);
+    if (!u) return;
+    const parts = parseNameParts(u.fullName);
+    setEditForm({
+      firstName: u.firstName || parts.firstName,
+      lastName: u.lastName || parts.lastName,
+      email: u.email,
+      role: (typeof u.role === 'string' ? u.role : 'user') as 'admin' | 'user',
+    });
+  }, [selectedUserId, users]);
+
+  // Derived: filtered + paginated users
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return users.filter(u => {
+      const name = (u.fullName || '').toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const matchesQ = q === '' || name.includes(q) || email.includes(q);
+      const roleStr = (typeof u.role === 'string' ? u.role : 'user') as 'admin' | 'user';
+      const matchesRole = roleFilter === 'all' || roleStr === roleFilter;
+      const isOnline = Boolean(u.isOnline);
+      const matchesStatus = statusFilter === 'all' || (statusFilter === 'online' ? isOnline : !isOnline);
+      return matchesQ && matchesRole && matchesStatus;
+    });
+  }, [users, searchQuery, roleFilter, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredUsers.slice(start, start + pageSize);
+  }, [filteredUsers, currentPage, pageSize]);
+
+  // Reset to first page when filters/search change or users change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, roleFilter, statusFilter, pageSize, users.length]);
+
+  const saveInlineEdit = async (u: User) => {
+    try {
+      setEditSaving(true);
+      const response = await fetch(`/api/user/${u.clerkId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      if (response.ok) {
+        setUsers(prev => prev.map(x => (
+          x._id === u._id ? {
+            ...x,
+            email: editForm.email,
+            role: editForm.role,
+            fullName: `${editForm.firstName} ${editForm.lastName}`.trim(),
+            firstName: editForm.firstName,
+            lastName: editForm.lastName,
+          } : x
+        )));
+        broadcastRoleInvalidation(u.clerkId);
+        refreshRole();
+        showToast(`Updated ${editForm.firstName} ${editForm.lastName}`, 'success');
+        setSelectedUserId(null);
+      } else {
+        showToast('Failed to update user', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to update user information', 'error');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -132,19 +207,14 @@ export default function AdminUsersPage() {
       });
 
       if (response.ok) {
-        setUsers(users.map(u => 
+        setUsers(prev => prev.map(u => (
           u._id === userId ? { ...u, role: newRole } : u
-        ));
+        )));
 
         // Trigger role invalidation
-        broadcastRoleInvalidation('ROLE_CHANGE');
+        broadcastRoleInvalidation(user.clerkId);
         refreshRole();
         showToast(`Successfully ${actionText}d ${user.fullName}`, 'success');
-
-        // If the current user's role was changed, trigger a full refresh
-        if (user.clerkId === user?.clerkId) {
-          window.location.reload();
-        }
       } else {
         showToast(`Failed to ${actionText} ${user.fullName}`, 'error');
       }
@@ -154,39 +224,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleEditUser = async (userData: { firstName: string; lastName: string; email: string; role: 'admin' | 'user' }) => {
-    if (!editingUser) return;
-
-    try {
-      const response = await fetch(`/api/user/${editingUser.clerkId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      if (response.ok) {
-        setUsers(users.map(u => 
-          u._id === editingUser._id ? {
-            ...u,
-            email: userData.email,
-            role: userData.role,
-            fullName: `${userData.firstName} ${userData.lastName}`
-          } : u
-        ));
-
-        setEditingUser(null);
-        showToast(`Successfully updated ${userData.firstName} ${userData.lastName}`, 'success');
-      } else {
-        showToast('Failed to update user', 'error');
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      showToast(`Failed to update user information`, 'error');
-      throw error;
-    }
-  };
+  
 
   const handleDeleteUser = async () => {
     if (!deletingUser) return;
@@ -198,14 +236,8 @@ export default function AdminUsersPage() {
       });
 
       if (response.ok) {
-        // Fetch lại danh sách users với cache busting
+        // Refresh in-memory list without full reload
         await fetchUsers();
-        
-        // Force reload trang để đảm bảo dữ liệu mới nhất
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-        
         showToast(`Successfully deleted ${deletingUser.fullName}`, 'success');
         setDeletingUser(null);
       } else {
@@ -244,8 +276,34 @@ export default function AdminUsersPage() {
               <Users className="h-5 w-5 text-blue-600" />
               <h2 className="text-lg font-semibold text-gray-900">All Users</h2>
               <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
-                {users.length} total
+                {filteredUsers.length} total
               </span>
+            </div>
+            {/* Controls: search, filters, page size */}
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="md:col-span-2">
+                <Input
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as typeof roleFilter)}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Role" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="user">User</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All status</SelectItem>
+                  <SelectItem value="online">Online</SelectItem>
+                  <SelectItem value="offline">Offline</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -265,9 +323,12 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
-                  <tr key={user._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                {paginatedUsers.map((user) => (
+                  <tr key={user._id || user.id || user.clerkId} className="hover:bg-gray-50">
+                    <td
+                      className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                      onClick={() => setSelectedUserId(user.id || user._id || user.clerkId)}
+                    >
                       <div className="flex items-center">
                         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
                           {user.imageUrl ? (
@@ -317,7 +378,7 @@ export default function AdminUsersPage() {
                             </button>
                           }
                         >
-                          <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                          <DropdownMenuItem onClick={() => setSelectedUserId(user.id || user._id || user.clerkId)}>
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
@@ -356,20 +417,29 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
+          {/* Pagination footer */}
+          <div className="flex items-center justify-between px-6 py-4 border-t">
+            <div className="text-sm text-gray-600">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-1">
+                <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={currentPage === 1}>First</Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+                <Button variant="outline" size="sm" onClick={() => setPage(totalPages)} disabled={currentPage === totalPages}>Last</Button>
+              </div>
+              <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                <SelectTrigger className="h-9 w-[100px]"><SelectValue placeholder="Rows" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10 / page</SelectItem>
+                  <SelectItem value="25">25 / page</SelectItem>
+                  <SelectItem value="50">50 / page</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
-
-        <EditUserModal
-          user={editingUser ? {
-            ...editingUser,
-            ...(!editingUser.firstName || !editingUser.lastName ? parseNameParts(editingUser.fullName) : {
-              firstName: editingUser.firstName,
-              lastName: editingUser.lastName
-            })
-          } : null}
-          isOpen={!!editingUser}
-          onClose={() => setEditingUser(null)}
-          onSave={handleEditUser}
-        />
 
         <ConfirmDeleteModal
           user={deletingUser ? {
@@ -391,6 +461,77 @@ export default function AdminUsersPage() {
           type={toast.type}
           onClose={() => setToast({ ...toast, show: false })}
         />
+
+        {selectedUserId && (() => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const selectedUser = users.find(u => (u._id === selectedUserId) || ((u as any).id === selectedUserId) || (u.clerkId === selectedUserId));
+          if (!selectedUser) return null;
+          const initial = getUserInitials(selectedUser.fullName);
+          const roleBadgeClass = (typeof selectedUser.role === 'string' ? selectedUser.role : 'user') === 'admin' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedUserId(null)}></div>
+              <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-2xl overflow-hidden">
+                {/* Header with gradient */}
+                <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6 text-white">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center bg-white/20">
+                      {selectedUser.imageUrl ? (
+                        <Image src={selectedUser.imageUrl} alt={selectedUser.fullName} width={56} height={56} className="w-14 h-14 object-cover" />
+                      ) : (
+                        <span className="text-lg font-bold">{initial}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-xl font-semibold truncate">{selectedUser.fullName}</h2>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleBadgeClass} bg-white/90 text-gray-900`}>{typeof selectedUser.role === 'string' ? selectedUser.role : 'user'}</span>
+                      </div>
+                      <p className="text-sm opacity-90 truncate">{selectedUser.email}</p>
+                    </div>
+                    <button onClick={() => setSelectedUserId(null)} className="p-2 rounded hover:bg-white/10 transition">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+                {/* Body: Inline edit form */}
+                <div className="p-5 md:p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+                      <Input value={editForm.firstName} onChange={e => setEditForm({ ...editForm, firstName: e.target.value })} placeholder="First name" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+                      <Input value={editForm.lastName} onChange={e => setEditForm({ ...editForm, lastName: e.target.value })} placeholder="Last name" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <Input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} placeholder="Email" />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <Select value={editForm.role} onValueChange={(v) => setEditForm({ ...editForm, role: v as 'admin' | 'user' })}>
+                        <SelectTrigger className="h-10 w-full">
+                          <SelectValue placeholder="Role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="user">User</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                {/* Footer: Save / Cancel */}
+                <div className="px-5 md:px-6 py-4 border-t bg-gray-50 flex items-center justify-end gap-2">
+                  <Button variant="secondary" onClick={() => setSelectedUserId(null)} disabled={editSaving}>Cancel</Button>
+                  <Button onClick={() => saveInlineEdit(selectedUser)} disabled={editSaving}>{editSaving ? 'Saving...' : 'Save'}</Button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </AdminRouteGuard>
   );

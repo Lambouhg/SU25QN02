@@ -85,10 +85,43 @@ export async function PATCH(
       );
     }
 
-    // Prepare update data
-    const updateData: Record<string, unknown> & {
+    // Prepare update data (whitelist fields)
+    const { firstName, lastName, email } = body as Partial<{
+      firstName: string; lastName: string; email: string; role: string
+    }>;
+
+    const updateData: {
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      roleId?: string;
       updatedAt: Date;
-    } = { ...body, updatedAt: new Date() };
+    } = { updatedAt: new Date() };
+
+    if (typeof firstName === 'string') updateData.firstName = firstName;
+    if (typeof lastName === 'string') updateData.lastName = lastName;
+    if (typeof email === 'string') updateData.email = email;
+
+    // Handle role mapping if provided (accepts role name or id)
+    const incomingRole = (body as { role?: string })?.role;
+    if (typeof incomingRole === 'string' && incomingRole.trim().length > 0) {
+      // Try by id first, then by name
+      const roleRecord = await prisma.role.findFirst({
+        where: {
+          OR: [
+            { id: incomingRole },
+            { name: incomingRole }
+          ]
+        }
+      });
+      if (!roleRecord) {
+        return NextResponse.json(
+          { error: `Role '${incomingRole}' not found` },
+          { status: 400 }
+        );
+      }
+      updateData.roleId = roleRecord.id;
+    }
     
     // Cập nhật user, include role relation
     const user = await prisma.user.update({
