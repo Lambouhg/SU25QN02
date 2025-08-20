@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, ChevronLeft, ChevronRight, User, Briefcase, Star, FileText } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import OnboardingComplete from './OnboardingComplete';
 
 interface JobRole {
@@ -89,6 +88,9 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [initialUserSkills, setInitialUserSkills] = useState<string[] | null>(null);
   const [skillsPrefilled, setSkillsPrefilled] = useState(false);
+  const [roleQuery, setRoleQuery] = useState('');
+  const [roleSort, setRoleSort] = useState<'relevance' | 'title-asc'>('relevance');
+  const [rolesLoading, setRolesLoading] = useState(false);
   
   const getSkillIcon = (skillName: string) => {
     const key = skillName.trim().toLowerCase();
@@ -99,6 +101,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
     }
     return (
       // use plain img to allow simple onError fallback
+      /* eslint-disable-next-line @next/next/no-img-element */
       <img
         src={url}
         alt={skillName}
@@ -113,26 +116,26 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   const steps = [
     {
       id: 'job-role',
-      title: 'Chọn vị trí công việc',
-      description: 'Chọn vị trí công việc mà bạn muốn phát triển',
+      title: 'Choose a job role',
+      description: 'Select the role you want to focus on',
       icon: Briefcase
     },
     {
       id: 'experience',
-      title: 'Trình độ kinh nghiệm',
-      description: 'Chọn mức độ kinh nghiệm hiện tại của bạn',
+      title: 'Experience level',
+      description: 'Pick your current level of experience',
       icon: Star
     },
     {
       id: 'skills',
-      title: 'Kỹ năng của bạn',
-      description: 'Thêm các kỹ năng chính của bạn',
+      title: 'Your skills',
+      description: 'Add your key skills',
       icon: FileText
     },
     {
       id: 'profile',
-      title: 'Thông tin cá nhân',
-      description: 'Hoàn thiện thông tin cá nhân',
+      title: 'Personal information',
+      description: 'Complete your personal information',
       icon: User
     }
   ];
@@ -140,6 +143,8 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   useEffect(() => {
     fetchJobRoles();
     loadFromLocalDraftThenUser();
+    // Intentionally keep deps empty to run once on mount; functions are stable in this component
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Ensure default join date when profile step is opened or when data loads without joinDate
@@ -151,12 +156,16 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
 
   const fetchJobRoles = async () => {
     try {
+      setRolesLoading(true);
       const response = await fetch('/api/positions');
       if (response.ok) {
         const roles = await response.json();
         setJobRoles(roles);
       }
     } catch {}
+    finally {
+      setRolesLoading(false);
+    }
   };
 
   // Derived filters for Category and Specialization (based on available JobRoles)
@@ -195,6 +204,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
       categorySkills = fallbackKey ? FALLBACK_SKILLS_BY_ROLE[fallbackKey] : [];
     }
     setSuggestedSkills(categorySkills);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.jobRoleId, jobRoles]);
 
   // Prefill user's selected skills as intersection(user skills, category skills) once per role selection
@@ -344,7 +354,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   const validateAndSetPhone = (value: string) => {
     // Cho phép +84 hoặc 0, theo chuẩn VN: 10 chữ số sau khi chuẩn hóa
     if (!isValidPhone(value)) {
-      setPhoneError('Số điện thoại không hợp lệ (ví dụ: 0912345678 hoặc +84912345678)');
+      setPhoneError('Invalid phone number (e.g., 0912345678 or +84912345678)');
       return false;
     }
     setPhoneError(null);
@@ -354,7 +364,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
   const completeOnboarding = async () => {
     try {
       // 1) Read full draft from localStorage then persist
-      let payload = { ...data } as any;
+      let payload: OnboardingData = { ...data };
       if (typeof window !== 'undefined') {
         const raw = localStorage.getItem(DRAFT_KEY);
         if (raw) {
@@ -370,7 +380,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
               bio: draft['profile']?.bio ?? data.bio,
               department: draft['profile']?.department ?? data.department,
               joinDate: draft['profile']?.joinDate ?? data.joinDate,
-            };
+            } as OnboardingData;
           } catch {}
         }
       }
@@ -426,18 +436,28 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
         return (
           <div className="space-y-4">
             {/* Category & Specialization Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <Label className="mb-1 block">Ngành/Lĩnh vực lớn (Category)</Label>
+                <Label className="mb-1 block">Search</Label>
+                <Input
+                  placeholder="Search job roles, categories, specializations..."
+                  value={roleQuery}
+                  onChange={(e) => setRoleQuery(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block">Category</Label>
                 <Select value={selectedCategory} onValueChange={(val) => {
-                  setSelectedCategory(val);
+                  const normalized = val === '__all__' ? '' : val;
+                  setSelectedCategory(normalized);
                   setSelectedSpecialization('');
                   setData((prev) => ({ ...prev, jobRoleId: undefined }));
                 }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn Category" />
+                    <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__all__">All categories</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
                     ))}
@@ -445,61 +465,145 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
                 </Select>
               </div>
               <div>
-                <Label className="mb-1 block">Chuyên môn (Specialization)</Label>
+                <Label className="mb-1 block">Specialization</Label>
                 <Select value={selectedSpecialization} onValueChange={(val) => {
-                  setSelectedSpecialization(val);
+                  const normalized = val === '__all__' ? '' : val;
+                  setSelectedSpecialization(normalized);
                   setData((prev) => ({ ...prev, jobRoleId: undefined }));
                 }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn Specialization (tuỳ chọn)" />
+                    <SelectValue placeholder="Select a specialization (optional)" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__all__">All specializations</SelectItem>
                     {specializations.map((s) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <Label className="mb-1 block">Sort</Label>
+                <Select value={roleSort} onValueChange={(val) => setRoleSort(val as 'relevance' | 'title-asc')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sort roles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance">Relevance</SelectItem>
+                    <SelectItem value="title-asc">Title A → Z</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Result count + Clear filters */}
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>{
+                jobRoles
+                  .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
+                  .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
+                  .filter((role) => {
+                    if (!roleQuery.trim()) return true;
+                    const q = roleQuery.toLowerCase();
+                    const title = role.title?.toLowerCase() || '';
+                    const cat = role.category?.name?.toLowerCase() || '';
+                    const spec = role.specialization?.name?.toLowerCase() || '';
+                    return title.includes(q) || cat.includes(q) || spec.includes(q);
+                  }).length
+              } roles found</span>
+              {(selectedCategory || selectedSpecialization || roleQuery) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setSelectedCategory(''); setSelectedSpecialization(''); setRoleQuery(''); setRoleSort('relevance'); }}
+                >
+                  Clear filters
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {jobRoles
-                .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
-                .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
-                .map((role) => (
-                <Card
-                  key={role.id}
-                  className={`cursor-pointer transition-all ${
-                    data.jobRoleId === role.id
-                      ? 'ring-2 ring-blue-500 bg-blue-50'
-                      : 'hover:shadow-md'
-                  }`}
-                  onClick={() => setData(prev => ({ ...prev, jobRoleId: role.id }))}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-sm">{role.title}</h3>
-                      <Badge variant="secondary" className="text-xs">
-                        {role.level}
-                      </Badge>
-                    </div>
-                    {role.category && (
-                      <p className="text-xs text-gray-600 mb-1">
-                        {role.category.name}
-                      </p>
-                    )}
-                    {role.specialization && (
-                      <p className="text-xs text-gray-500">
-                        {role.specialization.name}
-                      </p>
-                    )}
-                    {data.jobRoleId === role.id && (
-                      <CheckCircle className="w-5 h-5 text-blue-500 mt-2" />
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+              {rolesLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded w-2/3" />
+                      <div className="h-3 bg-gray-200 rounded w-1/3" />
+                      <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                jobRoles
+                  .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
+                  .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
+                  .filter((role) => {
+                    if (!roleQuery.trim()) return true;
+                    const q = roleQuery.toLowerCase();
+                    const title = role.title?.toLowerCase() || '';
+                    const cat = role.category?.name?.toLowerCase() || '';
+                    const spec = role.specialization?.name?.toLowerCase() || '';
+                    return title.includes(q) || cat.includes(q) || spec.includes(q);
+                  })
+                  .sort((a, b) => {
+                    if (roleSort === 'title-asc') {
+                      return a.title.localeCompare(b.title);
+                    }
+                    return 0;
+                  })
+                  .map((role) => (
+                    <Card
+                      key={role.id}
+                      className={`cursor-pointer transition-all ${
+                        data.jobRoleId === role.id
+                          ? 'ring-2 ring-blue-500 bg-blue-50'
+                          : 'hover:shadow-md'
+                      }`}
+                      onClick={() => setData(prev => ({ ...prev, jobRoleId: prev.jobRoleId === role.id ? undefined : role.id }))}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold text-sm">{role.title}</h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {role.level}
+                          </Badge>
+                        </div>
+                        {role.category && (
+                          <p className="text-xs text-gray-600 mb-1">
+                            {role.category.name}
+                          </p>
+                        )}
+                        {role.specialization && (
+                          <p className="text-xs text-gray-500">
+                            {role.specialization.name}
+                          </p>
+                        )}
+                        {role.description && (
+                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{role.description}</p>
+                        )}
+                        {data.jobRoleId === role.id && (
+                          <CheckCircle className="w-5 h-5 text-blue-500 mt-2" />
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+              )}
             </div>
+            {!rolesLoading && jobRoles
+              .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
+              .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
+              .filter((role) => {
+                if (!roleQuery.trim()) return true;
+                const q = roleQuery.toLowerCase();
+                const title = role.title?.toLowerCase() || '';
+                const cat = role.category?.name?.toLowerCase() || '';
+                const spec = role.specialization?.name?.toLowerCase() || '';
+                return title.includes(q) || cat.includes(q) || spec.includes(q);
+              }).length === 0 && (
+              <div className="text-sm text-gray-500 text-center py-8">
+                No roles match your filters.
+              </div>
+            )}
           </div>
         );
 
@@ -508,9 +612,9 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { value: 'junior', label: 'Junior', description: '0-2 năm kinh nghiệm' },
-                { value: 'mid', label: 'Mid-level', description: '2-5 năm kinh nghiệm' },
-                { value: 'senior', label: 'Senior', description: '5+ năm kinh nghiệm' }
+                { value: 'junior', label: 'Junior', description: '0-2 years of experience' },
+                { value: 'mid', label: 'Mid-level', description: '2-5 years of experience' },
+                { value: 'senior', label: 'Senior', description: '5+ years of experience' }
               ].map((level) => (
                 <Card
                   key={level.value}
@@ -519,7 +623,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
                       ? 'ring-2 ring-blue-500 bg-blue-50'
                       : 'hover:shadow-md'
                   }`}
-                  onClick={() => setData(prev => ({ ...prev, experienceLevel: level.value as any }))}
+                  onClick={() => setData(prev => ({ ...prev, experienceLevel: level.value as OnboardingData['experienceLevel'] }))}
                 >
                   <CardContent className="p-6 text-center">
                     <h3 className="font-semibold mb-2">{level.label}</h3>
@@ -539,7 +643,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
           <div className="space-y-4">
             {suggestedSkills.length > 0 && (
               <div className="space-y-2">
-                <p className="text-sm text-gray-700">Gợi ý theo vị trí đã chọn</p>
+                <p className="text-sm text-gray-700">Suggestions based on the selected role</p>
                 <div className="flex flex-wrap gap-2">
                   {suggestedSkills.map((skill, idx) => {
                     const isSelected = data.skills.includes(skill);
@@ -569,13 +673,13 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
             )}
             <div className="flex gap-2">
               <Input
-                placeholder="Thêm kỹ năng..."
+                placeholder="Add a skill..."
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && addSkill()}
               />
               <Button onClick={addSkill} disabled={!newSkill.trim()}>
-                Thêm
+                Add
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -598,26 +702,26 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="firstName">Tên</Label>
+                <Label htmlFor="firstName">First name</Label>
                 <Input
                   id="firstName"
                   value={data.firstName || ''}
                   onChange={(e) => setData(prev => ({ ...prev, firstName: e.target.value }))}
-                  placeholder="Nhập tên của bạn"
+                  placeholder="Enter your first name"
                 />
               </div>
               <div>
-                <Label htmlFor="lastName">Họ</Label>
+                <Label htmlFor="lastName">Last name</Label>
                 <Input
                   id="lastName"
                   value={data.lastName || ''}
                   onChange={(e) => setData(prev => ({ ...prev, lastName: e.target.value }))}
-                  placeholder="Nhập họ của bạn"
+                  placeholder="Enter your last name"
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="phone">Số điện thoại</Label>
+              <Label htmlFor="phone">Phone number</Label>
               <Input
                 id="phone"
                 value={data.phone || ''}
@@ -627,26 +731,26 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
                   if (value) {
                     validateAndSetPhone(value);
                   } else {
-                    setPhoneError('Số điện thoại là bắt buộc');
+                    setPhoneError('Phone number is required');
                   }
                 }}
-                placeholder="Nhập số điện thoại"
+                placeholder="Enter your phone number"
               />
               {phoneError && (
                 <p className="text-xs text-red-600 mt-1">{phoneError}</p>
               )}
             </div>
             <div>
-              <Label htmlFor="department">Phòng ban</Label>
+              <Label htmlFor="department">Department</Label>
               <Input
                 id="department"
                 value={data.department || ''}
                 onChange={(e) => setData(prev => ({ ...prev, department: e.target.value }))}
-                placeholder="Nhập phòng ban"
+                placeholder="Enter your department"
               />
             </div>
             <div>
-              <Label htmlFor="joinDate">Ngày tham gia</Label>
+              <Label htmlFor="joinDate">Join date</Label>
               <Input
                 id="joinDate"
                 type="date"
@@ -655,12 +759,12 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
               />
             </div>
             <div>
-              <Label htmlFor="bio">Giới thiệu</Label>
+              <Label htmlFor="bio">Bio</Label>
               <Textarea
                 id="bio"
                 value={data.bio || ''}
                 onChange={(e) => setData(prev => ({ ...prev, bio: e.target.value }))}
-                placeholder="Giới thiệu ngắn về bản thân..."
+                placeholder="A short introduction about yourself..."
                 rows={4}
               />
             </div>
@@ -681,10 +785,10 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
       <Card className="w-full max-w-4xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-gray-800">
-            Chào mừng bạn đến với hệ thống!
+            Welcome!
           </CardTitle>
           <p className="text-gray-600 mt-2">
-            Hãy hoàn thành các bước sau để cá nhân hóa trải nghiệm của bạn
+            Complete the steps below to personalize your experience
           </p>
         </CardHeader>
         
@@ -692,7 +796,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
           {/* Progress Bar */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm text-gray-600">
-              <span>Bước {currentStep + 1} / {steps.length}</span>
+              <span>Step {currentStep + 1} / {steps.length}</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <Progress value={progress} className="h-2" />
@@ -755,7 +859,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
               className="flex items-center gap-2"
             >
               <ChevronLeft className="w-4 h-4" />
-              Quay lại
+              Back
             </Button>
             
             <Button
@@ -763,7 +867,7 @@ const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
               disabled={loading || !getCurrentStepData()}
               className="flex items-center gap-2"
             >
-              {currentStep === steps.length - 1 ? 'Hoàn thành' : 'Tiếp theo'}
+              {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
               {currentStep < steps.length - 1 && <ChevronRight className="w-4 h-4" />}
             </Button>
           </div>

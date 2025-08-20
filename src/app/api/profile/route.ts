@@ -27,26 +27,63 @@ export async function GET() {
       );
     }
 
-    // Find or create user
-    const user = await prisma.user.upsert({
-      where: { clerkId: userId },
-      create: {
-        clerkId: userId,
-        email: clerkUser?.emailAddresses?.[0]?.emailAddress || "",
-        firstName: clerkUser?.firstName || "",
-        lastName: clerkUser?.lastName || "",
-        phone: "",
-        department: "",
-        bio: "",
-        skills: [],
-        roleId: "user_role_id", // Default role
-        joinDate: new Date().toLocaleDateString('vi-VN'),
-        lastLogin: new Date(),
-        status: "Hoạt động"
-      },
-      update: {
-        lastLogin: new Date()
-      },
+    // Merge by email first to avoid unique conflicts, then ensure clerkId
+    const email = clerkUser?.emailAddresses?.[0]?.emailAddress || "";
+    let user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    if (!user) {
+      const existingByEmail = email ? await prisma.user.findUnique({ where: { email } }).catch(() => null) : null;
+      if (existingByEmail) {
+        user = await prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: {
+            clerkId: userId,
+            lastLogin: new Date(),
+            email: email || existingByEmail.email,
+            firstName: existingByEmail.firstName ?? clerkUser?.firstName ?? undefined,
+            lastName: existingByEmail.lastName ?? clerkUser?.lastName ?? undefined,
+            avatar: existingByEmail.avatar ?? clerkUser?.imageUrl ?? undefined,
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } },
+            preferredJobRole: true
+          }
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            clerkId: userId,
+            email,
+            firstName: clerkUser?.firstName || "",
+            lastName: clerkUser?.lastName || "",
+            phone: "",
+            department: "",
+            bio: "",
+            skills: [],
+            roleId: "user_role_id",
+            joinDate: new Date().toLocaleDateString('vi-VN'),
+            lastLogin: new Date(),
+            status: "Hoạt động"
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } },
+            preferredJobRole: true
+          }
+        });
+      }
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() },
+        include: {
+          role: { select: { id: true, name: true, displayName: true } },
+          preferredJobRole: true
+        }
+      });
+    }
+
+    // Include relations for response
+    const finalUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         role: {
           select: {
@@ -59,11 +96,15 @@ export async function GET() {
       }
     });
 
+    if (!finalUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Add computed fullName to response
     const responseUser = {
-      ...user,
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null,
-      role: user.role?.name || 'user' // Backward compatibility
+      ...finalUser,
+      fullName: `${finalUser.firstName || ''} ${finalUser.lastName || ''}`.trim() || null,
+      role: finalUser.role?.name || 'user' // Backward compatibility
     };
 
     return NextResponse.json(responseUser);

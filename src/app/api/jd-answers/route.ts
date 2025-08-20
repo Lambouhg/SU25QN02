@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { JdAnswerService, JdAnswerData, AnalysisResult } from '@/services/jdAnswerService';
 import { UserActivityService } from '@/services/userActivityService';
+import { ActivityType } from '@prisma/client';
 
 export async function POST(request: NextRequest) {
   try {
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
     
     try {
       await UserActivityService.addActivity(userId, {
-        type: 'jd',
+        type: ActivityType.jd,
         referenceId: jdQuestionSetId,
         score: undefined, // Don't track score for JD activities
         duration: timeSpent || 0,

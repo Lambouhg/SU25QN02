@@ -154,43 +154,56 @@ export async function POST(request: Request) {
     const isNewUser = !existingUser;
     
 
-    // Sử dụng upsert để tránh race condition
-    const user = await prisma.user.upsert({
-      where: { clerkId },
-      update: {
-        email,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        avatar: avatar || undefined,
-        lastLogin: new Date()
-      },
-      create: {
-        clerkId,
-        email,
-        firstName: firstName || '',
-        lastName: lastName || '',
-        avatar: avatar || '',
-        lastLogin: new Date(),
-        roleId: 'user_role_id'
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        clerkId: true,
-        roleId: true,
-        role: {
-          select: {
-            id: true,
-            name: true,
-            displayName: true
+    // Merge by email to avoid unique constraint conflicts, then ensure clerkId
+    let user = await prisma.user.findUnique({ where: { clerkId } });
+    if (!user) {
+      const existingByEmail = await prisma.user.findUnique({ where: { email } }).catch(() => null);
+      if (existingByEmail) {
+        user = await prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: {
+            clerkId,
+            email,
+            firstName: firstName || undefined,
+            lastName: lastName || undefined,
+            avatar: avatar || undefined,
+            lastLogin: new Date()
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } }
           }
-        },
-        avatar: true,
-        lastLogin: true
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            clerkId,
+            email,
+            firstName: firstName || '',
+            lastName: lastName || '',
+            avatar: avatar || '',
+            lastLogin: new Date(),
+            roleId: 'user_role_id'
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } }
+          }
+        });
       }
-    });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          email,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          avatar: avatar || undefined,
+          lastLogin: new Date()
+        },
+        include: {
+          role: { select: { id: true, name: true, displayName: true } }
+        }
+      });
+    }
 
     // Sử dụng transaction để đảm bảo consistency khi tạo user và gói free
     const result = await prisma.$transaction(async (tx) => {
@@ -287,7 +300,7 @@ export async function POST(request: Request) {
     // Transform result for backward compatibility
     const transformedResult = {
       ...result,
-      role: (result.role as { name: string })?.name || 'user'
+      role: ((result as any)?.role?.name) || 'user'
     };
 
     return (NextResponse.json(transformedResult));
