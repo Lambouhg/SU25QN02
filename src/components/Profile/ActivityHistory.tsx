@@ -51,7 +51,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
       switch (type) {
         case "quiz":
           activityType = "Quiz";
-          description = `Completed quiz${score ? ` with ${score}% score` : ""}`;
+          description = `Completed quiz${score ? ` with ${score*10}% score` : ""}`;
           break;
         case "interview":
           activityType = "Interview";
@@ -454,7 +454,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                       <p className="font-medium text-gray-900">{activity.description}</p>
                       {activity.score && (
                         <p className="text-sm text-gray-600 mt-1">
-                          Score: <span className="font-semibold text-green-600">{activity.score}%</span>
+                          Score: <span className="font-semibold text-green-600">{activity.score*10}%</span>
                         </p>
                       )}
                       {activity.duration && (
