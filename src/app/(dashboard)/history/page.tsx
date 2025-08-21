@@ -102,18 +102,21 @@ export default function QuizHistoryPage() {
         return `${mins}m ${secs}s`
     }
 
+    // Score is now 0-10, so convert to percent for display and color
     const getScoreColor = (score: number) => {
-        if (score >= 80) return "from-green-500 to-emerald-500"
-        if (score >= 60) return "from-blue-500 to-cyan-500"
-        if (score >= 40) return "from-yellow-500 to-orange-500"
-        return "from-red-500 to-pink-500"
+        const percent = score * 10;
+        if (percent >= 80) return "from-green-500 to-emerald-500";
+        if (percent >= 60) return "from-blue-500 to-cyan-500";
+        if (percent >= 40) return "from-yellow-500 to-orange-500";
+        return "from-red-500 to-pink-500";
     }
 
     const getScoreBadgeColor = (score: number) => {
-        if (score >= 80) return "bg-green-100 text-green-800 border-green-200"
-        if (score >= 60) return "bg-blue-100 text-blue-800 border-blue-200"
-        if (score >= 40) return "bg-yellow-100 text-yellow-800 border-yellow-200"
-        return "bg-red-100 text-red-800 border-red-200"
+        const percent = score * 10;
+        if (percent >= 80) return "bg-green-100 text-green-800 border-green-200";
+        if (percent >= 60) return "bg-blue-100 text-blue-800 border-blue-200";
+        if (percent >= 40) return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-red-100 text-red-800 border-red-200";
     }
 
     // Đảm bảo quizHistory luôn là array
@@ -130,9 +133,10 @@ export default function QuizHistoryPage() {
 
     const completedQuizzes = safeQuizHistory.filter(quiz => quiz.completedAt)
     const totalQuizzes = completedQuizzes.length
+    // averageScore and highestScore are now 0-10, so convert to percent for display
     const averageScore =
-        totalQuizzes > 0 ? Math.round(completedQuizzes.reduce((sum, quiz) => sum + (quiz.score || 0), 0) / totalQuizzes) : 0
-    const highestScore = totalQuizzes > 0 ? Math.max(...completedQuizzes.map((quiz) => quiz.score || 0)) : 0
+        totalQuizzes > 0 ? Math.round(completedQuizzes.reduce((sum, quiz) => sum + (quiz.score || 0), 0) / totalQuizzes) : 0;
+    const highestScore = totalQuizzes > 0 ? Math.max(...completedQuizzes.map((quiz) => quiz.score || 0)) : 0;
 
     if (isLoading) {
         return (
@@ -191,7 +195,7 @@ export default function QuizHistoryPage() {
                                                 <TrendingUp className="w-6 h-6 text-white" />
                                             </div>
                                             <div>
-                                                <div className="text-2xl font-bold text-gray-800">{averageScore}%</div>
+                                                <div className="text-2xl font-bold text-gray-800">{averageScore}/10</div>
                                                 <div className="text-sm text-gray-600">Average Score</div>
                                             </div>
                                         </div>
@@ -205,7 +209,7 @@ export default function QuizHistoryPage() {
                                                 <Trophy className="w-6 h-6 text-white" />
                                             </div>
                                             <div>
-                                                <div className="text-2xl font-bold text-gray-800">{highestScore}%</div>
+                                                <div className="text-2xl font-bold text-gray-800">{highestScore}/10</div>
                                                 <div className="text-sm text-gray-600">Best Score</div>
                                             </div>
                                         </div>
@@ -235,8 +239,6 @@ export default function QuizHistoryPage() {
                                                 className="pl-10 pr-8 py-3 border-2 border-gray-200 focus:border-purple-500 focus:ring-purple-500/20 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg appearance-none"
                                             >
                                                 <option value="all">All Levels</option>
-                                                <option value="intern">Intern</option>
-                                                <option value="fresher">Fresher</option>
                                                 <option value="junior">Junior</option>
                                                 <option value="middle">Middle</option>
                                                 <option value="senior">Senior</option>
@@ -300,11 +302,10 @@ export default function QuizHistoryPage() {
                                                             <div className="flex items-center gap-1">
                                                                 <Target className="w-4 h-4" />
                                                                 {(() => {
-                                                                    // Tính số câu trả lời đúng từ score và totalQuestions
-                                                                    // Vì userAnswers không có isCorrect field đúng
+                                                                    // Tính số câu đúng dựa trên score (hệ số 10) và tổng số câu hỏi
                                                                     const totalQuestions = quiz.totalQuestions || 0;
                                                                     const score = quiz.score || 0;
-                                                                    const correctCount = Math.round((score / 100) * totalQuestions);
+                                                                    const correctCount = Math.round((score / 10) * totalQuestions);
                                                                     return `${correctCount}/${totalQuestions} correct`;
                                                                 })()}
                                                             </div>
@@ -313,7 +314,7 @@ export default function QuizHistoryPage() {
 
                                                     <div className="flex items-center gap-4">
                                                         <div className={`px-4 py-2 rounded-xl border-2 font-bold ${getScoreBadgeColor(quiz.score || 0)}`}> 
-                                                            {(quiz.score ?? 0)}%
+                                                            {(quiz.score ?? 0)}/10
                                                         </div>
 
                                                         <div className="flex gap-2">
@@ -468,12 +469,12 @@ export default function QuizHistoryPage() {
                                         <div>
                                             <div className="flex justify-between text-sm mb-2">
                                                 <span className="text-gray-600">Overall Progress</span>
-                                                <span className="text-green-600 font-medium">{averageScore}%</span>
+                                                <span className="text-green-600 font-medium">{averageScore}/10</span>
                                             </div>
                                             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full bg-gradient-to-r from-green-400 to-emerald-400 rounded-full animate-pulse"
-                                                    style={{ width: `${averageScore}%` }}
+                                                    style={{ width: `${averageScore * 10}%` }}
                                                 />
                                             </div>
                                         </div>
