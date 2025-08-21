@@ -18,10 +18,17 @@ export async function PATCH(
     // Check if user is admin
     const adminUser = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      select: { role: true }
+      include: {
+        role: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
+      }
     });
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!adminUser || adminUser.role?.name !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
@@ -228,10 +235,17 @@ export async function DELETE(
     // Check if user is admin
     const adminUser = await prisma.user.findUnique({
       where: { clerkId: clerkUser.id },
-      select: { role: true }
+      include: {
+        role: {
+          select: {
+            name: true,
+            displayName: true
+          }
+        }
+      }
     });
     
-    if (!adminUser || adminUser.role !== 'admin') {
+    if (!adminUser || adminUser.role?.name !== 'admin') {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 

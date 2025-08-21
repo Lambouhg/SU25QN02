@@ -172,6 +172,7 @@ interface HistoryStage {
       logic: string;
       language: string;
     };
+    isRelevant?: boolean;
   };
   topic: string;
   timestamp: string;
@@ -398,9 +399,8 @@ export default function TestPanel() {
           position: position,
           level: level,
           duration: duration,
-          category: category,
-          history: JSON.stringify([]), // Empty history initially
-          status: 'in_progress'
+          selectedCategory: category, // Sử dụng selectedCategory thay vì category
+          history: [], // Empty history array, không cần JSON.stringify
         }),
       });
 
@@ -409,6 +409,7 @@ export default function TestPanel() {
         setCurrentAssessmentId(assessmentData.id);
         console.log(`✅ Created draft assessment: ${assessmentData.id}`);
         console.log('🔵 [DEBUG] Current assessment ID set to:', assessmentData.id);
+        console.log('🔵 [DEBUG] Assessment data:', assessmentData);
       } else {
         console.error('Failed to create draft assessment:', response.status);
       }
@@ -577,11 +578,12 @@ export default function TestPanel() {
     console.log(`🔍 [DEBUG] evaluation result:`, evaluation);
     
     // Cập nhật điểm real-time (chuyển từ thang 0-10 sang 0-100)
-    if (evaluation && evaluation.scores) {
+    // Chỉ cập nhật nếu câu trả lời liên quan; tránh ghi đè điểm bằng 0 khi user trả lời lạc đề
+    if (evaluation && evaluation.scores && evaluation.isRelevant !== false) {
       setRealTimeScores({
-        fundamental: evaluation.scores.fundamental * 10,
-        logic: evaluation.scores.logic * 10,
-        language: evaluation.scores.language * 10,
+        fundamental: Math.max(0, Math.min(100, Math.round((evaluation.scores.fundamental || 0) * 10))),
+        logic: Math.max(0, Math.min(100, Math.round((evaluation.scores.logic || 0) * 10))),
+        language: Math.max(0, Math.min(100, Math.round((evaluation.scores.language || 0) * 10))),
         suggestions: evaluation.suggestions || realTimeScores.suggestions
       });
     }
@@ -594,6 +596,7 @@ export default function TestPanel() {
       );
       addMessageToConversation(setConversation, friendlyReminder);
       setLastFeedback("Let's try to answer the question above as clearly as you can!");
+      // Không cập nhật real-time scores khi câu trả lời không liên quan
       return;
     }
     // Lưu vào history với số thứ tự câu hỏi
@@ -720,6 +723,61 @@ export default function TestPanel() {
     await endInterview(setInterviewState, setInterviewing, setConversation);
   };
 
+  // Hàm tính điểm trung bình cho 3 tiêu chí
+  const calculateFinalScores = React.useCallback((): EvaluationScores => {
+    if (history.length === 0) {
+      return {
+        fundamentalKnowledge: 0,
+        logicalReasoning: 0,
+        languageFluency: 0,
+        overall: 0
+      };
+    }
+  
+    // Lọc ra các stage có đánh giá hợp lệ
+    const validStages = history.filter(stage => 
+      stage.evaluation?.scores && 
+      typeof stage.evaluation.scores.fundamental === 'number' &&
+      typeof stage.evaluation.scores.logic === 'number' &&
+      typeof stage.evaluation.scores.language === 'number'
+    );
+  
+    if (validStages.length === 0) {
+      return {
+        fundamentalKnowledge: 0,
+        logicalReasoning: 0,
+        languageFluency: 0,
+        overall: 0
+      };
+    }
+  
+    // Tính tổng điểm cho từng tiêu chí
+    const totalScores = validStages.reduce((acc, stage) => ({
+      fundamentalKnowledge: acc.fundamentalKnowledge + stage.evaluation.scores.fundamental,
+      logicalReasoning: acc.logicalReasoning + stage.evaluation.scores.logic,
+      languageFluency: acc.languageFluency + stage.evaluation.scores.language
+    }), {
+      fundamentalKnowledge: 0,
+      logicalReasoning: 0,
+      languageFluency: 0
+    });
+  
+    // Tính điểm trung bình
+    const averageScores = {
+      fundamentalKnowledge: totalScores.fundamentalKnowledge / validStages.length,
+      logicalReasoning: totalScores.logicalReasoning / validStages.length,
+      languageFluency: totalScores.languageFluency / validStages.length
+    };
+  
+    // Tính điểm tổng thể
+    return {
+      ...averageScores,
+      overall: (averageScores.fundamentalKnowledge + averageScores.logicalReasoning + averageScores.languageFluency) / 3
+    };
+  }, [history]);
+  
+  // (Removed duplicate calculateFinalScores function)
+  
   const endInterview = useCallback(async (
     setInterviewState: React.Dispatch<React.SetStateAction<InterviewState>>,
     setInterviewing: React.Dispatch<React.SetStateAction<boolean>>,
@@ -729,6 +787,10 @@ export default function TestPanel() {
       ...prev,
       phase: 'completed'
     }));
+    console.log('🔵 [DEBUG] handleEndInterview called');
+    console.log('🔵 [DEBUG] currentAssessmentId:', currentAssessmentId);
+    console.log('🔵 [DEBUG] history length:', history.length);
+    
     const endingMessage = createMessage(
       'ai',
       'Thank you for participating in the interview. We will summarize the results now.'
@@ -736,26 +798,35 @@ export default function TestPanel() {
     addMessageToConversation(setConversation, endingMessage);
     setInterviewing(false);
     setShowResult(true);
-
+  
     // Tính tổng thời gian làm bài (làm tròn lên phút)
     let totalTime = null;
     if (interviewStartTime) {
       const diffMs = Date.now() - interviewStartTime;
       totalTime = Math.ceil(diffMs / 60000); // làm tròn lên phút
     }
-
+  
     // ✨ UPDATED: Cập nhật assessment hiện tại thay vì tạo mới
     try {
       if (currentAssessmentId) {
+        // Tính finalScores với trường overall
+        const finalScores = calculateFinalScores();
+        
         // PATCH để hoàn thành assessment
         await fetch(`/api/assessment/${currentAssessmentId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             realTimeScores,
+            finalScores: {
+              fundamental: finalScores.fundamentalKnowledge,
+              logic: finalScores.logicalReasoning,
+              language: finalScores.languageFluency,
+              overall: finalScores.overall
+            },
             totalTime,
-            isComplete: true, // Đánh dấu hoàn thành
-            status: 'completed'
+            status: 'completed', // ✅ Sử dụng status thay vì isComplete
+            isComplete: true // Giữ lại để backward compatibility
           })
         });
         console.log(`✅ Interview completed and saved for assessment: ${currentAssessmentId}`);
@@ -779,8 +850,8 @@ export default function TestPanel() {
     } catch (error) {
       console.error('Error saving interview result:', error);
     }
-  }, [duration, position, level, history, realTimeScores, interviewStartTime, currentAssessmentId]);
-
+  }, [duration, position, level, history, realTimeScores, interviewStartTime, currentAssessmentId, calculateFinalScores]);
+  
   // Hàm luyện tập lại
   const handleReset = () => {
     setShowResult(false);
@@ -799,59 +870,6 @@ export default function TestPanel() {
     setReviewCountdown(0); // Reset countdown
   };
 
-  // Hàm tính điểm trung bình cho 3 tiêu chí
-  const calculateFinalScores = (): EvaluationScores => {
-    if (history.length === 0) {
-      return {
-        fundamentalKnowledge: 0,
-        logicalReasoning: 0,
-        languageFluency: 0,
-        overall: 0
-      };
-    }
-
-    // Lọc ra các stage có đánh giá hợp lệ
-    const validStages = history.filter(stage => 
-      stage.evaluation?.scores && 
-      typeof stage.evaluation.scores.fundamental === 'number' &&
-      typeof stage.evaluation.scores.logic === 'number' &&
-      typeof stage.evaluation.scores.language === 'number'
-    );
-
-    if (validStages.length === 0) {
-      return {
-        fundamentalKnowledge: 0,
-        logicalReasoning: 0,
-        languageFluency: 0,
-        overall: 0
-      };
-    }
-
-    // Tính tổng điểm cho từng tiêu chí
-    const totalScores = validStages.reduce((acc, stage) => ({
-      fundamentalKnowledge: acc.fundamentalKnowledge + stage.evaluation.scores.fundamental,
-      logicalReasoning: acc.logicalReasoning + stage.evaluation.scores.logic,
-      languageFluency: acc.languageFluency + stage.evaluation.scores.language
-    }), {
-      fundamentalKnowledge: 0,
-      logicalReasoning: 0,
-      languageFluency: 0
-    });
-
-    // Tính điểm trung bình
-    const averageScores = {
-      fundamentalKnowledge: totalScores.fundamentalKnowledge / validStages.length,
-      logicalReasoning: totalScores.logicalReasoning / validStages.length,
-      languageFluency: totalScores.languageFluency / validStages.length
-    };
-
-    // Tính điểm tổng thể
-    return {
-      ...averageScores,
-      overall: (averageScores.fundamentalKnowledge + averageScores.logicalReasoning + averageScores.languageFluency) / 3
-    };
-  };
-
   const addMessageToConversation = (
     setConversation: React.Dispatch<React.SetStateAction<ConversationMessage[]>>,
     message: ConversationMessage
@@ -863,9 +881,7 @@ export default function TestPanel() {
   const addHistoryStage = async (stage: HistoryStage) => {
     console.log('🔵 [DEBUG] addHistoryStage called with:', stage);
     setHistory(prev => [...prev, stage]);
-
-    // ✨ NEW: Lưu real-time vào database nếu có assessment ID
-    if (currentAssessmentId) {
+    if (currentAssessmentId && (!stage.evaluation || stage.evaluation.isRelevant !== false)) {
       console.log('🔵 [DEBUG] Saving real-time to assessment:', currentAssessmentId);
       try {
         const response = await fetch(`/api/assessment/${currentAssessmentId}`, {
@@ -935,31 +951,64 @@ export default function TestPanel() {
 
   // Callback nhận thời gian còn lại từ InterviewScreen/InterviewChat
   const handleEndInterviewWithTime = (minutesLeft: number) => {
-    setRemainingTime(minutesLeft);
-    const totalTime = Math.ceil(duration - minutesLeft);
-    // Lưu kết quả
-    try {
+  setRemainingTime(minutesLeft);
+  const totalTime = Math.ceil(duration - minutesLeft);
+
+  // Tính finalScores với trường overall
+  const finalScores = calculateFinalScores();
+
+  try {
+    if (currentAssessmentId) {
+      // Cập nhật assessment hiện tại
+      fetch(`/api/assessment/${currentAssessmentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          realTimeScores,
+          finalScores: {
+            fundamental: finalScores.fundamentalKnowledge,
+            logic: finalScores.logicalReasoning,
+            language: finalScores.languageFluency,
+            overall: finalScores.overall
+          },
+          totalTime,
+          status: 'completed',
+          isComplete: true
+        })
+      }).catch(error => {
+        console.error('[DEBUG] API error updating assessment:', error);
+      });
+    } else {
+      // Fallback: Tạo assessment mới nếu không có ID
       fetch('/api/assessment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'test', // Thêm trường type
+          type: 'test',
           duration,
           position,
           level,
-          history, // history đã chứa đầy đủ thông tin để review
+          history,
           realTimeScores,
+          finalScores: {
+            fundamental: finalScores.fundamentalKnowledge,
+            logic: finalScores.logicalReasoning,
+            language: finalScores.languageFluency,
+            overall: finalScores.overall
+          },
           totalTime,
+          status: 'completed',
         })
       }).catch(error => {
-        console.error('[DEBUG] API error from handleEndInterviewWithTime:', error);
+        console.error('[DEBUG] API error creating new assessment:', error);
       });
-    } catch (error) {
-      console.error('Error saving interview result:', error);
     }
-    setShowResult(true);
-    setInterviewing(false);
-  };
+  } catch (error) {
+    console.error('Error saving interview result:', error);
+  }
+  setShowResult(true);
+  setInterviewing(false);
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
@@ -982,7 +1031,7 @@ export default function TestPanel() {
                 onReset={handleReset}
               />
             ) : !interviewing ? (
-              <div className="bg-slate-50/80 rounded-2xl shadow-lg border border-slate-300/40 overflow-hidden">
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow border border-slate-200 overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
                   <h1 className="text-2xl font-bold text-white mb-2">Test Mode - Interview Practice</h1>
                   <p className="text-blue-100">Choose your settings and start practicing for your dream job</p>
@@ -1098,7 +1147,7 @@ export default function TestPanel() {
         {!interviewing && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Evaluation Criteria Card - Enhanced */}
-          <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+          <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
             <CardHeader className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6">
               <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
@@ -1146,7 +1195,7 @@ export default function TestPanel() {
           </Card>
           
           {/* Why Practice Card - Enhanced */}
-          <Card className="bg-white shadow-xl border-0 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+          <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
             <CardHeader className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-6">
               <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">

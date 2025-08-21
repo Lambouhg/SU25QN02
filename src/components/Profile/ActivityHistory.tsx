@@ -35,25 +35,23 @@ function ActivityHistory({ }: ActivityHistoryProps) {
   const itemsPerPage = 10;
 
   const fetchActivityHistory = useCallback(async () => {
-    // Prevent multiple calls
     if (hasFetchedRef.current) {
       return;
     }
-    
-    console.log('🔄 Fetching activity history...'); // Debug log
+
     // Helper function to parse activity details
     const parseActivityDetails = (activity: Record<string, unknown>) => {
       const type = activity.type as string;
       const score = activity.score as number;
       const duration = activity.duration as number;
-      
+
       let activityType = "Activity";
       let description = "User activity";
-      
+
       switch (type) {
         case "quiz":
           activityType = "Quiz";
-          description = `Completed quiz${score ? ` with ${score}% score` : ""}`;
+          description = `Completed quiz${score ? ` with ${score*10}% score` : ""}`;
           break;
         case "interview":
           activityType = "Interview";
@@ -79,7 +77,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
           }
           break;
       }
-      
+
       return {
         type: activityType,
         description,
@@ -91,20 +89,17 @@ function ActivityHistory({ }: ActivityHistoryProps) {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Fetch from API
+
       const response = await fetch("/api/tracking");
-      
+
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
-      // Transform the data to match our ActivityData interface
+
       const transformedActivities: ActivityData[] = [];
-      
-      // Add activities from the API response
+
       if (data.activities && Array.isArray(data.activities)) {
         data.activities.forEach((activity: Record<string, unknown>, index: number) => {
           const activityDetails = parseActivityDetails(activity);
@@ -119,8 +114,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
           });
         });
       }
-      
-      // Add recent activities if available
+
       if (data.recentActivities && Array.isArray(data.recentActivities)) {
         data.recentActivities.forEach((activity: Record<string, unknown>, index: number) => {
           const activityDetails = parseActivityDetails(activity);
@@ -135,10 +129,8 @@ function ActivityHistory({ }: ActivityHistoryProps) {
           });
         });
       }
-      
-      // Handle different data structures from API
+
       if (data.stats && typeof data.stats === 'object') {
-        // If we have stats but no activities, create activity entries from stats
         const stats = data.stats as Record<string, unknown>;
         if (stats.totalInterviews && Number(stats.totalInterviews) > 0) {
           transformedActivities.push({
@@ -150,7 +142,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
             details: stats
           });
         }
-        
+
         if (stats.totalStudyTime && Number(stats.totalStudyTime) > 0) {
           transformedActivities.push({
             id: 'stats-study',
@@ -162,21 +154,19 @@ function ActivityHistory({ }: ActivityHistoryProps) {
           });
         }
       }
-      
-      // Sort by timestamp (newest first)
-      transformedActivities.sort((a, b) => 
+
+      transformedActivities.sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
-      
+
       setActivities(transformedActivities);
-      
-    } catch (error) {
-      console.error("Error fetching activity history:", error);
-      setError("Không thể tải lịch sử hoạt động. Vui lòng thử lại sau.");
+
+    } catch {
+      setError("Unable to load activity history. Please try again later.");
       setActivities([]);
     } finally {
       setIsLoading(false);
-      hasFetchedRef.current = true; // Mark as fetched
+      hasFetchedRef.current = true;
     }
   }, []);
 
@@ -184,7 +174,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
     if (!hasFetchedRef.current) {
       fetchActivityHistory();
     }
-  }, [fetchActivityHistory]); // Include fetchActivityHistory in dependency array
+  }, [fetchActivityHistory]);
 
   const getActivityIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -225,28 +215,25 @@ function ActivityHistory({ }: ActivityHistoryProps) {
       const date = new Date(timestamp);
       const now = new Date();
       const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-      
+
       if (diffInHours < 1) {
-        return "Vừa xong";
+        return "Just now";
       } else if (diffInHours < 24) {
-        return `${diffInHours} giờ trước`;
+        return `${diffInHours} hours ago`;
       } else {
         const diffInDays = Math.floor(diffInHours / 24);
-        return `${diffInDays} ngày trước`;
+        return `${diffInDays} days ago`;
       }
     } catch {
       return "Unknown time";
     }
   };
 
-  // Filter and sort activities
   const filteredAndSortedActivities = activities
     .filter(activity => {
-      // Filter by search term
       if (searchTerm && !activity.description.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
-      // Filter by type
       if (filterType !== "all" && activity.type.toLowerCase() !== filterType.toLowerCase()) {
         return false;
       }
@@ -267,7 +254,6 @@ function ActivityHistory({ }: ActivityHistoryProps) {
       }
     });
 
-  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterType, sortBy]);
@@ -278,14 +264,14 @@ function ActivityHistory({ }: ActivityHistoryProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            Lịch sử hoạt động
+            Activity History
           </CardTitle>
-          <CardDescription>Theo dõi tất cả hoạt động gần đây của bạn</CardDescription>
+          <CardDescription>Track all your recent activities</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Đang tải...</span>
+            <span className="ml-2 text-gray-600">Loading...</span>
           </div>
         </CardContent>
       </Card>
@@ -298,15 +284,15 @@ function ActivityHistory({ }: ActivityHistoryProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            Lịch sử hoạt động
+            Activity History
           </CardTitle>
-          <CardDescription>Theo dõi tất cả hoạt động gần đây của bạn</CardDescription>
+          <CardDescription>Track all your recent activities</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={fetchActivityHistory} variant="outline">
-              Thử lại
+              Retry
             </Button>
           </div>
         </CardContent>
@@ -324,9 +310,9 @@ function ActivityHistory({ }: ActivityHistoryProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Activity className="w-5 h-5" />
-          Lịch sử hoạt động
+          Activity History
         </CardTitle>
-        <CardDescription>Theo dõi tất cả hoạt động gần đây của bạn</CardDescription>
+        <CardDescription>Track all your recent activities</CardDescription>
       </CardHeader>
       <CardContent>
         {/* Controls */}
@@ -337,7 +323,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  placeholder="Tìm kiếm hoạt động..."
+                  placeholder="Search activities..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -347,10 +333,10 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                 <Select value={filterType} onValueChange={setFilterType}>
                   <SelectTrigger className="w-40">
                     <Filter className="w-4 h-4 mr-2" />
-                    <SelectValue placeholder="Lọc theo loại" />
+                    <SelectValue placeholder="Filter by type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Tất cả</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="quiz">Quiz</SelectItem>
                     <SelectItem value="interview">Interview</SelectItem>
                     <SelectItem value="study">Study</SelectItem>
@@ -360,13 +346,13 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                 </Select>
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-40">
-                    <SelectValue placeholder="Sắp xếp" />
+                    <SelectValue placeholder="Sort" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">Mới nhất</SelectItem>
-                    <SelectItem value="oldest">Cũ nhất</SelectItem>
-                    <SelectItem value="score">Điểm cao nhất</SelectItem>
-                    <SelectItem value="type">Theo loại</SelectItem>
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="oldest">Oldest</SelectItem>
+                    <SelectItem value="score">Highest Score</SelectItem>
+                    <SelectItem value="type">By Type</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -375,8 +361,8 @@ function ActivityHistory({ }: ActivityHistoryProps) {
             {/* Results Summary */}
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>
-                Hiển thị {filteredAndSortedActivities.length} / {activities.length} hoạt động
-                {searchTerm && ` với từ khóa "${searchTerm}"`}
+                Showing {filteredAndSortedActivities.length} / {activities.length} activities
+                {searchTerm && ` with keyword "${searchTerm}"`}
                 {filterType !== "all" && ` - ${filterType}`}
               </span>
               <Button
@@ -386,7 +372,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                 className="text-gray-600"
               >
                 {showSummary ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                {showSummary ? "Ẩn thống kê" : "Hiện thống kê"}
+                {showSummary ? "Hide summary" : "Show summary"}
               </Button>
             </div>
           </div>
@@ -423,24 +409,24 @@ function ActivityHistory({ }: ActivityHistoryProps) {
             </div>
           </div>
         )}
-        
+
         <div className="space-y-4">
           {filteredAndSortedActivities.length === 0 ? (
             <div className="text-center py-8">
               {activities.length === 0 ? (
                 <>
                   <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Chưa có hoạt động nào</p>
-                  <p className="text-sm text-gray-500">Bắt đầu sử dụng hệ thống để xem lịch sử hoạt động của bạn</p>
+                  <p className="text-gray-600 mb-2">No activities yet</p>
+                  <p className="text-sm text-gray-500">Start using the system to see your activity history</p>
                 </>
               ) : (
                 <>
                   <Search className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600 mb-2">Không tìm thấy hoạt động nào</p>
-                  <p className="text-sm text-gray-500">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <p className="text-gray-600 mb-2">No activities found</p>
+                  <p className="text-sm text-gray-500">Try changing the filters or search keywords</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="mt-4"
                     onClick={() => {
                       setSearchTerm("");
@@ -448,7 +434,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                       setSortBy("newest");
                     }}
                   >
-                    Xóa bộ lọc
+                    Clear filters
                   </Button>
                 </>
               )}
@@ -457,7 +443,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
             paginatedActivities.map((activity, index) => {
               const IconComponent = getActivityIcon(activity.type);
               const colorClasses = getActivityColor(activity.type);
-              
+
               return (
                 <div key={activity.id}>
                   <div className="flex items-start gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors">
@@ -468,12 +454,12 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                       <p className="font-medium text-gray-900">{activity.description}</p>
                       {activity.score && (
                         <p className="text-sm text-gray-600 mt-1">
-                          Điểm số: <span className="font-semibold text-green-600">{activity.score}%</span>
+                          Score: <span className="font-semibold text-green-600">{activity.score*10}%</span>
                         </p>
                       )}
                       {activity.duration && (
                         <p className="text-sm text-gray-600 mt-1">
-                          Thời gian: <span className="font-semibold text-blue-600">{activity.duration} phút</span>
+                          Duration: <span className="font-semibold text-blue-600">{activity.duration} minutes</span>
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-2">
@@ -493,7 +479,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
         {filteredAndSortedActivities.length > itemsPerPage && (
           <div className="flex items-center justify-between mt-6 pt-4 border-t">
             <p className="text-sm text-gray-600">
-              Hiển thị {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredAndSortedActivities.length)} của {filteredAndSortedActivities.length} hoạt động
+              Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredAndSortedActivities.length)} of {filteredAndSortedActivities.length} activities
             </p>
             <div className="flex gap-2">
               <Button
@@ -502,7 +488,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
               >
-                Trước
+                Previous
               </Button>
               <Button
                 variant="outline"
@@ -510,7 +496,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                 onClick={() => setCurrentPage(prev => prev + 1)}
                 disabled={currentPage * itemsPerPage >= filteredAndSortedActivities.length}
               >
-                Sau
+                Next
               </Button>
             </div>
           </div>
@@ -521,6 +507,5 @@ function ActivityHistory({ }: ActivityHistoryProps) {
 }
 
 export default memo(ActivityHistory, (prevProps, nextProps) => {
-  // Only re-render if userId changes
   return prevProps.userId === nextProps.userId;
 });

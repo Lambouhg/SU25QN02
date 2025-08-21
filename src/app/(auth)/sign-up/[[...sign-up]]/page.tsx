@@ -28,8 +28,11 @@ export default function SignUpPage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+      <div className="min-h-dvh h-dvh flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+        <div className="relative">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-r-purple-300 rounded-full animate-spin animate-reverse"></div>
+        </div>
       </div>
     );
   }
@@ -159,6 +162,7 @@ export default function SignUpPage() {
       setIsLoading(false);
     }
   };
+
   const handleSignInWithGoogle = async () => {
     setIsLoading(true);
     try {
@@ -179,202 +183,269 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
-      <div id="clerk-captcha" />
-      
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          {pendingVerification ? "Check your email" : "Create your account"}
-        </h2>
-        {pendingVerification && (
-          <p className="mt-2 text-center text-sm text-gray-600">
-            We have sent a verification code to {email}
-          </p>
-        )}
+    <div className="min-h-dvh h-dvh flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-400/20 via-purple-400/20 to-indigo-400/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-gradient-to-tl from-indigo-400/20 via-blue-400/20 to-purple-400/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          {errorMessage && (
-            <div className="mb-4 p-3 rounded bg-red-50 border border-red-200">
-              <p className="text-sm text-red-600">{errorMessage}</p>
-            </div>
-          )}
+      <div className="relative w-full max-w-7xl grid grid-cols-1 lg:grid-cols-5 rounded-3xl overflow-hidden shadow-2xl bg-white/80 backdrop-blur-xl border border-white/50 h-full">
+        {/* Left hero panel */}
+        <div className="hidden lg:flex lg:col-span-3 h-full relative items-center justify-center p-12 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white">
+          {/* Animated background pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-10 left-10 w-32 h-32 bg-white/20 rounded-full blur-2xl animate-pulse"></div>
+            <div className="absolute bottom-20 right-20 w-40 h-40 bg-blue-300/20 rounded-full blur-2xl animate-pulse delay-700"></div>
+            <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-purple-300/20 rounded-full blur-xl animate-pulse delay-1000"></div>
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent bg-grid-pattern"></div>
 
-          <button
-            onClick={handleSignInWithGoogle}
-            type="button"
-            className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 mb-6"
-          >
-            <Image src="/google.svg" alt="Google logo" width={20} height={20} />
-            Continue with Google
-          </button>
-
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+          <div className="relative z-10 max-w-lg space-y-8">
+            <div className="space-y-4">
+              <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
+                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
+                <span className="text-sm text-blue-100">F.AI Interview</span>
+              </div>
+              <h1 className="text-4xl font-bold leading-tight bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                Start your AI interview journey
+              </h1>
+              <p className="text-lg text-slate-300 leading-relaxed">
+                Create your account to practice AI interviews, analyze JDs, take quizzes, and track your progress with detailed reports.
+              </p>
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Or</span>
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-white font-medium">AI Interviews</h3>
+                  <p className="text-slate-400 text-sm">Realistic practice with AI-generated questions</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h12M3 17h8" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-white font-medium">JD Analyzer</h3>
+                  <p className="text-slate-400 text-sm">Generate interview sets from your job description</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
+                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-white font-medium">Quizzes & Tracking</h3>
+                  <p className="text-slate-400 text-sm">Practice quizzes and track your progress</p>
+                </div>
+              </div>
             </div>
           </div>
+        </div>
 
-          {!pendingVerification ? (
-            // Form đăng ký
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                    First Name
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="firstName"
-                      name="firstName"
-                      type="text"
-                      autoComplete="given-name"
-                      required
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                    Last Name
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="lastName"
-                      name="lastName"
-                      type="text"
-                      autoComplete="family-name"
-                      required
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Email address
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    minLength={8}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? "Creating account..." : "Sign up"}
-                </button>
-              </div>
-            </form>
-          ) : (
-            // Form xác thực email
-            <form className="space-y-6" onSubmit={verifyEmail}>
-              <div>
-                <label htmlFor="code" className="block text-sm font-medium text-gray-700">
-                  Verification code
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="code"
-                    name="code"
-                    type="text"
-                    required
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Enter the 6-digit code"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? "Verifying..." : "Verify Email"}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {pendingVerification && (
-            <div className="text-center">
-              <p className="text-sm text-gray-500 mt-4">
-                Did not receive the code? Check your spam folder or try signing up again.
-              </p>
-              <button
-                onClick={() => setPendingVerification(false)}
-                className="mt-2 text-sm text-blue-600 hover:text-blue-500"
-              >
-                Try again with a different email
-              </button>
+        {/* Right form panel */}
+        <div className="p-6 sm:p-8 lg:col-span-2 h-full overflow-auto flex flex-col justify-center">
+          <div className="w-full max-w-md mx-auto">
+            <div className="mb-6 text-center lg:text-left">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {pendingVerification ? "Check your email" : "Create your F.AI Interview account"}
+              </h2>
+              {pendingVerification && (
+                <p className="mt-1 text-sm text-gray-600">
+                  We have sent a verification code to {email}
+                </p>
+              )}
             </div>
-          )}
 
-          {!pendingVerification && (
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Already have an account?</span>
-                </div>
+            {errorMessage && (
+              <div className="mb-5 p-4 rounded-xl bg-red-50 border border-red-100">
+                <p className="text-sm text-red-700">{errorMessage}</p>
               </div>
+            )}
 
+            {!pendingVerification ? (
+              <>
+                <button
+                  onClick={handleSignInWithGoogle}
+                  type="button"
+                  className="group relative w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl shadow-lg bg-white hover:bg-gray-50 border border-gray-200 text-sm font-medium text-gray-700 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none mb-6"
+                >
+                  <Image src="/google.svg" alt="Google logo" width={20} height={20} />
+                  Continue with Google
+                </button>
+
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-gray-500">or</span>
+                  </div>
+                </div>
+
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                        First Name
+                      </label>
+                      <div className="mt-1">
+                        <input
+                          id="firstName"
+                          name="firstName"
+                          type="text"
+                          autoComplete="given-name"
+                          required
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          className="block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white sm:text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                        Last Name
+                      </label>
+                      <div className="mt-1">
+                        <input
+                          id="lastName"
+                          name="lastName"
+                          type="text"
+                          autoComplete="family-name"
+                          required
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          className="block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white sm:text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                      Email address
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white sm:text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                      Password
+                    </label>
+                    <div className="mt-1">
+                      <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white sm:text-sm"
+                        minLength={8}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="group relative w-full flex justify-center py-3 px-4 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:transform-none"
+                  >
+                    {isLoading ? "Creating account..." : (
+                      <span className="flex items-center">
+                        Sign up
+                        <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </span>
+                    )}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <form className="space-y-5" onSubmit={verifyEmail}>
+                <div className="space-y-2">
+                  <label htmlFor="code" className="block text-sm font-medium text-gray-700">
+                    Verification code
+                  </label>
+                  <div className="mt-1">
+                    <input
+                      id="code"
+                      name="code"
+                      type="text"
+                      required
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      className="block w-full px-3 py-3 border border-gray-300 rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-gray-50 focus:bg-white sm:text-sm"
+                      placeholder="Enter the 6-digit code"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="group relative w-full flex justify-center py-3 px-4 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:transform-none"
+                >
+                  {isLoading ? "Verifying..." : (
+                    <span className="flex items-center">
+                      Verify Email
+                      <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </span>
+                  )}
+                </button>
+              </form>
+            )}
+
+            {!pendingVerification && (
               <div className="mt-6">
-                <Link
-                  href="/sign-in"
-                  className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                >
-                  Sign in
-                </Link>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-gray-500">Already have an account?</span>
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <Link
+                    href="/sign-in"
+                    className="group w-full inline-flex justify-center items-center py-3 px-4 rounded-xl shadow-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-sm font-medium text-gray-700 transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5"
+                  >
+                    Sign in
+                    <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

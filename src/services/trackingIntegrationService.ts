@@ -43,7 +43,7 @@ export class TrackingIntegrationService {
     timeSpent: number
   ) {
     try {
-      const score = (correctAnswers / questions.length) * 100;
+  const score = Math.round((correctAnswers / questions.length) * 10);
       
       // Tạo activity mới
       const activity: Activity = {
@@ -93,9 +93,11 @@ export class TrackingIntegrationService {
   ) {
     try {
       // Tạo activity mới
+      // Nếu score quiz đang ở hệ số 100 thì chuyển về hệ số 10
+      const normalizedScore = quizData.score > 10 ? Math.round(quizData.score / 10) : quizData.score;
       const activity: Activity = {
         type: 'quiz' as ActivityType,
-        score: quizData.score,
+        score: normalizedScore,
         duration: Math.max(1, Math.round(quizData.timeUsed / 60)), // Chuyển từ seconds sang minutes
         timestamp: this.formatDate(new Date())
       };

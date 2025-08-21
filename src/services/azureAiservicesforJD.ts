@@ -331,7 +331,7 @@ export const getAIResponse = async (
     // Lấy prompt dựa trên options
     const questionType = options.questionType || 'technical';
     const level = options.level || 'junior';
-    const language = options.language || 'vi';
+    const language = options.language || 'en';
     
     const systemPrompt = systemPrompts[questionType][language][level];
 

@@ -97,7 +97,7 @@ export default function QuizPanel({
   useEffect(() => {
     // Nếu có initialQuiz (từ retry API), sử dụng nó
     if (initialQuiz) {
-      console.log('Using initialQuiz from retry API:', initialQuiz);
+
       setQuiz(initialQuiz);
       setIsInitialized(true);
       
@@ -218,7 +218,7 @@ export default function QuizPanel({
 
         {!loading && step === 'config' && (
           <>
-            {console.log('Rendering QuizStart - step:', step, 'loading:', loading, 'quiz:', !!quiz, 'isInitialized:', isInitialized)}
+            {}
             <QuizStart
               config={quizConfig}
               onChange={setQuizConfig}

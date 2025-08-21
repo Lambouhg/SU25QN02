@@ -1,10 +1,72 @@
+"use client"
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, CircularProgress, IconButton, Tooltip } from '@mui/material';
-import MicIcon from '@mui/icons-material/Mic';
-import MicOffIcon from '@mui/icons-material/MicOff';
-
-import { StopCircle, VolumeX } from 'lucide-react';
+import { VolumeX, Mic, VideoIcon, Phone, MessageSquare, Settings } from 'lucide-react';
 import { useAzureVoiceInteraction } from '@/hooks/useAzureVoiceInteraction';
+
+// UI Components
+interface ButtonProps {
+  children: React.ReactNode;
+  variant?: "default" | "ghost" | "outline" | "danger";
+  size?: "default" | "sm" | "lg" | "icon";
+  className?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  title?: string;
+}
+
+const Button: React.FC<ButtonProps> = ({ children, variant = "default", size = "default", className = "", onClick, disabled, ...props }) => {
+  const baseStyles =
+    "inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none"
+
+  const variants = {
+    default: "bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500",
+    ghost: "hover:bg-gray-100 hover:text-gray-900",
+    outline: "border border-gray-300 bg-transparent hover:bg-gray-50",
+    danger: "bg-red-500 text-white hover:bg-red-600 focus:ring-red-500",
+  }
+
+  const sizes = {
+    default: "h-10 py-2 px-4",
+    sm: "h-8 px-3 text-sm",
+    lg: "h-12 px-8",
+    icon: "w-12 h-12 p-0 rounded-full",
+  }
+
+  return (
+    <button 
+      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`} 
+      onClick={onClick} 
+      disabled={disabled}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: "default" | "outline" | "secondary" | "success" | "warning";
+  className?: string;
+}
+
+const Badge: React.FC<BadgeProps> = ({ children, variant = "default", className = "" }) => {
+  const variants = {
+    default: "bg-gray-100 text-gray-800",
+    outline: "border border-gray-300 bg-transparent",
+    secondary: "bg-gray-800 text-white",
+    success: "bg-emerald-400 text-white",
+    warning: "bg-yellow-400 text-white",
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${variants[variant]} ${className}`}
+    >
+      {children}
+    </span>
+  )
+}
 
 interface VideoPlayerProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -136,233 +198,154 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [isAvatarTalking, isInterrupting, sessionState, SessionState.CONNECTED, onInterruptAvatar, handleInterruptSpeech]);
 
   return (
-    <Box sx={{ position: 'relative', width: '100%', height: '80vh', minHeight: '500px' }}>
-      {sessionState === SessionState.INACTIVE ? (
-        <Box
-          sx={{
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#000',
-            color: 'white',
-          }}
-        >
-          <Typography variant="h6">
-            Avatar {avatarId} ready to start
-          </Typography>
-        </Box>
-      ) : (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            backgroundColor: '#000'
-          }}
-        />
-      )}
-
-      {/* Controls Overlay */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          padding: '8px 16px',
-          borderRadius: '20px'
-        }}
-      >
-        {/* Timer and Connection Quality */}
-        {elapsedTime && sessionState === SessionState.CONNECTED && (
-          <>
-            <Typography variant="body2" sx={{ color: 'white', fontWeight: 'bold' }}>
-              {elapsedTime}
-            </Typography>
-            <Box sx={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
-          </>
-        )}
-        
-        {/* Connection Quality - Always show when connected */}
-        {sessionState === SessionState.CONNECTED && connectionQuality !== 'UNKNOWN' && (
-          <Typography variant="body2" sx={{ color: 'white' }}>
-            {connectionQuality}
-          </Typography>
-        )}
-
-        {/* Stop Speaking Button - Show when avatar is talking */}
-        {isAvatarTalking && sessionState === SessionState.CONNECTED && onInterruptAvatar && (
-          <>
-            <Box sx={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleInterruptSpeech}
-              disabled={isInterrupting}
-              startIcon={isInterrupting ? <CircularProgress size={12} color="inherit" /> : <VolumeX />}
-              title="Click or press ESC to stop avatar speaking"
-              sx={{
-                borderColor: 'rgba(255,255,255,0.5)',
-                color: 'white',
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontSize: '12px',
-                minWidth: '90px',
-                '&:hover': {
-                  borderColor: 'white',
-                  backgroundColor: 'rgba(255,255,255,0.1)'
-                }
-              }}
-            >
-              {isInterrupting ? 'Stopping...' : 'Stop'}
-            </Button>
-          </>
-        )}
-
-        {/* Alternative: Always show button for testing */}
-        {sessionState === SessionState.CONNECTED && onInterruptAvatar && !isAvatarTalking && (
-          <>
-            <Box sx={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.3)' }} />
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleInterruptSpeech}
-              disabled={!isAvatarTalking || isInterrupting}
-              startIcon={<VolumeX />}
-              title="Avatar is not speaking"
-              sx={{
-                borderColor: 'rgba(255,255,255,0.3)',
-                color: 'rgba(255,255,255,0.5)',
-                borderRadius: '12px',
-                textTransform: 'none',
-                fontSize: '12px',
-                minWidth: '90px'
-              }}
-            >
-              Stop (disabled)
-            </Button>
-          </>
-        )}
-        
-      </Box>
-
-      {/* Avatar Name, Status, VoiceInteraction, End Session */}
-      <Box
-        sx={{
-          position: 'absolute',
-          bottom: 16,
-          left: 16,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2
-        }}
-      >
-        <Box
-          sx={{
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            padding: '8px 16px',
-            borderRadius: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}
-        >
-          {/* Speaking indicator */}
-          {isAvatarTalking && (
-            <Box
-              sx={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: '#4CAF50',
-                animation: 'pulse 1.5s infinite',
-                '@keyframes pulse': {
-                  '0%': {
-                    opacity: 1,
-                    transform: 'scale(1)',
-                  },
-                  '50%': {
-                    opacity: 0.5,
-                    transform: 'scale(1.2)',
-                  },
-                  '100%': {
-                    opacity: 1,
-                    transform: 'scale(1)',
-                  },
-                }
-              }}
-            />
-          )}
-          <Typography variant="body2" sx={{ color: 'white' }}>
-            {avatarName}
-          </Typography>
-        </Box>
-        {/* VoiceInteraction UI */}
-  <Box sx={{ ml: 2, display: 'flex', alignItems: 'center', gap: 1, position: 'relative', minWidth: 48 }}>
-          <Tooltip title={isListening ? 'Dừng nói' : 'Bắt đầu nói'}>
-            <IconButton
-              onClick={toggleMicrophone}
-              disabled={voiceDisabled || isAvatarTalking || isInitializing}
-              color={isListening ? 'error' : 'primary'}
-              sx={{
-                bgcolor: isListening ? 'error.main' : 'primary.main',
-                color: 'white',
-                '&:hover': {
-                  bgcolor: isListening ? 'error.dark' : 'primary.dark',
-                },
-                '&.Mui-disabled': {
-                  bgcolor: 'action.disabledBackground',
-                  color: 'action.disabled',
-                }
-              }}
-            >
-              {isInitializing ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : isListening ? (
-                <MicIcon />
+    <div className="flex-1 flex flex-col">
+      <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-slate-50 to-gray-100 shrink-0">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm shadow-xl border-0 overflow-hidden">
+          <div className="p-0 relative">
+            <div className="aspect-video bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl overflow-hidden relative">
+              {sessionState === SessionState.INACTIVE ? (
+                <div className="w-full h-full flex items-center justify-center text-white">
+                  <h6 className="text-xl font-semibold">
+                    Avatar {avatarId} ready to start
+                  </h6>
+                </div>
               ) : (
-                <MicOffIcon />
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
               )}
-            </IconButton>
-          </Tooltip>
-          {/* Không hiển thị transcript bên cạnh mic */}
-          {error && (
-            <Typography
-              variant="caption"
-              color="error"
-              sx={{ ml: 2, animation: 'fadeOut 5s forwards', '@keyframes fadeOut': { '0%': { opacity: 1 }, '80%': { opacity: 1 }, '100%': { opacity: 0 } } }}
-            >
-              {error}
-            </Typography>
-          )}
-        </Box>
-        {sessionState === SessionState.CONNECTED && (
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleEndSession}
-            disabled={isEnding}
-            size="small"
-            startIcon={isEnding ? <CircularProgress size={16} color="inherit" /> : <StopCircle />}
-            sx={{
-              borderRadius: '20px',
-              textTransform: 'none',
-              minWidth: '120px'
-            }}
-          >
-            {isEnding ? 'Ending...' : 'End Session'}
-          </Button>
-        )}
-      </Box>
-    </Box>
+
+              {/* Top-left: Main participant info */}
+              <div className="absolute top-6 left-6">
+                <div className="flex items-center gap-3 bg-white/10 text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/20">
+                  <div className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full bg-white/10 text-white/80 text-sm items-center justify-center">
+                    {avatarName?.[0] ?? 'A'}
+                  </div>
+                  <span className="text-sm font-medium">{avatarName}</span>
+                  {sessionState === SessionState.CONNECTED}
+                  {elapsedTime && (
+                    <Badge variant="outline" className="ml-2 text-white border-white/30">
+                      {elapsedTime}
+                    </Badge>
+                  )}
+                  {sessionState === SessionState.CONNECTED && connectionQuality !== 'UNKNOWN' && (
+                    <Badge variant="outline" className="ml-2 text-white border-white/30">
+                      {connectionQuality}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              
+
+              {/* Bottom-center: Control bar */}
+              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
+                <div className="flex items-center gap-3 bg-white/10 px-6 py-3 rounded-full backdrop-blur-md border border-white/20">
+                  {isAvatarTalking && onInterruptAvatar && (
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="text-white hover:bg-white/20"
+                      onClick={handleInterruptSpeech}
+                      disabled={isInterrupting}
+                      title="Stop avatar speaking (ESC)"
+                    >
+                      {isInterrupting ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <VolumeX className="w-5 h-5" />
+                      )}
+                    </Button>
+                  )}
+
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="text-white hover:bg-white/20"
+                    onClick={toggleMicrophone}
+                    disabled={voiceDisabled || isAvatarTalking || isInitializing}
+                    title={isListening ? 'Stop speaking' : 'Start speaking'}
+                  >
+                    {isInitializing ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Mic className="w-5 h-5" />
+                    )}
+                  </Button>
+
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="text-white hover:bg-white/20"
+                    onClick={() => {}}
+                    title="Toggle video"
+                  >
+                    <VideoIcon className="w-5 h-5" />
+                  </Button>
+
+                  <Button 
+                    size="icon" 
+                    variant="danger"
+                    onClick={handleEndSession}
+                    disabled={isEnding}
+                    title="End call"
+                  >
+                    {isEnding ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Phone className="w-5 h-5" />
+                    )}
+                  </Button>
+
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="text-white hover:bg-white/20"
+                    onClick={() => {}}
+                    title="Messages"
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                  </Button>
+
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="text-white hover:bg-white/20"
+                    onClick={() => {}}
+                    title="Settings"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </Button>
+                </div>
+                {error && (
+                  <div className="mt-2 text-center text-red-500 text-xs">{error}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Conversation Section */}
+      <div className="flex-1 px-6 pb-6 bg-gradient-to-br from-slate-50 to-gray-100 overflow-y-auto">
+        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "0.2s" }}></div>
+              <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: "0.4s" }}></div>
+            </div>
+            <span className="text-sm font-semibold text-gray-700">Live Conversation</span>
+          </div>
+          <p className="text-gray-800 leading-relaxed font-medium">
+            {isAvatarTalking ? "Avatar is speaking..." : "Ready for your response..."}
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

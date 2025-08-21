@@ -8,11 +8,6 @@ import UserActivityDetailView from '@/components/admin/UserActivityDetailView';
 import AdminActivityDashboard from '@/components/admin/AdminActivityDashboard';
 import { 
   BarChart3, 
-  Users, 
-  Settings,
-  Eye,
-  Edit,
-  Trash2,
   Activity
 } from 'lucide-react';
 
@@ -95,22 +90,20 @@ export default function AdminUserActivitiesPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="realtime" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Real-time Activity
+        <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-gray-100 rounded-lg">
+          <TabsTrigger 
+            value="realtime" 
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          >
+            <Activity className="h-6 w-4" />
+            <span className="font-medium">Real-time Activity</span>
           </TabsTrigger>
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Analytics Overview
-          </TabsTrigger>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            User Activities
-          </TabsTrigger>
-          <TabsTrigger value="management" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Activity Management
+          <TabsTrigger 
+            value="overview" 
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
+          >
+            <BarChart3 className="h-6 w-4" />
+            <span className="font-medium">Analytics Overview</span>
           </TabsTrigger>
         </TabsList>
 
@@ -137,123 +130,6 @@ export default function AdminUserActivitiesPage() {
           ) : null}
         </TabsContent>
 
-        <TabsContent value="management" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Eye className="h-5 w-5 text-blue-600" />
-                Quick Actions
-              </h3>
-              <div className="space-y-3">
-                <button 
-                  onClick={() => setActiveTab('users')}
-                  className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div className="font-medium">View All User Activities</div>
-                  <div className="text-sm text-gray-600">Browse and search user activities</div>
-                </button>
-                
-                <button 
-                  onClick={() => setActiveTab('overview')}
-                  className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors"
-                >
-                  <div className="font-medium">Analytics Dashboard</div>
-                  <div className="text-sm text-gray-600">View platform-wide statistics</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Bulk Operations */}
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Edit className="h-5 w-5 text-green-600" />
-                Bulk Operations
-              </h3>
-              <div className="space-y-3">
-                <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                  <div className="font-medium">Export All Data</div>
-                  <div className="text-sm text-gray-600">Download comprehensive activity reports</div>
-                </button>
-                
-                <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                  <div className="font-medium">Reset Inactive Users</div>
-                  <div className="text-sm text-gray-600">Clear data for inactive accounts</div>
-                </button>
-              </div>
-            </div>
-
-            {/* System Health */}
-            <div className="bg-white rounded-lg border p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Trash2 className="h-5 w-5 text-red-600" />
-                System Health
-              </h3>
-              <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-                  <div className="font-medium text-green-800">Activity Tracking</div>
-                  <div className="text-sm text-green-600">All systems operational</div>
-                </div>
-                
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <div className="font-medium text-blue-800">Data Sync</div>
-                  <div className="text-sm text-blue-600">Last sync: 2 minutes ago</div>
-                </div>
-                
-                <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                  <div className="font-medium text-yellow-800">Storage Usage</div>
-                  <div className="text-sm text-yellow-600">78% of allocated space</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Management Tools */}
-          <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-lg font-semibold mb-4">Data Management Tools</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">User Activity Controls</h4>
-                <div className="space-y-2">
-                  <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                    <div className="font-medium">Archive Old Activities</div>
-                    <div className="text-sm text-gray-600">Move activities older than 1 year to archive</div>
-                  </button>
-                  
-                  <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                    <div className="font-medium">Recalculate Statistics</div>
-                    <div className="text-sm text-gray-600">Refresh all user statistics and scores</div>
-                  </button>
-                  
-                  <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                    <div className="font-medium">Generate Reports</div>
-                    <div className="text-sm text-gray-600">Create detailed analytics reports</div>
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium text-gray-900">System Maintenance</h4>
-                <div className="space-y-2">
-                  <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                    <div className="font-medium">Clean Up Orphaned Data</div>
-                    <div className="text-sm text-gray-600">Remove activities without valid user references</div>
-                  </button>
-                  
-                  <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                    <div className="font-medium">Optimize Database</div>
-                    <div className="text-sm text-gray-600">Rebuild indexes and optimize queries</div>
-                  </button>
-                  
-                  <button className="w-full text-left p-3 rounded-lg border hover:bg-gray-50 transition-colors">
-                    <div className="font-medium">Backup Activity Data</div>
-                    <div className="text-sm text-gray-600">Create full backup of all activity data</div>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   );

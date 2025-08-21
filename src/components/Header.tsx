@@ -33,7 +33,9 @@ export default function Header() {
               <p className="text-sm font-medium text-gray-900">
                 {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
               </p>
-              <p className="text-xs text-gray-500 capitalize">{user.role}</p>
+              <p className="text-xs text-gray-500 capitalize">
+                {typeof user.role === 'string' ? user.role : 'user'}
+              </p>
             </div>
             
             {/* Logout Button */}
@@ -41,7 +43,7 @@ export default function Header() {
               onClick={logout}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
-              Đăng xuất
+              Log out
             </button>
           </div>
         ) : (
@@ -50,13 +52,13 @@ export default function Header() {
               href="/sign-in"
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
-              Đăng nhập
+             Sign in
             </Link>
             <Link
               href="/sign-up"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
             >
-              Đăng ký
+              Sign up
             </Link>
           </div>
         )}

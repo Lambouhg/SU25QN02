@@ -7,7 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { User, MapPin, Calendar, Mail, Phone, Building, Briefcase, FileText, UserCheck } from "lucide-react";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { User, Mail, Phone, Building, Briefcase, FileText, UserCheck } from "lucide-react";
 
 interface PersonalInfoFormProps {
   formData: {
@@ -16,7 +23,7 @@ interface PersonalInfoFormProps {
     email: string;
     phone: string;
     department: string;
-    position: string;
+    preferredJobRoleId: string;
     bio: string;
   };
   isEditing: boolean;
@@ -26,7 +33,7 @@ interface PersonalInfoFormProps {
     email: string;
     phone: string;
     department: string;
-    position: string;
+    preferredJobRoleId: string;
     bio: string;
   }) => void;
   onEditToggle: () => void;
@@ -51,7 +58,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
      (formData.email ? 1 : 0) + 
      (formData.phone ? 1 : 0) + 
      (formData.department ? 1 : 0) + 
-     (formData.position ? 1 : 0) + 
+     (formData.preferredJobRoleId ? 1 : 0) + 
      (formData.bio ? 1 : 0)) / 7 * 100
   );
 
@@ -60,7 +67,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
       {/* Profile Completion Progress */}
       <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-sm font-semibold text-indigo-800">Độ hoàn thiện hồ sơ</h4>
+          <h4 className="text-sm font-semibold text-indigo-800">Profile Completion</h4>
           <span className="text-sm text-indigo-600 font-medium">{completionPercentage}%</span>
         </div>
         <div className="w-full bg-indigo-200 rounded-full h-2">
@@ -78,10 +85,10 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
             <div>
               <CardTitle className="flex items-center gap-2 text-gray-800">
                 <User className="w-5 h-5 text-blue-600" />
-                Thông tin cá nhân
+                Personal Information
               </CardTitle>
               <CardDescription className="text-gray-600">
-                Cập nhật thông tin cá nhân và trạng thái hoạt động của bạn
+                Update your personal information and activity status
               </CardDescription>
             </div>
             <Button
@@ -92,7 +99,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                   : 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300'
               }`}
             >
-              {isEditing ? 'Lưu thay đổi' : 'Chỉnh sửa'}
+              {isEditing ? 'Save Changes' : 'Edit'}
             </Button>
           </div>
         </CardHeader>
@@ -101,14 +108,14 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-800 border-b-2 border-blue-200 pb-2 flex items-center gap-2">
               <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
-              Thông tin cơ bản
+              Basic Information
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <User className="w-4 h-4 text-blue-500" />
-                  Họ
+                  First Name
                 </Label>
                 <Input
                   id="firstName"
@@ -121,14 +128,14 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                       ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                       : 'border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 hover:border-blue-400'
                   }`}
-                  placeholder="Nhập họ của bạn"
+                  placeholder="Enter your first name"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="lastName" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-purple-500" />
-                  Tên
+                  Last Name
                 </Label>
                 <Input
                   id="lastName"
@@ -141,7 +148,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                       ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                       : 'border-purple-300 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 hover:border-purple-400'
                   }`}
-                  placeholder="Nhập tên của bạn"
+                  placeholder="Enter your last name"
                 />
               </div>
             </div>
@@ -162,14 +169,14 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                     ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                     : 'border-green-300 focus:border-green-500 focus:ring-4 focus:ring-green-100 hover:border-green-400'
                 }`}
-                placeholder="Nhập địa chỉ email"
+                placeholder="Enter your email address"
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <Phone className="w-4 h-4 text-orange-500" />
-                Số điện thoại
+                Phone Number
               </Label>
               <Input
                 id="phone"
@@ -182,7 +189,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                     ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                     : 'border-orange-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-100 hover:border-orange-400'
                 }`}
-                placeholder="Nhập số điện thoại"
+                placeholder="Enter your phone number"
               />
             </div>
 
@@ -190,7 +197,7 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
               <div className="space-y-2">
                 <Label htmlFor="department" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <Building className="w-4 h-4 text-indigo-500" />
-                  Phòng ban
+                  Department
                 </Label>
                 <Input
                   id="department"
@@ -203,35 +210,39 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                       ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                       : 'border-indigo-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 hover:border-indigo-400'
                   }`}
-                  placeholder="Nhập phòng ban"
+                  placeholder="Enter your department"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="position" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Label htmlFor="preferredJobRoleId" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                   <Briefcase className="w-4 h-4 text-teal-500" />
-                  Vị trí
+                  Preferred Position
                 </Label>
-                <Input
-                  id="position"
-                  type="text"
-                  value={formData.position}
-                  onChange={(e) => handleFieldChange('position', e.target.value)}
+                <Select
+                  value={formData.preferredJobRoleId || 'none'}
+                  onValueChange={(value) => handleFieldChange('preferredJobRoleId', value === 'none' ? '' : value)}
                   disabled={!isEditing}
-                  className={`transition-all duration-200 ${
+                >
+                  <SelectTrigger className={`transition-all duration-200 ${
                     !isEditing 
                       ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                       : 'border-teal-300 focus:border-teal-500 focus:ring-4 focus:ring-teal-100 hover:border-teal-400'
-                  }`}
-                  placeholder="Nhập vị trí công việc"
-                />
+                  }`}>
+                    <SelectValue placeholder="Select a job position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {/* TODO: Add job role options here */}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="bio" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-gray-500" />
-                Giới thiệu
+                Bio
               </Label>
               <Textarea
                 id="bio"
@@ -243,82 +254,12 @@ export const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
                     ? 'bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200 text-gray-600' 
                     : 'border-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 hover:border-gray-400'
                 }`}
-                placeholder="Giới thiệu về bản thân..."
+                placeholder="Tell us about yourself..."
               />
             </div>
           </div>
 
           <Separator />
-
-          {/* Activity Status Section */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-800 border-b-2 border-green-200 pb-2 flex items-center gap-2">
-              <div className="w-2 h-6 bg-gradient-to-b from-green-500 to-blue-500 rounded-full"></div>
-              Trạng thái hoạt động
-            </h3>
-            
-            {/* Enhanced Status Card */}
-            <div className="relative overflow-hidden p-4 bg-gradient-to-r from-green-50 via-blue-50 to-purple-50 border border-green-200 rounded-xl shadow-sm">
-              <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-400/20 to-blue-400/20 rounded-full -mr-10 -mt-10"></div>
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-green-600 rounded-full animate-pulse"></div>
-                    <div className="absolute inset-0 w-4 h-4 bg-green-500 rounded-full animate-ping opacity-30"></div>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-green-800 text-lg">Đang hoạt động</span>
-                    <p className="text-sm text-green-600">Lần cuối: vừa xong</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                    Online
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400 transition-all duration-200"
-                  >
-                    Ẩn trạng thái
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Enhanced Info Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="group hover:scale-105 transition-all duration-200 flex items-center gap-3 p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl shadow-sm">
-                <div className="p-2 bg-blue-500 rounded-lg shadow-md">
-                  <Calendar className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-blue-600 font-medium">Ngày tham gia</p>
-                  <p className="font-semibold text-blue-800">Tháng 3, 2024</p>
-                </div>
-              </div>
-              
-              <div className="group hover:scale-105 transition-all duration-200 flex items-center gap-3 p-4 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl shadow-sm">
-                <div className="p-2 bg-purple-500 rounded-lg shadow-md">
-                  <MapPin className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-purple-600 font-medium">Phòng ban</p>
-                  <p className="font-semibold text-purple-800">{formData.department || "Chưa cập nhật"}</p>
-                </div>
-              </div>
-
-              <div className="group hover:scale-105 transition-all duration-200 flex items-center gap-3 p-4 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl shadow-sm">
-                <div className="p-2 bg-orange-500 rounded-lg shadow-md">
-                  <Briefcase className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-orange-600 font-medium">Vị trí</p>
-                  <p className="font-semibold text-orange-800">{formData.position || "Chưa cập nhật"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </CardContent>
       </Card>
     </div>

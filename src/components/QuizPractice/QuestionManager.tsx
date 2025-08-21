@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { toast } from 'react-hot-toast';
 import { useCallback } from 'react';
 import { Brain, Sparkles, CheckCircle2, ChevronLeft, Loader2, Bot, Check, ChevronDown, ChevronUp } from 'lucide-react';
@@ -36,46 +37,48 @@ const PREDEFINED_FIELDS = [
   { id: "mobile-app", name: "Mobile App", icon: "📱", color: "from-violet-500 to-purple-500" },
   { id: "database", name: "Database Admin", icon: "🗄️", color: "from-green-700 to-blue-700" },
 ];
+
 const PREDEFINED_TOPICS = [
-  { id: "sql", name: "SQL", icon: "🗄️" },
-  { id: "computer-science", name: "Computer Science", icon: "💻" },
-  { id: "react", name: "React", icon: "⚛️" },
-  { id: "vue", name: "Vue", icon: "💚" },
-  { id: "angular", name: "Angular", icon: "🅰️" },
-  { id: "javascript", name: "JavaScript", icon: "🟨" },
-  { id: "nodejs", name: "Node.js", icon: "🟢" },
-  { id: "typescript", name: "TypeScript", icon: "🔷" },
-  { id: "python", name: "Python", icon: "🐍" },
-  { id: "system-design", name: "System Design", icon: "🏗️" },
-  { id: "api-design", name: "API Design", icon: "🔌" },
-  { id: "aspnet-core", name: "ASP.NET Core", icon: "🔵" },
-  { id: "java", name: "Java", icon: "☕" },
-  { id: "cpp", name: "C++", icon: "⚡" },
-  { id: "flutter", name: "Flutter", icon: "🦋" },
-  { id: "spring-boot", name: "Spring Boot", icon: "🍃" },
-  { id: "go", name: "Go Roadmap", icon: "🐹" },
-  { id: "rust", name: "Rust", icon: "🦀" },
-  { id: "graphql", name: "GraphQL", icon: "📊" },
-  { id: "design-architecture", name: "Design and Architecture", icon: "🏛️" },
-  { id: "design-system", name: "Design System", icon: "🎨" },
-  { id: "react-native", name: "React Native", icon: "📱" },
-  { id: "aws", name: "AWS", icon: "☁️" },
-  { id: "code-review", name: "Code Review", icon: "👀" },
-  { id: "docker", name: "Docker", icon: "🐳" },
-  { id: "kubernetes", name: "Kubernetes", icon: "⚓" },
-  { id: "linux", name: "Linux", icon: "🐧" },
-  { id: "mongodb", name: "MongoDB", icon: "🍃" },
-  { id: "prompt-engineering", name: "Prompt Engineering", icon: "🎯" },
-  { id: "terraform", name: "Terraform", icon: "🏗️" },
-  { id: "data-structures", name: "Data Structures & Algorithms", icon: "🧮" },
-  { id: "git-github", name: "Git and GitHub", icon: "📚" },
-  { id: "redis", name: "Redis", icon: "🔴" },
-  { id: "php", name: "PHP", icon: "🐘" },
-  { id: "cloudflare", name: "Cloudflare", icon: "☁️" },
-  { id: "ai-agents", name: "AI Agents", icon: "🤖", isNew: true },
-  { id: "ai-red-teaming", name: "AI Red Teaming", icon: "🛡️", isNew: true },
-  { id: "backup-recovery", name: "Backup & Recovery", icon: "💾" },
+  { id: "sql", name: "SQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg" },
+  { id: "computer-science", name: "Computer Science", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/computercraft/computercraft-original.svg" },
+  { id: "react", name: "React", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
+  { id: "vue", name: "Vue", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg" },
+  { id: "angular", name: "Angular", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/angularjs/angularjs-original.svg" },
+  { id: "javascript", name: "JavaScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" },
+  { id: "nodejs", name: "Node.js", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" },
+  { id: "typescript", name: "TypeScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" },
+  { id: "python", name: "Python", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" },
+  { id: "system-design", name: "System Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
+  { id: "api-design", name: "API Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" },
+  { id: "aspnet-core", name: "ASP.NET Core", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dotnetcore/dotnetcore-original.svg" },
+  { id: "java", name: "Java", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg" },
+  { id: "cpp", name: "C++", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg" },
+  { id: "flutter", name: "Flutter", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg" },
+  { id: "spring-boot", name: "Spring Boot", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg" },
+  { id: "go", name: "Go Roadmap", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original.svg" },
+  { id: "rust", name: "Rust", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-plain.svg" },
+  { id: "graphql", name: "GraphQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" },
+  { id: "design-architecture", name: "Design and Architecture", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg" },
+  { id: "design-system", name: "Design System", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sketch/sketch-original.svg" },
+  { id: "react-native", name: "React Native", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
+  { id: "aws", name: "AWS", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" },
+  { id: "code-review", name: "Code Review", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" },
+  { id: "docker", name: "Docker", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" },
+  { id: "kubernetes", name: "Kubernetes", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
+  { id: "linux", name: "Linux", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg" },
+  { id: "mongodb", name: "MongoDB", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" },
+  { id: "prompt-engineering", name: "Prompt Engineering", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg" },
+  { id: "terraform", name: "Terraform", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg" },
+  { id: "data-structures", name: "Data Structures & Algorithms", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/algorithm/algorithm-original.svg" },
+  { id: "git-github", name: "Git and GitHub", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" },
+  { id: "redis", name: "Redis", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" },
+  { id: "php", name: "PHP", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg" },
+  { id: "cloudflare", name: "Cloudflare", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cloudflare/cloudflare-original.svg" },
+  { id: "ai-agents", name: "AI Agents", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg", isNew: true },
+  { id: "ai-red-teaming", name: "AI Red Teaming", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytorch/pytorch-original.svg", isNew: true },
+  { id: "backup-recovery", name: "Backup & Recovery", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" },
 ];
+
 const FIELD_TOPICS_MAP: Record<string, string[]> = {
   frontend: [
     "react", "vue", "angular", "javascript", "typescript", "design-system", "design-architecture"
@@ -98,7 +101,7 @@ const FIELD_TOPICS_MAP: Record<string, string[]> = {
   "product-manager": [
     "system-design", "code-review", "design-architecture"
   ],
-  qa: [
+  "qa": [
     "code-review", "api-design", "javascript"
   ],
   "mobile-app": [
@@ -620,7 +623,18 @@ export default function QuestionManager() {
                               setAIGenTopic(t.id);
                             }}
                           >
-                            <span className="text-2xl mb-1">{t.icon}</span>
+                            <div className="flex justify-center mb-1">
+                              <Image 
+                                src={t.icon} 
+                                alt={t.name}
+                                width={24}
+                                height={24}
+                                className="object-contain"
+                                onError={() => {
+                                  // Handle errors if needed
+                                }}
+                              />
+                            </div>
                             {t.name}
                             {aiGenTopic === t.id && <CheckCircle2 className="w-4 h-4 text-white mt-1" />}
                           </button>
@@ -794,25 +808,20 @@ export default function QuestionManager() {
                                 className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
                                 disabled={aiGenSelected.length === 0 || aiGenLoading}
                                 onClick={async () => {
-                                  // Validate questions for duplicates first
+                                  if (aiGenLoading) return;
+                                  setAIGenLoading(true);
                                   await validateQuestions();
-                                  
-                                  // Wait a bit for state to update, then check if can save
                                   setTimeout(async () => {
-                                    // Filter out duplicate questions from selection
                                     const validSelections = aiGenSelected.filter(idx => !validationResults.duplicates.includes(idx));
-                                    
                                     if (validSelections.length === 0) {
                                       toast.error('No valid questions to save. All selected questions are duplicates.');
+                                      setAIGenLoading(false);
                                       return;
                                     }
-                                    
                                     if (validSelections.length !== aiGenSelected.length) {
                                       const duplicateCount = aiGenSelected.length - validSelections.length;
                                       toast.error(`⚠️ Skipping ${duplicateCount} duplicate questions. Saving ${validSelections.length} unique questions.`);
                                     }
-                                    
-                                    // Save only valid questions
                                     for (const idx of validSelections) {
                                       const q = aiGenEdit[idx] ? { ...aiGenQuestions[idx], ...aiGenEdit[idx] } : aiGenQuestions[idx];
                                       try {
@@ -834,7 +843,6 @@ export default function QuestionManager() {
                                         toast.error('Error saving question!');
                                       }
                                     }
-                                    
                                     toast.success(`Saved ${validSelections.length} unique questions!`);
                                     setShowAIGenerate(false);
                                     setAIGenStep(1);
@@ -845,152 +853,209 @@ export default function QuestionManager() {
                                     setAIGenEdit([]);
                                     setValidationResults({ duplicates: [], warnings: [], canSave: true });
                                     setDuplicateCheck({ checking: false, results: [] });
+                                    setAIGenLoading(false);
                                   }, 100);
                                 }}
-                              >Save Selected</Button>
+                              >
+                                {aiGenLoading ? (
+                                  <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Saving...</span>
+                                ) : 'Save Selected'}
+                              </Button>
                             </div>
                             <div className="grid grid-cols-1 gap-6 max-h-[calc(100vh-300px)] overflow-y-auto pr-2">
                               {aiGenQuestions.map((q, idx) => {
-                                const isEdit = aiGenEdit[idx] !== null;
-                                const editData = aiGenEdit[idx] || { question: q.question, answers: q.answers, explanation: q.explanation };
-                                const isDuplicate = validationResults.duplicates.includes(idx);
-                                const isWarning = validationResults.warnings.includes(idx);
-                                
+                                // Scope variables inside the map/callback
+                                const isEditLocal = aiGenEdit[idx] !== null;
+                                const editDataLocal = aiGenEdit[idx] || { question: q.question, answers: q.answers, explanation: q.explanation };
+                                const isDuplicateLocal = validationResults.duplicates.includes(idx);
+                                const isWarningLocal = validationResults.warnings.includes(idx);
+
                                 let borderClass = 'border-gray-200 bg-white hover:border-indigo-300';
                                 if (aiGenSelected.includes(idx)) {
                                   borderClass = 'border-green-500 bg-green-50';
                                 }
-                                if (isDuplicate) {
+                                if (isDuplicateLocal) {
                                   borderClass = 'border-red-500 bg-red-50';
-                                } else if (isWarning) {
+                                } else if (isWarningLocal) {
                                   borderClass = 'border-yellow-500 bg-yellow-50';
                                 }
-                                
+
                                 return (
-                                <Card
-                                  key={idx}
-                                    className={`relative border-2 p-6 rounded-2xl shadow-lg transition-all group ${borderClass} ${aiGenSaved[idx] ? 'opacity-60' : ''} ${isEdit ? 'ring-2 ring-indigo-400' : ''}`}
-                                  onClick={() => {
-                                    if (!isDuplicate) {
-                                      setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
-                                    }
-                                  }}
-                                >
-                                  {/* Duplicate indicator */}
-                                  {(isDuplicate || isWarning) && (
-                                    <div className={`absolute top-2 right-12 z-20 px-2 py-1 rounded-full text-xs font-bold ${isDuplicate ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'}`}>
-                                      {isDuplicate ? '🚫 DUPLICATE' : '⚠️ SIMILAR'}
-                                    </div>
-                                  )}
-                                  
-                                  {/* Checkbox chọn */}
-                                  <div className="absolute top-4 right-4 z-10">
-                                    <input
-                                      type="checkbox"
-                                      checked={aiGenSelected.includes(idx)}
-                                      disabled={isDuplicate}
-                                      onChange={e => {
-                                        e.stopPropagation();
-                                        if (!isDuplicate) {
-                                          setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
-                                        }
-                                      }}
-                                      className={`w-6 h-6 rounded-lg border-2 shadow ${isDuplicate ? 'opacity-50 cursor-not-allowed' : 'accent-green-500 border-green-400'}`}
-                                    />
-                                  </div>
-                                    {/* Edit/Save button */}
-                                    <div className="absolute top-4 left-4 z-10">
-                                      {isEdit ? (
-                                        <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); setAIGenEdit(edits => { const arr = [...edits]; arr[idx] = null; return arr; }); }}>Cancel</Button>
-                                      ) : (
-                                        <Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); setAIGenEdit(edits => { const arr = [...edits]; arr[idx] = { question: q.question, answers: q.answers, explanation: q.explanation }; return arr; }); }}>Edit</Button>
-                                      )}
-                                  </div>
-                                  {/* Số thứ tự + icon AI */}
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="text-lg font-bold text-indigo-600">{idx + 1}.</span>
-                                    <Bot className="w-5 h-5 text-indigo-400" />
-                                  </div>
-                                    {/* Câu hỏi (edit hoặc view) */}
-                                    {isEdit ? (
+                                  <Card
+                                    key={idx}
+                                    className={`relative border-2 p-6 pt-12 rounded-2xl shadow-lg transition-all group ${borderClass} ${aiGenSaved[idx] ? 'opacity-60' : ''} ${isEditLocal ? 'ring-2 ring-indigo-400' : ''}`}
+                                  >
+                                    {/* Checkbox select button & Duplicate indicator (left) */}
+                                    <div className="absolute top-2 left-2 z-20 flex items-center gap-2">
                                       <input
-                                        className="w-full font-semibold text-lg mb-3 text-gray-900 border-b border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                        value={editData.question}
-                                        onChange={e => setAIGenEdit(edits => { const arr = [...edits]; arr[idx] = { ...editData, question: e.target.value }; return arr; })}
+                                        type="checkbox"
+                                        checked={aiGenSelected.includes(idx)}
+                                        disabled={isDuplicateLocal}
+                                        onChange={() => {
+                                          if (isDuplicateLocal) return;
+                                          setAIGenSelected(sel => sel.includes(idx) ? sel.filter(i => i !== idx) : [...sel, idx]);
+                                        }}
+                                        className="w-5 h-5 accent-green-600 cursor-pointer"
+                                        title={isDuplicateLocal ? 'Cannot select duplicate' : 'Select to save'}
+                                      />
+                                      {(isDuplicateLocal || isWarningLocal) && (
+                                        <div className={`px-2 py-1 rounded-full text-xs font-bold ${isDuplicateLocal ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white'}`}>
+                                          {isDuplicateLocal ? '🚫 DUPLICATE' : '⚠️ SIMILAR'}
+                                        </div>
+                                      )}
+                                    </div>
+                                    {/* Edit controls */}
+                                    <div className="absolute top-2 right-2 z-20 flex gap-2">
+                                      {!isEditLocal ? (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setAIGenEdit((edits) =>
+                                              edits.map((v, i) =>
+                                                i === idx
+                                                  ? {
+                                                      question: q.question,
+                                                      answers: (q.answers || []).map(a => ({ ...a })),
+                                                      explanation: q.explanation || '',
+                                                    }
+                                                  : v
+                                              )
+                                            );
+                                          }}
+                                        >Edit</Button>
+                                      ) : (
+                                        <>
+                                          <Button
+                                            variant="default"
+                                            size="sm"
+                                            className="bg-green-600 hover:bg-green-700 text-white"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              // Persist edits to the base question and exit edit mode
+                                              setAIGenQuestions(prev => {
+                                                const arr = [...prev];
+                                                arr[idx] = {
+                                                  ...arr[idx],
+                                                  question: editDataLocal.question,
+                                                  answers: editDataLocal.answers,
+                                                  explanation: editDataLocal.explanation,
+                                                };
+                                                return arr;
+                                              });
+                                              setAIGenEdit((edits) => edits.map((v, i) => (i === idx ? null : v)));
+                                            }}
+                                          >Done</Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              // Discard edits and exit edit mode
+                                              setAIGenEdit((edits) => edits.map((v, i) => (i === idx ? null : v)));
+                                            }}
+                                          >Cancel</Button>
+                                        </>
+                                      )}
+                                    </div>
+                                    {/* Question text */}
+                                    {isEditLocal ? (
+                                      <textarea
+                                        className="w-full border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm text-gray-800 mb-3"
+                                        rows={2}
+                                        value={editDataLocal.question}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) =>
+                                          setAIGenEdit(edits =>
+                                            edits.map((v, i) =>
+                                              i === idx ? { ...editDataLocal, question: e.target.value } : v
+                                            )
+                                          )
+                                        }
                                       />
                                     ) : (
-                                  <div className="font-semibold text-lg mb-3 text-gray-900">{q.question}</div>
+                                      <div className="font-semibold mb-2">{q.question}</div>
                                     )}
-                                    {/* Đáp án (edit hoặc view) */}
-                                  <ul className="space-y-2 mb-2">
-                                      {(isEdit ? editData.answers : q.answers).map((a: { content: string; isCorrect: boolean }, i: number) => (
-                                        <li key={i} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${a.isCorrect ? 'bg-green-100 text-green-700 font-semibold' : 'bg-white text-gray-800'} text-base`}>
-                                          {isEdit ? (
+                                    {/* Answers list */}
+                                    <ul className="mb-2">
+                                      {editDataLocal.answers.map((ans, i) => (
+                                        <li key={i} className="flex items-center mb-1">
+                                          {isEditLocal ? (
                                             <>
                                               <input
                                                 type="text"
-                                                className="w-full border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 mr-2"
-                                                value={a.content}
+                                                value={ans.content}
                                                 onChange={e => setAIGenEdit(edits => {
                                                   const arr = [...edits];
-                                                  const newAnswers = [...editData.answers];
+                                                  const newAnswers = [...editDataLocal.answers];
                                                   newAnswers[i] = { ...newAnswers[i], content: e.target.value };
-                                                  arr[idx] = { ...editData, answers: newAnswers };
+                                                  arr[idx] = { ...editDataLocal, answers: newAnswers };
                                                   return arr;
                                                 })}
+                                                className="flex-1 border-b border-gray-300 px-2 py-1 text-xs mr-2"
+                                              onClick={(e) => e.stopPropagation()}
                                               />
                                               <input
                                                 type="checkbox"
-                                                checked={a.isCorrect}
+                                                checked={ans.isCorrect}
                                                 onChange={() => setAIGenEdit(edits => {
                                                   const arr = [...edits];
-                                                  const newAnswers = [...editData.answers];
-                                                  newAnswers[i] = { ...newAnswers[i], isCorrect: !a.isCorrect };
-                                                  arr[idx] = { ...editData, answers: newAnswers };
+                                                  const newAnswers = [...editDataLocal.answers];
+                                                  newAnswers[i] = { ...newAnswers[i], isCorrect: !ans.isCorrect };
+                                                  arr[idx] = { ...editDataLocal, answers: newAnswers };
                                                   return arr;
                                                 })}
                                                 className="ml-2 accent-green-500"
+                                              onClick={(e) => e.stopPropagation()}
                                               />
                                             </>
                                           ) : (
                                             <>
-                                        {a.isCorrect ? <Check className="w-4 h-4 text-green-500" /> : <span className="w-4 h-4 inline-block" />}
-                                        {a.content}
+                                              {ans.isCorrect ? <Check className="w-4 h-4 text-green-500 mr-1" /> : <span className="w-4 h-4 inline-block mr-1" />}
+                                              <span>{ans.content}</span>
                                             </>
                                           )}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                    {/* Giải thích (edit hoặc view) */}
-                                    {isEdit ? (
+                                        </li>
+                                      ))}
+                                    </ul>
+                                    {/* Explanation (edit or view) */}
+                                    {isEditLocal ? (
                                       <textarea
                                         className="w-full border-b border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-xs text-gray-700"
-                                        value={editData.explanation}
-                                        onChange={e => setAIGenEdit(edits => { const arr = [...edits]; arr[idx] = { ...editData, explanation: e.target.value }; return arr; })}
+                                        value={editDataLocal.explanation}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={e =>
+                                          setAIGenEdit(edits =>
+                                            edits.map((v, i) =>
+                                              i === idx ? { ...editDataLocal, explanation: e.target.value } : v
+                                            )
+                                          )
+                                        }
                                         rows={2}
                                       />
                                     ) : (
                                       q.explanation && (
-                                    <div className="mt-2">
-                                      <button
-                                        type="button"
-                                        className="text-xs text-indigo-600 flex items-center gap-1 hover:underline"
-                                        onClick={e => {
-                                          e.stopPropagation();
+                                        <div className="mt-2">
+                                          <button
+                                            type="button"
+                                            className="text-xs text-indigo-600 flex items-center gap-1 hover:underline"
+                                            onClick={e => {
+                                              e.stopPropagation();
                                               setAIGenShowExplain(prev => { const arr = [...prev]; arr[idx] = !arr[idx]; return arr; });
-                                        }}
-                                      >
-                                        {aiGenShowExplain[idx] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />} View explanation
-                                      </button>
-                                      {aiGenShowExplain[idx] && (
-                                        <div className="italic text-xs text-gray-500 mt-1 bg-gray-50 rounded p-2 border border-gray-100">
-                                          {q.explanation}
+                                            }}
+                                          >
+                                            {aiGenShowExplain[idx] ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />} View explanation
+                                          </button>
+                                          {aiGenShowExplain[idx] && (
+                                            <div className="italic text-xs text-gray-500 mt-1 bg-gray-50 rounded p-2 border border-gray-100">
+                                              {q.explanation}
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
                                       )
                                     )}
-                                </Card>
+                                  </Card>
                                 );
                               })}
                             </div>
@@ -1008,8 +1073,8 @@ export default function QuestionManager() {
         
         {/* Duplicate Detection Modal */}
         {showDuplicateModal && (
-          <div className="fixed inset-0 z-50 w-screen h-screen bg-black bg-opacity-50 flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          <div className="fixed inset-0 z-50 w-screen h-screen bg-white bg-opacity-40 backdrop-blur-sm flex items-center justify-center">
+            <div className="rounded-2xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
               <div className="flex items-center justify-between px-6 py-4 border-b">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">⚠️</span>
@@ -1093,12 +1158,20 @@ export default function QuestionManager() {
                   {validationResults.canSave && (
                     <Button 
                       className="bg-green-600 hover:bg-green-700"
+                      disabled={aiGenLoading}
                       onClick={async () => {
+                        if (aiGenLoading) return;
+                        setAIGenLoading(true);
                         setShowDuplicateModal(false);
                         await saveSelectedQuestions();
+                        setAIGenLoading(false);
                       }}
                     >
-                      Save Non-Duplicate Questions
+                      {aiGenLoading ? (
+                        <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Saving...</span>
+                      ) : (
+                        'Save Non-Duplicate Questions'
+                      )}
                     </Button>
                   )}
                 </div>

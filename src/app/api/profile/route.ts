@@ -27,32 +27,84 @@ export async function GET() {
       );
     }
 
-    // Find or create user
-    const user = await prisma.user.upsert({
-      where: { clerkId: userId },
-      create: {
-        clerkId: userId,
-        email: clerkUser?.emailAddresses?.[0]?.emailAddress || "",
-        firstName: clerkUser?.firstName || "",
-        lastName: clerkUser?.lastName || "",
-        phone: "",
-        department: "",
-        position: "",
-        bio: "",
-        skills: [],
-        joinDate: new Date().toLocaleDateString('vi-VN'),
-        lastLogin: new Date(),
-        status: "Hoạt động"
-      },
-      update: {
-        lastLogin: new Date()
+    // Merge by email first to avoid unique conflicts, then ensure clerkId
+    const email = clerkUser?.emailAddresses?.[0]?.emailAddress || "";
+    let user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    if (!user) {
+      const existingByEmail = email ? await prisma.user.findUnique({ where: { email } }).catch(() => null) : null;
+      if (existingByEmail) {
+        user = await prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: {
+            clerkId: userId,
+            lastLogin: new Date(),
+            email: email || existingByEmail.email,
+            firstName: existingByEmail.firstName ?? clerkUser?.firstName ?? undefined,
+            lastName: existingByEmail.lastName ?? clerkUser?.lastName ?? undefined,
+            avatar: existingByEmail.avatar ?? clerkUser?.imageUrl ?? undefined,
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } },
+            preferredJobRole: true
+          }
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            clerkId: userId,
+            email,
+            firstName: clerkUser?.firstName || "",
+            lastName: clerkUser?.lastName || "",
+            phone: "",
+            department: "",
+            bio: "",
+            skills: [],
+            roleId: "user_role_id",
+            joinDate: new Date().toLocaleDateString('vi-VN'),
+            lastLogin: new Date(),
+            status: "Hoạt động"
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } },
+            preferredJobRole: true
+          }
+        });
+      }
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date() },
+        include: {
+          role: { select: { id: true, name: true, displayName: true } },
+          preferredJobRole: true
+        }
+      });
+    }
+
+    // Include relations for response
+    const finalUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        },
+        preferredJobRole: true
       }
     });
 
+    if (!finalUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     // Add computed fullName to response
     const responseUser = {
-      ...user,
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null
+      ...finalUser,
+      fullName: `${finalUser.firstName || ''} ${finalUser.lastName || ''}`.trim() || null,
+      role: finalUser.role?.name || 'user' // Backward compatibility
     };
 
     return NextResponse.json(responseUser);
@@ -104,14 +156,14 @@ export async function PUT(request: Request) {
         email: data.email || "",
         phone: data.phone || "",
         department: data.department || "",
-        position: data.position || "",
+        preferredJobRoleId: data.preferredJobRoleId || null,
         bio: data.bio || "",
         skills: data.skills || [],
+        roleId: "user_role_id", // Default role
         joinDate: new Date().toLocaleDateString('vi-VN'),
         lastLogin: new Date(),
         status: "Hoạt động",
-        experienceLevel: data.experienceLevel || 'mid',
-        preferredInterviewTypes: data.preferredInterviewTypes || []
+        experienceLevel: data.experienceLevel || 'mid'
       },
       update: {
         firstName: data.firstName !== undefined ? data.firstName : undefined,
@@ -119,19 +171,29 @@ export async function PUT(request: Request) {
         email: data.email !== undefined ? data.email : undefined,
         phone: data.phone !== undefined ? data.phone : undefined,
         department: data.department !== undefined ? data.department : undefined,
-        position: data.position !== undefined ? data.position : undefined,
+        preferredJobRoleId: data.preferredJobRoleId !== undefined ? data.preferredJobRoleId : undefined,
         bio: data.bio !== undefined ? data.bio : undefined,
         skills: data.skills !== undefined ? data.skills : undefined,
         lastLogin: new Date(),
-        experienceLevel: data.experienceLevel !== undefined ? data.experienceLevel : undefined,
-        preferredInterviewTypes: data.preferredInterviewTypes !== undefined ? data.preferredInterviewTypes : undefined
+        experienceLevel: data.experienceLevel !== undefined ? data.experienceLevel : undefined
+      },
+      include: {
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        },
+        preferredJobRole: true
       }
     });
 
     // Add computed fullName to response
     const responseUser = {
       ...user,
-      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || null,
+      role: user.role?.name || 'user' // Backward compatibility
     };
 
     return NextResponse.json(responseUser);

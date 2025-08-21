@@ -38,15 +38,26 @@ export async function generateQuizQuestionsByAI({
     const remainingCount = count - allQuestions.length;
     const currentBatchSize = Math.min(batchSize, remainingCount);
     
-    // English prompt for AI
-    const prompt = `
+   // Danh sách câu hỏi đã có để tránh trùng
+   const existingQuestions = allQuestions.map(q => q.question);
+
+   // Prompt nâng cấp
+   const prompt = `
 Generate ${currentBatchSize} ${level} level multiple-choice questions for the topic "${topic}" in the field "${field}".
-Requirements:
-- Each question must have 4 options (A, B, C, D).
-- Each question can have one or more correct answers (single or multiple choice).
-- For each question, specify the correct answer(s) as an array of indices (e.g., [1] or [0,2]).
-- Each question MUST include a short explanation for the correct answer(s) in the field "explanation".
-- Return the result as a valid JSON array, each item:
+
+Important rules:
+1. Avoid duplicate or very similar questions across all generated questions.
+2. Do not create any question that is identical or too similar to the following existing questions:
+${JSON.stringify(existingQuestions)}
+3. Focus only on the most essential and fundamental concepts of "${topic}" so that learners can master the core knowledge.
+4. Each question must:
+  - Have exactly 4 options (A, B, C, D).
+  - Be clear, concise, and unambiguous.
+  - Have one or more correct answers (single or multiple choice).
+5. "correct" is an array of indices of correct options (e.g., [1] or [0,2]).
+6. "explanation" must be a detailed, concept-based answer. It should fully answer the question and, where possible, include relevant concepts, definitions, or background knowledge to help the learner understand not just the answer, but also the reasoning and context behind it. Do not simply repeat the options. 
+  Example: If the question is "What is ...?", explanation should be "It is ... because ... (with concept/definition/context)". Avoid generic phrases like "The correct answer is B because ...".
+7. Return the result as a valid JSON array, each item:
 {
   "question": "...",
   "options": ["A...", "B...", "C...", "D..."],
@@ -54,7 +65,7 @@ Requirements:
   "explanation": "..."
 }
 Return only valid JSON, nothing else.
-  `;
+   `;
 
     try {
       const aiResponse = await getAIResponse(prompt, [], { language });
@@ -71,26 +82,21 @@ Return only valid JSON, nothing else.
             throw new Error('Invalid question format');
           }
         });
-        
         allQuestions.push(...questions);
         console.log(`Successfully generated ${questions.length} questions in batch ${batch + 1}`);
-        
       } catch (parseError) {
         console.error(`Error parsing AI response for batch ${batch + 1}:`, aiResponse, parseError);
-        
         // If JSON is truncated, try to extract partial questions
         const partialQuestions = extractPartialQuestions(aiResponse);
         if (partialQuestions.length > 0) {
           allQuestions.push(...partialQuestions);
           console.log(`Extracted ${partialQuestions.length} partial questions from truncated response`);
         }
-        
         // If we still don't have enough questions, throw error
         if (allQuestions.length < count * 0.5) { // At least 50% of requested count
           throw new Error(`Failed to generate sufficient questions. Generated: ${allQuestions.length}/${count}`);
         }
       }
-      
     } catch (error) {
       console.error(`Error in batch ${batch + 1}:`, error);
       if (batch === 0) {
@@ -100,7 +106,6 @@ Return only valid JSON, nothing else.
       break;
     }
   }
-  
   return allQuestions.slice(0, count); // Return exactly the requested count
 }
 

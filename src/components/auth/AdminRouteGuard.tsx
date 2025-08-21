@@ -85,7 +85,7 @@ export default function AdminRouteGuard({ children, fallback }: AdminRouteGuardP
         <div className="text-6xl text-red-500 mb-4">🚫</div>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Access Denied</h1>
         <p className="text-gray-600 mb-2">You don&apos;t have permission to access this page.</p>
-        <p className="text-sm text-gray-500 mb-6">Current role: {role || 'Unknown'}</p>
+        <p className="text-sm text-gray-500 mb-6">Current role: {typeof role === 'string' ? role : 'Unknown'}</p>
         <div className="space-y-3">
           <button
             onClick={handleRedirect}

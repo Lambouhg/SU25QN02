@@ -4,8 +4,8 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion, LineChart, History, 
-  Star, Settings, Menu, X, Search, Bell, LogOut, Shield,
-  ChevronRight, ChevronDown
+  Star, Settings, Menu, X, Search, LogOut, Shield,
+  ChevronRight, ChevronDown, BookOpen
 } from 'lucide-react';
 import Link from 'next/link';
 import { UserButton, useUser, useClerk } from '@clerk/nextjs';
@@ -17,6 +17,7 @@ import CelebrationModal from '@/components/ui/CelebrationModal';
 import { useRole } from '@/context/RoleContext';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
 import { useActivityHeartbeat } from '@/hooks/useActivityHeartbeat';
+import OnboardingGuard from '@/components/OnboardingGuard';
 
 
 export default function DashboardLayout({
@@ -110,6 +111,15 @@ export default function DashboardLayout({
               }, 2000); // Show after 2 seconds
             }
           }
+
+          // NEW: force show reminder once right after onboarding
+          const forceReminder = localStorage.getItem('showStreakReminderAfterOnboarding');
+          if (forceReminder === '1') {
+            setTimeout(() => {
+              setShowActivityReminder(true);
+              localStorage.removeItem('showStreakReminderAfterOnboarding');
+            }, 1500);
+          }
         }
       } catch {
         // Silent error handling
@@ -137,7 +147,6 @@ export default function DashboardLayout({
         { label: 'Avatar Interview', href: '/avatar-interview' },
         { label: 'Quiz Mode', href: '/quiz' },
         { label: 'Test Mode', href: '/test' },
-        { label: 'EQ Test Mode', href: '/eq' },
       ]
     },
     { 
@@ -164,7 +173,18 @@ export default function DashboardLayout({
       href: '/saved',
       key: 'saved'
     },
-
+          { 
+        icon: BookOpen, 
+        label: 'Review Question', 
+        href: '/review',
+        key: 'review'
+    },
+    { 
+        icon: BookOpen, 
+        label: 'Review Question', 
+        href: '/review',
+        key: 'review'
+    },
   ], []);
 
   // Optimized modal close functions
@@ -220,9 +240,10 @@ export default function DashboardLayout({
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
-      <nav className="fixed top-0 z-50 w-full bg-white border-b border-gray-200">
+    <OnboardingGuard>
+      <div className="min-h-screen bg-gray-50">
+        {/* Top Navigation */}
+        <nav className="fixed top-0 z-50 w-full bg-white border-b border-gray-200">
         <div className="px-4 py-3 lg:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -253,10 +274,7 @@ export default function DashboardLayout({
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <button className="p-2 rounded-lg hover:bg-gray-100">
-                <Bell className="w-6 h-6 text-gray-600" />
-              </button>     
+            <div className="flex items-center gap-4">  
               {/* Admin Panel Access - Only show for admins */}
               {isAdmin && (
                 <Link
@@ -395,7 +413,7 @@ export default function DashboardLayout({
               onClick={() => setIsSidebarOpen(false)}
               className="block"
             >
-              <div className="p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 transition-colors">
+              <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 ring-2 ring-white shadow-sm">
                     {user?.imageUrl ? (
@@ -477,6 +495,7 @@ export default function DashboardLayout({
         />
       )}
       
-    </div>
-  );
+        </div>
+      </OnboardingGuard>
+    );
 }

@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 
 export function useInterviewApi() {
-  // Lấy danh sách vị trí
-  const fetchPositions = useCallback(async () => {
+  // Lấy danh sách job roles
+  const fetchJobRoles = useCallback(async () => {
     const response = await fetch('/api/positions');
-    if (!response.ok) throw new Error('Failed to fetch positions');
+    if (!response.ok) throw new Error('Failed to fetch job roles');
     return response.json();
   }, []);
 
@@ -22,5 +22,5 @@ export function useInterviewApi() {
     return response.json();
   }, []);
 
-  return { fetchPositions, saveInterview };
+  return { fetchJobRoles, saveInterview };
 } 

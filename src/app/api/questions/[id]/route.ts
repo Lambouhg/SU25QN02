@@ -34,12 +34,15 @@ export async function PUT(
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    // Find the user by clerkId
-    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    // Find the user by clerkId with role information
+    const user = await prisma.user.findUnique({ 
+      where: { clerkId: userId },
+      include: { role: true }
+    });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    if (user.role !== 'admin') {
+    if (user.role?.name !== 'admin') {
       return NextResponse.json({ error: 'Only admin can update questions' }, { status: 403 });
     }
     const body = await req.json();
@@ -111,12 +114,15 @@ export async function DELETE(
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    // Find the user by clerkId
-    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
+    // Find the user by clerkId with role information
+    const user = await prisma.user.findUnique({ 
+      where: { clerkId: userId },
+      include: { role: true }
+    });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    if (user.role !== 'admin') {
+    if (user.role?.name !== 'admin') {
       return NextResponse.json({ error: 'Only admin can delete questions' }, { status: 403 });
     }
     const { id } = await params;

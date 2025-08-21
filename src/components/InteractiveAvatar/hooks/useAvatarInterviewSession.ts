@@ -26,21 +26,33 @@ interface ApiConversationMessage {
   timestamp: string;
 }
 
-interface Position {
+interface JobRole {
   id: string;
   key: string;
-  positionName: string;
-  level: string;
-  displayName: string;
+  title: string;
+  level: 'Intern' | 'Junior' | 'Mid' | 'Senior' | 'Lead';
+  description?: string;
+  minExperience: number;
+  maxExperience?: number;
   order: number;
+  category?: {
+    id: string;
+    name: string;
+  };
+  categoryId?: string;
+  specialization?: {
+    id: string;
+    name: string;
+  };
+  specializationId?: string;
 }
 
 export interface Interview {
   id: string;
   userId: string;
-  positionId: string;
-  position: {
-    positionName: string;
+  jobRoleId: string;
+  jobRole: {
+    title: string;
     level: string;
     displayName: string;
   };
@@ -84,20 +96,18 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
   const { userId, isLoaded, isSignedIn, getToken } = useAuth();
   const [config, setConfig] = useState<StartAvatarRequest>(DEFAULT_CONFIG);
   const [connectionQuality, setConnectionQuality] = useState('UNKNOWN');
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [isAvatarTalking, setIsAvatarTalking] = useState(false);
   const [message, setMessage] = useState('');
   const [aiConversationHistory, setAiConversationHistory] = useState<ChatMessage[]>([]);
   const [positionKey, setPositionKey] = useState<string>('');
-  const [positionType, setPositionType] = useState<string>('');
-  const [positionId, setPositionId] = useState<string>('');
-  const [positionName, setPositionName] = useState<string>('');
+  const [jobRoleId, setJobRoleId] = useState<string>('');
   const [pendingInterviewEnd, setPendingInterviewEnd] = useState<null | { progress: number; reason?: string }>(null);
   const [isSavingInterview, setIsSavingInterview] = useState(false);
   const [isInitializingInterview, setIsInitializingInterview] = useState(false);
   const isPositionsFetching = useRef(false);
 
-  const { fetchPositions, saveInterview } = useInterviewApi();
+  const { fetchJobRoles, saveInterview } = useInterviewApi();
   const {
     isInterviewComplete,
     setIsInterviewComplete,
@@ -111,20 +121,20 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
   } = useInterviewSession();
 
   useEffect(() => {
-    const fetchPositionsOnce = async () => {
-      if (isPositionsFetching.current) return;
-      isPositionsFetching.current = true;
-      try {
-        const data: Position[] = await fetchPositions();
-        setPositions(data);
-      } catch (error) {
-        console.error('Error fetching positions:', error);
-      } finally {
-        isPositionsFetching.current = false;
-      }
-    };
-    fetchPositionsOnce();
-  }, [fetchPositions]);
+      const fetchJobRolesOnce = async () => {
+    if (isPositionsFetching.current) return;
+    isPositionsFetching.current = true;
+    try {
+      const data: JobRole[] = await fetchJobRoles();
+      setJobRoles(data);
+    } catch (error) {
+      console.error('Error fetching job roles:', error);
+    } finally {
+      isPositionsFetching.current = false;
+    }
+  };
+    fetchJobRolesOnce();
+  }, [fetchJobRoles]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -237,8 +247,8 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
 
   const initializeSession = useCallback(async () => {
     // Kiểm tra điều kiện bắt buộc
-    if (!positionName || !positionType) {
-      addMessage('Vui lòng chọn đầy đủ vị trí và cấp bậc trước khi bắt đầu phỏng vấn.', 'system', true);
+    if (!jobRoleId) {
+      addMessage('Vui lòng chọn vị trí công việc trước khi bắt đầu phỏng vấn.', 'system', true);
       return;
     }
     setIsInitializingInterview(true);
@@ -248,21 +258,48 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       setElapsedTime(0);
       await startSession(config);
       
-      // Normalize position name for AI to avoid confusion
-      const normalizedPosition = positionName
-        .replace(/\s*Developer?\s*/gi, '') // Remove "Developer" or "Dev"
-        .replace(/\s*Engineer?\s*/gi, '') // Remove "Engineer"
-        .trim();
+      // Tìm job role với đầy đủ thông tin
+      const selectedJobRole = jobRoles.find(role => role.id === jobRoleId);
       
-      console.log('Starting interview with normalized position:', normalizedPosition, 'level:', positionType);
-      await aiStartNewInterview(normalizedPosition, positionType);
+      if (selectedJobRole) {
+        // Tạo context chi tiết hơn cho AI
+        const aiContext = {
+          jobRole: selectedJobRole.title,
+          level: selectedJobRole.level,
+          category: selectedJobRole.category?.name,
+          specialization: selectedJobRole.specialization?.name,
+          requirements: selectedJobRole.description,
+          experienceYears: `${selectedJobRole.minExperience}-${selectedJobRole.maxExperience || selectedJobRole.minExperience + 2}`
+        };
+        
+        console.log('🎯 AI Context for interview:', aiContext);
+        
+        // Normalize position name for AI to avoid confusion
+        const normalizedPosition = selectedJobRole.category?.name
+          ?.replace(/\s*Development?\s*/gi, '') // Remove "Development" or "Dev"
+          ?.replace(/\s*Engineering?\s*/gi, '') // Remove "Engineering"
+          ?.trim() || selectedJobRole.title.toLowerCase();
+        
+        console.log('Starting interview with normalized field:', normalizedPosition, 'specialization:', selectedJobRole.specialization?.name, 'level:', selectedJobRole.level, 'experience:', `${selectedJobRole.minExperience}-${selectedJobRole.maxExperience || selectedJobRole.minExperience + 2} years`);
+        
+        // Gọi AI với context đầy đủ
+        await aiStartNewInterview(
+          normalizedPosition, 
+          selectedJobRole.level, 
+          selectedJobRole.specialization?.name, 
+          selectedJobRole.minExperience, 
+          selectedJobRole.maxExperience || selectedJobRole.minExperience + 2
+        );
+      } else {
+        addMessage('Không tìm thấy thông tin vị trí công việc. Vui lòng thử lại.', 'system', true);
+      }
     } catch (error) {
       console.error('Error starting session:', error);
       addMessage('Failed to start session: ' + (error instanceof Error ? error.message : String(error)), 'system', true);
     } finally {
       setIsInitializingInterview(false);
     }
-  }, [positionName, positionType, setIsInterviewComplete, setInterviewStartTime, setElapsedTime, startSession, config, aiStartNewInterview, addMessage]);
+  }, [jobRoleId, jobRoles, setIsInterviewComplete, setInterviewStartTime, setElapsedTime, startSession, config, aiStartNewInterview, addMessage]);
 
   const handleInterviewCompleteInternal = useCallback(async (progress: number) => {
     if (isSubmitting) return;
@@ -281,10 +318,15 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       return;
     }
     try {
+      // Get selected job role for evaluation
+      const selectedJobRole = jobRoles.find(role => role.id === jobRoleId);
+      const positionName = selectedJobRole?.title || 'Unknown Position';
+      const positionLevel = selectedJobRole?.level || 'Unknown Level';
+      
       const evaluation = await generateInterviewEvaluation(
         aiConversationHistory,
-        positionName,  // Use positionName instead of positionKey
-        positionType,  // Use positionType as level
+        positionName,
+        positionLevel,
         config.language === 'vi' ? 'vi-VN' : 'en-US'
       );
       const messages = conversation as unknown as ConversationMessage[];
@@ -307,7 +349,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
       const token = await getToken();
       const requestData = {
-        positionId,
+        jobRoleId: jobRoleId,
         language: config.language === 'vi' ? 'vi-VN' : 'en-US',
         startTime: interviewStartTime || startTime,
         endTime,
@@ -348,10 +390,10 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       const interviewData = {
         id: interviewId || '',
         userId: userId || '',
-        positionId: positionId || '',
-        position: {
-          positionName: positionName || '',
-          level: positionType || '',
+        jobRoleId: jobRoleId || '',
+        jobRole: {
+          title: positionName || '',
+          level: selectedJobRole?.level || '',
           displayName: positionName || ''
         },
         language: config.language || '',
@@ -382,7 +424,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       setIsSubmitting(false);
       setIsSavingInterview(false); // Kết thúc loading lưu kết quả
     }
-  }, [isSubmitting, setIsSubmitting, setIsInterviewComplete, isLoaded, isSignedIn, userId, router, aiConversationHistory, positionName, positionId, config, conversation, interviewStartTime, getToken, saveInterview, questionCount, interviewState, endSession, setIsAvatarTalking, setMessage, onEndSession, positionType, addMessage]);
+  }, [isSubmitting, setIsSubmitting, setIsInterviewComplete, isLoaded, isSignedIn, userId, router, aiConversationHistory, jobRoleId, jobRoles, config, conversation, interviewStartTime, getToken, saveInterview, questionCount, interviewState, endSession, setIsAvatarTalking, setMessage, onEndSession, addMessage]);
 
 
   // Đặt handleEndSession lên trước để tránh lỗi hoisting
@@ -408,9 +450,9 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       onEndSession({
         id: '',
         userId: userId || '',
-        positionId: '',
-        position: {
-          positionName: '',
+        jobRoleId: '',
+        jobRole: {
+          title: '',
           level: '',
           displayName: ''
         },
@@ -508,14 +550,12 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
   return {
     config, setConfig,
     connectionQuality,
-    positions,
+    jobRoles,
     isAvatarTalking,
     message, setMessage,
     aiConversationHistory,
     positionKey, setPositionKey,
-    positionType, setPositionType,
-    positionId, setPositionId,
-    positionName, setPositionName,
+    jobRoleId, setJobRoleId,
     pendingInterviewEnd, setPendingInterviewEnd,
     isInterviewComplete,
     isSubmitting,

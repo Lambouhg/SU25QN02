@@ -7,7 +7,7 @@ import {
   getUserCache,
   USER_LIST_CACHE_DURATION
 } from "../../../lib/userCache";
-// import NotificationService from "../../../services/notificationService";
+
 
 
 
@@ -29,7 +29,14 @@ export async function GET() {
         firstName: true,
         lastName: true,
         avatar: true,
-        role: true,
+        roleId: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true
+          }
+        },
         status: true,
         lastLogin: true,
         lastActivity: true,
@@ -45,15 +52,44 @@ export async function GET() {
       ]
     });
 
+    // Define a type for the user role
+    type UserRole = {
+      id: string;
+      name?: string;
+      displayName?: string;
+    };
+
+    // Define a type for the user
+    type UserType = {
+      id: string;
+      clerkId: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+      avatar: string | null;
+      roleId: string;
+      role: UserRole | null;
+      status: string | null;
+      lastLogin: Date | null;
+      lastActivity: Date | null;
+      lastSignInAt: Date | null;
+      isOnline: boolean | null;
+      clerkSessionActive: boolean | null;
+      createdAt: Date;
+      updatedAt: Date;
+    };
+
     // Transform the users to ensure fullName and imageUrl are properly set
-    const transformedUsers = users.map((user: { [key: string]: unknown }) => {
+    const transformedUsers = users.map((user: UserType) => {
       // Calculate fullName from firstName and lastName
       const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim() || null;
 
       return {
         ...user,
         fullName,
-        imageUrl: user.avatar // Add imageUrl as alias for avatar
+        imageUrl: user.avatar, // Add imageUrl as alias for avatar
+        
+        role: user.role?.name || user.role?.displayName || 'user' // Backward compatibility: extract role name
       };
     });
 
@@ -118,36 +154,56 @@ export async function POST(request: Request) {
     const isNewUser = !existingUser;
     
 
-    // Sử dụng upsert để tránh race condition
-    const user = await prisma.user.upsert({
-      where: { clerkId },
-      update: {
-        email,
-        firstName: firstName || undefined,
-        lastName: lastName || undefined,
-        avatar: avatar || undefined,
-        lastLogin: new Date()
-      },
-      create: {
-        clerkId,
-        email,
-        firstName: firstName || '',
-        lastName: lastName || '',
-        avatar: avatar || '',
-        lastLogin: new Date(),
-        role: 'user'
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        clerkId: true,
-        role: true,
-        avatar: true,
-        lastLogin: true
+    // Merge by email to avoid unique constraint conflicts, then ensure clerkId
+    let user = await prisma.user.findUnique({ where: { clerkId } });
+    if (!user) {
+      const existingByEmail = await prisma.user.findUnique({ where: { email } }).catch(() => null);
+      if (existingByEmail) {
+        user = await prisma.user.update({
+          where: { id: existingByEmail.id },
+          data: {
+            clerkId,
+            email,
+            firstName: firstName || undefined,
+            lastName: lastName || undefined,
+            avatar: avatar || undefined,
+            lastLogin: new Date()
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } }
+          }
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            clerkId,
+            email,
+            firstName: firstName || '',
+            lastName: lastName || '',
+            avatar: avatar || '',
+            lastLogin: new Date(),
+            roleId: 'user_role_id'
+          },
+          include: {
+            role: { select: { id: true, name: true, displayName: true } }
+          }
+        });
       }
-    });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          email,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          avatar: avatar || undefined,
+          lastLogin: new Date()
+        },
+        include: {
+          role: { select: { id: true, name: true, displayName: true } }
+        }
+      });
+    }
 
     // Sử dụng transaction để đảm bảo consistency khi tạo user và gói free
     const result = await prisma.$transaction(async (tx) => {
@@ -241,7 +297,13 @@ export async function POST(request: Request) {
     // Clear user list cache
     setUserListCache({ success: true, users: [], totalCount: 0 });
 
-    return (NextResponse.json(result));
+    // Transform result for backward compatibility
+    const transformedResult = {
+      ...result,
+      role: ((result as any)?.role?.name) || 'user'
+    };
+
+    return (NextResponse.json(transformedResult));
   } catch (error) {
     console.error("Error in user API:", error);
     return (NextResponse.json(

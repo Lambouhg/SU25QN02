@@ -117,42 +117,50 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Cột trái: Chat + header + timer */}
       <div className="lg:col-span-2 flex flex-col">
-        <div className="mb-4">
-          <h2 className="text-2xl font-bold mb-1">Interview in Progress</h2>
-          <div className="flex flex-wrap items-center gap-4 text-muted-foreground text-sm">
-            <Badge variant="outline">{position}</Badge>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-              Question {officialQuestionCount}/{maxQuestions}
-            </Badge>
-            <span className={`inline-flex items-center gap-1 font-mono text-lg ${timerColor}`}>
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="2"/>
-                <path d="M12 6v6l4 2" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
-              </svg> 
-              {timer}
-            </span>
-            {isReviewing && (
-              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 animate-pulse">
-                Review Time: {reviewCountdown}s
+        <div className="mb-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 p-[1px] shadow-sm">
+          <div className="rounded-xl bg-white px-4 py-3">
+            <div className="flex flex-wrap items-center gap-4">
+              <h2 className="text-xl font-semibold">Interview in Progress</h2>
+              <Badge variant="outline">{position}</Badge>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                Question {officialQuestionCount}/{maxQuestions}
               </Badge>
-            )}
+              <span className={`ml-auto inline-flex items-center gap-1 font-mono text-lg ${timerColor}`}>
+                <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="2"/>
+                  <path d="M12 6v6l4 2" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                {timer}
+              </span>
+              {isReviewing && (
+                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 animate-pulse">
+                  Review Time: {reviewCountdown}s
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <Card className="flex-1 flex flex-col">
           <CardContent className="flex-1 flex flex-col p-4 overflow-y-auto" ref={messageListRef} style={{ maxHeight: 400 }}>
             {filteredConversation.map((msg) => (
-              <div key={msg.id} className={`mb-4 flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> 
-                <div className={`rounded-lg px-4 py-2 max-w-[80%] ${msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted border border-yellow-300 text-yellow-900'}`}> 
-                  <div className="text-xs font-medium mb-1">{msg.sender === 'user' ? 'You' : 'AI Interviewer'}</div>
-                  <div className="whitespace-pre-line">{msg.text}</div>
+              <div key={msg.id} className={`mb-3 flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> 
+                <div className={`rounded-2xl px-4 py-3 max-w-[80%] shadow ${msg.sender === 'user' 
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' 
+                  : 'bg-white border border-gray-200 text-gray-800'}`}>
+                  <div className="text-[11px] font-medium opacity-70 mb-1">{msg.sender === 'user' ? 'You' : 'AI Interviewer'}</div>
+                  <div className="whitespace-pre-line leading-relaxed">{msg.text}</div>
                 </div>
               </div>
             ))}
             {isAiThinking && (
-              <div className="mb-4 flex justify-start">
-                <div className="rounded-lg px-4 py-2 bg-muted border border-yellow-300 text-yellow-900 max-w-[80%]">
-                  <div className="text-xs font-medium mb-1">AI Interviewer</div>
-                  <div>AI is thinking...</div>
+              <div className="mb-3 flex justify-start">
+                <div className="rounded-2xl px-4 py-3 bg-white border border-gray-200 text-gray-800 max-w-[60%] shadow">
+                  <div className="text-[11px] font-medium opacity-70 mb-1">AI Interviewer</div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}}></span>
+                    <span className="inline-block w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}}></span>
+                    <span className="inline-block w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}}></span>
+                  </div>
                 </div>
               </div>
             )}
@@ -162,13 +170,13 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
               placeholder={isReviewing ? "Please wait while reviewing..." : "Enter your answer..."}
               value={message}
               onChange={onMessageChange}
-              className="flex-1 min-h-[44px] max-h-[120px] resize-none"
+              className="flex-1 min-h-[44px] max-h-[120px] resize-none rounded-xl border-gray-200 focus-visible:ring-2 focus-visible:ring-indigo-500"
               disabled={isAiThinking || isReviewing}
             />
             <Button 
               onClick={onSendMessage} 
               disabled={!message.trim() || isAiThinking || isReviewing} 
-              className="h-12 px-6"
+              className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Send
             </Button>
@@ -242,24 +250,21 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
                     <span className="text-sm font-medium">Fundamental Knowledge</span>
                     <span className="font-bold text-blue-500">{Math.round(scores.fundamental)}%</span>
                   </div>
-                  <Progress value={scores.fundamental} />
-                  <div className="text-xs text-muted-foreground">{scores.suggestions.fundamental || 'Needs improvement'}</div>
+                  <ScoreBar value={scores.fundamental} color="bg-blue-500" />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">Logical Reasoning</span>
                     <span className="font-bold text-red-500">{Math.round(scores.logic)}%</span>
                   </div>
-                  <Progress value={scores.logic} />
-                  <div className="text-xs text-muted-foreground">{scores.suggestions.logic || 'Needs improvement'}</div>
+                  <ScoreBar value={scores.logic} color="bg-red-500" />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm font-medium">Language Fluency</span>
                     <span className="font-bold text-red-500">{Math.round(scores.language)}%</span>
                   </div>
-                  <Progress value={scores.language} />
-                  <div className="text-xs text-muted-foreground">{scores.suggestions.language || 'Needs improvement'}</div>
+                  <ScoreBar value={scores.language} color="bg-green-500" />
                 </div>
               </div>
             </div>
@@ -275,6 +280,22 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+};
+
+// Compact score bar with rounded background and colored fill
+const ScoreBar: React.FC<{ value: number; color?: string }> = ({ value, color = 'bg-blue-500' }) => {
+  const safe = Math.max(0, Math.min(100, Math.round(value || 0)));
+  return (
+    <div className="w-full">
+      <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
+        <div
+          className={`${color} h-full transition-all`}
+          style={{ width: `${safe}%` }}
+        />
+      </div>
+      <div className="mt-1 text-[11px] text-gray-500">Score: {safe}/100</div>
     </div>
   );
 };

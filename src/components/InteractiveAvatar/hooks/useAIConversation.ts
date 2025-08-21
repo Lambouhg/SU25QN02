@@ -128,7 +128,7 @@ export const useAIConversation = ({
           clearAutoPromptTimer();
           setAutoPromptCount(0);
           if (onInterviewComplete) {
-            onInterviewComplete({ progress: 100 });
+            onInterviewComplete({ progress: 100, reason: 'timeout' });
           }
           if (onEndSession) {
             onEndSession();
@@ -161,7 +161,7 @@ export const useAIConversation = ({
           clearAutoPromptTimer();
           setAutoPromptCount(0);
           if (onInterviewComplete) {
-            onInterviewComplete({ progress: 100 });
+            onInterviewComplete({ progress: 100, reason: 'timeout' });
           }
         } else {
         // Không tự động start lại timer ở đây nữa, chỉ start lại khi avatar dừng nói (bên ngoài gọi)
@@ -195,15 +195,28 @@ export const useAIConversation = ({
 
       // Check if interview is complete
       if (response.isInterviewComplete && onInterviewComplete) {
+        console.log('🎯 Interview completed by AI! Question count:', response.questionCount, 'Progress:', response.interviewProgress);
+        console.log('🎯 AI response contains conclusion:', response.answer.substring(0, 100) + '...');
         clearAutoPromptTimer(); // Clear timer when interview completes
         setAutoPromptCount(0); // Reset auto prompt count
         onInterviewComplete({ progress: response.interviewProgress });
         return; // Exit early to prevent further processing
       }
+
+      // Additional check: if question count reaches 10 AFTER user has responded, force completion
+      // This ensures AI can ask the 10th question and user can respond before completion
+      if (response.questionCount >= 10 && !response.isInterviewComplete && onInterviewComplete) {
+        console.log('🎯 User has responded to 10th question, forcing interview completion. Current count:', response.questionCount);
+        console.log('🎯 This should not happen if AI is properly concluding the interview');
+        clearAutoPromptTimer();
+        setAutoPromptCount(0);
+        onInterviewComplete({ progress: 100 });
+        return;
+      }
     }
   }, [onInterviewComplete, clearAutoPromptTimer]);
 
-  const startNewInterview = useCallback(async (field: string, level: string) => {
+  const startNewInterview = useCallback(async (field: string, level: string, specialization?: string, minExperience?: number, maxExperience?: number) => {
     setIsThinking(true);
     resetAutoPrompt(); // Reset auto-prompt for new interview
 
@@ -217,10 +230,10 @@ export const useAIConversation = ({
       // Set initial system context with detailed logging
       const systemMessage: ChatMessage = {
         role: 'system',
-        content: `Position: ${field} at ${level} level\nLanguage: ${language}`
+        content: `Position: ${field}${specialization ? ` - ${specialization}` : ''} at ${level} level\nExperience: ${minExperience !== undefined && maxExperience !== undefined ? `${minExperience}-${maxExperience} years` : 'unspecified'}\nLanguage: ${language}`
       };
       
-      console.log('🎯 Starting interview with field:', field, 'level:', level);
+      console.log('🎯 Starting interview with field:', field, 'specialization:', specialization, 'level:', level, 'experience:', `${minExperience}-${maxExperience} years`);
       console.log('📝 System message created:', systemMessage.content);
       
       setConversationHistory([systemMessage]);
@@ -229,7 +242,10 @@ export const useAIConversation = ({
       const response = await startInterview({
         field,
         level,
-        language
+        language,
+        specialization,
+        minExperience,
+        maxExperience
       });
 
       if (!response || !response.answer) {
@@ -333,7 +349,7 @@ export const useAIConversation = ({
         }
 
         // Use question count from AI response instead of manual calculation
-        // AI knows exactly how many actual technical questions have been asked
+        // AI knows exactly how many technical questions have been asked
         setQuestionCount(response.questionCount || 0);
         
         // Không tự động start auto-prompt timer ở đây nữa, chỉ start khi avatar dừng nói (bên ngoài gọi)

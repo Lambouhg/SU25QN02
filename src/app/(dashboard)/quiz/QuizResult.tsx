@@ -30,7 +30,8 @@ interface QuizResultProps {
 
 export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultProps) {
   const router = useRouter()
-  const [savedQuestionIds, setSavedQuestionIds] = useState<string[]>([])
+  const [savedQuestionIds, setSavedQuestionIds] = useState<string[]>([]) // Already saved questions from server
+  const [pendingSaveIds, setPendingSaveIds] = useState<string[]>([]) // Questions marked for saving locally
   const [showSaveWarning, setShowSaveWarning] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
   const [showCorrectAnswers, setShowCorrectAnswers] = useState<Record<string, boolean>>({}) // Track which questions show correct answers
@@ -38,7 +39,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
   useEffect(() => {
     const fetchSavedQuestions = async () => {
       try {
-        const response = await fetch("/api/users/saved-questions")
+  const response = await fetch("/api/questions/saved-questions")
         if (!response.ok) throw new Error("Failed to fetch saved questions")
         const data = await response.json()
         const savedIds = data.map((q: { id: string }) => q.id);
@@ -52,7 +53,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
     fetchSavedQuestions()
   }, [])
 
-  // Get incorrect questions that haven't been saved
+  // Get incorrect questions that haven't been saved (including pending saves)
   const getUnsavedIncorrectQuestions = () => {
     const unsaved = quiz.questions.filter(question => {
       // Use same logic as question review to determine correctness
@@ -81,7 +82,9 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
       }
       
       const isIncorrect = isCorrect === false; // Only false means incorrect
-      const isNotSaved = !savedQuestionIds.includes(question.id)
+      const isAlreadySaved = savedQuestionIds.includes(question.id)
+      const isPendingSave = pendingSaveIds.includes(question.id)
+      const isNotSaved = !isAlreadySaved && !isPendingSave
       
       return isIncorrect && isNotSaved
     })
@@ -89,11 +92,13 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
     return unsaved
   }
 
-  const unsavedIncorrectCount = getUnsavedIncorrectQuestions().length
+  const unsavedIncorrectCount = getUnsavedIncorrectQuestions().length + pendingSaveIds.length
 
   // Debug log for save warning popup
   console.log('QuizResult - Save warning check:', {
     unsavedIncorrectCount,
+    pendingSaveIds: pendingSaveIds.length,
+    actualUnsaved: getUnsavedIncorrectQuestions().length,
     totalQuestions: quiz.questions?.length,
     hasIsCorrectFlags: quiz.questions?.some(q => (q as QuestionResult).isCorrect !== undefined),
     savedQuestionIds: savedQuestionIds.length
@@ -106,28 +111,13 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
   }
 
   const handleSaveQuestion = async (questionId: string) => {
-    try {
-      const response = await fetch("/api/users/saved-questions", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ questionId }),
-      })
-      if (!response.ok) {
-        throw new Error("Failed to toggle save question")
-      }
-      const { message } = await response.json()
-      if (savedQuestionIds.includes(questionId)) {
-        setSavedQuestionIds(savedQuestionIds.filter((id) => id !== questionId))
-        toast.success(message || "Question unsaved successfully!")
-      } else {
-        setSavedQuestionIds([...savedQuestionIds, questionId])
-        toast.success(message || "Question saved successfully!")
-      }
-    } catch (error) {
-      console.error("Error toggling saved question:", error)
-      toast.error("Failed to save/unsave question.")
+    // Toggle pending save state locally instead of calling API immediately
+    if (pendingSaveIds.includes(questionId)) {
+      setPendingSaveIds(pendingSaveIds.filter((id) => id !== questionId))
+      toast.success("Question unmarked for saving!")
+    } else {
+      setPendingSaveIds([...pendingSaveIds, questionId])
+      toast.success("Question marked for saving!")
     }
   }
 
@@ -154,7 +144,8 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
     return 0;
   })();
   
-  const isPassingScore = quiz.score >= 70
+  const displayScore = Math.round((quiz.score ?? 0) * 10)
+  const isPassingScore = displayScore >= 70
 
   const handleRetryQuiz = async () => {
     try {
@@ -179,8 +170,9 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
 
   // Handle navigation with warning
   const handleNavigation = (action: string, callback: () => void) => {
-    console.log('handleNavigation called:', { action, unsavedIncorrectCount });
-    if (unsavedIncorrectCount > 0) {
+    const totalItemsToSave = getUnsavedIncorrectQuestions().length + pendingSaveIds.length
+    console.log('handleNavigation called:', { action, totalItemsToSave, pendingSaves: pendingSaveIds.length });
+    if (totalItemsToSave > 0) {
       console.log('Showing save warning popup')
       setShowSaveWarning(true)
       setPendingNavigation(action)
@@ -209,23 +201,33 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
     setPendingNavigation(null)
   }
 
-  // Save all incorrect questions at once
+  // Save all questions marked for saving (both incorrect unsaved + pending saves)
   const handleSaveAllIncorrect = async () => {
     const unsavedIncorrect = getUnsavedIncorrectQuestions()
+    const allQuestionsToSave = [...unsavedIncorrect.map(q => q.id), ...pendingSaveIds]
+    
+    // Remove duplicates
+    const uniqueQuestionsToSave = Array.from(new Set(allQuestionsToSave))
+    
+    if (uniqueQuestionsToSave.length === 0) {
+      toast.success("No questions to save!")
+      return
+    }
+
     let savedCount = 0
 
-    for (const question of unsavedIncorrect) {
+    for (const questionId of uniqueQuestionsToSave) {
       try {
-        const response = await fetch("/api/users/saved-questions", {
+        const response = await fetch("/api/questions/saved-questions", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ questionId: question.id }),
+          body: JSON.stringify({ questionId }),
         })
         if (response.ok) {
           savedCount++
-          setSavedQuestionIds(prev => [...prev, question.id])
+          setSavedQuestionIds(prev => [...prev, questionId])
         }
       } catch (error) {
         console.error("Error saving question:", error)
@@ -234,6 +236,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
 
     if (savedCount > 0) {
       toast.success(`Successfully saved ${savedCount} questions for later study!`)
+      setPendingSaveIds([]) // Clear pending saves after successful save
       setShowSaveWarning(false)
       setPendingNavigation(null)
       // Redirect to saved questions page after successful save
@@ -282,7 +285,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
               <CardContent className="p-8">
                 <div className="text-center mb-8">
                   <div className={`text-6xl font-bold mb-4 ${isPassingScore ? "text-green-600" : "text-orange-600"}`}>
-                    {quiz.score}%
+                    {displayScore}%
                   </div>
 
                   <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto">
@@ -335,6 +338,19 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                     Your Saved Questions
                   </button>
                 </div>
+                
+                {/* Save All Button - Show when there are pending saves */}
+                {pendingSaveIds.length > 0 && (
+                  <div className="mt-4">
+                    <button
+                      onClick={handleSaveAllIncorrect}
+                      className="w-full flex items-center justify-center gap-3 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 rounded-xl font-bold text-white shadow-lg transition-all duration-300 transform hover:scale-105"
+                    >
+                      <Bookmark className="w-5 h-5" />
+                      Save All Marked Questions ({pendingSaveIds.length})
+                    </button>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -377,6 +393,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                     }
                     
                     const isSaved = savedQuestionIds.includes(question.id)
+                    const isPendingSave = pendingSaveIds.includes(question.id)
 
                     return (
                       <div
@@ -466,13 +483,15 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                               className={`p-2 rounded-lg transition-all duration-300 ${
                                 isSaved
                                   ? "bg-orange-100 text-orange-700 border border-orange-300 hover:bg-orange-200"
+                                  : isPendingSave
+                                  ? "bg-yellow-100 text-yellow-700 border border-yellow-300 hover:bg-yellow-200"
                                   : isCorrect
                                   ? "bg-green-100 text-green-700 border border-green-300 hover:bg-green-200"
                                   : "bg-red-100 text-red-700 border border-red-300 hover:bg-red-200"
                               }`}
-                              title={isSaved ? "Unsave Question" : "Save Question"}
+                              title={isSaved ? "Already Saved" : isPendingSave ? "Marked for Saving" : "Mark for Saving"}
                             >
-                              <Bookmark className={`w-5 h-5 ${isSaved ? "fill-current" : ""}`} />
+                              <Bookmark className={`w-5 h-5 ${isSaved || isPendingSave ? "fill-current" : ""}`} />
                             </button>
                           </div>
                         </div>
@@ -588,7 +607,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-gray-600">Accuracy</span>
                       <span className={`font-medium ${isPassingScore ? "text-green-600" : "text-orange-600"}`}>
-                        {quiz.score}%
+                        {displayScore}%
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -598,7 +617,7 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                             ? "bg-gradient-to-r from-green-400 to-emerald-400"
                             : "bg-gradient-to-r from-orange-400 to-red-400"
                         }`}
-                        style={{ width: `${quiz.score}%` }}
+                        style={{ width: `${displayScore}%` }}
                       />
                     </div>
                   </div>
@@ -677,8 +696,15 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
                         <Bookmark className="w-4 h-4 text-white" />
                       </div>
                       <div className="text-sm">
-                        <div className="text-gray-800 font-medium">Save incorrect questions</div>
-                        <div className="text-gray-600 text-xs">{unsavedIncorrectCount} questions to save</div>
+                        <div className="text-gray-800 font-medium">
+                          {pendingSaveIds.length > 0 ? "Questions marked for saving" : "Save incorrect questions"}
+                        </div>
+                        <div className="text-gray-600 text-xs">
+                          {pendingSaveIds.length > 0 
+                            ? `${pendingSaveIds.length} marked + ${getUnsavedIncorrectQuestions().length} unsaved`
+                            : `${getUnsavedIncorrectQuestions().length} questions to save`
+                          }
+                        </div>
                       </div>
                     </div>
                   )}
@@ -699,8 +725,12 @@ export default function QuizResult({ quiz, onNewQuiz, onRetryQuiz }: QuizResultP
               </div>
                              <h3 className="text-xl font-bold text-gray-800 mb-2">Save Your Progress?</h3>
                <p className="text-gray-600 mb-6">
-                 We noticed you haven&apos;t saved {unsavedIncorrectCount} question{unsavedIncorrectCount > 1 ? 's' : ''} (incorrect). 
-                 Would you like to save them for later study?
+                 {pendingSaveIds.length > 0 && getUnsavedIncorrectQuestions().length > 0 
+                   ? `You have marked ${pendingSaveIds.length} questions for saving and ${getUnsavedIncorrectQuestions().length} unsaved incorrect questions. Would you like to save them all for later study?`
+                   : pendingSaveIds.length > 0 
+                   ? `You have marked ${pendingSaveIds.length} question${pendingSaveIds.length > 1 ? 's' : ''} for saving. Would you like to save them for later study?`
+                   : `We noticed you haven't saved ${getUnsavedIncorrectQuestions().length} question${getUnsavedIncorrectQuestions().length > 1 ? 's' : ''} (incorrect). Would you like to save them for later study?`
+                 }
                </p>
                
                <div className="space-y-3">

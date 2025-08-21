@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { questionSetService, QuestionSetData } from '@/services/questionSetService';
+import { useAzureVoiceInteraction } from '@/hooks/useAzureVoiceInteraction';
 
 interface AnalysisResult {
   feedback: string;
@@ -38,6 +39,32 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(getInitialQuestionIndex);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [answerStartTime, setAnswerStartTime] = useState<Date | null>(null);
+
+  // Azure Speech-to-Text integration
+  const {
+    isListening,
+    startListening,
+    stopListening
+  } = useAzureVoiceInteraction({
+    onSpeechResult: (result: string) => {
+      console.log('Speech result received:', result);
+      // Append the speech result to the current answer
+      setAnswer(prev => {
+        const newAnswer = prev + (prev ? ' ' : '') + result;
+        // Start timing when user first starts speaking (if not already started)
+        if (!answerStartTime && newAnswer.length > 0) {
+          setAnswerStartTime(new Date());
+        }
+        return newAnswer;
+      });
+    },
+    onError: (error: string) => {
+      console.error('Speech recognition error:', error);
+    },
+    language: 'en-US' // Set language to English
+  });
+
 
   // Initialize interview question from URL if available
   const getInitialInterviewQuestion = () => {
@@ -311,6 +338,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
     if (!answer.trim()) return;
     
     setIsLoading(true);
+    
     try {
       const response = await fetch('/api/jd/analyze-answer', {
         method: 'POST',
@@ -325,12 +353,20 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       });
 
       const data = await response.json();
+    
+      
       if (data.success) {
+        
         setFeedback(data.feedback);
         setAnalysisResult(data);
         setIsSubmitted(true);
+        
+        // Save answer to database after successful analysis
+        
+        await saveAnswerToDatabase(data);
+        
       } else {
-        console.error('Error:', data.error);
+        console.error('❌ Analysis failed:', data.error);
       }
     } catch (error) {
       console.error('Failed to analyze answer:', error);
@@ -338,7 +374,104 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       setIsLoading(false);
     }
   };
+
+  // Function to save answer and analysis to database
+  const saveAnswerToDatabase = async (analysisData: AnalysisResult) => {
+    try {
+      
+      
+      // Get current question set ID from localStorage or URL
+      const questionSetIdFromURL = searchParams.get('questionSetId');
+      
+      
+      let jdQuestionSetId = questionSetIdFromURL;
+      
+      // If no question set ID from URL, try to get from localStorage
+      if (!jdQuestionSetId) {
+        const savedState = localStorage.getItem('jd_page_state');
+
+        if (savedState) {
+          const state = JSON.parse(savedState);
+          jdQuestionSetId = state.currentQuestionSetId;
+          
+        }
+      }
+      
+      // If still no question set ID, skip saving
+      if (!jdQuestionSetId) {
+        return;
+      }
+
+
+      const timeSpent = answerStartTime ? 
+        Math.floor((new Date().getTime() - answerStartTime.getTime()) / 1000) : undefined;
+
+      // First, check if this question has been answered before
+      const checkResponse = await fetch(`/api/jd-answers?type=check&questionSetId=${jdQuestionSetId}&questionIndex=${currentQuestionIndex}`);
+      const checkData = await checkResponse.json();
+      
+      const answerData = {
+        jdQuestionSetId,
+        questionIndex: currentQuestionIndex,
+        questionText: interviewQuestion.title,
+        userAnswer: answer,
+        analysisResult: {
+          feedback: analysisData.feedback,
+          detailedScores: analysisData.detailedScores || {},
+          overallScore: analysisData.readinessScore || 0,
+          strengths: analysisData.strengths || [],
+          improvements: analysisData.improvements || [],
+          skillAssessment: {
+            level: analysisData.level,
+            recommendedNextLevel: analysisData.recommendedNextLevel,
+            suggestions: analysisData.suggestions
+          }
+        },
+        timeSpent
+      };
+
+      let saveResponse;
+      
+      if (checkData.success && checkData.exists) {
+        // Update existing answer
+       
+        saveResponse = await fetch(`/api/jd-answers/${checkData.answerId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(answerData),
+        });
+      } else {
+        
+        saveResponse = await fetch('/api/jd-answers', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(answerData),
+        });
+      }
+
+      const saveData = await saveResponse.json();
+  
+      
+      if (saveData.success) {
+       
+      } else {
+        console.error('❌ Failed to save answer:', saveData.error);
+      }
+    } catch (error) {
+      console.error('Error saving answer to database:', error);
+    }
+  };
+
   const handleSubmit = () => {
+    // Record the time when user starts submitting if not already recorded
+    if (!answerStartTime) {
+      setAnswerStartTime(new Date());
+    }
+    
     analyzeAnswer();
     // Increment questions answered when submitting
     setQuestionsAnswered(prev => prev + 1);
@@ -422,25 +555,70 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                 </div>
               </div>
 
-              {/* Answer Input Box */}
               <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-lg">
                 <div className="mb-6">
                   <h4 className="text-xl font-semibold text-gray-900 mb-2">Your Answer</h4>
-                  <p className="text-gray-600">Write your response below. Be specific and use examples from your experience.</p>
+                  <p className="text-gray-600">Write your response below or use the microphone to speak your answer. Be specific and use examples from your experience.</p>
                 </div>
                 
-                <textarea
-                  value={answer}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  className="w-full h-64 bg-white border-2 border-gray-300 rounded-xl p-6 text-gray-900 text-lg resize-none focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200"
-                  placeholder="Type your answer here... Be specific and include examples from your experience."
-                  disabled={isSubmitted}
-                />
+                <div className="relative">
+                  <textarea
+                    value={answer}
+                    onChange={(e) => {
+                      setAnswer(e.target.value);
+                      // Start timing when user first starts typing
+                      if (!answerStartTime && e.target.value.length === 1) {
+                        setAnswerStartTime(new Date());
+                      }
+                    }}
+                    className="w-full h-64 bg-white border-2 border-gray-300 rounded-xl p-6 text-gray-900 text-lg resize-none focus:outline-none focus:border-orange-400 focus:ring-4 focus:ring-orange-100 transition-all duration-200 pr-16"
+                    placeholder="Type your answer here or click the microphone to speak... Be specific and include examples from your experience."
+                    disabled={isSubmitted}
+                  />
+                  
+                  {/* Speech-to-Text Button */}
+                  <button
+                    onClick={() => {
+                      if (isListening) {
+                        stopListening();
+                      } else {
+                        startListening();
+                      }
+                    }}
+                    disabled={isSubmitted}
+                    className={`absolute top-4 right-4 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ${
+                      isListening 
+                        ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                        : 'bg-blue-500 hover:bg-blue-600'
+                    } text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed z-50 border-2 border-white`}
+                    title={isListening ? 'Stop recording' : 'Start voice input'}
+                  >
+                    {isListening ? (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a2 2 0 114 0v4a2 2 0 11-4 0V7z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                  
+                  {/* Recording indicator */}
+                  {isListening && (
+                    <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                      Recording...
+                    </div>
+                  )}
+                </div>
                 
                 <div className="flex justify-between items-center mt-6">
-                  <div className="text-sm text-gray-500">
-                    <span className="font-medium">{answer.length}</span> characters
-                    <span className="ml-4 text-gray-400">Recommended: 200-500 words</span>
+                  <div className="space-y-2">
+                    <div className="text-sm text-gray-500">
+                      <span className="font-medium">{answer.length}</span> characters
+                      <span className="ml-4 text-gray-400">Recommended: 200-500 words</span>
+                    </div>
                   </div>
                   
                   <div className="flex gap-3">
@@ -526,6 +704,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
                     setAnalysisResult(null);
                     setIsSubmitted(false);
                     setIsLoading(false);
+                    setAnswerStartTime(null); // Reset timing
                     
                     // Get the next question in order
                     const nextQuestion = getNextQuestion();

@@ -1,22 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, MessageSquare, Brain, FileDown, TrendingUp, Award, Clock, Target, Plus, Edit2, Trash2 } from 'lucide-react';
-import AdminUserModal from '@/components/admin/AdminUserModal';
+import { Users, TrendingUp, Award, Clock, Target, DollarSign } from 'lucide-react';
 import StatisticsChart from '@/components/admin/StatisticsChart';
+import RevenueChart from '@/components/admin/RevenueChart';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
 
-// Types
-interface UserStats {
-  id: string;
-  name: string;
-  email: string;
-  totalInterviews: number;
-  averageScore: number;
-  lastActivity: string;
-  status: 'active' | 'inactive';
-  role: 'admin' | 'user';
-}
+
 
 interface DashboardMetrics {
   totalUsers: number;
@@ -33,7 +23,41 @@ interface RoleStats {
   userPercentage: number;
 }
 
+interface RevenueData {
+  totalRevenue: number;
+  totalTransactions: number;
+  growthRate: number;
+  averageOrderValue: number;
+  chartData: Array<{
+    month: string;
+    revenue: number;
+    transactions: number;
+    averageOrderValue: number;
+  }>;
+  topPackages: Array<{
+    id: string;
+    name: string;
+    count: number;
+    revenue: number;
+  }>;
+}
+
 export default function AdminDashboard() {
+  // Helper function to get role name
+  const getRoleName = (role: unknown): string => {
+    if (typeof role === 'string') return role;
+    if (role && typeof role === 'object' && 'name' in role) {
+      return (role as { name: string }).name;
+    }
+    // Handle case where role might be an object with different structure
+    if (role && typeof role === 'object') {
+      const roleObj = role as Record<string, unknown>;
+      if (roleObj.displayName) return roleObj.displayName as string;
+      if (roleObj.name) return roleObj.name as string;
+    }
+    return 'user';
+  };
+
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     totalUsers: 0, // Will be fetched from API
     averageScore: 8.2,
@@ -49,6 +73,7 @@ export default function AdminDashboard() {
     adminPercentage: 0,
     userPercentage: 0
   });
+  const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
 
   // Fetch total users from API
   const fetchUserMetrics = async () => {
@@ -64,7 +89,9 @@ export default function AdminDashboard() {
         }));
         
         // Calculate role statistics
-        const adminCount = users.filter((user: { role: string }) => user.role === 'admin').length;
+        const adminCount = users.filter((user: { role: string | { name: string } }) => {
+          return getRoleName(user.role) === 'admin';
+        }).length;
         const userCount = users.length - adminCount;
         const total = users.length || 1; // Avoid division by zero
         
@@ -81,185 +108,36 @@ export default function AdminDashboard() {
     }
   };
 
+  // Fetch revenue data from API
+  const fetchRevenueData = async () => {
+    try {
+      const response = await fetch('/api/admin/revenue');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setRevenueData(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching revenue data:', error);
+    }
+  };
+
   useEffect(() => {
     const initializeMetrics = async () => {
-      await fetchUserMetrics();
+      await Promise.all([fetchUserMetrics(), fetchRevenueData()]);
       setLoading(false);
     };
 
     initializeMetrics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const [users, setUsers] = useState<UserStats[]>([
-    {
-      id: '1',
-      name: 'John Smith',
-      email: 'john.smith@mail.com',
-      totalInterviews: 5,
-      averageScore: 8.5,
-      lastActivity: '2 days ago',
-      status: 'active',
-      role: 'user'
-    },
-    {
-      id: '2', 
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@mail.com',
-      totalInterviews: 3,
-      averageScore: 7.8,
-      lastActivity: '1 day ago',
-      status: 'active',
-      role: 'user'
-    },
-    {
-      id: '3',
-      name: 'Michael Brown',
-      email: 'michael.brown@mail.com',
-      totalInterviews: 8,
-      averageScore: 9.2,
-      lastActivity: '3 hours ago',
-      status: 'active',
-      role: 'admin'
-    },
-    {
-      id: '4',
-      name: 'Emily Davis',
-      email: 'emily.davis@mail.com',
-      totalInterviews: 2,
-      averageScore: 6.9,
-      lastActivity: '1 week ago',
-      status: 'inactive',
-      role: 'user'
-    }
-  ]);
-
-  // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const [selectedUser, setSelectedUser] = useState<UserStats | null>(null);
-
-  // Functions
-  const handleAddUser = () => {
-    setModalMode('create');
-    setSelectedUser(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditUser = (user: UserStats) => {
-    setModalMode('edit');
-    setSelectedUser(user);
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== userId));
-      // Refresh metrics from database
-      fetchUserMetrics();
-    }
-  };
-
-  const handleSaveUser = (userData: Partial<UserStats>) => {
-    if (modalMode === 'create') {
-      const newUser: UserStats = {
-        id: Date.now().toString(),
-        name: userData.name || '',
-        email: userData.email || '',
-        totalInterviews: 0,
-        averageScore: 0,
-        lastActivity: 'Just now',
-        status: userData.status || 'active',
-        role: userData.role || 'user'
-      };
-      setUsers([...users, newUser]);
-      
-      // Refresh metrics from database
-      fetchUserMetrics();
-    } else if (selectedUser) {
-      setUsers(users.map(user => 
-        user.id === selectedUser.id 
-          ? { ...user, ...userData }
-          : user
-      ));
-    }
-  };
-
-
-  const testNotification = async () => {
-    try {
-      const response = await fetch('/api/admin/test-notification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: 'test_user_' + Date.now(),
-          firstName: 'Test',
-          lastName: 'User',
-          email: 'test@example.com'
-        }),
-      });
-
-      if (response.ok) {
-        alert('Test notification created successfully!');
-      } else {
-        alert('Failed to create test notification');
-      }
-    } catch (error) {
-      console.error('Error creating test notification:', error);
-      alert('Error creating test notification');
-    }
-  };
-
-  const quickActions = [
-    {
-      icon: Users,
-      title: 'Add New User',
-      description: 'Create account for new user',
-      color: 'bg-blue-500',
-      action: handleAddUser
-    },
-    {
-      icon: Users,
-      title: 'Manage Users',
-      description: 'View and manage user roles',
-      color: 'bg-indigo-500',
-      action: () => window.location.href = '/admin/users'
-    },
-    {
-      icon: MessageSquare,
-      title: 'Create Interview Questions',
-      description: 'Create new question set for interviews',
-      color: 'bg-purple-500',
-      action: () => console.log('Create question')
-    },
-    {
-      icon: Brain,
-      title: 'AI Model Questions',
-      description: 'Optimize evaluation algorithm',
-      color: 'bg-green-500',
-      action: () => console.log('AI Model')
-    },
-    {
-      icon: FileDown,
-      title: 'Export Report',
-      description: 'Download detailed report',
-      color: 'bg-orange-500',
-      action: () => console.log('Export report')
-    },
-    {
-      icon: MessageSquare,
-      title: 'Test Notification',
-      description: 'Create test notification',
-      color: 'bg-red-500',
-      action: testNotification
-    }
-  ];
 
   return (
     <AdminRouteGuard>
       <div className="min-h-screen bg-gray-50 p-6">
           <div className="max-w-7xl mx-auto">
+    
             {/* Header */}
             <div className="mb-8 flex justify-between items-center">
               <div>
@@ -267,9 +145,12 @@ export default function AdminDashboard() {
                 <p className="text-gray-600">Manage and monitor AI interview system performance</p>
               </div>
               <button
-                onClick={fetchUserMetrics}
+                onClick={() => {
+                  fetchUserMetrics();
+                  fetchRevenueData();
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                title="Refresh user metrics"
+                title="Refresh all metrics"
               >
                 <TrendingUp className="w-4 h-4" />
                 Refresh Data
@@ -278,7 +159,7 @@ export default function AdminDashboard() {
 
           {/* Metrics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Total Users</p>
@@ -301,7 +182,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Average Score</p>
@@ -317,7 +198,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Average Time</p>
@@ -332,7 +213,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Completion Rate</p>
@@ -349,6 +230,111 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {/* Revenue Chart */}
+          {loading ? (
+            <div className="mb-8">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">PayOS Revenue Overview</h3>
+                <div className="flex items-center justify-center h-[300px]">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <span className="ml-2 text-gray-500">Loading revenue data...</span>
+                </div>
+              </div>
+            </div>
+          ) : revenueData ? (
+            <div className="mb-8">
+              <RevenueChart 
+                data={revenueData.chartData}
+                title="PayOS Revenue Overview"
+                height={300}
+              />
+              
+              {/* Revenue Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                <div className="bg-white rounded-lg shadow-sm p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {new Intl.NumberFormat('vi-VN', {
+                          style: 'currency',
+                          currency: 'VND'
+                        }).format(revenueData.totalRevenue)}
+                      </p>
+                    </div>
+                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center">
+                    <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
+                    <span className="text-xs text-green-600">
+                      {revenueData.growthRate >= 0 ? '+' : ''}{revenueData.growthRate}% from last month
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Transactions</p>
+                      <p className="text-2xl font-bold text-gray-900">{revenueData.totalTransactions}</p>
+                    </div>
+                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Target className="h-5 w-5 text-blue-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Average Order Value</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {new Intl.NumberFormat('vi-VN', {
+                          style: 'currency',
+                          currency: 'VND'
+                        }).format(revenueData.averageOrderValue)}
+                      </p>
+                    </div>
+                    <div className="h-10 w-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <Award className="h-5 w-5 text-orange-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Top Package</p>
+                      <p className="text-lg font-bold text-gray-900">
+                        {revenueData.topPackages[0]?.name || 'N/A'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {revenueData.topPackages[0] && new Intl.NumberFormat('vi-VN', {
+                          style: 'currency',
+                          currency: 'VND'
+                        }).format(revenueData.topPackages[0].revenue)}
+                      </p>
+                    </div>
+                    <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-purple-600" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mb-8">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">PayOS Revenue Overview</h3>
+                <div className="text-center text-gray-500 py-8">
+                  No revenue data available
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Statistics Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <StatisticsChart
@@ -364,7 +350,7 @@ export default function AdminDashboard() {
               ]}
             />
             {loading ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">User Role Distribution</h3>
                 <div className="flex items-center justify-center h-[250px]">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -386,127 +372,16 @@ export default function AdminDashboard() {
             )}
            
           </div>
-
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-7 gap-8">
-            {/* Left Sidebar - Quick Actions */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                <div className="space-y-4">
-                  {quickActions.map((action, index) => (
-                    <button
-                      key={index}
-                      onClick={action.action}
-                      className="w-full text-left p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all duration-200 group"
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className={`${action.color} rounded-lg p-2 group-hover:scale-110 transition-transform`}>
-                          <action.icon className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 text-sm">{action.title}</h4>
-                          <p className="text-xs text-gray-500 mt-1">{action.description}</p>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Center - User List */}
-            <div className="lg:col-span-3">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">Recent Users</h3>
-                      <p className="text-sm text-gray-500 mt-1">List of users who have used the system recently</p>
-                    </div>
-                    <button
-                      onClick={handleAddUser}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add New
-                    </button>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="space-y-4">
-                    {users.map((user) => (
-                      <div key={user.id} className="flex items-center justify-between p-4 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center space-x-4">
-                          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-white font-medium text-sm">
-                              {user.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-gray-900">{user.name}</h4>
-                              {user.role === 'admin' && (
-                                <span className="inline-flex px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                                  Admin
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-500">{user.email}</p>
-                            <p className="text-xs text-gray-400">Activity: {user.lastActivity}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <p className="font-semibold text-gray-900">{user.averageScore}/10</p>
-                              <p className="text-xs text-gray-500">{user.totalInterviews} interviews</p>
-                              <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                                user.status === 'active' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {user.status === 'active' ? 'Active' : 'Inactive'}
-                              </span>
-                            </div>
-                            <div className="flex space-x-2">
-                              <button 
-                                onClick={() => handleEditUser(user)}
-                                className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                                title="Edit"
-                              >
-                                <Edit2 className="h-4 w-4" />
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                              <button className="p-2 text-gray-400 hover:text-green-600 transition-colors" title="Export Report">
-                                <FileDown className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* User Modal */}
-        <AdminUserModal
+        {/* <AdminUserModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleSaveUser}
           user={selectedUser}
           mode={modalMode}
-        />
+        /> */}
       </div>
     </AdminRouteGuard>
   );

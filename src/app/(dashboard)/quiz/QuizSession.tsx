@@ -25,6 +25,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
   const [timeLeft, setTimeLeft] = useState(quiz.timeLimit * 60); // Convert minutes to seconds
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const handleSubmit = useCallback(async () => {
     if (isSubmitting) return;
@@ -75,26 +76,45 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
     setShowConfirmModal(false);
   };
 
+  // Exit confirm modal handlers
+  const handleExitClick = () => {
+    setShowExitModal(true);
+  };
+
+  const handleConfirmExit = () => {
+    setShowExitModal(false);
+    onCancel();
+  };
+
+  const handleCancelExit = () => {
+    setShowExitModal(false);
+  };
+
   // Đóng modal khi click bên ngoài
   const handleModalBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       setShowConfirmModal(false);
     }
   };
+  const handleExitModalBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setShowExitModal(false);
+    }
+  };
 
   // Đóng modal khi nhấn ESC
   useEffect(() => {
     const handleEscKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showConfirmModal) {
-        setShowConfirmModal(false);
+      if (e.key === 'Escape') {
+        if (showConfirmModal) setShowConfirmModal(false);
+        if (showExitModal) setShowExitModal(false);
       }
     };
-
-    if (showConfirmModal) {
+    if (showConfirmModal || showExitModal) {
       document.addEventListener('keydown', handleEscKey);
       return () => document.removeEventListener('keydown', handleEscKey);
     }
-  }, [showConfirmModal]);
+  }, [showConfirmModal, showExitModal]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -228,7 +248,7 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
             </div>
 
             <button
-              onClick={onCancel}
+              onClick={handleExitClick}
               className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:border-red-300 hover:bg-red-50 hover:text-red-700 transition-all duration-300"
             >
               <X className="w-4 h-4" />
@@ -538,6 +558,56 @@ export default function QuizSession({ quiz, onComplete, onCancel }: QuizSessionP
                     ) : (
                       'Confirm Submit'
                     )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Exit Confirmation Modal */}
+        {showExitModal && (
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={handleExitModalBackdropClick}
+          >
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-gray-400 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <X className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  Confirm Exit Quiz
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to exit? All progress will be lost and you cannot recover your answers.
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-red-800 font-medium">Total Questions:</span>
+                    <span className="text-red-900 font-bold">{quiz.questions.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-red-800 font-medium">Answered:</span>
+                    <span className="text-red-900 font-bold">{answeredQuestions}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-red-800 font-medium">Unanswered:</span>
+                    <span className="text-red-900 font-bold">{quiz.questions.length - answeredQuestions}</span>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancelExit}
+                    className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-xl font-medium text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConfirmExit}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-red-500 to-gray-400 hover:from-red-600 hover:to-gray-500 rounded-xl font-bold text-white transition-all duration-200"
+                  >
+                    Confirm Exit
                   </button>
                 </div>
               </div>

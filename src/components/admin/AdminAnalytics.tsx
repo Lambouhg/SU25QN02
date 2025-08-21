@@ -11,7 +11,8 @@ import {
   BarChart3,
   PieChart,
   Download,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import {
   Select,
@@ -31,9 +32,15 @@ interface AnalyticsData {
   activityStats: {
     totalInterviews: number;
     totalQuizzes: number;
+    totalTests: number;
+    totalEQs: number;
+    totalJDs: number;
     totalPractice: number;
     recentInterviews: number;
     recentQuizzes: number;
+    recentTests: number;
+    recentEQs: number;
+    recentJDs: number;
     recentPractice: number;
   };
   engagementMetrics: {
@@ -63,8 +70,12 @@ interface AnalyticsData {
     date: string;
     interviews: number;
     quizzes: number;
+    tests: number;
+    eqs: number;
+    jds: number;
     practice: number;
-    totalDuration: number;
+    total: number;
+    averageScore: number;
   }>;
   topPerformers: Array<{
     userId: string;
@@ -92,6 +103,7 @@ interface AnalyticsData {
     userId: string;
     userName: string;
     userEmail: string;
+    referenceId?: string; // Add referenceId for JD activity detection
     details: Record<string, unknown>;
   }>;
   timeframe: {
@@ -265,9 +277,9 @@ export default function AdminAnalytics() {
               <Activity className="h-4 w-4 text-green-600" />
               <div className="ml-2">
                 <p className="text-sm font-medium text-gray-600">Total Activities</p>
-                <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice)}</p>
+                <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs)}</p>
                 <p className="text-xs text-gray-500">
-                  {Math.round(safeNumber((data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice) / Math.max(safeNumber(data.overview.activeUsers), 1)))} per active user
+                  {Math.round(safeNumber((data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs) / Math.max(safeNumber(data.overview.activeUsers), 1)))} per active user
                 </p>
               </div>
             </div>
@@ -312,7 +324,7 @@ export default function AdminAnalytics() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
                 <Activity className="h-8 w-8 text-purple-600" />
@@ -321,7 +333,7 @@ export default function AdminAnalytics() {
               <p className="text-sm text-gray-600">Interviews</p>
               <p className="text-xs text-gray-500 mt-1">
                                 <p className="text-xs text-gray-500">
-                {Math.round(safeNumber((data.activityStats.totalInterviews / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100))}% of total
+                {Math.round(safeNumber((data.activityStats.totalInterviews / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
                 </p>
               </p>
             </div>
@@ -334,7 +346,7 @@ export default function AdminAnalytics() {
               <p className="text-sm text-gray-600">Quizzes</p>
               <p className="text-xs text-gray-500 mt-1">
                                 <p className="text-xs text-gray-500">
-                {Math.round(safeNumber((data.activityStats.totalQuizzes / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100))}% of total
+                {Math.round(safeNumber((data.activityStats.totalQuizzes / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
                 </p>
               </p>
             </div>
@@ -343,12 +355,21 @@ export default function AdminAnalytics() {
               <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
                 <Target className="h-8 w-8 text-green-600" />
               </div>
-              <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalPractice)}</p>
-              <p className="text-sm text-gray-600">Practice Sessions</p>
+              <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalTests)}</p>
+              <p className="text-sm text-gray-600">Test Mode</p>
               <p className="text-xs text-gray-500 mt-1">
-                                <p className="text-xs text-gray-500">
-                {Math.round(safeNumber((data.activityStats.totalPractice / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalPractice, 1)) * 100))}% of total
-                </p>
+                {Math.round(safeNumber((data.activityStats.totalTests / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
+              </p>
+            </div>
+            
+            <div className="text-center">
+              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
+                <FileText className="h-8 w-8 text-purple-600" />
+              </div>
+              <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalJDs)}</p>
+              <p className="text-sm text-gray-600">JD Analysis</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {Math.round(safeNumber((data.activityStats.totalJDs / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
               </p>
             </div>
           </div>
@@ -508,24 +529,34 @@ export default function AdminAnalytics() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <Badge variant={
+                      activity.type === 'jd' ? 'default' :
                       activity.type === 'interview' ? 'default' :
                       activity.type === 'quiz' ? 'secondary' : 'outline'
                     }>
-                      {activity.type}
+                      {activity.type === 'jd' ? 'JD Practice' : activity.type}
                     </Badge>
                     <span className="font-medium">{activity.userName}</span>
                   </div>
                   <p className="text-sm text-gray-500 mt-1">{activity.userEmail}</p>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg">
-                      {safeNumber(activity.score)}/10
-                    </span>
-                    <Badge variant={safeNumber(activity.score) >= 7 ? 'default' : safeNumber(activity.score) >= 5 ? 'secondary' : 'destructive'}>
-                      {safeNumber(activity.score) >= 7 ? 'Good' : safeNumber(activity.score) >= 5 ? 'Average' : 'Needs Work'}
-                    </Badge>
-                  </div>
+                  {/* Show different display for JD vs other activities */}
+                  {activity.type === 'jd' ? (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                        Completed
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-lg">
+                        {safeNumber(activity.score)}/10
+                      </span>
+                      <Badge variant={safeNumber(activity.score) >= 7 ? 'default' : safeNumber(activity.score) >= 5 ? 'secondary' : 'destructive'}>
+                        {safeNumber(activity.score) >= 7 ? 'Good' : safeNumber(activity.score) >= 5 ? 'Average' : 'Needs Work'}
+                      </Badge>
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">
                     {new Date(activity.timestamp).toLocaleDateString()} • {activity.duration}min
                   </p>

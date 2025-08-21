@@ -19,9 +19,7 @@ import {
 
 export interface DetailedScores {
   content: number;
-  structure: number;
   relevance: number;
-  examples: number;
   clarity: number;
   overall: number;
 }
@@ -42,18 +40,14 @@ const ScoreChart: React.FC<ScoreChartProps> = ({
   // Prepare data for radar chart
   const radarData = [
     { subject: 'Content', score: scores.content, fullMark: 10 },
-    { subject: 'Structure', score: scores.structure, fullMark: 10 },
     { subject: 'Relevance', score: scores.relevance, fullMark: 10 },
-    { subject: 'Examples', score: scores.examples, fullMark: 10 },
     { subject: 'Clarity', score: scores.clarity, fullMark: 10 },
   ];
 
   // Prepare data for bar chart
   const barData = [
     { name: 'Content', score: scores.content },
-    { name: 'Structure', score: scores.structure },
     { name: 'Relevance', score: scores.relevance },
-    { name: 'Examples', score: scores.examples },
     { name: 'Clarity', score: scores.clarity },
   ];
 

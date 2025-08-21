@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
     try {
       const user = await prisma.user.findUnique({
         where: { clerkId: currentClerkUser.id },
-        select: { role: true }
+        include: { role: true }
       });
       
-      if (!user || user.role !== 'admin') {
+      if (!user || user.role?.name !== 'admin') {
         return NextResponse.json(
           { 
             error: "Access Denied", 

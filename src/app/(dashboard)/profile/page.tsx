@@ -27,7 +27,7 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState({
     phone: "",
     department: "",
-    position: "",
+    preferredJobRoleId: "",
     bio: "",
   });
 
@@ -81,7 +81,7 @@ export default function ProfilePage() {
           setProfileData({
             phone: data.phone || "",
             department: data.department || "",
-            position: data.position || "",
+            preferredJobRoleId: data.preferredJobRoleId || "",
             bio: data.bio || "",
           });
           
@@ -156,7 +156,7 @@ export default function ProfilePage() {
 
   const updateProfileData = (data: Record<string, string>) => {
     // Update profile fields
-    const profileFields = ['phone', 'department', 'position', 'bio'];
+    const profileFields = ['phone', 'department', 'preferredJobRoleId', 'bio'];
     const profileUpdate: Partial<typeof profileData> = {};
     const userInfoUpdate: Partial<typeof editableUserInfo> = {};
     
@@ -264,7 +264,7 @@ export default function ProfilePage() {
                 email: formData.email,
                 phone: profileData.phone,
                 department: profileData.department,
-                position: profileData.position,
+                preferredJobRoleId: profileData.preferredJobRoleId,
                 bio: profileData.bio
               }}
               isEditing={isEditing}

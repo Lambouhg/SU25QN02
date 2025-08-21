@@ -39,38 +39,29 @@ interface ResultsSummaryProps {
 
 export function ResultsSummary({ results, realTimeScores, onReset }: Omit<ResultsSummaryProps, 'settings'>) {
   const [showQuestionHistory, setShowQuestionHistory] = useState(false);
-  
+
   const categoryList = [
     { key: 'fundamental', label: 'Fundamental Knowledge', icon: <BookOpen className="h-8 w-8 mb-2 text-blue-500" /> },
     { key: 'logic', label: 'Logical Reasoning', icon: <Brain className="h-8 w-8 mb-2 text-purple-500" /> },
     { key: 'language', label: 'Language Proficiency', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
   ];
 
+  // Luôn lấy điểm từ finalScores (results.scores) cho chart
+  const chartScores: Record<string, number> = {
+  fundamental: (results.scores.fundamentalKnowledge ?? 0) * 10,
+  logic: (results.scores.logicalReasoning ?? 0) * 10,
+  language: (results.scores.languageFluency ?? 0) * 10,
+};
 
-  // Nếu có realTimeScores thì dùng luôn, không tính lại từ messages
-  // Tất cả đều là phần trăm (0-100)
-  const scores: Record<string, number> = realTimeScores
-    ? {
-        fundamental: realTimeScores.fundamental,
-        logic: realTimeScores.logic,
-        language: realTimeScores.language,
-      }
-    : {
-        fundamental: results.scores.fundamentalKnowledge,
-        logic: results.scores.logicalReasoning,
-        language: results.scores.languageFluency,
-      };
+  // Sử dụng chartScores cho mọi phần hiển thị điểm
+  const scores: Record<string, number> = chartScores;
 
   const suggestions: Record<string, string> = realTimeScores
     ? realTimeScores.suggestions
     : { fundamental: '', logic: '', language: '' };
 
-  // overall là trung bình cộng 3 tiêu chí, làm tròn
-  const overall = Math.round((scores.fundamental + scores.logic + scores.language) / 3);
-
-  // Chuẩn hóa dữ liệu cho biểu đồ
-  // Dữ liệu cho biểu đồ (0-100)
-  const chartScores = scores;
+  // Tính overall từ finalScores (chartScores)
+  const overall = Math.round((chartScores.fundamental + chartScores.logic + chartScores.language) / 3);
 
   const radarChartData = [
     { subject: 'Fundamental Knowledge', A: chartScores.fundamental, fullMark: 100 },
@@ -101,27 +92,30 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto mt-10">
-      <CardHeader>
-        <div className="flex justify-between items-start">
+    <Card className="w-full max-w-5xl mx-auto mt-10 border-0 shadow-xl">
+      <CardHeader className="bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 text-white rounded-t-2xl">
+        <div className="flex flex-wrap justify-between items-center gap-4">
           <div>
-            <CardTitle className="text-2xl">Interview Result</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-2xl text-white">Interview Summary</CardTitle>
+            <CardDescription className="text-white/80">
               {new Date(results.timestamp).toLocaleString()} • {results.position} ({results.level})
               {typeof results.totalTime === 'number' && results.totalTime > 0 && (
-                <span className="ml-2 text-green-700 font-semibold">• Total time spent: {results.totalTime} minute{results.totalTime > 1 ? 's' : ''}</span>
+                <span className="ml-2 font-semibold">• Total time: {results.totalTime} min</span>
               )}
             </CardDescription>
           </div>
-          <Badge variant="outline" className="text-lg px-3 py-1">
-            {overall}%
-          </Badge>
+          <div className="flex items-center gap-2">
+            <span className="text-sm opacity-80">Overall</span>
+            <Badge variant="outline" className="text-lg px-3 py-1 bg-white/10 text-white border-white/30">
+              {overall}%
+            </Badge>
+          </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {categoryList.map(cat => (
-            <Card key={cat.key}>
+            <Card key={cat.key} className="border border-gray-200 shadow-sm">
               <CardContent className="pt-6 flex flex-col items-center text-center">
                 {cat.icon}
                 <h3 className="font-medium">{cat.label}</h3>
@@ -132,7 +126,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
             </Card>
           ))}
         </div>
-        <Card className="mb-6">
+        <Card className="mb-6 border border-gray-200">
           <CardHeader>
             <CardTitle>Feedback & Recommendations</CardTitle>
           </CardHeader>
@@ -149,7 +143,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
           </CardContent>
         </Card>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <Card>
+          <Card className="border border-gray-200">
             <CardHeader>
               <CardTitle>Performance Summary</CardTitle>
             </CardHeader>
@@ -167,7 +161,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border border-gray-200">
             <CardHeader>
               <CardTitle>Detailed Score Breakdown</CardTitle>
             </CardHeader>
@@ -222,7 +216,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
         </Card>
         
         <div className="flex justify-end">
-          <Button variant="outline" onClick={onReset} className="flex items-center gap-2">
+          <Button variant="outline" onClick={onReset} className="flex items-center gap-2 border-indigo-200 text-indigo-700">
             <RotateCcw className="w-4 h-4" />
             Practice again
           </Button>

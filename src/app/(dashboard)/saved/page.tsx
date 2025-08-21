@@ -60,7 +60,7 @@ export default function QuizSaveQuestionPage() {
   const fetchSavedQuestions = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/users/saved-questions");
+  const response = await fetch("/api/questions/saved-questions");
       if (!response.ok) throw new Error("Failed to fetch saved questions");
       const data = await response.json();
       setSavedQuestions(data);
@@ -78,7 +78,7 @@ export default function QuizSaveQuestionPage() {
 
   const handleUnsaveQuestion = async (questionId: string) => {
     try {
-      const response = await fetch("/api/users/saved-questions", {
+  const response = await fetch("/api/questions/saved-questions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionId }),
@@ -206,7 +206,7 @@ export default function QuizSaveQuestionPage() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+        <div className="min-h-screen to-indigo-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
           <div className="absolute inset-0">
             <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-200/30 rounded-full blur-3xl animate-pulse" />
@@ -223,7 +223,7 @@ export default function QuizSaveQuestionPage() {
 
   return (
     <DashboardLayout>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+      <div className="min-h-screen">
         {/* Background Effects */}
         <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
         <div className="absolute inset-0">
@@ -635,7 +635,7 @@ export default function QuizSaveQuestionPage() {
       {/* Flash Cards Modal */}
       {showFlashCards && currentCard && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-50 flex items-center justify-center p-1 sm:p-2">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[98vh] overflow-hidden">
+          <div className="border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl shadow-2xl max-w-7xl w-full max-h-[98vh] overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
               <div className="flex items-center gap-4">

@@ -67,7 +67,7 @@ function PaymentHistory({ }: PaymentHistoryProps) {
       }
     } catch (err) {
       console.error("🔄 PaymentHistory: Error fetching payment history:", err);
-      setError(err instanceof Error ? err.message : "Không thể tải lịch sử thanh toán");
+      setError(err instanceof Error ? err.message : "Unable to load payment history");
       setPayments([]);
     } finally {
       setIsLoading(false);
@@ -125,9 +125,9 @@ function PaymentHistory({ }: PaymentHistoryProps) {
   };
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "VND"
+      currency: "USD"
     }).format(amount);
   };
 
@@ -137,14 +137,14 @@ function PaymentHistory({ }: PaymentHistoryProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5" />
-            Lịch sử thanh toán
+            Payment History
           </CardTitle>
-          <CardDescription>Quản lý và theo dõi các giao dịch của bạn</CardDescription>
+          <CardDescription>Manage and track your transactions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-2 text-gray-600">Đang tải...</span>
+            <span className="ml-2 text-gray-600">Loading...</span>
           </div>
         </CardContent>
       </Card>
@@ -157,15 +157,15 @@ function PaymentHistory({ }: PaymentHistoryProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5" />
-            Lịch sử thanh toán
+            Payment History
           </CardTitle>
-          <CardDescription>Quản lý và theo dõi các giao dịch của bạn</CardDescription>
+          <CardDescription>Manage and track your transactions</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
             <p className="text-red-600 mb-4">{error}</p>
             <Button onClick={fetchPaymentHistory} variant="outline">
-              Thử lại
+              Retry
             </Button>
           </div>
         </CardContent>
@@ -183,16 +183,16 @@ function PaymentHistory({ }: PaymentHistoryProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="w-5 h-5" />
-          Lịch sử thanh toán
+          Payment History
         </CardTitle>
-        <CardDescription>Quản lý và theo dõi các giao dịch của bạn</CardDescription>
+        <CardDescription>Manage and track your transactions</CardDescription>
       </CardHeader>
       <CardContent>
         {payments.length === 0 ? (
           <div className="text-center py-8">
             <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 mb-2">Chưa có giao dịch nào</p>
-            <p className="text-sm text-gray-500">Lịch sử thanh toán sẽ hiển thị ở đây khi bạn có giao dịch</p>
+            <p className="text-gray-600 mb-2">No transactions yet</p>
+            <p className="text-sm text-gray-500">Your payment history will appear here when you have transactions</p>
           </div>
         ) : (
           <>
@@ -210,7 +210,7 @@ function PaymentHistory({ }: PaymentHistoryProps) {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">
-                            {payment.servicePackage?.name || payment.description || `Giao dịch ${payment.orderCode}`}
+                            {payment.servicePackage?.name || payment.description || `Transaction ${payment.orderCode}`}
                           </p>
                           <div className="flex items-center gap-4 mt-1">
                             <span className="text-sm text-gray-600">{formatDate(payment.createdAt)}</span>
@@ -221,7 +221,7 @@ function PaymentHistory({ }: PaymentHistoryProps) {
                           </div>
                           {payment.paidAt && (
                             <div className="text-xs text-green-600 mt-1">
-                              Đã thanh toán: {formatDate(payment.paidAt)}
+                              Paid at: {formatDate(payment.paidAt)}
                             </div>
                           )}
                         </div>
@@ -233,9 +233,9 @@ function PaymentHistory({ }: PaymentHistoryProps) {
                         <div className="flex items-center gap-1 mt-1">
                           <StatusIcon className="w-4 h-4" />
                           <span className={`text-sm px-2 py-1 rounded-full ${statusColorClasses}`}>
-                            {payment.status === "success" ? "Thành công" : 
-                             payment.status === "failed" ? "Thất bại" : 
-                             payment.status === "pending" ? "Đang xử lý" : payment.status}
+                            {payment.status === "success" ? "Success" : 
+                             payment.status === "failed" ? "Failed" : 
+                             payment.status === "pending" ? "Pending" : payment.status}
                           </span>
                         </div>
                       </div>
@@ -250,7 +250,7 @@ function PaymentHistory({ }: PaymentHistoryProps) {
             {payments.length > itemsPerPage && (
               <div className="flex items-center justify-between mt-6 pt-4 border-t">
                 <p className="text-sm text-gray-600">
-                  Hiển thị {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, payments.length)} của {payments.length} giao dịch
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, payments.length)} of {payments.length} transactions
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -259,7 +259,7 @@ function PaymentHistory({ }: PaymentHistoryProps) {
                     onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                     disabled={currentPage === 1}
                   >
-                    Trước
+                    Previous
                   </Button>
                   <Button
                     variant="outline"
@@ -267,7 +267,7 @@ function PaymentHistory({ }: PaymentHistoryProps) {
                     onClick={() => setCurrentPage(prev => prev + 1)}
                     disabled={currentPage * itemsPerPage >= payments.length}
                   >
-                    Sau
+                    Next
                   </Button>
                 </div>
               </div>
@@ -277,7 +277,7 @@ function PaymentHistory({ }: PaymentHistoryProps) {
             <div className="mt-6 pt-4 border-t">
               <Button variant="outline" className="w-full">
                 <Download className="w-4 h-4 mr-2" />
-                Xuất lịch sử thanh toán
+                Export payment history
               </Button>
             </div>
           </>
