@@ -178,8 +178,13 @@ export default function DashboardLayout({
         label: 'Review Question', 
         href: '/review',
         key: 'review'
-      },
-
+    },
+    { 
+        icon: BookOpen, 
+        label: 'Review Question', 
+        href: '/review',
+        key: 'review'
+    },
   ], []);
 
   // Optimized modal close functions

@@ -6,6 +6,8 @@ import UserSync from "@/components/UserSync";
 import AuthRedirect from "@/components/auth/AuthRedirect";
 import { UserSyncProvider } from "@/context/UserSyncContext";
 import { RoleProvider } from "@/context/RoleContext";
+import { GlobalChatboxProvider } from "@/context/GlobalChatboxContext";
+import GlobalChatboxContainer from "@/components/ui/chatbox/GlobalChatboxContainer";
 import UserSyncAuth from "@/components/auth/UserSync";
 
 const geistSans = Geist({
@@ -33,16 +35,19 @@ export default function RootLayout({
       <UserSyncAuth>
         <UserSyncProvider>
           <RoleProvider>
-            <html lang="en" className="h-full">
-              <body 
-                className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}
-                suppressHydrationWarning={true}
-              >
-                {children}
-                <UserSync />
-                <AuthRedirect />
-              </body>
-            </html>
+            <GlobalChatboxProvider>
+              <html lang="en" className="h-full">
+                <body 
+                  className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-full m-0 p-0`}
+                  suppressHydrationWarning={true}
+                >
+                  {children}
+                  <UserSync />
+                  <AuthRedirect />
+                  <GlobalChatboxContainer />
+                </body>
+              </html>
+            </GlobalChatboxProvider>
           </RoleProvider>
         </UserSyncProvider>
       </UserSyncAuth>
