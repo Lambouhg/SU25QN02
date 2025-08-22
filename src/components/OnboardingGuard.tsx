@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 
@@ -14,18 +14,7 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    if (!isSignedIn) {
-      setLoading(false);
-      return;
-    }
-
-    checkOnboardingStatus();
-  }, [isSignedIn, isLoaded]);
-
-  const checkOnboardingStatus = async () => {
+  const checkOnboardingStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/user/onboarding-status');
       if (response.ok) {
@@ -41,7 +30,18 @@ export default function OnboardingGuard({ children }: OnboardingGuardProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setLoading(false);
+      return;
+    }
+
+    checkOnboardingStatus();
+  }, [isSignedIn, isLoaded, checkOnboardingStatus]);
 
   if (!isLoaded || loading) {
     return (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 
@@ -6,7 +6,13 @@ interface OnboardingStatus {
   needsOnboarding: boolean;
   isNewUser: boolean;
   onboardingCompleted: boolean;
-  user: any;
+  user: {
+    id: string;
+    email?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    [key: string]: unknown;
+  } | null;
 }
 
 export const useOnboardingCheck = () => {
@@ -15,18 +21,7 @@ export const useOnboardingCheck = () => {
   const [loading, setLoading] = useState(true);
   const [onboardingStatus, setOnboardingStatus] = useState<OnboardingStatus | null>(null);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    if (!isSignedIn) {
-      setLoading(false);
-      return;
-    }
-
-    checkOnboardingStatus();
-  }, [isSignedIn, isLoaded]);
-
-  const checkOnboardingStatus = async () => {
+  const checkOnboardingStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/user/onboarding-status');
       if (response.ok) {
@@ -42,11 +37,22 @@ export const useOnboardingCheck = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  const refreshOnboardingStatus = () => {
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setLoading(false);
+      return;
+    }
+
     checkOnboardingStatus();
-  };
+  }, [isSignedIn, isLoaded, checkOnboardingStatus]);
+
+  const refreshOnboardingStatus = useCallback(() => {
+    checkOnboardingStatus();
+  }, [checkOnboardingStatus]);
 
   return {
     loading,
