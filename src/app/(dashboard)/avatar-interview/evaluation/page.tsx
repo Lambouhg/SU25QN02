@@ -58,7 +58,7 @@ const InterviewEvaluationContent: React.FC = () => {
     if (interviewId) {
       fetchEvaluation(interviewId);
     } else {
-      setError('Không tìm thấy ID phiên phỏng vấn');
+      setError('Interview session ID not found');
       setLoading(false);
     }
   }, [interviewId]);
@@ -72,10 +72,10 @@ const InterviewEvaluationContent: React.FC = () => {
       if (response.ok) {
         setEvaluation(data);
       } else {
-        setError(data.message || 'Không thể tải đánh giá');
+        setError(data.message || 'Unable to load evaluation');
       }
     } catch{
-      setError('Lỗi kết nối máy chủ');
+      setError('Server connection error');
     } finally {
       setLoading(false);
     }
@@ -94,16 +94,16 @@ const InterviewEvaluationContent: React.FC = () => {
 
 
   const getScoreLabel = (score: number) => {
-    if (score >= 8) return 'Xuất sắc';
-    if (score >= 6) return 'Tốt';
-    if (score >= 4) return 'Trung bình';
-    return 'Cần cải thiện';
+    if (score >= 8) return 'Excellent';
+    if (score >= 6) return 'Good';
+    if (score >= 4) return 'Average';
+    return 'Needs improvement';
   };
 
   const formatTimestamp = (timestamp: string) => {
     try {
       const date = new Date(timestamp);
-      return date.toLocaleTimeString('vi-VN', {
+      return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
@@ -122,8 +122,8 @@ const InterviewEvaluationContent: React.FC = () => {
             <div className="absolute inset-0 rounded-full h-20 w-20 border-4 border-transparent border-t-blue-400 animate-ping opacity-30"></div>
           </div>
           <div className="space-y-2">
-            <p className="text-slate-700 font-medium text-lg">Đang tải đánh giá...</p>
-            <p className="text-slate-500 text-sm">Vui lòng chờ trong giây lát</p>
+            <p className="text-slate-700 font-medium text-lg">Loading evaluation...</p>
+            <p className="text-slate-500 text-sm">Please wait a moment</p>
           </div>
         </div>
       </div>
@@ -139,13 +139,13 @@ const InterviewEvaluationContent: React.FC = () => {
               <AlertCircle className="h-6 w-6 text-white" />
             </div>
           </div>
-          <h3 className="text-xl font-semibold text-slate-800 mb-3">Không thể tải đánh giá</h3>
+          <h3 className="text-xl font-semibold text-slate-800 mb-3">Unable to load evaluation</h3>
           <p className="text-red-600 mb-6">{error}</p>
           <button
             onClick={handleBackToHistory}
             className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors shadow-lg"
           >
-            Quay lại lịch sử
+            Back to history
           </button>
         </div>
       </div>
@@ -164,13 +164,13 @@ const InterviewEvaluationContent: React.FC = () => {
                 className="flex items-center gap-2 text-slate-700 hover:text-slate-900 transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
-                Quay lại lịch sử
+                Back to history
               </button>
             </div>
             <div className="text-right">
-              <h1 className="text-lg font-semibold text-slate-900">Đánh giá phỏng vấn</h1>
+              <h1 className="text-lg font-semibold text-slate-900">Interview Evaluation</h1>
               <p className="text-slate-600 text-sm">
-                {typeof evaluation.jobRoleTitle === 'string' ? evaluation.jobRoleTitle : 'Không xác định'} - {typeof evaluation.jobRoleLevel === 'string' ? evaluation.jobRoleLevel : 'Không xác định'}
+                {typeof evaluation.jobRoleTitle === 'string' ? evaluation.jobRoleTitle : 'Unknown'} - {typeof evaluation.jobRoleLevel === 'string' ? evaluation.jobRoleLevel : 'Unknown'}
               </p>
             </div>
           </div>
@@ -182,15 +182,15 @@ const InterviewEvaluationContent: React.FC = () => {
             {/* Overall Score */}
             <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 mb-8">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-slate-900 mb-4">Điểm tổng quan</h2>
+                <h2 className="text-3xl font-bold text-slate-900 mb-4">Overall Score</h2>
                 <div className="flex items-center justify-center gap-6 text-slate-600 mb-6">
                   <div className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-blue-600" />
-                    <span className="font-medium">{Math.floor((typeof evaluation.sessionDuration === 'number' ? evaluation.sessionDuration : 0) / 60)} phút {(typeof evaluation.sessionDuration === 'number' ? evaluation.sessionDuration : 0) % 60} giây</span>
+                    <span className="font-medium">{Math.floor((typeof evaluation.sessionDuration === 'number' ? evaluation.sessionDuration : 0) / 60)} min {(typeof evaluation.sessionDuration === 'number' ? evaluation.sessionDuration : 0) % 60} sec</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-green-600" />
-                    <span className="font-medium">{typeof evaluation.totalQuestions === 'number' ? evaluation.totalQuestions : 0} câu hỏi</span>
+                    <span className="font-medium">{typeof evaluation.totalQuestions === 'number' ? evaluation.totalQuestions : 0} questions</span>
                   </div>
                 </div>
               </div>
@@ -218,7 +218,7 @@ const InterviewEvaluationContent: React.FC = () => {
                   {getScoreLabel(typeof evaluation.overallScore === 'number' ? evaluation.overallScore : 0)}
                 </div>
                 <p className="text-slate-600 max-w-2xl mx-auto text-lg">
-                  Tổng quan về buổi phỏng vấn và đánh giá tổng thể
+                  Overview of the interview session and overall evaluation
                 </p>
               </div>
             </div>
@@ -230,7 +230,7 @@ const InterviewEvaluationContent: React.FC = () => {
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
                     <MessageSquare className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Giao tiếp</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Communication</h3>
                 </div>
                 <div className={`text-3xl font-bold ${getScoreColor(typeof evaluation.communicationScore === 'number' ? evaluation.communicationScore : 0)} mb-2`}>
                   {(typeof evaluation.communicationScore === 'number' ? evaluation.communicationScore : 0).toFixed(1)}
@@ -243,7 +243,7 @@ const InterviewEvaluationContent: React.FC = () => {
                   <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-md">
                     <Sparkles className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Kỹ thuật</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Technical</h3>
                 </div>
                 <div className={`text-3xl font-bold ${getScoreColor(typeof evaluation.technicalScore === 'number' ? evaluation.technicalScore : 0)} mb-2`}>
                   {(typeof evaluation.technicalScore === 'number' ? evaluation.technicalScore : 0).toFixed(1)}
@@ -256,7 +256,7 @@ const InterviewEvaluationContent: React.FC = () => {
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-md">
                     <TrendingUp className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Giải quyết vấn đề</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Problem Solving</h3>
                 </div>
                 <div className={`text-3xl font-bold ${getScoreColor(typeof evaluation.problemSolvingScore === 'number' ? evaluation.problemSolvingScore : 0)} mb-2`}>
                   {(typeof evaluation.problemSolvingScore === 'number' ? evaluation.problemSolvingScore : 0).toFixed(1)}
@@ -269,7 +269,7 @@ const InterviewEvaluationContent: React.FC = () => {
                   <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
                     <Users className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-900">Tự tin</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Confidence</h3>
                 </div>
                 <div className={`text-3xl font-bold ${getScoreColor(typeof evaluation.confidenceScore === 'number' ? evaluation.confidenceScore : 0)} mb-2`}>
                   {(typeof evaluation.confidenceScore === 'number' ? evaluation.confidenceScore : 0).toFixed(1)}
@@ -285,7 +285,7 @@ const InterviewEvaluationContent: React.FC = () => {
                   <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
                     <CheckCircle className="h-6 w-6 text-emerald-600" />
                   </div>
-                  Điểm mạnh
+                  Strengths
                 </h3>
                 <ul className="space-y-4">
                   {Array.isArray(evaluation.strengths) ? evaluation.strengths.map((strength, index) => (
@@ -298,7 +298,7 @@ const InterviewEvaluationContent: React.FC = () => {
                       </span>
                     </li>
                   )) : (
-                    <li className="text-slate-500 text-center py-8">Không có dữ liệu điểm mạnh</li>
+                    <li className="text-slate-500 text-center py-8">No strengths data</li>
                   )}
                 </ul>
               </div>
@@ -308,7 +308,7 @@ const InterviewEvaluationContent: React.FC = () => {
                   <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
                     <AlertCircle className="h-6 w-6 text-red-600" />
                   </div>
-                  Cần cải thiện
+                  Areas to Improve
                 </h3>
                 <ul className="space-y-4">
                   {Array.isArray(evaluation.weaknesses) ? evaluation.weaknesses.map((weakness, index) => (
@@ -321,7 +321,7 @@ const InterviewEvaluationContent: React.FC = () => {
                       </span>
                     </li>
                   )) : (
-                    <li className="text-slate-500 text-center py-8">Không có dữ liệu cần cải thiện</li>
+                    <li className="text-slate-500 text-center py-8">No areas to improve data</li>
                   )}
                 </ul>
               </div>
@@ -329,7 +329,7 @@ const InterviewEvaluationContent: React.FC = () => {
 
             {/* Recommendations */}
             <div className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-3xl shadow-lg border border-emerald-200 p-8 mb-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-8 text-center">Khuyến nghị cải thiện</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-8 text-center">Improvement Recommendations</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Array.isArray(evaluation.recommendations) ? evaluation.recommendations.map((recommendation, index) => (
                   <div key={index} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-md hover:shadow-lg transition-shadow">
@@ -337,14 +337,14 @@ const InterviewEvaluationContent: React.FC = () => {
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
                         <span className="text-white font-bold text-sm">{index + 1}</span>
                       </div>
-                      <h4 className="font-semibold text-slate-900">Khuyến nghị {index + 1}</h4>
+                      <h4 className="font-semibold text-slate-900">Recommendation {index + 1}</h4>
                     </div>
                     <p className="text-slate-700 text-sm leading-relaxed">
                       {typeof recommendation === 'string' ? recommendation : JSON.stringify(recommendation)}
                     </p>
                   </div>
                 )) : (
-                  <div className="text-slate-500 text-center py-8 col-span-full">Không có khuyến nghị</div>
+                  <div className="text-slate-500 text-center py-8 col-span-full">No recommendations</div>
                 )}
               </div>
             </div>
@@ -355,7 +355,7 @@ const InterviewEvaluationContent: React.FC = () => {
                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FileText className="h-6 w-6 text-blue-600" />
                 </div>
-                Đánh giá chi tiết
+                Detailed Evaluation
               </h3>
               <div className="space-y-6">
                 {typeof evaluation.detailedFeedback === 'string' ? (
@@ -372,7 +372,7 @@ const InterviewEvaluationContent: React.FC = () => {
                           <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                             <TrendingUp className="h-5 w-5 text-blue-600" />
                           </div>
-                          Tiềm năng
+                          Potential
                         </h4>
                         <p className="text-slate-700 leading-relaxed">
                           {evaluation.detailedFeedback.potential}
@@ -386,7 +386,7 @@ const InterviewEvaluationContent: React.FC = () => {
                           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                             <Code className="h-5 w-5 text-green-600" />
                           </div>
-                          Kỹ thuật
+                          Technical
                         </h4>
                         <p className="text-slate-700 leading-relaxed">
                           {evaluation.detailedFeedback.technical}
@@ -400,7 +400,7 @@ const InterviewEvaluationContent: React.FC = () => {
                           <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                             <Briefcase className="h-5 w-5 text-purple-600" />
                           </div>
-                          Kinh nghiệm
+                          Experience
                         </h4>
                         <p className="text-slate-700 leading-relaxed">
                           {evaluation.detailedFeedback.experience}
@@ -414,7 +414,7 @@ const InterviewEvaluationContent: React.FC = () => {
                           <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
                             <Users className="h-5 w-5 text-amber-600" />
                           </div>
-                          Kỹ năng mềm
+                          Soft Skills
                         </h4>
                         <p className="text-slate-700 leading-relaxed">
                           {evaluation.detailedFeedback.softSkills}
@@ -430,16 +430,16 @@ const InterviewEvaluationContent: React.FC = () => {
             <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-8 mb-8">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h3 className="text-2xl font-bold text-slate-900">Lịch sử hội thoại</h3>
+                  <h3 className="text-2xl font-bold text-slate-900">Conversation History</h3>
                   <p className="text-slate-600 text-sm mt-2">
-                    {Array.isArray(evaluation.conversationHistory) ? evaluation.conversationHistory.length : 0} tin nhắn
+                    {Array.isArray(evaluation.conversationHistory) ? evaluation.conversationHistory.length : 0} messages
                   </p>
                 </div>
                 <button
                   onClick={() => setShowConversation(!showConversation)}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-medium transition-colors shadow-lg"
                 >
-                  {showConversation ? 'Ẩn hội thoại' : 'Xem hội thoại'}
+                  {showConversation ? 'Hide conversation' : 'Show conversation'}
                 </button>
               </div>
               {showConversation && (
@@ -455,7 +455,7 @@ const InterviewEvaluationContent: React.FC = () => {
                     }`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-medium">
-                          {message.role === 'user' ? 'Bạn' : message.role === 'ai' ? 'AI Interviewer' : 'Hệ thống'}
+                          {message.role === 'user' ? 'You' : message.role === 'ai' ? 'AI Interviewer' : 'System'}
                         </span>
                         <span className="text-xs opacity-70">
                           {formatTimestamp(message.timestamp)}
@@ -467,7 +467,7 @@ const InterviewEvaluationContent: React.FC = () => {
                     </div>
                   </div>
                 )) : (
-                  <div className="text-slate-500 text-center py-8">Không có dữ liệu hội thoại</div>
+                  <div className="text-slate-500 text-center py-8">No conversation data</div>
                 )}
                 </div>
               )}
@@ -475,7 +475,7 @@ const InterviewEvaluationContent: React.FC = () => {
 
             {/* Question Analysis */}
             <div className="bg-white rounded-3xl shadow-lg border border-slate-200 p-8">
-              <h3 className="text-2xl font-bold text-slate-900 mb-8">Phân tích từng câu hỏi</h3>
+              <h3 className="text-2xl font-bold text-slate-900 mb-8">Question Analysis</h3>
               <div className="space-y-6">
                 {Array.isArray(evaluation.questionAnalysis) ? evaluation.questionAnalysis.map((question, index) => (
                   <div key={index} className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
@@ -485,7 +485,7 @@ const InterviewEvaluationContent: React.FC = () => {
                           <span className="text-white font-bold text-sm">{index + 1}</span>
                         </div>
                         <div>
-                          <h4 className="font-semibold text-slate-900 mb-2">Câu hỏi {index + 1}</h4>
+                          <h4 className="font-semibold text-slate-900 mb-2">Question {index + 1}</h4>
                           <span className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-medium">
                             {typeof question.category === 'string' ? question.category : JSON.stringify(question.category)}
                           </span>
@@ -498,21 +498,21 @@ const InterviewEvaluationContent: React.FC = () => {
                     
                     <div className="space-y-4">
                       <div>
-                        <h5 className="text-sm font-semibold text-slate-600 mb-2">Câu hỏi:</h5>
+                        <h5 className="text-sm font-semibold text-slate-600 mb-2">Question:</h5>
                         <p className="text-slate-900 bg-white p-3 rounded-lg border border-slate-200">
                           {typeof question.question === 'string' ? question.question : JSON.stringify(question.question)}
                         </p>
                       </div>
                       
                       <div>
-                        <h5 className="text-sm font-semibold text-slate-600 mb-2">Câu trả lời:</h5>
+                        <h5 className="text-sm font-semibold text-slate-600 mb-2">Answer:</h5>
                         <p className="text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
                           {typeof question.userAnswer === 'string' ? question.userAnswer : JSON.stringify(question.userAnswer)}
                         </p>
                       </div>
                       
                       <div>
-                        <h5 className="text-sm font-semibold text-slate-600 mb-2">Đánh giá:</h5>
+                        <h5 className="text-sm font-semibold text-slate-600 mb-2">Feedback:</h5>
                         <p className="text-slate-700 bg-white p-3 rounded-lg border border-slate-200">
                           {typeof question.feedback === 'string' ? question.feedback : JSON.stringify(question.feedback)}
                         </p>
@@ -520,7 +520,7 @@ const InterviewEvaluationContent: React.FC = () => {
                     </div>
                   </div>
                 )) : (
-                  <div className="text-slate-500 text-center py-8">Không có phân tích câu hỏi</div>
+                  <div className="text-slate-500 text-center py-8">No question analysis</div>
                 )}
               </div>
             </div>
@@ -541,8 +541,8 @@ const InterviewEvaluationPage: React.FC = () => {
             <div className="absolute inset-0 rounded-full h-20 w-20 border-4 border-transparent border-t-blue-400 animate-ping opacity-30"></div>
           </div>
           <div className="space-y-2">
-            <p className="text-slate-700 font-medium text-lg">Đang tải...</p>
-            <p className="text-slate-500 text-sm">Vui lòng chờ trong giây lát</p>
+            <p className="text-slate-700 font-medium text-lg">Loading...</p>
+            <p className="text-slate-500 text-sm">Please wait a moment</p>
           </div>
         </div>
       </div>
