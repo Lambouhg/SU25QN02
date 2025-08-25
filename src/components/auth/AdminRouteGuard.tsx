@@ -14,23 +14,23 @@ export default function AdminRouteGuard({ children, fallback }: AdminRouteGuardP
   const router = useRouter();
   const [retryCount, setRetryCount] = useState(0);
   const [lastRoleCheck, setLastRoleCheck] = useState(Date.now());
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const handleRedirect = useCallback(() => {
     router.push('/dashboard');
   }, [router]);
 
-  // Periodic role checking để đảm bảo role luôn up-to-date
-  // Chỉ check khi cần thiết để tránh gây re-render không cần thiết
+  // Periodic role checking - chỉ check khi thực sự cần thiết
   useEffect(() => {
-    // Chỉ check role mỗi 5 phút thay vì 30 giây để giảm thiểu re-render
+    // Chỉ check role mỗi 10 phút thay vì 5 phút để giảm thiểu checking
     const interval = setInterval(() => {
       const now = Date.now();
-      // Check role every 5 minutes nếu là admin để đảm bảo still admin
-      if (isAdmin && (now - lastRoleCheck) > 300000) {
+      // Check role every 10 minutes nếu là admin để đảm bảo still admin
+      if (isAdmin && (now - lastRoleCheck) > 600000) { // 10 minutes = 600000ms
         refreshRole();
         setLastRoleCheck(now);
       }
-    }, 300000); // 5 phút = 300,000ms
+    }, 600000); // 10 minutes
 
     return () => clearInterval(interval);
   }, [isAdmin, lastRoleCheck, refreshRole]);
@@ -39,37 +39,38 @@ export default function AdminRouteGuard({ children, fallback }: AdminRouteGuardP
     // Still loading - wait
     if (loading) return;
 
-    // Admin access granted - reset retry count
+    // Admin access granted - reset retry count và không cần check thêm
     if (isAdmin && role === 'admin') {
       setRetryCount(0);
+      setLastRoleCheck(Date.now()); // Cập nhật thời gian check cuối cùng
+      setHasInitialized(true); // Đánh dấu đã khởi tạo thành công
       return;
     }
 
-    // Role is null and haven't retried enough - try again
-    // Tăng delay giữa các lần retry để tránh spam API
-    if (role === null && retryCount < 2) {
+    // Role is null và chưa retry đủ - chỉ retry tối đa 1 lần thay vì 2 lần
+    if (role === null && retryCount < 1 && !hasInitialized) {
       const timer = setTimeout(() => {
         refreshRole();
         setRetryCount(prev => prev + 1);
-      }, 2000); // Tăng từ 1s lên 2s
+      }, 2000); // Tăng delay từ 1s lên 2s để giảm thiểu checking
       return () => clearTimeout(timer);
     }
 
-    // Not admin after retries - redirect
+    // Không phải admin sau khi retry - redirect
     if (!isAdmin || role === 'user') {
       const timer = setTimeout(handleRedirect, 1500);
       return () => clearTimeout(timer);
     }
-  }, [loading, isAdmin, role, retryCount, handleRedirect, refreshRole]);
+  }, [loading, isAdmin, role, retryCount, hasInitialized, handleRedirect, refreshRole]);
 
   // Show loading while checking permissions or retrying
-  if (loading || (role === null && retryCount < 2)) {
+  if (loading || (role === null && retryCount < 1 && !hasInitialized)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">
-            {retryCount > 0 ? `Verifying access... (${retryCount + 1}/3)` : 'Checking permissions...'}
+            {retryCount > 0 ? `Verifying access... (${retryCount + 1}/2)` : 'Checking permissions...'}
           </p>
         </div>
       </div>

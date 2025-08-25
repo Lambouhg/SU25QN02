@@ -1,69 +1,99 @@
 // @ts-nocheck
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextResponse } from 'next/server';
-import { withAdminAuth } from '@/middleware/adminAuth';
 
-vi.mock('@clerk/nextjs/server', () => ({ getAuth: vi.fn() }));
+vi.mock('@clerk/nextjs/server', () => ({
+  getAuth: vi.fn()
+}));
 
-const makeReq = () => new Request('http://localhost/admin', { method: 'GET' }) as any;
+// Import mocked function reference after vi.mock
+const { getAuth } = await import('@clerk/nextjs/server');
 
-describe('withAdminAuth middleware', () => {
-  beforeEach(() => vi.clearAllMocks());
+describe('withAdminAuth', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    (global.fetch as any) = vi.fn();
+  });
 
-  it('returns 401 when no userId', async () => {
-    const { getAuth } = await import('@clerk/nextjs/server');
-    (getAuth as any).mockReturnValue({ userId: null });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
+  it('returns 401 when not authenticated', async () => {
+    (getAuth as any).mockReturnValue({ userId: null } as any);
+
+    const { withAdminAuth } = await import('../../middleware/adminAuth');
     const handler = vi.fn(async () => NextResponse.json({ ok: true }));
-    const mw = await withAdminAuth(handler);
-    const res = await mw(makeReq());
+
+    const guarded = await withAdminAuth(handler);
+    const res = await guarded({} as any);
+
     expect(res.status).toBe(401);
   });
 
-  it('returns 404 when user fetch fails', async () => {
-    const { getAuth } = await import('@clerk/nextjs/server');
-    (getAuth as any).mockReturnValue({ userId: 'ck_1' });
+  it('returns 404 when user not found', async () => {
+    (getAuth as any).mockReturnValue({ userId: 'u1' } as any);
+    (global.fetch as any).mockResolvedValue({ ok: false, status: 404 });
 
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false })) as any);
-
+    const { withAdminAuth } = await import('../../middleware/adminAuth');
     const handler = vi.fn(async () => NextResponse.json({ ok: true }));
-    const mw = await withAdminAuth(handler);
-    const res = await mw(makeReq());
+
+    const guarded = await withAdminAuth(handler);
+    const res = await guarded({} as any);
+
     expect(res.status).toBe(404);
   });
 
   it('returns 403 when user is not admin', async () => {
-    const { getAuth } = await import('@clerk/nextjs/server');
-    (getAuth as any).mockReturnValue({ userId: 'ck_1' });
+    (getAuth as any).mockReturnValue({ userId: 'u1' } as any);
+    (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({ role: 'user' }) });
 
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ role: { name: 'user' } }) })) as any);
-
+    const { withAdminAuth } = await import('../../middleware/adminAuth');
     const handler = vi.fn(async () => NextResponse.json({ ok: true }));
-    const mw = await withAdminAuth(handler);
-    const res = await mw(makeReq());
+
+    const guarded = await withAdminAuth(handler);
+    const res = await guarded({} as any);
+
     expect(res.status).toBe(403);
   });
 
-  it('calls handler when admin', async () => {
-    const { getAuth } = await import('@clerk/nextjs/server');
-    (getAuth as any).mockReturnValue({ userId: 'ck_1' });
+  it('calls handler when user is admin (role name string)', async () => {
+    (getAuth as any).mockReturnValue({ userId: 'u1' } as any);
+    (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({ role: 'admin' }) });
 
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ role: { name: 'admin' } }) })) as any);
-
+    const { withAdminAuth } = await import('../../middleware/adminAuth');
     const handler = vi.fn(async () => NextResponse.json({ ok: true }));
-    const mw = await withAdminAuth(handler);
-    const res = await mw(makeReq());
-    expect(res.status).toBe(200);
+
+    const guarded = await withAdminAuth(handler);
+    const res = await guarded({} as any);
+
     expect(handler).toHaveBeenCalled();
+    expect(res.status).toBe(200);
+  });
+
+  it('calls handler when user is admin (role object with name)', async () => {
+    (getAuth as any).mockReturnValue({ userId: 'u1' } as any);
+    (global.fetch as any).mockResolvedValue({ ok: true, json: async () => ({ role: { name: 'admin' } }) });
+
+    const { withAdminAuth } = await import('../../middleware/adminAuth');
+    const handler = vi.fn(async () => NextResponse.json({ ok: true }));
+
+    const guarded = await withAdminAuth(handler);
+    const res = await guarded({} as any);
+
+    expect(handler).toHaveBeenCalled();
+    expect(res.status).toBe(200);
   });
 
   it('returns 500 on unexpected error', async () => {
-    const { getAuth } = await import('@clerk/nextjs/server');
-    (getAuth as any).mockImplementation(() => { throw new Error('oops'); });
+    (getAuth as any).mockImplementation(() => { throw new Error('boom'); });
 
+    const { withAdminAuth } = await import('../../middleware/adminAuth');
     const handler = vi.fn(async () => NextResponse.json({ ok: true }));
-    const mw = await withAdminAuth(handler);
-    const res = await mw(makeReq());
+
+    const guarded = await withAdminAuth(handler);
+    const res = await guarded({} as any);
+
     expect(res.status).toBe(500);
   });
 });

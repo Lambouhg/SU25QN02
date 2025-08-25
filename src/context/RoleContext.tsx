@@ -308,7 +308,7 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // Handle role invalidation signals
+      // Handle role invalidation signals - chỉ refresh khi thực sự cần thiết
       if (e.key === ROLE_INVALIDATION_KEY && e.newValue) {
         try {
           const data = JSON.parse(e.newValue);
@@ -318,10 +318,14 @@ export const RoleProvider = ({ children }: { children: ReactNode }) => {
             // Immediately invalidate cache
             invalidateRoleCache();
             
-            // Force refresh role without delay
-            refreshRole().then(() => {
-              // Role refresh completed
-            });
+            // Thêm debounce để tránh refresh quá nhiều lần
+            const timeoutId = setTimeout(() => {
+              refreshRole().then(() => {
+                // Role refresh completed
+              });
+            }, 100); // 100ms delay để tránh multiple rapid calls
+            
+            return () => clearTimeout(timeoutId);
           }
         } catch (error) {
           console.error('Error parsing role invalidation signal:', error);

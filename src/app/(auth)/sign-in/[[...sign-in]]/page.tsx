@@ -169,14 +169,14 @@ export default function SignInPage() {
             <div className="space-y-4">
               <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
                 <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                <span className="text-sm text-blue-100">F.AI Interview</span>
+                <span className="text-sm text-blue-100">Secure & Trusted</span>
               </div>
               
               <h1 className="text-4xl font-bold leading-tight bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-                Practice. Analyze. Get Hired.
+                Welcome back to your journey
               </h1>
               <p className="text-lg text-slate-300 leading-relaxed">
-                AI-powered interview practice, JD analysis, quizzes, and detailed reports to help you improve faster and land your next role.
+                Access your personalized dashboard, continue learning, and unlock new opportunities with our secure platform.
               </p>
             </div>
             
@@ -184,36 +184,24 @@ export default function SignInPage() {
               <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
                 <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-medium">AI Interviews</h3>
-                  <p className="text-slate-400 text-sm">Realistic practice with AI-generated questions</p>
+                  <h3 className="text-white font-medium">Bank-level Security</h3>
+                  <p className="text-slate-400 text-sm">Your data is protected with enterprise encryption</p>
                 </div>
               </div>
               
               <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
                 <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h12M3 17h8" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-white font-medium">JD Analyzer</h3>
-                  <p className="text-slate-400 text-sm">Generate interview sets from your job description</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 p-4 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10">
-                <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-white font-medium">Quizzes & Tracking</h3>
-                  <p className="text-slate-400 text-sm">Practice quizzes and track your progress over time</p>
+                  <h3 className="text-white font-medium">Lightning Fast</h3>
+                  <p className="text-slate-400 text-sm">Optimized for speed and performance</p>
                 </div>
               </div>
             </div>
@@ -231,12 +219,12 @@ export default function SignInPage() {
                   </svg>
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {authView === 'sign-in' ? 'Sign in to F.AI Interview' : 'Reset your password'}
+                  {authView === 'sign-in' ? 'Sign In' : 'Reset Password'}
                 </h2>
               </div>
               <p className="text-gray-600">
                 {authView === 'sign-in' 
-                  ? 'Log in to continue AI practice, JD analysis, quizzes, and reports.' 
+                  ? 'Welcome back! Please enter your credentials to continue.' 
                   : resetStep === 'enter-email' 
                     ? 'Enter your email to receive a reset code.' 
                     : 'Enter the code and your new password.'}

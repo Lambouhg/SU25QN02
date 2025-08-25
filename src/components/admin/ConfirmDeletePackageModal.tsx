@@ -4,13 +4,11 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 
-interface ConfirmDeleteModalProps {
-  user: {
-    _id: string;
-    email: string;
-    firstName: string;
-    lastName: string;
-    fullName: string;
+interface ConfirmDeletePackageModalProps {
+  package: {
+    id: string;
+    name: string;
+    description?: string;
   } | null;
   isOpen: boolean;
   onClose: () => void;
@@ -18,19 +16,18 @@ interface ConfirmDeleteModalProps {
   loading?: boolean;
 }
 
-export default function ConfirmDeleteModal({ 
-  user, 
+export default function ConfirmDeletePackageModal({ 
+  package: pkg, 
   isOpen, 
   onClose, 
   onConfirm, 
   loading = false 
-}: ConfirmDeleteModalProps) {
-  if (!isOpen || !user) return null;
-
+}: ConfirmDeletePackageModalProps) {
+  if (!isOpen || !pkg) return null;
 
   const modalContent = (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Background overlay with blur - should show blurred content behind */}
+      {/* Background overlay with blur */}
       <div 
         className="fixed inset-0 backdrop-blur-sm bg-white/20" 
         onClick={onClose}
@@ -43,10 +40,10 @@ export default function ConfirmDeleteModal({
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <div className="flex items-center justify-center w-8 h-8 bg-yellow-100 rounded-full mr-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-600" />
+              <div className="flex items-center justify-center w-8 h-8 bg-red-100 rounded-full mr-3">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">Delete</h3>
+              <h3 className="text-lg font-medium text-gray-900">Delete Package</h3>
             </div>
             <button
               onClick={onClose}
@@ -59,13 +56,20 @@ export default function ConfirmDeleteModal({
           {/* Content */}
           <div className="mb-6">
             <p className="text-sm text-gray-600 mb-3">
-              Are you sure you want to delete ? This action cannot be undone.
+              Are you sure you want to delete this package? This action cannot be undone.
             </p>
             <div className="bg-gray-50 rounded-md p-3">
               <p className="text-sm font-medium text-gray-900">
-                {user.fullName || `${user.firstName} ${user.lastName}`}
+                {pkg.name}
               </p>
-              <p className="text-sm text-gray-500">{user.email}</p>
+              {pkg.description && (
+                <p className="text-sm text-gray-500 mt-1">{pkg.description}</p>
+              )}
+            </div>
+            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-xs text-yellow-800">
+                ⚠️ Note: This package cannot be deleted if it's currently being used by any users.
+              </p>
             </div>
           </div>
 
@@ -90,7 +94,7 @@ export default function ConfirmDeleteModal({
                   Deleting...
                 </div>
               ) : (
-                'Delete User'
+                'Delete Package'
               )}
             </button>
           </div>

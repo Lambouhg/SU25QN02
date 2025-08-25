@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Users, Settings, Menu, X, Search, LogOut, Shield,
-  BarChart3, MessageSquare, UserCheck,
+  BarChart3, MessageSquare, UserCheck, Package,
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
@@ -106,6 +106,15 @@ export default function AdminDashboardLayout({
       key: 'content',
       subItems: [
         { label: 'Questions', href: '/admin/questions' },
+      ]
+    },
+    {
+      icon: Package,
+      label: 'Package Management',
+      key: 'packages',
+      subItems: [
+        { label: 'Service Packages', href: '/admin/packages' },
+        { label: 'Analytics', href: '/admin/packages/analytics' },
       ]
     },
   ];
