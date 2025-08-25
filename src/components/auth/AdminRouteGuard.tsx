@@ -20,15 +20,17 @@ export default function AdminRouteGuard({ children, fallback }: AdminRouteGuardP
   }, [router]);
 
   // Periodic role checking để đảm bảo role luôn up-to-date
+  // Chỉ check khi cần thiết để tránh gây re-render không cần thiết
   useEffect(() => {
+    // Chỉ check role mỗi 5 phút thay vì 30 giây để giảm thiểu re-render
     const interval = setInterval(() => {
       const now = Date.now();
-      // Check role every 30 seconds nếu là admin để đảm bảo still admin
-      if (isAdmin && (now - lastRoleCheck) > 30000) {
+      // Check role every 5 minutes nếu là admin để đảm bảo still admin
+      if (isAdmin && (now - lastRoleCheck) > 300000) {
         refreshRole();
         setLastRoleCheck(now);
       }
-    }, 30000);
+    }, 300000); // 5 phút = 300,000ms
 
     return () => clearInterval(interval);
   }, [isAdmin, lastRoleCheck, refreshRole]);
@@ -44,11 +46,12 @@ export default function AdminRouteGuard({ children, fallback }: AdminRouteGuardP
     }
 
     // Role is null and haven't retried enough - try again
+    // Tăng delay giữa các lần retry để tránh spam API
     if (role === null && retryCount < 2) {
       const timer = setTimeout(() => {
         refreshRole();
         setRetryCount(prev => prev + 1);
-      }, 1000);
+      }, 2000); // Tăng từ 1s lên 2s
       return () => clearTimeout(timer);
     }
 

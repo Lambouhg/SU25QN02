@@ -21,8 +21,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "F.AI Interview",
-  description: "Improve your interview skills with our AI-powered platform",
+  title: 'F.AI Interview - AI-Powered Interview Practice',
+  description: 'Practice interviews with AI-powered avatars. Get real-time feedback and improve your skills.',
+  icons: {
+    icon: '/logo.png',
+  },
 };
 
 export default function RootLayout({

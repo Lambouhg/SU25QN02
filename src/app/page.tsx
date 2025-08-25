@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs';
 import Navbar from '@/components/Navbar';
 import HeroSection from '@/components/HeroSection';
 import WhyChooseSection from '@/components/WhyChooseSection';
+import CustomerReviews from '@/components/CustomerReviews';
 import HowItWorksSection from '@/components/HowItWorksSection';
 import PricingSection from '@/components/PricingSection';
 import Footer from '@/components/Footer';
@@ -32,6 +33,9 @@ export default function Home() {
       <main>
         <div id="features">
           <WhyChooseSection />
+        </div>
+        <div id="reviews">
+          <CustomerReviews />
         </div>
         <div id="how-it-works">
           <HowItWorksSection />

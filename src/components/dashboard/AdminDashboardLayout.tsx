@@ -13,6 +13,7 @@ import Image from 'next/image';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Toast from '@/components/ui/Toast';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+import { Logo } from '@/components/ui/logo';
 
 
 export default function AdminDashboardLayout({
@@ -141,12 +142,9 @@ export default function AdminDashboardLayout({
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               <Link href="/admin/dashboard" className="flex items-center ml-2 lg:ml-0">
-                <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-white" />
-                </div>
-                <span className="ml-3 text-xl font-bold text-gray-900">Admin Panel</span>
+                <Logo variant="dark" size="sm" />
                 <span className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full font-medium">
-                  InterviewAI
+                  Admin Panel
                 </span>
               </Link>
             </div>
