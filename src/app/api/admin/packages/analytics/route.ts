@@ -26,6 +26,35 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Test: Kiểm tra data cơ bản
+    const testData = {
+      servicePackages: await prisma.servicePackage.count(),
+      userPackages: await prisma.userPackage.count(),
+      users: await prisma.user.count(),
+      adminUsers: await prisma.user.count({
+        where: {
+          role: {
+            name: 'admin'
+          }
+        }
+      })
+    };
+
+    console.log('Debug - Test data:', testData);
+
+    // Nếu không có data, trả về empty analytics
+    if (testData.servicePackages === 0) {
+      return NextResponse.json({
+        totalPackages: 0,
+        activePackages: 0,
+        totalRevenue: 0,
+        totalUsers: 0,
+        packageUsage: [],
+        expiringPackages: [],
+        monthlyRevenue: []
+      });
+    }
+
     const { searchParams } = new URL(req.url);
     const timeRange = searchParams.get('timeRange') || '30d';
 
@@ -53,6 +82,9 @@ export async function GET(req: NextRequest) {
       where: { isActive: true }
     });
 
+    console.log('Debug - Total packages:', totalPackages);
+    console.log('Debug - Active packages:', activePackages);
+
     // Lấy thông tin user packages
     const userPackages = await prisma.userPackage.findMany({
       where: {
@@ -65,6 +97,9 @@ export async function GET(req: NextRequest) {
         user: true
       }
     });
+
+    console.log('Debug - User packages found:', userPackages.length);
+    console.log('Debug - Time range:', timeRange, 'Start date:', startDate);
 
     // Tính toán revenue và user count
     const totalRevenue = userPackages.reduce((sum, up) => sum + (up.servicePackage?.price || 0), 0);
@@ -95,7 +130,7 @@ export async function GET(req: NextRequest) {
     const expiringThreshold = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const expiringUserPackages = await prisma.userPackage.findMany({
       where: {
-        expiresAt: {
+        endDate: {
           lte: expiringThreshold,
           gte: now
         }
@@ -109,7 +144,7 @@ export async function GET(req: NextRequest) {
     expiringUserPackages.forEach(up => {
       const packageId = up.servicePackageId;
       if (!expiringStats.has(packageId)) {
-        const daysUntilExpiry = Math.ceil((up.expiresAt!.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        const daysUntilExpiry = Math.ceil((up.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
         expiringStats.set(packageId, {
           packageId,
           packageName: up.servicePackage?.name || 'Unknown',

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Activity, BarChart3, Users } from 'lucide-react';
+import { Activity, BarChart3 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/animated-tabs';
 import AdminActivityDashboard from '@/components/admin/AdminActivityDashboard';
 import AdminAnalytics from '@/components/admin/AdminAnalytics';
@@ -76,10 +76,6 @@ export default function AdminUserActivitiesPage() {
             <TabsTrigger value="overview">
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics Overview
-            </TabsTrigger>
-            <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
-              Users
             </TabsTrigger>
           </TabsList>
 

@@ -147,7 +147,7 @@ export default function DashboardLayout({
       subItems: [
         { label: 'AI Bot', href: '/avatar-interview' },
         { label: 'Quiz Mode', href: '/quiz' },
-        { label: 'Test Mode', href: '/test' },
+        { label: 'Assessment Mode', href: '/test' },
       ]
     },
     { 

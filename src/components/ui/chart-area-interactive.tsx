@@ -77,7 +77,7 @@ export function ChartAreaInteractive({
 
   if (hideCard) {
     return (
-      <div className="w-full">
+      <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row mb-4">
           <div className="grid flex-1 gap-1">
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>

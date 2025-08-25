@@ -17,7 +17,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +25,7 @@ import { usePet } from '@/hooks/usePet';
 import { PetDisplay } from '@/components/pet/PetDisplay';
 import { getPetEvolutionStages } from '@/utils/petLogic';
 import { ChartRadarLinesOnly } from '@/components/ui/chart-radar-lines-only';
+import { ChartMultiAreaInteractive } from '@/components/ui/chart-multi-area-interactive';
 import MagicDock from '@/components/ui/magicdock';
 import { useRouter } from 'next/navigation';
 
@@ -466,20 +466,19 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
-                    <YAxis domain={[0, lineMode === 'score' ? 100 : 'auto']} />
-                    <Tooltip formatter={(value: number) => lineMode === 'score' ? `${value.toFixed(1)}%` : value} />
-                    <Legend />
-                    <Line type="monotone" dataKey="quiz" name="Quiz" stroke="#7c3aed" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="test" name="Test" stroke="#dc2626" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="interview" name="Interview" stroke="#059669" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartMultiAreaInteractive
+                data={lineChartData.map(d => ({
+                  // map period -> date to keep X axis formatter compatible
+                  date: d.period,
+                  quiz: d.quiz,
+                  test: d.test,
+                  interview: d.interview,
+                }))}
+                height={288}
+                title=""
+                description=""
+                hideCard={true}
+              />
             </div>
           </div>
           {/* Spider Chart - Right */}

@@ -48,6 +48,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const timeframe = searchParams.get('timeframe') || '30'; // days
+    const recentLimitParam = searchParams.get('recentLimit');
+    const recentLimit = recentLimitParam ? parseInt(recentLimitParam) : 0; // 0 = no limit
+    const topLimitParam = searchParams.get('topLimit');
+    const topLimit = topLimitParam ? parseInt(topLimitParam) : 0; // 0 = no limit
     const days = parseInt(timeframe);
     const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -244,7 +248,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Top performers
-    const topPerformers = processedUserActivities
+    let topPerformers = processedUserActivities
       .map((ua) => {
         const avgScore = ua.activities.length > 0
           ? ua.activities.reduce((sum: number, a: Record<string, unknown>) => sum + (Number(a.score) || 0), 0) / ua.activities.length
@@ -261,8 +265,11 @@ export async function GET(request: NextRequest) {
         };
       })
       .filter((user: { totalActivities: number }) => user.totalActivities > 0)
-      .sort((a: { averageScore: number }, b: { averageScore: number }) => b.averageScore - a.averageScore)
-      .slice(0, 10);
+      .sort((a: { averageScore: number }, b: { averageScore: number }) => b.averageScore - a.averageScore);
+
+    if (topLimit > 0) {
+      topPerformers = topPerformers.slice(0, topLimit);
+    }
 
     // Most active users
     const mostActiveUsers = processedUserActivities
@@ -293,8 +300,8 @@ export async function GET(request: NextRequest) {
         : 0
     };
 
-    // Recent activities with user info (top 5)
-    const recentActivitiesWithUsers = allActivities
+    // Recent activities with user info (configurable limit; default = all)
+    let recentActivitiesWithUsers = allActivities
       .filter((a: Record<string, unknown>) => {
         const timestamp = a.timestamp as string;
         return timestamp && new Date(timestamp) >= startDate;
@@ -303,8 +310,13 @@ export async function GET(request: NextRequest) {
         const timestampA = new Date(a.timestamp as string).getTime();
         const timestampB = new Date(b.timestamp as string).getTime();
         return timestampB - timestampA;
-      })
-      .slice(0, 5)
+      });
+
+    if (recentLimit > 0) {
+      recentActivitiesWithUsers = recentActivitiesWithUsers.slice(0, recentLimit);
+    }
+
+    recentActivitiesWithUsers = recentActivitiesWithUsers
       .map((activity) => ({
         type: activity.type,
         score: activity.score,
