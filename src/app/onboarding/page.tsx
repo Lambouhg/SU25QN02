@@ -40,10 +40,6 @@ export default function OnboardingPage() {
     checkOnboardingStatus();
   }, [isSignedIn, isLoaded, router, checkOnboardingStatus]);
 
-  const handleOnboardingComplete = () => {
-    router.push('/dashboard');
-  };
-
   if (!isLoaded || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -63,5 +59,5 @@ export default function OnboardingPage() {
     return null; // Sẽ redirect trong useEffect
   }
 
-  return <OnboardingSteps onComplete={handleOnboardingComplete} />;
+  return <OnboardingSteps />;
 }
