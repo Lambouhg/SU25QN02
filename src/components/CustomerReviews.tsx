@@ -153,7 +153,7 @@ export default function KineticTestimonialDemo() {
   return (
     <KineticTestimonial
       testimonials={testimonials}
-      className="bg-black md:py-0 py-0 not-prose"
+      className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-black dark:to-black md:py-0 py-0 not-prose"
       cardClassName="hover:scale-105 shadow-lg"
       avatarClassName="ring-2 ring-purple-500"
       desktopColumns={3}

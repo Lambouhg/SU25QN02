@@ -58,8 +58,8 @@ const TestimonialCard: React.FC<TestimonialCardProps> = React.memo(
         onMouseLeave={() => setIsHovered(false)}
       >
         <Card
-          className={`transition-all duration-300 pointer-events-none relative overflow-hidden ${
-            isHovered ? "text-white shadow-2xl border-transparent" : ""
+          className={`transition-all duration-300 pointer-events-none relative overflow-hidden bg-white border-gray-200 ${
+            isHovered ? "text-white shadow-2xl border-transparent" : "text-gray-900"
           } ${cardClassName}`}
         >
           {isHovered && (
@@ -75,7 +75,7 @@ const TestimonialCard: React.FC<TestimonialCardProps> = React.memo(
           )}
 
           <CardContent className="p-4 md:p-6 relative z-10">
-            <p className="text-sm md:text-base mb-4 leading-relaxed transition-colors duration-300 text-neutral-800 dark:text-neutral-200">
+            <p className="text-sm md:text-base mb-4 leading-relaxed transition-colors duration-300 text-gray-800">
               &ldquo;{testimonial.review}&rdquo;
             </p>
 
@@ -92,14 +92,14 @@ const TestimonialCard: React.FC<TestimonialCardProps> = React.memo(
               <div className="min-w-0">
                 <p
                   className={`font-semibold text-xs md:text-sm ${
-                    isHovered ? "text-white" : ""
+                    isHovered ? "text-white" : "text-gray-900"
                   }`}
                 >
                   {testimonial.name}
                 </p>
                 <p
                   className={`text-xs ${
-                    isHovered ? "text-white/80" : "text-muted-foreground"
+                    isHovered ? "text-white/80" : "text-gray-600"
                   }`}
                 >
                   {testimonial.handle}
@@ -176,7 +176,6 @@ const KineticTestimonial: React.FC<KineticTestimonialProps> = ({
     () => createColumns(desktopColumns),
     [createColumns, desktopColumns]
   );
-
   const tabletColumnsData = useMemo(
     () => createColumns(tabletColumns),
     [createColumns, tabletColumns]
@@ -228,21 +227,21 @@ const KineticTestimonial: React.FC<KineticTestimonialProps> = ({
 
   return (
     <section
-      className={`py-12 md:py-12 bg-black transition-colors duration-300 ${className}`}
+      className={`py-6 md:py-8 bg-gray-50 transition-colors duration-300 ${className}`}
     >
-      <div className="relative w-full text-white py-8 md:py-20 flex flex-col items-center overflow-hidden px-4 md:px-6">
-        <h2 className="text-2xl md:text-4xl font-bold text-center mb-4 bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+      <div className="relative w-full text-gray-900 py-4 md:py-8 flex flex-col items-center overflow-hidden px-4 md:px-6">
+        <h2 className="text-2xl md:text-4xl font-bold text-center mb-3 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
           {title}
         </h2>
-        <p className="text-gray-400 mb-8 md:mb-12 text-center w-full max-w-2xl px-4 text-sm">
+        <p className="text-gray-600 mb-6 md:mb-8 text-center w-full max-w-2xl px-4 text-sm">
           {subtitle}
         </p>
 
         {testimonials && testimonials.length > 0 && (
           <>
             <div className="hidden xl:flex gap-4 w-full max-w-7xl overflow-hidden relative mx-4">
-              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-gray-50 to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-gray-50 to-transparent z-10 pointer-events-none"></div>
 
               {desktopColumnsData.map((columnTestimonials, colIndex) =>
                 renderColumn(columnTestimonials, colIndex, "desktop", 800)
@@ -250,8 +249,8 @@ const KineticTestimonial: React.FC<KineticTestimonialProps> = ({
             </div>
 
             <div className="hidden lg:flex xl:hidden gap-4 w-full max-w-6xl overflow-hidden relative mx-4">
-              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-gray-50 to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-gray-50 to-transparent z-10 pointer-events-none"></div>
 
               {createColumns(Math.max(desktopColumns - 1, 3)).map(
                 (columnTestimonials, colIndex) =>
@@ -260,8 +259,8 @@ const KineticTestimonial: React.FC<KineticTestimonialProps> = ({
             </div>
 
             <div className="hidden md:flex lg:hidden gap-4 w-full max-w-5xl overflow-hidden relative mx-4">
-              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-gray-50 to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-gray-50 to-transparent z-10 pointer-events-none"></div>
 
               {createColumns(Math.max(desktopColumns - 2, 2)).map(
                 (columnTestimonials, colIndex) =>
@@ -270,8 +269,8 @@ const KineticTestimonial: React.FC<KineticTestimonialProps> = ({
             </div>
 
             <div className="hidden sm:flex md:hidden gap-4 w-full max-w-4xl overflow-hidden relative mx-4">
-              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-gray-50 to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-gray-50 to-transparent z-10 pointer-events-none"></div>
 
               {tabletColumnsData.map((columnTestimonials, colIndex) =>
                 renderColumn(columnTestimonials, colIndex, "tablet", 800)
@@ -279,8 +278,8 @@ const KineticTestimonial: React.FC<KineticTestimonialProps> = ({
             </div>
 
             <div className="sm:hidden flex gap-3 w-full overflow-hidden relative px-4">
-              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black to-transparent z-10 pointer-events-none"></div>
-              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-gray-50 to-transparent z-10 pointer-events-none"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-gray-50 to-transparent z-10 pointer-events-none"></div>
 
               {mobileColumnsData.map((columnTestimonials, colIndex) =>
                 renderColumn(columnTestimonials, colIndex, "mobile", 600)

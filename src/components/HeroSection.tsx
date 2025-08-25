@@ -8,9 +8,9 @@ import Typeanimation from '@/components/ui/Typeanimation';
 
 export default function HeroSection() {
   return (
-    <BackgroundMeteors variant="navbar">
-      <section className="px-4 md:px-12 py-16 md:py-24 max-w-7xl mx-auto -mt-1">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center min-h-[calc(100vh-160px)]">
+    <BackgroundMeteors>
+      <section className="px-4 md:px-12 py-16 md:py-24 max-w-7xl mx-auto min-h-screen flex items-center">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center w-full">
           {/* Left Content */}
           <div className="space-y-8">
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
@@ -22,9 +22,9 @@ export default function HeroSection() {
                   "Frontend Interview",
                   "Backend Interview",
                   "DevOps Interview",
-                  "AI Interview",
-                  "Machine Learning Interview",
                   "Data Science Interview",
+                  "Cybersecurity Interview",
+                  "AI Interview",
                 ]}
                 className="text-4xl md:text-6xl lg:text-7xl font-bold"
                 typingSpeed={80}

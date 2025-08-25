@@ -11,12 +11,10 @@ interface Beam {
 
 interface BackgroundMeteorsProps {
   children?: ReactNode;
-  variant?: 'fullscreen' | 'navbar';
 }
 
 export default function BackgroundMeteors({
   children,
-  variant = 'fullscreen',
 }: BackgroundMeteorsProps) {
   const [beams, setBeams] = useState<Beam[]>([]);
   const gridSize = 40;
@@ -45,13 +43,13 @@ export default function BackgroundMeteors({
 
   useEffect(() => {
     const generateBeams = () => {
-      const count = variant === 'navbar' ? Math.floor(Math.random() * 2) + 2 : Math.floor(Math.random() * 2) + 3;
+      const count = Math.floor(Math.random() * 2) + 3;
       const xPositions = generateSafeGridPositions(count);
 
       const newBeams: Beam[] = xPositions.map((x) => ({
         id: Math.random(),
         x,
-        duration: variant === 'navbar' ? 3 + Math.random() * 1 : 4 + Math.random() * 1.5,
+        duration: 4 + Math.random() * 1.5,
       }));
 
       setBeams(newBeams);
@@ -61,53 +59,43 @@ export default function BackgroundMeteors({
     };
 
     generateBeams();
-  }, [variant]);
-
-  const containerClasses = variant === 'navbar' 
-    ? "relative w-full bg-black overflow-hidden" 
-    : "relative flex h-screen w-full items-center justify-center overflow-hidden bg-black";
-
-  const contentClasses = variant === 'navbar'
-    ? "relative z-10"
-    : "absolute inset-0 z-10 flex items-center justify-center";
+  }, []);
 
   return (
-    <div className={containerClasses}>
+    <div className="relative w-full overflow-hidden bg-black">
       <div
         className="absolute inset-0"
         style={{
           backgroundSize: `${gridSize}px ${gridSize}px`,
           backgroundImage:
-            "linear-gradient(to right, #262626 1px, transparent 1px), linear-gradient(to bottom, #262626 1px, transparent 1px)",
+            "linear-gradient(to right, rgba(38, 38, 38, 0.3) 1px, transparent 1px), linear-gradient(to bottom, rgba(38, 38, 38, 0.3) 1px, transparent 1px)",
         }}
       />
       <div
-        className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"
+        className="pointer-events-none absolute inset-0 bg-black 
+        [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"
       />
       {beams.map((b) => (
         <motion.div
           key={b.id}
           className="absolute top-0"
           style={{ left: b.x, zIndex: 2 }}
-          initial={{ y: variant === 'navbar' ? -50 : -150 }}
-          animate={{ y: variant === 'navbar' ? "100vh" : "100vh" }}
+          initial={{ y: -150 }}
+          animate={{ y: "100vh" }}
           transition={{
             duration: b.duration,
             ease: "linear",
           }}
         >
           <div
-            className={`rounded-full bg-gradient-to-t from-white/70 via-white/20 to-transparent`}
-            style={{ 
-              height: variant === 'navbar' ? '40px' : '56px',
-              width: '1px',
-              margin: "0 auto" 
-            }}
+            className="h-14 w-px rounded-full
+              bg-gradient-to-t from-indigo-500 via-teal-500 to-transparent"
+            style={{ margin: "0 auto" }}
           />
         </motion.div>
       ))}
 
-      <div className={contentClasses}>
+      <div className="relative z-10">
         {children}
       </div>
     </div>

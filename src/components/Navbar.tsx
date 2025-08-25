@@ -18,8 +18,8 @@ export default function Navbar() {
   };
 
   return (
-    <BackgroundMeteors variant="navbar">
-      <nav className="relative w-full border-b border-white/10">
+    <BackgroundMeteors>
+      <nav className="relative w-full">
         {/* Content */}
         <div className="flex items-center justify-between px-4 md:px-12 py-4 md:py-6 relative z-50 max-w-[2100px] mx-auto">
           {/* Logo */}
