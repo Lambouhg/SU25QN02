@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { useAzureVoiceInteraction } from '@/hooks/useAzureVoiceInteraction';
 
 interface ChatMessage {
   id: string | number;
@@ -37,6 +38,7 @@ interface InterviewChatProps {
   reviewCountdown?: number; // Thêm countdown  
   officialQuestionCount?: number; // Số câu hỏi đã hỏi
   maxQuestions?: number; // Số câu hỏi tối đa
+  voiceLanguage?: 'en-US' | 'vi-VN'; // Thêm prop để chọn ngôn ngữ voice
 }
 
 export const InterviewChat: React.FC<InterviewChatProps> = ({
@@ -54,8 +56,33 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
   reviewCountdown = 0,
   officialQuestionCount = 0,
   maxQuestions = 10,
+  voiceLanguage = 'vi-VN', // Default to Vietnamese
 }) => {
   const [secondsLeft, setSecondsLeft] = React.useState(duration * 60);
+  const [currentVoiceLanguage, setCurrentVoiceLanguage] = React.useState(voiceLanguage);
+  
+  // Azure Speech-to-Text integration
+  const {
+    isListening,
+    startListening,
+    stopListening
+  } = useAzureVoiceInteraction({
+    onSpeechResult: (result: string) => {
+      console.log('Speech result received:', result);
+      // Append the speech result to the current message
+      const newMessage = message + (message ? ' ' : '') + result;
+      // Simulate onChange event for the parent component
+      const fakeEvent = {
+        target: { value: newMessage }
+      } as React.ChangeEvent<HTMLTextAreaElement>;
+      onMessageChange(fakeEvent);
+    },
+    onError: (error: string) => {
+      console.error('Speech recognition error:', error);
+    },
+    language: currentVoiceLanguage // Use the selected language
+  });
+
   React.useEffect(() => {
     setSecondsLeft(duration * 60);
   }, [duration]);
@@ -166,13 +193,83 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
             )}
           </CardContent>
           <div className="p-4 border-t flex items-center gap-2">
-            <Textarea
-              placeholder={isReviewing ? "Please wait while reviewing..." : "Enter your answer..."}
-              value={message}
-              onChange={onMessageChange}
-              className="flex-1 min-h-[44px] max-h-[120px] resize-none rounded-xl border-gray-200 focus-visible:ring-2 focus-visible:ring-indigo-500"
-              disabled={isAiThinking || isReviewing}
-            />
+            {/* Language Selector */}
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs text-gray-600 font-medium">Voice Language:</span>
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setCurrentVoiceLanguage('vi-VN')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    currentVoiceLanguage === 'vi-VN'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  🇻🇳 Tiếng Việt
+                </button>
+                <button
+                  onClick={() => setCurrentVoiceLanguage('en-US')}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    currentVoiceLanguage === 'en-US'
+                      ? 'bg-blue-500 text-white'
+                      : 'text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  🇺🇸 English
+                </button>
+              </div>
+            </div>
+            
+            <div className="relative flex-1">
+              <Textarea
+                placeholder={
+                  isReviewing 
+                    ? (currentVoiceLanguage === 'vi-VN' ? "Vui lòng chờ trong khi đánh giá..." : "Please wait while reviewing...")
+                    : (currentVoiceLanguage === 'vi-VN' ? "Nhập câu trả lời hoặc sử dụng microphone..." : "Enter your answer or use microphone...")
+                }
+                value={message}
+                onChange={onMessageChange}
+                className="flex-1 min-h-[44px] max-h-[120px] resize-none rounded-xl border-gray-200 focus-visible:ring-2 focus-visible:ring-indigo-500 pr-16"
+                disabled={isAiThinking || isReviewing}
+              />
+              
+              {/* Speech-to-Text Button */}
+              <button
+                onClick={() => {
+                  if (isListening) {
+                    stopListening();
+                  } else {
+                    startListening();
+                  }
+                }}
+                disabled={isAiThinking || isReviewing}
+                className={`absolute top-2 right-2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
+                  isListening 
+                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
+                    : 'bg-blue-500 hover:bg-blue-600'
+                } text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed z-10 border-2 border-white`}
+                title={isListening ? 'Stop recording' : 'Start voice input'}
+              >
+                {isListening ? (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a2 2 0 114 0v4a2 2 0 11-4 0V7z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </button>
+              
+              {/* Recording indicator */}
+              {isListening && (
+                <div className="absolute -top-8 left-0 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                  <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                  Recording...
+                </div>
+              )}
+            </div>
+            
             <Button 
               onClick={onSendMessage} 
               disabled={!message.trim() || isAiThinking || isReviewing} 
@@ -180,6 +277,29 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
             >
               Send
             </Button>
+          </div>
+          
+          {/* Voice Input Info */}
+          <div className="px-4 pb-3 border-t border-gray-100">
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-1">
+                  <span className="font-medium">{message.length}</span> characters
+                </span>
+                <span className="flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                  </svg>
+                  {currentVoiceLanguage === 'vi-VN' 
+                    ? `Click microphone để nhập giọng nói (${currentVoiceLanguage})`
+                    : `Click microphone for voice input (${currentVoiceLanguage})`
+                  }
+                </span>
+              </div>
+              <span className="text-gray-400">
+                {currentVoiceLanguage === 'vi-VN' ? 'Khuyến nghị: 100-300 từ' : 'Recommended: 100-300 words'}
+              </span>
+            </div>
           </div>
         </Card>
         {latestEvaluation && (
@@ -191,7 +311,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
             <div className="space-y-2">
               {latestEvaluation.text.split('\n').map((line, idx) => {
                 if (line.trim().startsWith('- **Strengths:**')) {
-                  return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-green-600"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#bbf7d0'/><path d='M6 10.5l2 2L14 8' stroke='#059669' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'/></svg></span><span className="font-semibold text-green-700">Strengths</span></div>;
+                  return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-green-600"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#bbf7d0'/><path d='M6 10.5l2 2L11 6' stroke='#059669' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'/></svg></span><span className="font-semibold text-green-700">Strengths</span></div>;
                 }
                 if (line.trim().startsWith('- **Areas for Improvement:**')) {
                   return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-orange-500"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#fef3c7'/><path d='M10 6v4' stroke='#ea580c' strokeWidth='2' strokeLinecap='round'/><circle cx='10' cy='14' r='1' fill='#ea580c'/></svg></span><span className="font-semibold text-orange-700">Areas for Improvement</span></div>;
