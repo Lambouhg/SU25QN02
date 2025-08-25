@@ -8,7 +8,7 @@ import Typeanimation from '@/components/ui/Typeanimation';
 
 export default function HeroSection() {
   return (
-    <BackgroundMeteors>
+    <BackgroundMeteors variant="navbar">
       <section className="px-4 md:px-12 py-16 md:py-24 max-w-7xl mx-auto -mt-1">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center min-h-[calc(100vh-160px)]">
           {/* Left Content */}
@@ -17,7 +17,14 @@ export default function HeroSection() {
               Smart Interviews with{' '}
               <Typeanimation
                 words={[
-                  "F.AI Interview"
+                  "F.AI Interview",
+                  "Full Stack Interview",
+                  "Frontend Interview",
+                  "Backend Interview",
+                  "DevOps Interview",
+                  "AI Interview",
+                  "Machine Learning Interview",
+                  "Data Science Interview",
                 ]}
                 className="text-4xl md:text-6xl lg:text-7xl font-bold"
                 typingSpeed={80}

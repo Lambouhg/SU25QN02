@@ -65,7 +65,7 @@ export default function BackgroundMeteors({
 
   const containerClasses = variant === 'navbar' 
     ? "relative w-full bg-black overflow-hidden" 
-    : "relative flex h-screen w-full items-center justify-center overflow-hidden bg-white dark:bg-black";
+    : "relative flex h-screen w-full items-center justify-center overflow-hidden bg-black";
 
   const contentClasses = variant === 'navbar'
     ? "relative z-10"
@@ -78,16 +78,11 @@ export default function BackgroundMeteors({
         style={{
           backgroundSize: `${gridSize}px ${gridSize}px`,
           backgroundImage:
-            "linear-gradient(to right, #e4e4e7 1px, transparent 1px), linear-gradient(to bottom, #e4e4e7 1px, transparent 1px)",
+            "linear-gradient(to right, #262626 1px, transparent 1px), linear-gradient(to bottom, #262626 1px, transparent 1px)",
         }}
       />
       <div
-        className="absolute inset-0 dark:block hidden"
-        style={{
-          backgroundSize: `${gridSize}px ${gridSize}px`,
-          backgroundImage:
-            "linear-gradient(to right, #262626 1px, transparent 1px), linear-gradient(to bottom, #024e6b  1px, transparent 1px)",
-        }}
+        className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"
       />
       {beams.map((b) => (
         <motion.div
@@ -102,9 +97,7 @@ export default function BackgroundMeteors({
           }}
         >
           <div
-            className={`rounded-full
-              bg-gradient-to-t from-black to-transparent
-              dark:from-indigo-500 dark:via-teal-500 dark:to-transparent`}
+            className={`rounded-full bg-gradient-to-t from-white/70 via-white/20 to-transparent`}
             style={{ 
               height: variant === 'navbar' ? '40px' : '56px',
               width: '1px',
