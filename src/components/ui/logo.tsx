@@ -17,15 +17,15 @@ export function Logo({
   showText = true 
 }: LogoProps) {
   const sizeClasses = {
-    sm: 'w-8 h-8',
-    md: 'w-10 h-10', 
-    lg: 'w-12 h-12'
+    sm: 'w-12 h-12',
+    md: 'w-16 h-16', 
+    lg: 'w-20 h-20'
   }
 
   const textSizes = {
-    sm: 'text-lg',
-    md: 'text-2xl',
-    lg: 'text-3xl'
+    sm: 'text-xl',
+    md: 'text-3xl',
+    lg: 'text-4xl'
   }
 
   const colors = {
@@ -52,8 +52,8 @@ export function Logo({
         <Image
           src="/logo.png"
           alt="F.AI Interview Logo"
-          width={size === 'sm' ? 32 : size === 'md' ? 40 : 48}
-          height={size === 'sm' ? 32 : size === 'md' ? 40 : 48}
+          width={size === 'sm' ? 48 : size === 'md' ? 64 : 80}
+          height={size === 'sm' ? 48 : size === 'md' ? 64 : 80}
           className="w-full h-full object-contain drop-shadow-sm"
           priority
         />
