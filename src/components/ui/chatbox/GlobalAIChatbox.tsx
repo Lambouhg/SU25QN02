@@ -3,25 +3,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { 
   Send, 
   X, 
   Minimize2, 
   Maximize2, 
-  ChevronDown, 
-  ChevronUp,
   RefreshCw,
-  Paperclip,
   Smile,
-  Mic,
-  Image as ImageIcon,
-  Video,
-  FileText,
-  MoreHorizontal
+  Square,
+  ArrowDown
 } from 'lucide-react';
-import { sendMessage } from '@/services/globalChatboxService';
+import { processGlobalChatboxMessageStreaming, StreamingChatboxResponse } from '@/services/globalChatboxService';
 
 interface ChatMessageType {
   id: string;
@@ -29,6 +21,12 @@ interface ChatMessageType {
   sender: 'user' | 'ai';
   timestamp: Date;
   type: 'text' | 'image' | 'file';
+  suggestions?: string[];
+  actions?: {
+    type: string;
+    label: string;
+    action: string;
+  }[];
 }
 
 interface GlobalAIChatboxProps {
@@ -53,29 +51,85 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasShownWelcome, setHasShownWelcome] = useState(false);
   const [language] = useState<'en' | 'vi'>('en'); // Fixed to English only
+  const [isTyping, setIsTyping] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Remove language loading from localStorage
-  // useEffect(() => {
-  //   const savedLanguage = localStorage.getItem('chatbot-language');
-  //   if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'vi')) {
-  //     setLanguage(savedLanguage);
-  //   }
-  // }, []);
-
-  // Remove language saving to localStorage
-  // useEffect(() => {
-  //   localStorage.setItem('chatbot-language', language);
-  // }, [language]);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Quick help prompts based on current page
+  const getQuickHelpPrompts = () => {
+    const prompts: { [key: string]: string[] } = {
+      'avatar-interview': [
+        'How to start an avatar interview?',
+        'How to choose the right avatar?',
+        'How to set language and level?',
+        'Troubleshooting voice/video issues'
+      ],
+      'jd-analysis': [
+        'How to upload JD file?',
+        'How to create good questions?',
+        'How to choose question types?',
+        'Tips for writing effective JDs'
+      ],
+      'quiz': [
+        'How to choose the right quiz?',
+        'Understanding scoring system',
+        'Tips for effective quiz taking',
+        'How to review results'
+      ],
+      'dashboard': [
+        'Understanding metrics',
+        'How to read skill assessment',
+        'Tips to improve scores',
+        'How to set goals'
+      ],
+      'payment': [
+        'Comparing service packages',
+        'Payment guidance',
+        'Subscription management',
+        'Refund policy'
+      ]
+    };
+    
+    return prompts[currentPage] || [
+      'How to use this platform',
+      'Main features overview',
+      'Tips for best results'
+    ];
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+      setShowScrollButton(!isNearBottom);
+      setScrollPosition(scrollTop);
+    }
+  };
+
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    // Chỉ auto scroll khi có tin nhắn mới và không đang generate
+    if (!isGenerating && !isTyping) {
+      // Kiểm tra xem user có đang ở gần bottom không
+      if (messagesContainerRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+        const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+        
+        // Chỉ scroll nếu user đang ở gần bottom
+        if (isNearBottom) {
+          scrollToBottom();
+        }
+      }
+    }
+  }, [messages, isGenerating, isTyping]);
 
   useEffect(() => {
     if (messages.length === 0 && !hasShownWelcome) {
@@ -113,38 +167,105 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
+    setIsGenerating(true);
+
+    // Create AbortController for stopping generation
+    const controller = new AbortController();
+    setAbortController(controller);
+
+    // Create initial AI message for streaming
+    const aiMessageId = (Date.now() + 1).toString();
+    const initialAiMessage: ChatMessageType = {
+      id: aiMessageId,
+      content: '',
+      sender: 'ai',
+      timestamp: new Date(),
+      type: 'text'
+    };
+
+    setMessages(prev => [...prev, initialAiMessage]);
+    setIsTyping(true);
 
     try {
-      const response = await sendMessage({
-        message: inputMessage,
-        context: {
+      // Use streaming function instead of regular sendMessage
+      await processGlobalChatboxMessageStreaming(
+        inputMessage,
+        {
           page: currentPage,
+          userPreferences: {
+            language: language,
+            name: user?.firstName || user?.username || 'User'
+          },
+          userLevel: user?.publicMetadata?.level || 'beginner',
           ...currentContext
         },
-        language: language
-      });
-
-      const aiMessage: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        content: response.content,
-        sender: 'ai',
-        timestamp: new Date(),
-        type: 'text'
-      };
-
-      setMessages(prev => [...prev, aiMessage]);
+        user,
+        (chunk: StreamingChatboxResponse) => {
+          // Check if generation was stopped
+          if (controller.signal.aborted) {
+            return;
+          }
+          
+          // Update the AI message with streaming content
+          setMessages(prev => prev.map(msg => 
+            msg.id === aiMessageId 
+              ? { 
+                  ...msg, 
+                  content: chunk.content,
+                  suggestions: chunk.suggestions,
+                  actions: chunk.actions
+                }
+              : msg
+          ));
+          
+          // Update typing state based on completion
+          if (chunk.isComplete) {
+            setIsTyping(false);
+          }
+        },
+        controller.signal
+      );
     } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage: ChatMessageType = {
-        id: (Date.now() + 1).toString(),
-        content: 'Sorry, I encountered an error. Please try again.',
-        sender: 'ai',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      if (controller.signal.aborted) {
+        // Generation was stopped by user
+        const stoppedMessage: ChatMessageType = {
+          id: aiMessageId,
+          content: 'Generation stopped.',
+          sender: 'ai',
+          timestamp: new Date(),
+          type: 'text'
+        };
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMessageId ? stoppedMessage : msg
+        ));
+      } else {
+        console.error('Error sending message:', error);
+        const errorMessage: ChatMessageType = {
+          id: aiMessageId,
+          content: 'Sorry, I encountered an error. Please try again.',
+          sender: 'ai',
+          timestamp: new Date(),
+          type: 'text'
+        };
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMessageId ? errorMessage : msg
+        ));
+      }
     } finally {
       setIsLoading(false);
+      setIsTyping(false);
+      setIsGenerating(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleStopGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setIsGenerating(false);
+      setIsTyping(false);
+      setIsLoading(false);
+      setAbortController(null);
     }
   };
 
@@ -167,7 +288,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
 
   return (
     <div className={`fixed bottom-4 right-4 z-50 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transition-all duration-300 ${
-      isExpanded ? 'w-96 h-[32rem]' : 'w-80 h-[28rem]'
+      isExpanded ? 'w-[28rem] h-[40rem]' : 'w-80 h-[28rem]'
     }`}>
       {/* Header - Facebook Messenger Style */}
       <div className="bg-blue-500 text-white p-3 flex items-center justify-between">
@@ -175,10 +296,10 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
             <span className="text-blue-500 font-bold text-sm">AI</span>
           </div>
-          <div>
-            <div className="font-semibold text-sm">AI Assistant</div>
-            <div className="text-xs text-blue-100">Active now</div>
-          </div>
+                     <div>
+             <div className="font-semibold text-sm">Chat Box</div>
+             <div className="text-xs text-blue-100">Active now</div>
+           </div>
         </div>
         
         <div className="flex items-center gap-1">
@@ -219,9 +340,31 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
       {/* Always show full content - no minimize */}
       <>
         {/* Messages Area - Dynamic height based on expand state */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50" style={{ 
-          height: isExpanded ? '400px' : '320px' 
-        }}>
+                 <div 
+           ref={messagesContainerRef}
+           className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50 relative" 
+           style={{ 
+             height: isExpanded ? '520px' : '320px' 
+           }}
+           onScroll={handleScroll}
+         >
+          {/* Quick Help Prompts - Show only when no messages or first message is welcome */}
+          {messages.length <= 1 && (
+            <div className="mb-4">
+              <div className="text-xs font-medium text-gray-600 mb-2">Quick Help:</div>
+              <div className="flex flex-wrap gap-2">
+                {getQuickHelpPrompts().slice(0, 3).map((prompt, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setInputMessage(prompt)}
+                    className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full hover:bg-gray-200 transition-colors"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {messages.map((message) => (
             <div
               key={message.id}
@@ -235,6 +378,49 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
                 }`}
               >
                 <div className="text-sm">{message.content}</div>
+                
+                {/* Suggestions */}
+                {message.suggestions && message.suggestions.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs font-medium text-gray-600">Suggestions:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {message.suggestions.map((suggestion, index) => (
+                        <button
+                          key={index}
+                          onClick={() => setInputMessage(suggestion)}
+                          className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full hover:bg-blue-100 transition-colors"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Actions */}
+                {message.actions && message.actions.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-xs font-medium text-gray-600">Quick Actions:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {message.actions.map((action, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            if (action.type === 'navigate') {
+                              window.location.href = action.action;
+                            } else if (action.type === 'help') {
+                              setInputMessage(`Help with ${action.label}`);
+                            }
+                          }}
+                          className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full hover:bg-green-100 transition-colors"
+                        >
+                          {action.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className={`text-xs mt-1 ${
                   message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
                 }`}>
@@ -244,7 +430,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
             </div>
           ))}
           
-          {isLoading && (
+          {(isTyping || (isLoading && !isGenerating)) && (
             <div className="flex justify-start">
               <div className="bg-white text-gray-800 rounded-2xl rounded-bl-md border border-gray-200 px-4 py-2">
                 <div className="flex items-center gap-2">
@@ -260,6 +446,23 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
           )}
           
           <div ref={messagesEndRef} />
+          
+          {/* Scroll to bottom button - follows scroll position */}
+          {showScrollButton && (
+            <Button
+              onClick={scrollToBottom}
+              className="absolute p-2 h-8 w-8 bg-blue-500 text-white hover:bg-blue-600 rounded-full shadow-lg z-10 transition-all duration-300 hover:scale-110 hover:shadow-xl"
+              style={{
+                right: '16px',
+                bottom: `${Math.max(20, Math.min(380, scrollPosition + 80))}px`,
+                transform: 'translateY(-50%)',
+                opacity: 0.9
+              }}
+              title="Scroll to bottom"
+            >
+              <ArrowDown className="w-4 h-4" />
+            </Button>
+          )}
         </div>
 
         {/* Input Area - Facebook Messenger Style */}
@@ -279,19 +482,27 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
               />
             </div>
             
-            {/* Essential Action Buttons Only */}
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" className="p-2 h-8 w-8 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-full">
-                <Smile className="w-4 h-4" />
-              </Button>
-              <Button
-                onClick={handleSendMessage}
-                disabled={!inputMessage.trim() || isLoading}
-                className="p-2 h-8 w-8 bg-blue-500 text-white hover:bg-blue-600 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
+                         {/* Essential Action Buttons Only */}
+             <div className="flex items-center gap-1">
+               <Button variant="ghost" size="sm" className="p-2 h-8 w-8 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-full">
+                 <Smile className="w-4 h-4" />
+               </Button>
+               <Button
+                 onClick={isGenerating ? handleStopGeneration : handleSendMessage}
+                 disabled={!inputMessage.trim() && !isGenerating}
+                 className={`p-2 h-8 w-8 rounded-full transition-all duration-200 ${
+                   isGenerating 
+                     ? 'bg-red-500 text-white hover:bg-red-600' 
+                     : 'bg-blue-500 text-white hover:bg-blue-600'
+                 } disabled:opacity-50 disabled:cursor-not-allowed`}
+               >
+                 {isGenerating ? (
+                   <Square className="w-4 h-4" />
+                 ) : (
+                   <Send className="w-4 h-4" />
+                 )}
+               </Button>
+             </div>
           </div>
         </div>
       </>
