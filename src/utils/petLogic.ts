@@ -58,7 +58,7 @@ export const calculatePetData = (totalActivities: number, currentStreak: number)
 };
 
 export const getPetEmoji = (evolution: PetEvolution, isAlive: boolean): string => {
-  if (!isAlive) return '💀';
+  if (!isAlive) return '🥚';
   switch (evolution) {
     case 'egg': return '🥚';
     case 'baby': return '🐣';

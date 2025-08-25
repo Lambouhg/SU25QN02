@@ -266,7 +266,7 @@ export default function ReviewQuestionPage() {
 
                   {filterField !== "all" && topics.length > 0 && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">🎯 Topics</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Topics</label>
                       <div className="flex flex-wrap gap-2">
                         <button
                           onClick={() => setFilterTopic("all")}
@@ -316,8 +316,13 @@ export default function ReviewQuestionPage() {
               }}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:scale-105 transition-all"
             >
-              <CreditCard className="w-5 h-5" />
-              Start Flashcards ({filteredQuestions.length})
+                  <CreditCard className="w-5 h-5" />
+                  {(() => {
+                    const isAll = filterField === "all" && filterTopic === "all" && !searchQuery && !showBookmarkedOnly;
+                    return isAll
+                      ? "Start Flashcards (All)"
+                      : `Start Flashcards (All Filtered ${filteredQuestions.length})`;
+                  })()}
             </button>
 
             <button
