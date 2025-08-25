@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, TrendingUp, Award, Clock, Target, DollarSign } from 'lucide-react';
+import { Users, TrendingUp, Award, Clock, Target, DollarSign, BarChart3, Settings, FileText, Activity } from 'lucide-react';
 import StatisticsChart from '@/components/admin/StatisticsChart';
-import RevenueChart from '@/components/admin/RevenueChart';
+import { ChartAreaInteractive } from '@/components/ui/chart-area-interactive';
 import AdminRouteGuard from '@/components/auth/AdminRouteGuard';
-
+import MagicDock from '@/components/ui/magicdock';
+import { useRouter } from 'next/navigation';
 
 
 interface DashboardMetrics {
@@ -43,6 +44,47 @@ interface RevenueData {
 }
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  
+  // Admin navigation items for MagicDock
+  const adminDockItems = [
+    {
+      id: 1,
+      icon: <BarChart3 className="w-6 h-6 text-white" />,
+      label: "Dashboard",
+      description: "Main overview",
+      onClick: () => router.push("/admin/dashboard")
+    },
+    {
+      id: 2,
+      icon: <Users className="w-6 h-6 text-white" />,
+      label: "Users",
+      description: "Manage users",
+      onClick: () => router.push("/admin/user-activities")
+    },
+    {
+      id: 3,
+      icon: <Activity className="w-6 h-6 text-white" />,
+      label: "Activities",
+      description: "User activities",
+      onClick: () => router.push("/admin/user-activities")
+    },
+    {
+      id: 4,
+      icon: <FileText className="w-6 h-6 text-white" />,
+      label: "Reports",
+      description: "View reports",
+      onClick: () => router.push("/admin/dashboard")
+    },
+    {
+      id: 5,
+      icon: <Settings className="w-6 h-6 text-white" />,
+      label: "Settings",
+      description: "Admin settings",
+      onClick: () => router.push("/admin/dashboard")
+    }
+  ];
+
   // Helper function to get role name
   const getRoleName = (role: unknown): string => {
     if (typeof role === 'string') return role;
@@ -243,10 +285,63 @@ export default function AdminDashboard() {
             </div>
           ) : revenueData ? (
             <div className="mb-8">
-              <RevenueChart 
-                data={revenueData.chartData}
+              {/* Test with sample data first to ensure chart works */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Test Chart (Sample Data)</h4>
+                <ChartAreaInteractive 
+                  data={[
+                    { date: "2025-01-15", revenue: 50000, transactions: 100 },
+                    { date: "2025-02-15", revenue: 75000, transactions: 35 },
+                    { date: "2025-03-15", revenue: 60000, transactions: 30 },
+                    { date: "2025-04-15", revenue: 90000, transactions: 45 },
+                    { date: "2025-05-15", revenue: 80000, transactions: 40 },
+                    { date: "2025-06-15", revenue: 110000, transactions: 55 },
+                    { date: "2025-07-15", revenue: 95000, transactions: 48 },
+                    { date: "2025-08-25", revenue: 150000, transactions: 75 }
+                  ]}
+                  title="Test Chart - Sample Revenue Data"
+                  description="Testing with sample data to ensure chart works"
+                  height={250}
+                  hideCard={true}
+                />
+              </div>
+              
+              <ChartAreaInteractive 
+                data={revenueData.chartData.map(item => {
+                  // Convert month name to date if needed
+                  let dateStr = item.month;
+                  if (typeof item.month === 'string') {
+                    if (!item.month.includes('-')) {
+                      // If month is like "August", convert to "2025-08-25" format
+                      const monthNames = [
+                        'January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'
+                      ];
+                      const monthIndex = monthNames.findIndex(name => 
+                        item.month.toLowerCase().includes(name.toLowerCase())
+                      );
+                      if (monthIndex !== -1) {
+                        // Use current year and set day to 25 (as requested)
+                        const year = new Date().getFullYear();
+                        const month = String(monthIndex + 1).padStart(2, '0');
+                        dateStr = `${year}-${month}-25`;
+                      }
+                    } else if (item.month.match(/^\d{4}-\d{2}$/)) {
+                      // If month is like "2025-08", convert to "2025-08-25" format
+                      dateStr = `${item.month}-25`;
+                    }
+                  }
+                  
+                  return {
+                    date: dateStr,
+                    revenue: item.revenue,
+                    transactions: item.transactions
+                  };
+                })}
                 title="PayOS Revenue Overview"
+                description="Showing revenue and transaction trends over time"
                 height={300}
+                hideCard={true}
               />
               
               {/* Revenue Summary Cards */}
@@ -383,6 +478,12 @@ export default function AdminDashboard() {
           mode={modalMode}
         /> */}
       </div>
+      <MagicDock 
+        items={adminDockItems}
+        variant="gradient"
+        magnification={75}
+        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50"
+      />
     </AdminRouteGuard>
   );
 }
