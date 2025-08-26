@@ -4,127 +4,13 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { X, CreditCard, Star } from 'lucide-react';
-import {Brain, Award, BookOpen } from 'lucide-react';
+import { X, CreditCard, Star, ChevronDown, BarChart3, Brain, Award, BookOpen, Zap, Target, Clock, Users } from 'lucide-react';
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
 import StartScreen from './StartScreen';
 import InterviewScreen from './InterviewScreen';
 import ResultScreen from './ResultScreen';
 
-const CATEGORY_ROLE_OPTIONS = [
-  {
-    category: "Software Development",
-    roles: [
-      "Frontend Developer",
-      "Backend Developer",
-      "Fullstack Developer",
-      "Mobile Developer",
-      "Game Developer",
-      "Embedded Systems Developer",
-      "Desktop Application Developer"
-    ]
-  },
-  {
-    category: "Web Development",
-    roles: [
-      "Web Developer",
-      "WordPress Developer",
-      "Web Designer",
-      "Web Performance Engineer"
-    ]
-  },
-  {
-    category: "Software Testing (QA)",
-    roles: [
-      "Manual Tester",
-      "Automation Tester",
-      "QA Engineer",
-      "Test Lead"
-    ]
-  },
-  {
-    category: "DevOps & Infrastructure",
-    roles: [
-      "DevOps Engineer",
-      "Site Reliability Engineer (SRE)",
-      "System Administrator",
-      "Cloud Engineer"
-    ]
-  },
-  {
-    category: "Data & AI",
-    roles: [
-      "Data Analyst",
-      "Data Scientist",
-      "Data Engineer",
-      "Machine Learning Engineer",
-      "Business Intelligence Engineer"
-    ]
-  },
-  {
-    category: "Information Security",
-    roles: [
-      "Security Analyst",
-      "Penetration Tester",
-      "SOC Analyst",
-      "Security Engineer",
-      "GRC Specialist"
-    ]
-  },
-  {
-    category: "Artificial Intelligence & Deep Learning",
-    roles: [
-      "AI Researcher",
-      "Deep Learning Engineer",
-      "NLP Engineer"
-    ]
-  },
-  {
-    category: "Design & User Experience",
-    roles: [
-      "UI/UX Designer",
-      "Product Designer",
-      "Interaction Designer"
-    ]
-  },
-  {
-    category: "Management & Business Analysis",
-    roles: [
-      "Project Manager",
-      "Product Owner",
-      "Scrum Master",
-      "Business Analyst"
-    ]
-  },
-  {
-    category: "Support & Technical",
-    roles: [
-      "IT Support",
-      "Desktop Support Engineer",
-      "Technical Support Specialist"
-    ]
-  },
-  {
-    category: "Networking & Systems",
-    roles: [
-      "Network Administrator",
-      "Network Engineer",
-      "System Engineer",
-      "Cloud Infrastructure Engineer"
-    ]
-  },
-  {
-    category: "Emerging Technologies",
-    roles: [
-      "Blockchain Developer",
-      "Web3 Developer",
-      "Prompt Engineer",
-      "AR/VR Developer"
-    ]
-  }
-];
-
-const levelOptions = ['Junior', 'Mid-level', 'Senior', 'Lead'];
+// Removed local CATEGORY_ROLE_OPTIONS and levelOptions. We use preferences API instead.
 
 // Cấu hình cho interview
 const INTERVIEW_CONFIG = {
@@ -215,7 +101,7 @@ export default function TestPanel() {
   const [message, setMessage] = useState('');
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [interviewing, setInterviewing] = useState(false);
-  const [category, setCategory] = useState(CATEGORY_ROLE_OPTIONS[0].category);
+  const [category, setCategory] = useState('');
   const [position, setPosition] = useState('Frontend Developer');
   const [level, setLevel] = useState('Junior');
   const [duration, setDuration] = useState(15);
@@ -263,6 +149,22 @@ export default function TestPanel() {
 
   // Thêm state lưu thời gian còn lại
   const [remainingTime, setRemainingTime] = useState<number>(duration);
+  // Lock page scroll during interview to avoid outer scrollbar
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      if (interviewing) {
+        root.style.overflow = 'hidden';
+      } else {
+        root.style.overflow = '';
+      }
+    }
+    return () => {
+      if (typeof document !== 'undefined') {
+        document.documentElement.style.overflow = '';
+      }
+    };
+  }, [interviewing]);
 
   // State cho package limit check
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -281,11 +183,47 @@ export default function TestPanel() {
     }
   }, [conversation]);
 
+  // Prefill from interview preferences (same API as avatar AI)
+  useEffect(() => {
+    const loadPreferencesForTestMode = async () => {
+      try {
+        const response = await fetch('/api/profile/interview-preferences');
+        if (!response.ok) return;
+        const prefs = await response.json();
+
+        // If auto-start is enabled and there is a preferred job role, prefill
+        if (prefs?.autoStartWithPreferences && prefs?.preferredJobRole) {
+          const preferredRole = prefs.preferredJobRole as {
+            title?: string;
+            level?: string;
+            category?: { name?: string } | null;
+          };
+
+          // Determine category for this position
+          const roleTitle = preferredRole?.title || '';
+          const roleLevel = preferredRole?.level || '';
+          const categoryNameFromPref = preferredRole?.category?.name || '';
+
+          if (categoryNameFromPref) setCategory(categoryNameFromPref);
+          if (roleTitle) setPosition(roleTitle);
+          if (roleLevel) setLevel(roleLevel);
+
+          // Keep current duration; user can adjust on UI. If you want a default later, add preferredDuration to preferences.
+        }
+      } catch (e) {
+        console.error('Failed to load interview preferences for test mode:', e);
+      }
+    };
+
+    loadPreferencesForTestMode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // NEW: Send initial AI message only on client after interviewing starts
   useEffect(() => {
     if (interviewing && !hasSentInitialMessage) {
-      const initialMessage = createMessage('ai', `Hello! I am the AI Interviewer. Today we will conduct an interview for the position of ${position} (${level}). First, could you briefly introduce yourself and your work experience?`);
-      setConversation([initialMessage]);
+      setConversation([]);
+      void addAiMessageTyping(`Hello! I am the AI Interviewer. Today we will conduct an interview for the position of ${position} (${level}). First, could you briefly introduce yourself and your work experience?`);
       setHasSentInitialMessage(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -475,11 +413,9 @@ export default function TestPanel() {
   ) => {
     const topics = await extractTopics(message);
     if (!topics || topics.length === 0) {
-      const clarificationMessage = createMessage(
-        'ai',
+      await addAiMessageTyping(
         `I noticed you didn't introduce yourself and your work experience. Could you briefly introduce yourself and your work experience in the field of ${position}?`
       );
-      addMessageToConversation(setConversation, clarificationMessage);
       return;
     }
     const technicalKeywords = ['frontend', 'backend', 'fullstack', 'react', 'angular', 'vue', 'javascript', 'html', 'css', 'api', 'database', 'sql', 'python', 'java', 'c++', 'c#', 'devops', 'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'mobile', 'ios', 'android', 'qa', 'testing', 'ui/ux', 'next.js', 'tailwind css'];
@@ -528,11 +464,9 @@ export default function TestPanel() {
     
     const questions = await generateQuestionsForTopic(firstTopic, level, position);
     if (!questions || questions.length === 0) {
-      const noQuestionsMessage = createMessage(
-        'ai',
+      await addAiMessageTyping(
         `Sorry, I'm having trouble creating detailed questions about the topic ${firstTopic}. Would you like to try introducing it again or focusing on other skills?`
       );
-      addMessageToConversation(setConversation, noQuestionsMessage);
       return;
     }
     setInterviewState({
@@ -543,11 +477,9 @@ export default function TestPanel() {
       currentQuestionIndex: 0
     });
     // Cảm ơn sau phần giới thiệu
-    const thankMessage = createMessage(
-      'ai',
+    await addAiMessageTyping(
       `Thank you for introducing yourself and your work experience! Now let's start with professional questions.\n\n${questions[0]}`
     );
-    addMessageToConversation(setConversation, thankMessage);
   };
 
   const handleInterviewingPhase = async (
@@ -590,11 +522,9 @@ export default function TestPanel() {
     // Nếu câu trả lời không liên quan, hỏi lại câu hỏi hiện tại với lời nhắc thân thiện
     if (evaluation && evaluation.isRelevant === false) {
       console.log(`⚠️ [DEBUG] Answer not relevant, asking again`);
-      const friendlyReminder = createMessage(
-        'ai',
+      await addAiMessageTyping(
         `It seems your answer didn't address the question. No worries! Could you please try answering again?\n\n${currentQuestion}`
       );
-      addMessageToConversation(setConversation, friendlyReminder);
       setLastFeedback("Let's try to answer the question above as clearly as you can!");
       // Không cập nhật real-time scores khi câu trả lời không liên quan
       return;
@@ -651,10 +581,16 @@ export default function TestPanel() {
       return;
     }
     
-    // Nếu vẫn muốn AI hỏi tiếp, chỉ add câu hỏi tiếp theo vào chat
+    // Nếu vẫn muốn AI hỏi tiếp: gửi lời cảm ơn rồi gõ từ từ câu tiếp theo
     if (nextQuestion) {
-      const nextQuestionMessage = createMessage('ai', nextQuestion);
-      addMessageToConversation(setConversation, nextQuestionMessage);
+      const acknowledgements = [
+        'Thanks for your answer! ',
+        'Great, appreciate the details. ',
+        'Got it, thank you! ',
+      ];
+      const ack = acknowledgements[Math.floor(Math.random() * acknowledgements.length)] + 'Here is the next question:';
+      await addAiMessageTyping(ack);
+      await addAiMessageTyping(nextQuestion);
     }
     if (evaluation.isComplete && (!evaluation.followUpQuestions || evaluation.followUpQuestions.length === 0)) {
       await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing);
@@ -877,6 +813,31 @@ export default function TestPanel() {
     setConversation(prev => [...prev, message]);
   };
 
+  // Typewriter effect for AI messages
+  async function addAiMessageTyping(text: string, typingDelayMs = 15) {
+    const id = Date.now() + Math.random();
+    const base: ConversationMessage = {
+      id,
+      sender: 'ai',
+      text: '',
+      timestamp: new Date().toISOString()
+    };
+    addMessageToConversation(setConversation, base);
+    setIsAiThinking(true);
+    try {
+      let i = 0;
+      while (i < text.length) {
+        const chunkEnd = Math.min(text.length, i + 2);
+        const slice = text.slice(0, chunkEnd);
+        setConversation(prev => prev.map(m => m.id === id ? { ...m, text: slice } : m));
+        i = chunkEnd;
+        await new Promise(res => setTimeout(res, typingDelayMs));
+      }
+    } finally {
+      setIsAiThinking(false);
+    }
+  }
+
   // BỔ SUNG hàm addHistoryStage để tránh lỗi khi gọi trong handleInterviewingPhase
   const addHistoryStage = async (stage: HistoryStage) => {
     console.log('🔵 [DEBUG] addHistoryStage called with:', stage);
@@ -1012,7 +973,7 @@ export default function TestPanel() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-      <div className="max-w-7xl mx-auto p-6 space-y-10">
+      <div className="w-full mx-0 p-0">
         {/* Top Section: Main Content + Selected Position Sidebar */}
         <div className={`grid gap-8 ${interviewing ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-4'}`}>
           <div className={interviewing ? 'col-span-1' : 'lg:col-span-3'}>
@@ -1032,10 +993,19 @@ export default function TestPanel() {
               />
             ) : !interviewing ? (
               <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow border border-slate-200 overflow-hidden">
+                {/* Header - ChatGPT Style */}
                 <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-8 py-6">
-                  <h1 className="text-2xl font-bold text-white mb-2">Test Mode - Interview Practice</h1>
-                  <p className="text-blue-100">Choose your settings and start practicing for your dream job</p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                      <Zap className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h1 className="text-2xl font-bold text-white">Test Mode - Interview Practice</h1>
+                      <p className="text-blue-100">Choose your settings and start practicing for your dream job</p>
+                    </div>
+                  </div>
                 </div>
+                
                 <div className="p-8">
                   <StartScreen
                     category={category}
@@ -1047,8 +1017,6 @@ export default function TestPanel() {
                     setLevel={setLevel}
                     setDuration={setDuration}
                     startInterview={startInterview}
-                    CATEGORY_ROLE_OPTIONS={CATEGORY_ROLE_OPTIONS}
-                    levelOptions={levelOptions}
                   />
                 </div>
               </div>
@@ -1087,9 +1055,7 @@ export default function TestPanel() {
                 <CardHeader className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-6">
                   <CardTitle className="flex items-center gap-3 text-lg font-semibold">
                     <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-                      <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      <Target className="h-5 w-5" />
                     </div>
                     Selected Position
                   </CardTitle>
@@ -1146,106 +1112,102 @@ export default function TestPanel() {
         {/* Bottom Section: Enhanced Info Cards - Hidden during interview */}
         {!interviewing && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Evaluation Criteria Card - Enhanced */}
-          <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
-            <CardHeader className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6">
-              <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                Evaluation Criteria
-              </CardTitle>
-              <p className="text-blue-100 text-sm mt-1">How we assess your performance</p>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors duration-200">
-                  <div className="flex-shrink-0 w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <BookOpen className="h-6 w-6 text-white" />
+            {/* Evaluation Criteria Card - Enhanced */}
+            <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+              <CardHeader className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white p-6">
+                <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                  <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                    <BarChart3 className="h-5 w-5" />
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-slate-800 mb-1">Basic Knowledge</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">Technical concepts and domain-specific understanding</p>
+                  Evaluation Criteria
+                </CardTitle>
+                <p className="text-blue-100 text-sm mt-1">How we assess your performance</p>
+              </CardHeader>
+              <CardContent className="p-6 space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors duration-200">
+                    <div className="flex-shrink-0 w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <BookOpen className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-slate-800 mb-1">Basic Knowledge</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">Technical concepts and domain-specific understanding</p>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-xl border border-amber-100 hover:bg-amber-100 transition-colors duration-200">
-                  <div className="flex-shrink-0 w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <Brain className="h-6 w-6 text-white" />
+                  
+                  <div className="flex items-start gap-4 p-4 bg-amber-50 rounded-xl border border-amber-100 hover:bg-amber-100 transition-colors duration-200">
+                    <div className="flex-shrink-0 w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <Brain className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-slate-800 mb-1">Logical Thinking</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">Problem-solving approach and reasoning skills</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-slate-800 mb-1">Logical Thinking</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">Problem-solving approach and reasoning skills</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-4 p-4 bg-green-50 rounded-xl border border-green-100 hover:bg-green-100 transition-colors duration-200">
-                  <div className="flex-shrink-0 w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <Award className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-slate-800 mb-1">Communication</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">Clarity of expression and language proficiency</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Why Practice Card - Enhanced */}
-          <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
-            <CardHeader className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-6">
-              <CardTitle className="flex items-center gap-3 text-lg font-semibold">
-                <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
-                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                Why Practice Interviewing?
-              </CardTitle>
-              <p className="text-purple-100 text-sm mt-1">Benefits of regular interview practice</p>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-5">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                    1
-                  </div>
-                  <div className="flex-1 pt-1">
-                    <h4 className="font-semibold text-slate-800 mb-2">Build Confidence</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">Regular practice reduces anxiety and builds natural confidence for real interviews</p>
+                  
+                  <div className="flex items-start gap-4 p-4 bg-green-50 rounded-xl border border-green-100 hover:bg-green-100 transition-colors duration-200">
+                    <div className="flex-shrink-0 w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-lg">
+                      <Award className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-slate-800 mb-1">Communication</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">Clarity of expression and language proficiency</p>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                    2
+              </CardContent>
+            </Card>
+            
+            {/* Why Practice Card - Enhanced */}
+            <Card className="bg-slate-50/80 shadow-xl border border-slate-300/40 rounded-2xl overflow-hidden group hover:shadow-2xl transition-all duration-300">
+              <CardHeader className="bg-gradient-to-br from-purple-500 to-pink-600 text-white p-6">
+                <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                  <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                    <Users className="h-5 w-5" />
                   </div>
-                  <div className="flex-1 pt-1">
-                    <h4 className="font-semibold text-slate-800 mb-2">Improve Skills</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">Get detailed AI feedback to continuously improve your answering techniques</p>
+                  Why Practice Interviewing?
+                </CardTitle>
+                <p className="text-purple-100 text-sm mt-1">Benefits of regular interview practice</p>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-5">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                      1
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h4 className="font-semibold text-slate-800 mb-2">Build Confidence</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">Regular practice reduces anxiety and builds natural confidence for real interviews</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                      2
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h4 className="font-semibold text-slate-800 mb-2">Improve Skills</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">Get detailed AI feedback to continuously improve your answering techniques</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                      3
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h4 className="font-semibold text-slate-800 mb-2">Learn Patterns</h4>
+                      <p className="text-sm text-slate-600 leading-relaxed">Familiarize yourself with common interview patterns in your field</p>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                    3
-                  </div>
-                  <div className="flex-1 pt-1">
-                    <h4 className="font-semibold text-slate-800 mb-2">Learn Patterns</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">Familiarize yourself with common interview patterns in your field</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
 
-      {/* Upgrade Modal */}
+      {/* Upgrade Modal - Enhanced with light theme */}
       {showUpgradeModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">

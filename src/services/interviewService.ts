@@ -120,11 +120,27 @@ export const evaluateAnswer = async (question: string, answer: string, historySu
     ];
     const response = await callOpenAI(messages);
     const evaluation = JSON.parse(response.choices[0].message.content.trim());
-    // Detect irrelevant answer: if answer is too short, or scores are very low, or missingPoints covers all main points
+    // Detect irrelevant answer with stricter rules
+    // 1) Very short
+    // 2) Low scores from model and many missing points
+    // 3) Low keyword overlap between question and answer
     let isRelevant = true;
-    if (
-      typeof answer === 'string' && answer.trim().length < 10
-    ) {
+    const normalizedAnswer = (typeof answer === 'string' ? answer : '').toLowerCase();
+    const normalizedQuestion = (typeof question === 'string' ? question : '').toLowerCase();
+    const tokenize = (text: string) =>
+      text
+        .replace(/[^a-z0-9+.#\-\s]/gi, ' ')
+        .split(/\s+/)
+        .filter(Boolean)
+        // Remove common English stopwords and very short tokens
+        .filter((w) => !['the','a','an','and','or','to','of','in','on','for','with','is','are','was','were','be','being','been','this','that','it','as','at','by','from'].includes(w))
+        .filter((w) => w.length >= 3);
+    const qTokens = new Set(tokenize(normalizedQuestion));
+    const aTokens = tokenize(normalizedAnswer);
+    const overlapCount = aTokens.filter((t) => qTokens.has(t)).length;
+    const overlapRatio = qTokens.size > 0 ? overlapCount / qTokens.size : 0;
+
+    if (normalizedAnswer.trim().length < 10) {
       isRelevant = false;
     } else if (
       evaluation.scores &&
@@ -134,23 +150,27 @@ export const evaluateAnswer = async (question: string, answer: string, historySu
       (evaluation.missingPoints?.length ?? 0) > 0
     ) {
       isRelevant = false;
+    } else if (overlapCount === 0 || overlapRatio < 0.05) {
+      // No overlap or extremely low overlap to the question keywords
+      isRelevant = false;
     }
+
+    // If not relevant, force scores to zero and add clear feedback
+    const coercedScores = isRelevant
+      ? (evaluation.scores || { fundamental: 0, logic: 0, language: 0 })
+      : { fundamental: 0, logic: 0, language: 0 };
+    const coercedSuggestions = evaluation.suggestions || { fundamental: '', logic: '', language: '' };
+    const finalFeedback = isRelevant
+      ? (evaluation.feedback || 'No detailed feedback')
+      : 'Your answer does not address the question. Please answer the asked question directly to receive points.';
     return {
       isComplete: evaluation.isComplete || false,
-      scores: evaluation.scores || {
-        fundamental: 0,
-        logic: 0,
-        language: 0
-      },
-      suggestions: evaluation.suggestions || {
-        fundamental: '',
-        logic: '',
-        language: ''
-      },
+      scores: coercedScores,
+      suggestions: coercedSuggestions,
       strengths: evaluation.strengths || [],
       weaknesses: evaluation.weaknesses || [],
       missingPoints: evaluation.missingPoints || [],
-      feedback: evaluation.feedback || "No detailed feedback",
+      feedback: finalFeedback,
       suggestedImprovements: evaluation.suggestedImprovements || [],
       followUpQuestions: evaluation.followUpQuestions || [],
       isRelevant // Thêm trường này để TestPanel.tsx sử dụng

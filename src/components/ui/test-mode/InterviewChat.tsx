@@ -56,7 +56,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
   reviewCountdown = 0,
   officialQuestionCount = 0,
   maxQuestions = 10,
-  voiceLanguage = 'vi-VN', // Default to Vietnamese
+  voiceLanguage = 'en-US', // Default to English
 }) => {
   const [secondsLeft, setSecondsLeft] = React.useState(duration * 60);
   const [currentVoiceLanguage, setCurrentVoiceLanguage] = React.useState(voiceLanguage);
@@ -140,19 +140,43 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
     timerColor = 'text-yellow-500';
   }
 
+  // Toggle real-time score popover
+  const [showRealtimePopover, setShowRealtimePopover] = React.useState(false);
+  const [showLanguageMenu, setShowLanguageMenu] = React.useState(false);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Cột trái: Chat + header + timer */}
-      <div className="lg:col-span-2 flex flex-col">
-        <div className="mb-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600 p-[1px] shadow-sm">
-          <div className="rounded-xl bg-white px-4 py-3">
+    <div className="flex flex-col h-[calc(100vh-61px)] overflow-hidden px-2 pt-30">
+      {/* Chat + header + timer */}
+      <div className="flex flex-col flex-1 min-h-0">
+        <div className="mb-2 rounded-xl border border-gray-200 bg-white shadow-sm relative">
+          <div className="px-4 py-3">
             <div className="flex flex-wrap items-center gap-4">
-              <h2 className="text-xl font-semibold">Interview in Progress</h2>
-              <Badge variant="outline">{position}</Badge>
+              <h2 className="text-xl font-semibold text-gray-900">Interview in Progress</h2>
+              <Badge variant="outline" className="border-blue-200 text-blue-700">{position}</Badge>
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                 Question {officialQuestionCount}/{maxQuestions}
               </Badge>
-              <span className={`ml-auto inline-flex items-center gap-1 font-mono text-lg ${timerColor}`}>
+              {/* Realtime Score Toggle */}
+              <button
+                type="button"
+                onClick={() => setShowRealtimePopover((v) => !v)}
+                className="ml-auto inline-flex items-center justify-center w-8 h-8 rounded-md bg-red-500 hover:bg-red-600 text-white shadow focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                title="Show real-time scores"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </button>
+              <Button
+                variant="outline"
+                className="h-7 px-2 py-0 text-xs ml-2"
+                onClick={() => onEndInterview && onEndInterview(secondsLeft / 60)}
+              >
+                End interview
+              </Button>
+              <span className={`ml-2 inline-flex items-center gap-1 font-mono text-lg ${timerColor}`}>
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" stroke="#888" strokeWidth="2"/>
                   <path d="M12 6v6l4 2" stroke="#888" strokeWidth="2" strokeLinecap="round"/>
@@ -166,13 +190,50 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
               )}
             </div>
           </div>
+          {/* Popover Panel */}
+          {showRealtimePopover && (
+            <div className="absolute right-3 top-12 z-20 w-80 rounded-xl border border-gray-200 bg-white shadow-xl p-4">
+              <div className="font-semibold text-gray-900 mb-3">Real-time Assessment</div>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1 text-sm">
+                    <span className="text-gray-700">Fundamental</span>
+                    <span className="font-semibold text-blue-600">{Math.round(scores.fundamental)}%</span>
+                  </div>
+                  <ScoreBar value={scores.fundamental} color="bg-blue-500" />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1 text-sm">
+                    <span className="text-gray-700">Logic</span>
+                    <span className="font-semibold text-red-500">{Math.round(scores.logic)}%</span>
+                  </div>
+                  <ScoreBar value={scores.logic} color="bg-red-500" />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1 text-sm">
+                    <span className="text-gray-700">Language</span>
+                    <span className="font-semibold text-green-600">{Math.round(scores.language)}%</span>
+                  </div>
+                  <ScoreBar value={scores.language} color="bg-green-500" />
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Question Progress (compact) */}
+          <div className="px-4 pb-3">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-sm text-gray-600">Question Progress</span>
+              <span className="text-sm font-semibold text-blue-600">{Math.round((officialQuestionCount / (maxQuestions || 1)) * 100)}%</span>
+            </div>
+            <Progress value={(officialQuestionCount / (maxQuestions || 1)) * 100} />
+          </div>
         </div>
-        <Card className="flex-1 flex flex-col">
-          <CardContent className="flex-1 flex flex-col p-4 overflow-y-auto" ref={messageListRef} style={{ maxHeight: 400 }}>
+        <Card className="flex-1 min-h-0 flex flex-col bg-white border border-gray-200 shadow-sm">
+          <CardContent className="flex-1 min-h-0 flex flex-col p-3 bg-gray-50/30 overflow-y-auto" ref={messageListRef}>
             {filteredConversation.map((msg) => (
               <div key={msg.id} className={`mb-3 flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> 
-                <div className={`rounded-2xl px-4 py-3 max-w-[80%] shadow ${msg.sender === 'user' 
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white' 
+                <div className={`rounded-2xl px-3 py-2 max-w-[72%] shadow-sm ${msg.sender === 'user' 
+                  ? 'bg-blue-500 text-white' 
                   : 'bg-white border border-gray-200 text-gray-800'}`}>
                   <div className="text-[11px] font-medium opacity-70 mb-1">{msg.sender === 'user' ? 'You' : 'AI Interviewer'}</div>
                   <div className="whitespace-pre-line leading-relaxed">{msg.text}</div>
@@ -181,7 +242,7 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
             ))}
             {isAiThinking && (
               <div className="mb-3 flex justify-start">
-                <div className="rounded-2xl px-4 py-3 bg-white border border-gray-200 text-gray-800 max-w-[60%] shadow">
+                <div className="rounded-2xl px-3 py-2 bg-white border border-gray-200 text-gray-800 max-w-[54%] shadow-sm">
                   <div className="text-[11px] font-medium opacity-70 mb-1">AI Interviewer</div>
                   <div className="flex items-center gap-2">
                     <span className="inline-block w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}}></span>
@@ -192,75 +253,112 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
               </div>
             )}
           </CardContent>
-          <div className="p-4 border-t flex items-center gap-2">
-            {/* Language Selector */}
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-gray-600 font-medium">Voice Language:</span>
-              <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="p-2 border-t border-gray-200 bg-white">
+            <div className="relative">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-2xl p-2 border border-gray-200">
+                {/* Plus Button */}
                 <button
-                  onClick={() => setCurrentVoiceLanguage('vi-VN')}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                    currentVoiceLanguage === 'vi-VN'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-200'
-                  }`}
+                  className="p-2 text-gray-600 hover:text-gray-900"
+                  title="More options"
                 >
-                  🇻🇳 Tiếng Việt
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 </button>
+
+                {/* Textarea */}
+                <div className="relative flex-1">
+                  <Textarea
+                    placeholder={
+                      isReviewing 
+                        ? (currentVoiceLanguage === 'vi-VN' ? 'Vui lòng chờ trong khi đánh giá...' : 'Please wait while reviewing...')
+                        : (currentVoiceLanguage === 'vi-VN' ? 'Nhập câu trả lời hoặc sử dụng microphone...' : 'Enter your answer or use microphone...')
+                    }
+                    value={message}
+                    onChange={onMessageChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (message.trim() && !isAiThinking && !isReviewing) {
+                          onSendMessage();
+                        }
+                      }
+                    }}
+                    rows={1}
+                    className="flex-1 min-h-[20px] max-h-28 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-sm text-gray-900 placeholder:text-gray-500"
+                    disabled={isAiThinking || isReviewing}
+                  />
+                </div>
+
+                {/* Mic Settings (Language) */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowLanguageMenu((v) => !v)}
+                    disabled={isAiThinking || isReviewing}
+                    className="p-2 rounded-md text-gray-600 hover:text-gray-900"
+                    title={currentVoiceLanguage === 'vi-VN' ? 'Ngôn ngữ micro: Tiếng Việt' : 'Mic language: English'}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c0 .66.26 1.3.73 1.77.47.47 1.11.73 1.77.73H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                  </button>
+                  {showLanguageMenu && (
+                    <div className="absolute bottom-9 right-0 z-20 w-40 rounded-md border border-gray-200 bg-white shadow-md text-sm">
+                      <button
+                        className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentVoiceLanguage === 'vi-VN' ? 'font-semibold text-blue-600' : ''}`}
+                        onClick={() => {
+                          setCurrentVoiceLanguage('vi-VN');
+                          setShowLanguageMenu(false);
+                          if (isListening) {
+                            stopListening();
+                          }
+                        }}
+                      >
+                        Tiếng Việt (vi-VN)
+                      </button>
+                      <button
+                        className={`w-full text-left px-3 py-2 hover:bg-gray-100 ${currentVoiceLanguage === 'en-US' ? 'font-semibold text-blue-600' : ''}`}
+                        onClick={() => {
+                          setCurrentVoiceLanguage('en-US');
+                          setShowLanguageMenu(false);
+                          if (isListening) {
+                            stopListening();
+                          }
+                        }}
+                      >
+                        English (en-US)
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Mic Button */}
                 <button
-                  onClick={() => setCurrentVoiceLanguage('en-US')}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                    currentVoiceLanguage === 'en-US'
-                      ? 'bg-blue-500 text-white'
-                      : 'text-gray-600 hover:bg-gray-200'
-                  }`}
+                  onClick={() => {
+                    if (isListening) {
+                      stopListening();
+                    } else {
+                      startListening();
+                    }
+                  }}
+                  disabled={isAiThinking || isReviewing}
+                  className={`p-2 rounded-md transition-colors ${isListening ? 'text-red-500' : 'text-gray-600 hover:text-gray-900'}`}
+                  title={isListening ? 'Stop recording' : 'Start voice input'}
                 >
-                  🇺🇸 English
+                  {isListening ? (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="4" width="6" height="11" rx="3"></rect><line x1="12" y1="19" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line></svg>
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"></rect><line x1="12" y1="13" x2="12" y2="19"></line><path d="M5 10v2a7 7 0 0 0 14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line><line x1="8" y1="22" x2="16" y2="22"></line></svg>
+                  )}
                 </button>
+
+                {/* Send Button */}
+                <Button 
+                  onClick={onSendMessage} 
+                  disabled={!message.trim() || isAiThinking || isReviewing} 
+                  variant="ghost"
+                  className="p-2 text-gray-600 hover:text-gray-900"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </Button>
               </div>
-            </div>
-            
-            <div className="relative flex-1">
-              <Textarea
-                placeholder={
-                  isReviewing 
-                    ? (currentVoiceLanguage === 'vi-VN' ? "Vui lòng chờ trong khi đánh giá..." : "Please wait while reviewing...")
-                    : (currentVoiceLanguage === 'vi-VN' ? "Nhập câu trả lời hoặc sử dụng microphone..." : "Enter your answer or use microphone...")
-                }
-                value={message}
-                onChange={onMessageChange}
-                className="flex-1 min-h-[44px] max-h-[120px] resize-none rounded-xl border-gray-200 focus-visible:ring-2 focus-visible:ring-indigo-500 pr-16"
-                disabled={isAiThinking || isReviewing}
-              />
-              
-              {/* Speech-to-Text Button */}
-              <button
-                onClick={() => {
-                  if (isListening) {
-                    stopListening();
-                  } else {
-                    startListening();
-                  }
-                }}
-                disabled={isAiThinking || isReviewing}
-                className={`absolute top-2 right-2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                  isListening 
-                    ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-                    : 'bg-blue-500 hover:bg-blue-600'
-                } text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed z-10 border-2 border-white`}
-                title={isListening ? 'Stop recording' : 'Start voice input'}
-              >
-                {isListening ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a2 2 0 114 0v4a2 2 0 11-4 0V7z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-              
+
               {/* Recording indicator */}
               {isListening && (
                 <div className="absolute -top-8 left-0 flex items-center gap-2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
@@ -269,135 +367,9 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
                 </div>
               )}
             </div>
-            
-            <Button 
-              onClick={onSendMessage} 
-              disabled={!message.trim() || isAiThinking || isReviewing} 
-              className="h-12 px-6 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Send
-            </Button>
           </div>
           
-          {/* Voice Input Info */}
-          <div className="px-4 pb-3 border-t border-gray-100">
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1">
-                  <span className="font-medium">{message.length}</span> characters
-                </span>
-                <span className="flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                  </svg>
-                  {currentVoiceLanguage === 'vi-VN' 
-                    ? `Click microphone để nhập giọng nói (${currentVoiceLanguage})`
-                    : `Click microphone for voice input (${currentVoiceLanguage})`
-                  }
-                </span>
-              </div>
-              <span className="text-gray-400">
-                {currentVoiceLanguage === 'vi-VN' ? 'Khuyến nghị: 100-300 từ' : 'Recommended: 100-300 words'}
-              </span>
-            </div>
-          </div>
-        </Card>
-        {latestEvaluation && (
-          <div className="mt-4 max-w-xl mx-auto p-4 bg-white border border-gray-200 rounded-xl shadow-sm">
-            <div className="flex items-center gap-2 mb-2">
-              <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#bbf7d0"/><path d="M8 13l2.5 2.5L16 10" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-              <span className="font-semibold text-lg text-green-700">Answer Evaluation</span>
-            </div>
-            <div className="space-y-2">
-              {latestEvaluation.text.split('\n').map((line, idx) => {
-                if (line.trim().startsWith('- **Strengths:**')) {
-                  return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-green-600"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#bbf7d0'/><path d='M6 10.5l2 2L11 6' stroke='#059669' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'/></svg></span><span className="font-semibold text-green-700">Strengths</span></div>;
-                }
-                if (line.trim().startsWith('- **Areas for Improvement:**')) {
-                  return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-orange-500"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#fef3c7'/><path d='M10 6v4' stroke='#ea580c' strokeWidth='2' strokeLinecap='round'/><circle cx='10' cy='14' r='1' fill='#ea580c'/></svg></span><span className="font-semibold text-orange-700">Areas for Improvement</span></div>;
-                }
-                if (line.trim().startsWith('- **Suggestions:**')) {
-                  return <div key={idx} className="flex items-center gap-2 mt-2 mb-1"><span className="text-blue-600"><svg width='18' height='18' fill='none' viewBox='0 0 20 20'><circle cx='10' cy='10' r='10' fill='#dbeafe'/><path d='M10 6v4' stroke='#2563eb' strokeWidth='2' strokeLinecap='round'/><circle cx='10' cy='14' r='1' fill='#2563eb'/></svg></span><span className="font-semibold text-blue-700">Suggestions</span></div>;
-                }
-                if (line.trim().startsWith('- ')) {
-                  // Bullet points, color by previous section
-                  let color = 'text-gray-800';
-                  let icon = null;
-                  for (let i = idx - 1; i >= 0; i--) {
-                    if (latestEvaluation.text.split('\n')[i].includes('Strengths')) { color = 'text-green-700'; icon = <svg className="inline mr-1" width='14' height='14' fill='none' viewBox='0 0 16 16'><circle cx='8' cy='8' r='8' fill='#bbf7d0'/><path d='M5 8.5l2 2L11 6' stroke='#059669' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'/></svg>; break; }
-                    if (latestEvaluation.text.split('\n')[i].includes('Areas for Improvement')) { color = 'text-orange-700'; icon = <svg className="inline mr-1" width='14' height='14' fill='none' viewBox='0 0 16 16'><circle cx='8' cy='8' r='8' fill='#fef3c7'/><path d='M8 5v3' stroke='#ea580c' strokeWidth='2' strokeLinecap='round'/><circle cx='8' cy='11' r='1' fill='#ea580c'/></svg>; break; }
-                    if (latestEvaluation.text.split('\n')[i].includes('Suggestions')) { color = 'text-blue-700'; icon = <svg className="inline mr-1" width='14' height='14' fill='none' viewBox='0 0 16 16'><circle cx='8' cy='8' r='8' fill='#dbeafe'/><path d='M8 5v3' stroke='#2563eb' strokeWidth='2' strokeLinecap='round'/><circle cx='8' cy='11' r='1' fill='#2563eb'/></svg>; break; }
-                  }
-                  return <div key={idx} className={`flex items-start gap-2 ml-6 ${color}`}><span>{icon}</span><span>{line.replace('- ', '')}</span></div>;
-                }
-                // Other lines
-                if (line.trim() !== '') {
-                  return <div key={idx} className="text-base text-gray-800 mb-1">{line.replace(/\*\*/g, '')}</div>;
-                }
-                return null;
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-      {/* Right column: Real-time scoring card */}
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Interview Progress</CardTitle>
-            <div className="text-muted-foreground text-xs">
-              Questions answered: {officialQuestionCount}/{maxQuestions}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Progress bar cho số câu hỏi */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">Question Progress</span>
-                <span className="font-bold text-blue-500">
-                  {Math.round((officialQuestionCount / maxQuestions) * 100)}%
-                </span>
-              </div>
-              <Progress value={(officialQuestionCount / maxQuestions) * 100} />
-            </div>
-            
-            {/* Real-time scores */}
-            <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">Real-time Scoring</h4>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Fundamental Knowledge</span>
-                    <span className="font-bold text-blue-500">{Math.round(scores.fundamental)}%</span>
-                  </div>
-                  <ScoreBar value={scores.fundamental} color="bg-blue-500" />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Logical Reasoning</span>
-                    <span className="font-bold text-red-500">{Math.round(scores.logic)}%</span>
-                  </div>
-                  <ScoreBar value={scores.logic} color="bg-red-500" />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium">Language Fluency</span>
-                    <span className="font-bold text-red-500">{Math.round(scores.language)}%</span>
-                  </div>
-                  <ScoreBar value={scores.language} color="bg-green-500" />
-                </div>
-              </div>
-            </div>
-            
-            {!isReviewing && (
-              <Button variant="outline" className="w-full mt-4" onClick={() => {
-                if (onEndInterview) {
-                  const minutesLeft = secondsLeft / 60;
-                  onEndInterview(minutesLeft);
-                }
-              }}>End Interview Early</Button>
-            )}
-          </CardContent>
+          {/* bottom helper line removed as requested */}
         </Card>
       </div>
     </div>
