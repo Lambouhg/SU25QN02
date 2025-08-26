@@ -59,7 +59,7 @@ export default function HeroSection() {
           </div>
 
           {/* Right Content */}
-          <div className="relative">
+          <div className="relative space-y-6">
             <InterviewCard />
           </div>
         </div>

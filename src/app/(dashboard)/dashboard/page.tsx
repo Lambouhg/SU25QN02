@@ -233,18 +233,6 @@ export default function DashboardPage() {
   }, [isLoaded, user]);
 
 
-
-  // Calculate today's activities
-  const getTodayActivities = () => {
-    if (!progress?.allActivities) return 0;
-    const today = new Date().toDateString();
-    return progress.allActivities.filter(activity => {
-      if (!activity.timestamp) return false;
-      const activityDate = new Date(activity.timestamp).toDateString();
-      return activityDate === today;
-    }).length;
-  };
-
   useEffect(() => {
     if (!progress) return;
     

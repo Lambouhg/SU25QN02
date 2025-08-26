@@ -50,7 +50,7 @@ export default function PricingSection() {
         setLoading(false);
       })
       .catch(() => {
-        setError('Không thể tải danh sách gói dịch vụ.');
+        setError('Cannot load service package list.');
         setLoading(false);
       });
   }, []);
@@ -206,7 +206,7 @@ export default function PricingSection() {
       <div className="min-h-screen bg-gray-50 px-12 py-24 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Đang tải...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
@@ -290,7 +290,7 @@ export default function PricingSection() {
               onClick={handlePurchase}
               className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-12 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300"
             >
-              {packages.find(pkg => pkg.id === selectedId)?.price === 0 ? 'Kích hoạt miễn phí' : 'Tiến hành thanh toán'}
+              {packages.find(pkg => pkg.id === selectedId)?.price === 0 ? 'Activate Free' : 'Proceed to Payment'}
             </button>
           </div>
         )}

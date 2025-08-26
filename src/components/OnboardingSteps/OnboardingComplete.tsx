@@ -67,19 +67,19 @@ const OnboardingComplete: React.FC<OnboardingCompleteProps> = ({ onContinue }) =
           </div>
 
           <CardTitle className="text-3xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent animate-gradient-shift">
-            Chúc mừng!
+            Congratulations!
           </CardTitle>
           <p className="text-slate-300 mt-3 text-lg animate-fade-in-delayed">
-            Bạn đã hoàn thành quá trình thiết lập tài khoản
+            You have completed the account setup process
           </p>
         </CardHeader>
 
         <CardContent className="space-y-8 relative">
           <div className="space-y-4">
             {[
-              { icon: Sparkles, text: "Hồ sơ cá nhân đã được cập nhật", delay: "0s" },
-              { icon: Sparkles, text: "Vị trí công việc đã được chọn", delay: "0.2s" },
-              { icon: Sparkles, text: "Kỹ năng đã được ghi nhận", delay: "0.4s" },
+              { icon: Sparkles, text: "Your profile has been updated", delay: "0s" },
+              { icon: Sparkles, text: "Your job position has been selected", delay: "0.2s" },
+              { icon: Sparkles, text: "Your skills have been recorded", delay: "0.4s" },
             ].map((item, index) => (
               <div
                 key={index}
@@ -99,14 +99,14 @@ const OnboardingComplete: React.FC<OnboardingCompleteProps> = ({ onContinue }) =
               onClick={onContinue}
               className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg shadow-purple-500/30 transition-all duration-300 hover:shadow-purple-500/50 hover:scale-105 animate-shimmer"
             >
-              Bắt đầu sử dụng
+              Start using
               <ArrowRight className="w-5 h-5 ml-2 animate-bounce-x" />
             </Button>
           </div>
 
           <div className="flex items-center justify-center gap-2 text-slate-400 animate-fade-in-delayed">
             <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-            <p className="text-sm">Tự động chuyển hướng trong {countdown} giây...</p>
+            <p className="text-sm">Redirecting in {countdown} seconds...</p>
             <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
           </div>
         </CardContent>
