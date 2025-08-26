@@ -135,7 +135,7 @@ export default function QuizHistoryPage() {
     const totalQuizzes = completedQuizzes.length
     // averageScore and highestScore are now 0-10, so convert to percent for display
     const averageScore =
-        totalQuizzes > 0 ? Math.round(completedQuizzes.reduce((sum, quiz) => sum + (quiz.score || 0), 0) / totalQuizzes) : 0;
+    totalQuizzes > 0 ? Number((completedQuizzes.reduce((sum, quiz) => sum + (quiz.score || 0), 0) / totalQuizzes).toFixed(1)) : 0;
     const highestScore = totalQuizzes > 0 ? Math.max(...completedQuizzes.map((quiz) => quiz.score || 0)) : 0;
 
     if (isLoading) {

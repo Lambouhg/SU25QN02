@@ -1,40 +1,25 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useState } from 'react';
+import { Activity, BarChart3 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/animated-tabs';
+import AdminActivityDashboard from '@/components/admin/AdminActivityDashboard';
 import AdminAnalytics from '@/components/admin/AdminAnalytics';
 import UserActivitiesList from '@/components/admin/UserActivitiesList';
 import UserActivityDetailView from '@/components/admin/UserActivityDetailView';
-import AdminActivityDashboard from '@/components/admin/AdminActivityDashboard';
-import { 
-  BarChart3, 
-  Activity
-} from 'lucide-react';
 
 export default function AdminUserActivitiesPage() {
-  const [activeTab, setActiveTab] = useState('realtime');
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
-
-  const showToast = (title: string, description: string) => {
-    // Simple alert for now - you can replace this with a proper toast component
-    alert(`${title}: ${description}`);
-  };
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const handleViewDetails = (userId: string) => {
     setSelectedUserId(userId);
     setViewMode('detail');
   };
 
-  const handleEditUser = async (userId: string) => {
-    // For now, just show a toast. In a real app, you'd open an edit modal
-    showToast(
-      "Edit User Activity",
-      "Opening user activity editor..."
-    );
-    
-    // Placeholder: You could open a modal or navigate to an edit page
-    console.log('Edit user activity for userId:', userId);
+  const handleEditUser = (userId: string) => {
+    // Implement edit functionality
+    console.log('Edit user:', userId);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -53,25 +38,17 @@ export default function AdminUserActivitiesPage() {
       const result = await response.json();
 
       if (response.ok) {
-        showToast(
-          "Success",
-          "User activity data deleted successfully."
-        );
+        // Show success message
+        alert("User activity data deleted successfully.");
         
         // Refresh the list or update state as needed
         window.location.reload(); // Simple refresh for now
       } else {
-        showToast(
-          "Error",
-          result.error || "Failed to delete user activity data."
-        );
+        alert(result.error || "Failed to delete user activity data.");
       }
     } catch (error) {
-      console.error('Error deleting user activity:', error);
-      showToast(
-        "Error",
-        "An unexpected error occurred."
-      );
+      console.error('Error deleting user:', error);
+      alert("An unexpected error occurred.");
     }
   };
 
@@ -89,48 +66,49 @@ export default function AdminUserActivitiesPage() {
         </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-gray-100 rounded-lg">
-          <TabsTrigger 
-            value="realtime" 
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
-          >
-            <Activity className="h-6 w-4" />
-            <span className="font-medium">Real-time Activity</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="overview" 
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-all data-[state=active]:bg-white data-[state=active]:shadow-sm"
-          >
-            <BarChart3 className="h-6 w-4" />
-            <span className="font-medium">Analytics Overview</span>
-          </TabsTrigger>
-        </TabsList>
+      <div className="space-y-6">
+        <Tabs defaultValue="realtime">
+          <TabsList>
+            <TabsTrigger value="realtime">
+              <Activity className="h-4 w-4 mr-2" />
+              Real-time Activity
+            </TabsTrigger>
+            <TabsTrigger value="overview">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics Overview
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="realtime" className="space-y-6">
-          <AdminActivityDashboard />
-        </TabsContent>
+          <TabsContent value="realtime">
+            <div className="space-y-6">
+              <AdminActivityDashboard />
+            </div>
+          </TabsContent>
 
-        <TabsContent value="overview" className="space-y-6">
-          <AdminAnalytics />
-        </TabsContent>
+          <TabsContent value="overview">
+            <div className="space-y-6">
+              <AdminAnalytics />
+            </div>
+          </TabsContent>
 
-        <TabsContent value="users" className="space-y-6">
-          {viewMode === 'list' ? (
-            <UserActivitiesList
-              onViewDetails={handleViewDetails}
-              onEditUser={handleEditUser}
-              onDeleteUser={handleDeleteUser}
-            />
-          ) : selectedUserId ? (
-            <UserActivityDetailView
-              userId={selectedUserId}
-              onBack={handleBackToList}
-            />
-          ) : null}
-        </TabsContent>
-
-      </Tabs>
+          <TabsContent value="users">
+            <div className="space-y-6">
+              {viewMode === 'list' ? (
+                <UserActivitiesList
+                  onViewDetails={handleViewDetails}
+                  onEditUser={handleEditUser}
+                  onDeleteUser={handleDeleteUser}
+                />
+              ) : selectedUserId ? (
+                <UserActivityDetailView
+                  userId={selectedUserId}
+                  onBack={handleBackToList}
+                />
+              ) : null}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

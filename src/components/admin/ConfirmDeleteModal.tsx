@@ -46,7 +46,7 @@ export default function ConfirmDeleteModal({
               <div className="flex items-center justify-center w-8 h-8 bg-yellow-100 rounded-full mr-3">
                 <AlertTriangle className="w-5 h-5 text-yellow-600" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900">Delete User</h3>
+              <h3 className="text-lg font-medium text-gray-900">Delete</h3>
             </div>
             <button
               onClick={onClose}
@@ -59,7 +59,7 @@ export default function ConfirmDeleteModal({
           {/* Content */}
           <div className="mb-6">
             <p className="text-sm text-gray-600 mb-3">
-              Are you sure you want to delete this user? This action cannot be undone.
+              Are you sure you want to delete ? This action cannot be undone.
             </p>
             <div className="bg-gray-50 rounded-md p-3">
               <p className="text-sm font-medium text-gray-900">

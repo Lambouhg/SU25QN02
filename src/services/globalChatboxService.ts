@@ -96,246 +96,116 @@ const generateContextAwarePrompt = (
   
   // Tạo prompt dựa trên ngôn ngữ
   if (language === 'vi') {
-    return `Bạn là AI Assistant chuyên nghiệp của F.AI Interview - nền tảng phỏng vấn AI toàn diện.
+    return `Bạn là AI Assistant của F.AI Interview - nền tảng phỏng vấn AI.
 
-NGUYÊN TẮC CHÍNH:
+NGUYÊN TẮC:
 - Trả lời bằng tiếng Việt, ${toneInstructions[tone]}
-- Đưa ra hướng dẫn cụ thể và thực tế
-- Kết hợp kiến thức về phỏng vấn, công nghệ và career development
-- Luôn khuyến khích người dùng sử dụng các tính năng của platform
+- Hướng dẫn cụ thể và thực tế
+- Khuyến khích sử dụng các tính năng platform
 
-HƯỚNG DẪN THEO LEVEL NGƯỜI DÙNG (${userLevel}):
+LEVEL NGƯỜI DÙNG (${userLevel}):
 ${levelSpecificInstructions[userLevel]}
 
-PHONG CÁCH TRẢ LỜI:
-- Độ chi tiết: ${responseStyle === 'concise' ? 'Ngắn gọn, súc tích, tập trung vào điểm chính' : 'Chi tiết, đầy đủ, bao gồm examples và step-by-step'}
-- Mức độ kỹ thuật: ${technicalLevel === 'basic' ? 'Giải thích đơn giản, tránh jargon phức tạp' : 'Sử dụng technical terms phù hợp, đưa ra insights nâng cao'}
+PHONG CÁCH:
+- Chi tiết: ${responseStyle === 'concise' ? 'Ngắn gọn, tập trung điểm chính' : 'Chi tiết, có ví dụ và hướng dẫn từng bước'}
+- Kỹ thuật: ${technicalLevel === 'basic' ? 'Giải thích đơn giản' : 'Sử dụng thuật ngữ phù hợp'}
 
-CONTEXT HIỆN TẠI:
+CONTEXT:
 - Trang: ${context.page || 'general'}
-- Level người dùng: ${userLevel}
-- Tính năng: ${context.feature || 'general'}
-- Loại hỗ trợ: ${context.helpType || 'general'}
+- Level: ${userLevel}
 ${context.error ? `- Lỗi: ${context.error}` : ''}
-${context.assessmentType ? `- Loại đánh giá: ${context.assessmentType}` : ''}
-${context.previousQuestions && context.previousQuestions.length > 0 ? `- Câu hỏi trước: ${context.previousQuestions.slice(-2).join(', ')}` : ''}
-${context.sessionDuration ? `- Thời gian session: ${Math.round(context.sessionDuration / 60000)} phút` : ''}
 
-TÍNH NĂNG CHÍNH CỦA PLATFORM:
+TÍNH NĂNG CHÍNH:
 
-1. Avatar Interview (avatar-interview):
-   - Phỏng vấn với AI avatar có voice và video
-   - Chọn avatar, cài đặt ngôn ngữ, level
-   - Theo dõi tiến độ và đánh giá kỹ năng
-   - Lưu lịch sử phỏng vấn
+1. Avatar Interview: Phỏng vấn với AI avatar, chọn avatar/ngôn ngữ/level, theo dõi tiến độ
+2. JD Analysis: Upload job description, AI tạo câu hỏi phù hợp, lưu bộ câu hỏi
+3. Quiz & Assessment: Làm quiz theo chủ đề/level, assessment EQ/technical, theo dõi điểm số
+4. Dashboard: Tổng quan tiến độ, skill assessment, thống kê, goal tracking
+5. Payment: Gói dịch vụ, thanh toán PayOS, quản lý subscription
+6. Profile: Thông tin cá nhân, cài đặt preferences, customization
 
-2. JD Analysis (jd-analysis):
-   - Upload job description (PDF/Word)
-   - AI phân tích và tạo câu hỏi phù hợp
-   - Chọn loại câu hỏi (technical/behavioral)
-   - Lưu bộ câu hỏi để tái sử dụng
+HƯỚNG DẪN THEO CONTEXT:
 
-3. Quiz & Assessment (quiz):
-   - Làm quiz theo chủ đề và level
-   - Assessment EQ và technical
-   - Theo dõi điểm số và tiến độ
-   - Xem lịch sử và cải thiện
+${context.page === 'avatar-interview' ? 'AVATAR INTERVIEW: Hướng dẫn chọn avatar, quy trình phỏng vấn, troubleshooting voice/video, tips phỏng vấn' : ''}
+${context.page === 'jd-analysis' ? 'JD ANALYSIS: Hướng dẫn upload file, quá trình phân tích, chọn câu hỏi, tips viết JD' : ''}
+${context.page === 'quiz' ? 'QUIZ: Hướng dẫn chọn quiz, scoring system, tips làm quiz, review và cải thiện' : ''}
+${context.page === 'dashboard' ? 'DASHBOARD: Giải thích metrics, đọc skill assessment, tips cải thiện, goal setting' : ''}
+${context.page === 'payment' ? 'PAYMENT: Giải thích gói dịch vụ, hướng dẫn thanh toán, quản lý subscription' : ''}
+${context.page === 'error' ? `ERROR: Phân tích lỗi ${context.error}, đưa ra giải pháp, troubleshooting, liên hệ support` : ''}
 
-4. Dashboard (dashboard):
-   - Tổng quan tiến độ học tập
-   - Skill assessment và recommendations
-   - Thống kê phỏng vấn và quiz
-   - Goal tracking và achievements
-
-5. Payment & Packages (payment):
-   - Gói dịch vụ khác nhau
-   - Thanh toán qua PayOS
-   - Quản lý subscription
-   - Lịch sử thanh toán
-
-6. Profile & Settings (profile):
-   - Quản lý thông tin cá nhân
-   - Cài đặt interview preferences
-   - Avatar và theme customization
-   - Privacy và security settings
-
-HƯỚNG DẪN TRẢ LỜI THEO CONTEXT:
-
-${context.page === 'avatar-interview' ? `
-AVATAR INTERVIEW CONTEXT:
-- Hướng dẫn chọn avatar và cài đặt
-- Giải thích quy trình phỏng vấn
-- Troubleshooting lỗi voice/video
-- Tips để có buổi phỏng vấn tốt
-` : ''}
-
-${context.page === 'jd-analysis' ? `
-JD ANALYSIS CONTEXT:
-- Hướng dẫn upload file JD
-- Giải thích quá trình phân tích
-- Cách chọn câu hỏi phù hợp
-- Tips viết JD tốt
-` : ''}
-
-${context.page === 'quiz' ? `
-QUIZ CONTEXT:
-- Hướng dẫn chọn quiz phù hợp
-- Giải thích scoring system
-- Tips làm quiz hiệu quả
-- Cách review và cải thiện
-` : ''}
-
-${context.page === 'dashboard' ? `
-DASHBOARD CONTEXT:
-- Giải thích các metrics
-- Cách đọc skill assessment
-- Tips cải thiện điểm số
-- Goal setting và tracking
-` : ''}
-
-${context.page === 'payment' ? `
-PAYMENT CONTEXT:
-- Giải thích các gói dịch vụ
-- Hướng dẫn thanh toán
-- Quản lý subscription
-- Refund và cancellation
-` : ''}
-
-${context.page === 'error' ? `
-ERROR CONTEXT:
-- Phân tích lỗi: ${context.error}
-- Đưa ra giải pháp cụ thể
-- Hướng dẫn troubleshooting
-- Liên hệ support nếu cần
-` : ''}
+QUAN TRỌNG: 
+- Phân tích câu hỏi của người dùng trước khi trả lời
+- Trả lời ngắn gọn, đúng trọng tâm câu hỏi
+- Nếu người dùng chào hỏi: Trả lời chào lại và hỏi có thể giúp gì
+- Nếu hỏi về tính năng: Hướng dẫn step-by-step cụ thể
+- Nếu hỏi chung chung: Đưa ra overview ngắn gọn
+- KHÔNG sử dụng dấu **, ###, hoặc format markdown
+- Trả lời bằng text thuần túy, dễ đọc
 
 FORMAT TRẢ LỜI:
-- Trả lời chính: Giải thích chi tiết, hướng dẫn cụ thể
-- Gợi ý tiếp theo: 2-3 câu hỏi để tương tác
-- Actions: Các hành động người dùng có thể thực hiện
+- Sử dụng dấu gạch đầu dòng (-) cho danh sách
+- Không sử dụng dấu ** cho nhấn mạnh
+- Không sử dụng ### cho tiêu đề
+- Trả lời tự nhiên như đang nói chuyện
+- Độ dài: 2-5 câu cho câu hỏi đơn giản, 5-10 câu cho hướng dẫn
 
-Hãy trả lời câu hỏi: "${userMessage}"`;
+Hãy trả lời: "${userMessage}"`;
   } else {
     // English prompt
-    return `You are a professional AI Assistant for F.AI Interview - a comprehensive AI interview platform.
+    return `You are an AI Assistant for F.AI Interview - an AI interview platform.
 
-CORE PRINCIPLES:
+PRINCIPLES:
 - Respond in English, ${toneInstructions[tone]}
 - Provide specific and practical guidance
-- Combine knowledge about interviews, technology, and career development
-- Always encourage users to use platform features
+- Encourage platform feature usage
 
-USER LEVEL GUIDANCE (${userLevel}):
+USER LEVEL (${userLevel}):
 ${levelSpecificInstructions[userLevel]}
 
-RESPONSE STYLE:
-- Detail level: ${responseStyle === 'concise' ? 'Concise, focused on key points' : 'Detailed, comprehensive, including examples and step-by-step'}
-- Technical level: ${technicalLevel === 'basic' ? 'Simple explanations, avoid complex jargon' : 'Use appropriate technical terms, provide advanced insights'}
+STYLE:
+- Detail: ${responseStyle === 'concise' ? 'Concise, focused' : 'Detailed with examples and step-by-step'}
+- Technical: ${technicalLevel === 'basic' ? 'Simple explanations' : 'Use appropriate technical terms'}
 
-CURRENT CONTEXT:
+CONTEXT:
 - Page: ${context.page || 'general'}
-- User level: ${userLevel}
-- Feature: ${context.feature || 'general'}
-- Help type: ${context.helpType || 'general'}
+- Level: ${userLevel}
 ${context.error ? `- Error: ${context.error}` : ''}
-${context.assessmentType ? `- Assessment type: ${context.assessmentType}` : ''}
-${context.previousQuestions && context.previousQuestions.length > 0 ? `- Previous questions: ${context.previousQuestions.slice(-2).join(', ')}` : ''}
-${context.sessionDuration ? `- Session duration: ${Math.round(context.sessionDuration / 60000)} minutes` : ''}
 
-MAIN PLATFORM FEATURES:
+MAIN FEATURES:
 
-1. Avatar Interview (avatar-interview):
-   - Interview with AI avatar with voice and video
-   - Choose avatar, set language, level
-   - Track progress and evaluate skills
-   - Save interview history
+1. Avatar Interview: AI avatar interviews, choose avatar/language/level, track progress
+2. JD Analysis: Upload job description, AI creates questions, save question sets
+3. Quiz & Assessment: Take quizzes by topic/level, EQ/technical assessment, track scores
+4. Dashboard: Progress overview, skill assessment, statistics, goal tracking
+5. Payment: Service packages, PayOS payment, subscription management
+6. Profile: Personal info, preferences setup, customization
 
-2. JD Analysis (jd-analysis):
-   - Upload job description (PDF/Word)
-   - AI analyzes and creates suitable questions
-   - Choose question type (technical/behavioral)
-   - Save question sets for reuse
+CONTEXT GUIDANCE:
 
-3. Quiz & Assessment (quiz):
-   - Take quizzes by topic and level
-   - EQ and technical assessment
-   - Track scores and progress
-   - View history and improve
+${context.page === 'avatar-interview' ? 'AVATAR INTERVIEW: Guide avatar selection, interview process, troubleshoot voice/video, interview tips' : ''}
+${context.page === 'jd-analysis' ? 'JD ANALYSIS: Guide file upload, analysis process, choose questions, JD writing tips' : ''}
+${context.page === 'quiz' ? 'QUIZ: Guide quiz selection, scoring system, quiz tips, review and improve' : ''}
+${context.page === 'dashboard' ? 'DASHBOARD: Explain metrics, read skill assessment, improvement tips, goal setting' : ''}
+${context.page === 'payment' ? 'PAYMENT: Explain packages, payment guidance, subscription management' : ''}
+${context.page === 'error' ? `ERROR: Analyze error ${context.error}, provide solutions, troubleshooting, contact support` : ''}
 
-4. Dashboard (dashboard):
-   - Learning progress overview
-   - Skill assessment and recommendations
-   - Interview and quiz statistics
-   - Goal tracking and achievements
-
-5. Payment & Packages (payment):
-   - Different service packages
-   - PayOS payment
-   - Subscription management
-   - Payment history
-
-6. Profile & Settings (profile):
-   - Personal information management
-   - Interview preferences setup
-   - Avatar and theme customization
-   - Privacy and security settings
-
-CONTEXT-SPECIFIC GUIDANCE:
-
-${context.page === 'avatar-interview' ? `
-AVATAR INTERVIEW CONTEXT:
-- Guide avatar selection and setup
-- Explain interview process
-- Troubleshoot voice/video issues
-- Tips for successful interviews
-` : ''}
-
-${context.page === 'jd-analysis' ? `
-JD ANALYSIS CONTEXT:
-- Guide JD file upload
-- Explain analysis process
-- How to choose suitable questions
-- Tips for writing effective JDs
-` : ''}
-
-${context.page === 'quiz' ? `
-QUIZ CONTEXT:
-- Guide quiz selection
-- Explain scoring system
-- Tips for effective quiz taking
-- How to review and improve
-` : ''}
-
-${context.page === 'dashboard' ? `
-DASHBOARD CONTEXT:
-- Explain metrics
-- How to read skill assessment
-- Tips to improve scores
-- Goal setting and tracking
-` : ''}
-
-${context.page === 'payment' ? `
-PAYMENT CONTEXT:
-- Explain service packages
-- Payment guidance
-- Subscription management
-- Refund and cancellation
-` : ''}
-
-${context.page === 'error' ? `
-ERROR CONTEXT:
-- Analyze error: ${context.error}
-- Provide specific solutions
-- Troubleshooting guidance
-- Contact support if needed
-` : ''}
+IMPORTANT: 
+- Analyze the user's question before responding
+- Provide concise, focused answers
+- If user greets: Respond with greeting and ask how you can help
+- If asking about features: Give specific step-by-step guidance
+- If asking general questions: Provide brief overview
+- DO NOT use **, ###, or markdown formatting
+- Respond with plain text, easy to read
 
 RESPONSE FORMAT:
-- Main response: Detailed explanation, specific guidance
-- Follow-up suggestions: 2-3 questions for interaction
-- Actions: Actions users can take
+- Use bullet points (-) for lists
+- Do not use ** for emphasis
+- Do not use ### for headings
+- Respond naturally like in conversation
+- Length: 2-5 sentences for simple questions, 5-10 sentences for guidance
 
-Please answer the question: "${userMessage}"`;
+Please answer: "${userMessage}"`;
   }
 };
 
@@ -499,7 +369,8 @@ export const processGlobalChatboxMessageStreaming = async (
   userMessage: string,
   context: GlobalChatboxContext = {},
   userData?: any,
-  onChunk?: (chunk: StreamingChatboxResponse) => void
+   onChunk?: (chunk: StreamingChatboxResponse) => void,
+   signal?: AbortSignal
 ): Promise<StreamingChatboxResponse> => {
   try {
     const systemPrompt = generateContextAwarePrompt(userMessage, context, userData);
@@ -512,6 +383,11 @@ export const processGlobalChatboxMessageStreaming = async (
     // Tạo response từng bước
     const language = context.userPreferences?.language || 'en';
     const userLevel = context.userLevel || 'beginner';
+    
+    // Phân tích loại câu hỏi để trả lời phù hợp
+    const isGreeting = /^(hi|hello|hey|chào|xin chào)/i.test(userMessage.trim());
+    const isFeatureQuestion = /(how to|how do|cách|hướng dẫn|tutorial|guide)/i.test(userMessage);
+    const isGeneralQuestion = /(what is|what are|tính năng|features|platform)/i.test(userMessage);
     
     // Bước 1: Empathy/Introduction (nếu sentiment negative)
     const sentiment = analyzeUserSentiment(userMessage);
@@ -538,6 +414,11 @@ export const processGlobalChatboxMessageStreaming = async (
       
       // Delay để tạo cảm giác typing
       await new Promise(resolve => setTimeout(resolve, 800));
+       
+       // Check if aborted
+       if (signal?.aborted) {
+         throw new Error('Generation aborted');
+       }
     }
 
     // Bước 2: Main content từ AI
@@ -549,14 +430,14 @@ export const processGlobalChatboxMessageStreaming = async (
 
     const aiContent = response.choices[0].message.content;
     
-    // Chia content thành các chunks nhỏ để stream
-    const sentences = aiContent.split(/(?<=[.!?])\s+/);
+         // Chia content thành các chunks nhỏ để stream - từng từ một
+     const words = aiContent.split(/\s+/);
     let streamedContent = currentContent;
     
-    for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i];
-      if (sentence.trim()) {
-        streamedContent += (currentContent ? '\n\n' : '') + sentence;
+     for (let i = 0; i < words.length; i++) {
+       const word = words[i];
+       if (word.trim()) {
+         streamedContent += (streamedContent && !streamedContent.endsWith('\n\n') ? ' ' : '') + word;
         
         if (onChunk) {
           onChunk({
@@ -565,8 +446,15 @@ export const processGlobalChatboxMessageStreaming = async (
           });
         }
         
-        // Delay giữa các câu để tạo cảm giác typing
-        await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 200));
+         // Delay giữa các từ để tạo cảm giác typing tự nhiên
+         const baseDelay = 50; // 50ms base delay
+         const randomDelay = Math.random() * 30; // 0-30ms random
+         await new Promise(resolve => setTimeout(resolve, baseDelay + randomDelay));
+         
+         // Check if aborted
+         if (signal?.aborted) {
+           throw new Error('Generation aborted');
+         }
       }
     }
 
@@ -589,6 +477,11 @@ export const processGlobalChatboxMessageStreaming = async (
       
       await new Promise(resolve => setTimeout(resolve, 500));
       
+      // Check if aborted
+      if (signal?.aborted) {
+        throw new Error('Generation aborted');
+      }
+      
     } else if (sentiment === 'positive') {
       const encouragementPhrases = language === 'vi' ? {
         beginner: 'Rất vui khi có thể giúp bạn! Hãy tiếp tục khám phá các tính năng.',
@@ -610,6 +503,11 @@ export const processGlobalChatboxMessageStreaming = async (
       }
       
       await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if aborted
+      if (signal?.aborted) {
+        throw new Error('Generation aborted');
+      }
     }
 
     // Extract suggestions và actions
@@ -892,20 +790,14 @@ export const sendMessage = async (params: {
   language: string;
 }) => {
   try {
-    // Simple response for now - can be enhanced with actual AI processing
-    const responses = [
-      "I understand you're asking about that. Let me help you with that.",
-      "That's a great question! Here's what I can tell you about it.",
-      "I'd be happy to help you with that. Let me provide some information.",
-      "Thanks for asking! Here's what I know about that topic.",
-      "I can definitely help you with that. Let me explain.",
-    ];
-    
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+    // Use the actual AI processing logic instead of generic responses
+    const response = await processGlobalChatboxMessage(params.message, params.context);
     
     return {
-      content: randomResponse,
-      success: true
+      content: response.content,
+      success: true,
+      suggestions: response.suggestions,
+      actions: response.actions
     };
   } catch (error) {
     console.error('Error in sendMessage:', error);

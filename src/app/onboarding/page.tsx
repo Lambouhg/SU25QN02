@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import OnboardingSteps from '@/components/OnboardingSteps/OnboardingSteps';
@@ -11,18 +11,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    if (!isSignedIn) {
-      router.push('/sign-in');
-      return;
-    }
-
-    checkOnboardingStatus();
-  }, [isSignedIn, isLoaded, router]);
-
-  const checkOnboardingStatus = async () => {
+  const checkOnboardingStatus = useCallback(async () => {
     try {
       const response = await fetch('/api/user/onboarding-status');
       if (response.ok) {
@@ -38,11 +27,18 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
 
-  const handleOnboardingComplete = () => {
-    router.push('/dashboard');
-  };
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      router.push('/sign-in');
+      return;
+    }
+
+    checkOnboardingStatus();
+  }, [isSignedIn, isLoaded, router, checkOnboardingStatus]);
 
   if (!isLoaded || loading) {
     return (
@@ -63,5 +59,5 @@ export default function OnboardingPage() {
     return null; // Sẽ redirect trong useEffect
   }
 
-  return <OnboardingSteps onComplete={handleOnboardingComplete} />;
+  return <OnboardingSteps />;
 }

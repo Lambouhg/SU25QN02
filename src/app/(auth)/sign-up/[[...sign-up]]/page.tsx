@@ -166,8 +166,9 @@ export default function SignUpPage() {
   const handleSignInWithGoogle = async () => {
     setIsLoading(true);
     try {
+      const strategy = "oauth_google" as const;
       await signUp.authenticateWithRedirect({
-        strategy: "oauth_google",
+        strategy,
         redirectUrl: "/sso-callback",
         redirectUrlComplete: "/dashboard",
       });

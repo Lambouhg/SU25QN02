@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { 
   Home, Users, Settings, Menu, X, Search, LogOut, Shield,
-  BarChart3, MessageSquare, UserCheck,
+  BarChart3, MessageSquare, UserCheck, Package,
   ChevronRight, ChevronDown
 } from 'lucide-react';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ import Image from 'next/image';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import Toast from '@/components/ui/Toast';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+import { Logo } from '@/components/ui/logo';
 
 
 export default function AdminDashboardLayout({
@@ -50,15 +51,14 @@ export default function AdminDashboardLayout({
   
   // Function to check if a route is active
   const isActiveRoute = (href: string) => {
-    if (href === '/admin/dashboard' && pathname === '/admin/dashboard') return true;
-    if (href !== '/admin/dashboard' && pathname.startsWith(href)) return true;
-    return false;
+    // Use exact matching for all routes to avoid conflicts
+    const normalizedPathname = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+    const normalizedHref = href.endsWith('/') ? href.slice(0, -1) : href;
+    
+    return normalizedPathname === normalizedHref;
   };
 
-  // Function to check if any subroute is active
-  const hasActiveSubItem = (subItems: { href: string }[]) => {
-    return subItems.some(subItem => pathname.startsWith(subItem.href));
-  };
+
   
   // Function to toggle expanded menus
   const toggleMenu = (menuKey: string) => {
@@ -107,6 +107,15 @@ export default function AdminDashboardLayout({
         { label: 'Questions', href: '/admin/questions' },
       ]
     },
+    {
+      icon: Package,
+      label: 'Package Management',
+      key: 'packages',
+      subItems: [
+        { label: 'Service Packages', href: '/admin/packages' },
+        { label: 'Analytics', href: '/admin/packages/analytics' },
+      ]
+    },
   ];
 
   // Auto-expand menus that have active sub-items
@@ -141,12 +150,9 @@ export default function AdminDashboardLayout({
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               <Link href="/admin/dashboard" className="flex items-center ml-2 lg:ml-0">
-                <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-white" />
-                </div>
-                <span className="ml-3 text-xl font-bold text-gray-900">Admin Panel</span>
+                <Logo size="sm" />
                 <span className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full font-medium">
-                  InterviewAI
+                  Admin Panel
                 </span>
               </Link>
             </div>
@@ -220,7 +226,6 @@ export default function AdminDashboardLayout({
               {adminMenuItems.map((item, index) => {
                 const isExpanded = item.subItems && expandedMenus.includes(item.key);
                 const isActive = item.href ? isActiveRoute(item.href) : false;
-                const hasActiveSub = item.subItems ? hasActiveSubItem(item.subItems) : false;
                 
                 return (
                   <li key={index}>
@@ -229,25 +234,21 @@ export default function AdminDashboardLayout({
                         <button
                           onClick={() => toggleMenu(item.key)}
                           className={`w-full flex items-center justify-between p-3 rounded-lg group transition-colors ${
-                            hasActiveSub 
-                              ? 'bg-red-100 text-red-800 border border-red-200' 
-                              : 'text-gray-700 hover:bg-gray-100'
+                            'text-gray-700 hover:bg-gray-100'
                           }`}
                         >
                           <div className="flex items-center">
                             <item.icon className={`w-5 h-5 transition-colors ${
-                              hasActiveSub 
-                                ? 'text-red-600' 
-                                : 'text-gray-500 group-hover:text-gray-700'
+                              'text-gray-500 group-hover:text-gray-700'
                             }`} />
                             <span className="ml-3 text-sm font-medium">
                               {item.label}
                             </span>
                           </div>
                           {isExpanded ? (
-                            <ChevronDown className={`w-4 h-4 ${hasActiveSub ? 'text-red-500' : 'text-gray-400'}`} />
+                            <ChevronDown className={`w-4 h-4 text-gray-400`} />
                           ) : (
-                            <ChevronRight className={`w-4 h-4 ${hasActiveSub ? 'text-red-500' : 'text-gray-400'}`} />
+                            <ChevronRight className={`w-4 h-4 text-gray-400`} />
                           )}
                         </button>
 

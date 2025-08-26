@@ -1,13 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { createLevelMappingForAPI, createFieldMappingForAPI } from '@/services/levelMappingService';
 
 export async function GET() {
   try {
-    // Sử dụng mapping service
-    const fieldMapping = createFieldMappingForAPI();
-    const levelMapping = createLevelMappingForAPI();
-
     const allQuestions = await prisma.question.findMany({
       select: {
         fields: true,
@@ -19,11 +14,9 @@ export async function GET() {
     const totalQuestions = allQuestions.length;
     
     // Extract unique values
-    const allFields = Array.from(new Set(allQuestions.flatMap(q => q.fields || [])));
     const allTopics = Array.from(new Set(allQuestions.flatMap(q => q.topics || [])));
-    const allLevels = Array.from(new Set(allQuestions.flatMap(q => q.levels || [])));
 
-    // Count statistics với mapping
+    // Count statistics
     const fieldCounts = new Map<string, number>();
     const topicCounts = new Map<string, number>();
     const levelCounts = new Map<string, number>();
@@ -40,16 +33,34 @@ export async function GET() {
       });
     });
 
-    // Tạo mapped stats cho job roles
-    const mappedFieldStats = Object.entries(fieldMapping).map(([jobRoleField, questionBankFields]) => {
-      const count = questionBankFields.reduce((total, field) => {
+    // Create field stats for job roles
+    const jobRoleFieldMapping = {
+      'Frontend Developer': ['Frontend Development', 'Web Development'],
+      'Backend Developer': ['Backend Development', 'Server Development'],
+      'Full Stack Developer': ['Full Stack Development', 'Web Development'],
+      'Mobile Developer': ['Mobile Development', 'iOS Development', 'Android Development'],
+      'Data Scientist': ['Data Science', 'Machine Learning', 'AI'],
+      'DevOps Engineer': ['DevOps', 'Infrastructure', 'Cloud'],
+      'QA Engineer': ['Quality Assurance', 'Testing', 'QA'],
+      'UI/UX Designer': ['UI/UX Design', 'Design', 'User Experience']
+    };
+
+    const mappedFieldStats = Object.entries(jobRoleFieldMapping).map(([jobRoleTitle, questionFields]) => {
+      const count = questionFields.reduce((total, field) => {
         return total + (fieldCounts.get(field) || 0);
       }, 0);
-      return { field: jobRoleField, count };
+      return { field: jobRoleTitle, count };
     });
 
-    const mappedLevelStats = Object.entries(levelMapping).map(([jobRoleLevel, questionBankLevels]) => {
-      const count = questionBankLevels.reduce((total, level) => {
+    // Create level stats for job roles
+    const jobRoleLevelMapping = {
+      'Junior': ['junior'],
+      'Mid': ['middle'],
+      'Senior': ['senior']
+    };
+
+    const mappedLevelStats = Object.entries(jobRoleLevelMapping).map(([jobRoleLevel, questionLevels]) => {
+      const count = questionLevels.reduce((total, level) => {
         return total + (levelCounts.get(level) || 0);
       }, 0);
       return { level: jobRoleLevel, count };
@@ -57,9 +68,9 @@ export async function GET() {
 
     return NextResponse.json({
       totalQuestions,
-      fields: Object.keys(fieldMapping), // Chỉ hiển thị job role fields
+      fields: Object.keys(jobRoleFieldMapping), // Job role titles
       topics: allTopics,
-      levels: Object.keys(levelMapping), // Chỉ hiển thị job role levels
+      levels: Object.keys(jobRoleLevelMapping), // Job role levels
       fieldStats: mappedFieldStats,
       topicStats: Array.from(topicCounts.entries()).map(([topic, count]) => ({ topic, count })),
       levelStats: mappedLevelStats

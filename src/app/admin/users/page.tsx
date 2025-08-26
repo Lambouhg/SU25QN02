@@ -9,6 +9,7 @@ import ConfirmDeleteModal from '@/components/admin/ConfirmDeleteModal';
 import Toast from '@/components/ui/Toast';
 import { useRole } from '@/context/RoleContext';
 import { useRoleInvalidation } from '@/hooks/useRoleInvalidation';
+import { useUser } from '@clerk/nextjs';
 import { X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ export default function AdminUsersPage() {
   const { loading } = useRole();
   const { refreshRole } = useRole();
   const { broadcastRoleInvalidation } = useRoleInvalidation();
+  const { user: currentUser } = useUser();
 
   // Helper function to get user initials
   const getUserInitials = (fullName: string | undefined): string => {
@@ -53,6 +55,27 @@ export default function AdminUsersPage() {
       lastName: parts.slice(1).join(' ') || ''
     };
   };
+
+  // Helper function to check if user is current user
+  const isCurrentUser = (user: User) => {
+    return currentUser && user.clerkId === currentUser.id;
+  };
+
+  // Helper function to check if user can be deleted
+  const canDeleteUser = (user: User) => {
+    return !isCurrentUser(user); // Không thể xóa chính mình
+  };
+
+  // Helper function to check if user role can be changed
+  const canChangeUserRole = (user: User, newRole: 'admin' | 'user') => {
+    // Không thể tự hạ cấp chính mình
+    if (isCurrentUser(user) && newRole === 'user') {
+      return false;
+    }
+    return true;
+  };
+
+
 
   const [users, setUsers] = useState<User[]>([]);
   
@@ -72,6 +95,7 @@ export default function AdminUsersPage() {
   const [editForm, setEditForm] = useState<{ firstName: string; lastName: string; email: string; role: 'admin' | 'user' }>({ firstName: '', lastName: '', email: '', role: 'user' });
 
   const [isFetching, setIsFetching] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'user'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
@@ -79,9 +103,30 @@ export default function AdminUsersPage() {
   const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => {
-    void fetchUsers(false);
+    // Fetch users ngay khi component mount
+    void fetchUsers(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fetch users khi tab được focus (user quay lại tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Chỉ fetch nếu users array rỗng hoặc đã quá 5 phút từ lần fetch cuối
+      if (users.length === 0 || !lastFetchTime || (Date.now() - lastFetchTime) > 300000) {
+        void fetchUsers(false); // Không clear cache khi focus
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [users.length, lastFetchTime]);
+
+  // Fetch users khi role thay đổi (để đảm bảo data luôn mới nhất)
+  useEffect(() => {
+    if (!loading && users.length === 0) {
+      void fetchUsers(true);
+    }
+  }, [loading]); // Chỉ chạy khi loading state thay đổi
 
   // Unified guarded fetch to avoid duplicate requests
   const fetchUsers = async (clearCache: boolean = true) => {
@@ -102,6 +147,7 @@ export default function AdminUsersPage() {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
+        setLastFetchTime(Date.now()); // Cập nhật thời gian fetch cuối cùng
       } else {
         showToast('Failed to fetch users', 'error');
       }
@@ -155,6 +201,12 @@ export default function AdminUsersPage() {
 
   const saveInlineEdit = async (u: User) => {
     try {
+      // Kiểm tra: Không cho phép admin tự hạ cấp chính mình
+      if (isCurrentUser(u) && editForm.role === 'user') {
+        showToast('You cannot demote yourself from admin role', 'error');
+        return;
+      }
+
       setEditSaving(true);
       const response = await fetch(`/api/user/${u.clerkId}`, {
         method: 'PATCH',
@@ -162,16 +214,20 @@ export default function AdminUsersPage() {
         body: JSON.stringify(editForm),
       });
       if (response.ok) {
-        setUsers(prev => prev.map(x => (
-          x._id === u._id ? {
-            ...x,
-            email: editForm.email,
-            role: editForm.role,
-            fullName: `${editForm.firstName} ${editForm.lastName}`.trim(),
-            firstName: editForm.firstName,
-            lastName: editForm.lastName,
-          } : x
-        )));
+        setUsers(prev => prev.map(x => {
+          // Sử dụng clerkId để xác định chính xác user cần update
+          if (x.clerkId === u.clerkId) {
+            return {
+              ...x,
+              email: editForm.email,
+              role: editForm.role,
+              fullName: `${editForm.firstName} ${editForm.lastName}`.trim(),
+              firstName: editForm.firstName,
+              lastName: editForm.lastName,
+            };
+          }
+          return x;
+        }));
         broadcastRoleInvalidation(u.clerkId);
         refreshRole();
         showToast(`Updated ${editForm.firstName} ${editForm.lastName}`, 'success');
@@ -194,6 +250,12 @@ export default function AdminUsersPage() {
   const changeUserRole = async (userId: string, newRole: 'admin' | 'user') => {
     const user = users.find(u => u._id === userId);
     if (!user) return;
+
+    // Kiểm tra: Không cho phép admin tự hạ cấp chính mình
+    if (isCurrentUser(user) && newRole === 'user') {
+      showToast('You cannot demote yourself from admin role', 'error');
+      return;
+    }
 
     const actionText = newRole === 'admin' ? 'promote' : 'demote';
 
@@ -219,8 +281,8 @@ export default function AdminUsersPage() {
         showToast(`Failed to ${actionText} ${user.fullName}`, 'error');
       }
     } catch (error) {
-      console.error('Error changing user role:', error);
-      showToast(`Failed to ${actionText} ${user?.fullName || 'user'}`, 'error');
+        console.error('Error changing user role:', error);
+        showToast(`Failed to ${actionText} ${user?.fullName || 'user'}`, 'error');
     }
   };
 
@@ -276,7 +338,7 @@ export default function AdminUsersPage() {
               <Users className="h-5 w-5 text-blue-600" />
               <h2 className="text-lg font-semibold text-gray-900">All Users</h2>
               <span className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
-                {filteredUsers.length} total
+                {isFetching ? 'Loading...' : `${filteredUsers.length} total`}
               </span>
             </div>
             {/* Controls: search, filters, page size */}
@@ -308,22 +370,30 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="overflow-x-auto overflow-y-visible">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedUsers.map((user) => (
+            {isFetching && users.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Loading users...</p>
+                </div>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedUsers.map((user) => (
                   <tr key={user._id || user.id || user.clerkId} className="hover:bg-gray-50">
                     <td
                       className="px-6 py-4 whitespace-nowrap cursor-pointer"
@@ -382,41 +452,48 @@ export default function AdminUsersPage() {
                             <Edit className="w-4 h-4 mr-2" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => changeUserRole(user._id, (typeof user.role === 'string' ? user.role : 'user') === 'admin' ? 'user' : 'admin')}
-                          >
-                            {(typeof user.role === 'string' ? user.role : 'user') === 'admin' ? (
-                              <>
-                                <UserCheck className="w-4 h-4 mr-2" />
-                                Demote to User
-                              </>
-                            ) : (
-                              <>
-                                <Shield className="w-4 h-4 mr-2" />
-                                Promote to Admin
-                              </>
-                            )}
-                          </DropdownMenuItem>
+                          {/* Chỉ hiển thị nút Promote/Demote nếu có thể thay đổi role */}
+                          {canChangeUserRole(user, (typeof user.role === 'string' ? user.role : 'user') === 'admin' ? 'user' : 'admin') && (
+                            <DropdownMenuItem 
+                              onClick={() => changeUserRole(user._id, (typeof user.role === 'string' ? user.role : 'user') === 'admin' ? 'user' : 'admin')}
+                            >
+                              {(typeof user.role === 'string' ? user.role : 'user') === 'admin' ? (
+                                <>
+                                  <UserCheck className="w-4 h-4 mr-2" />
+                                  Demote to User
+                                </>
+                              ) : (
+                                <>
+                                  <Shield className="w-4 h-4 mr-2" />
+                                  Promote to Admin
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => setDeletingUser(user)}
-                            className="text-red-600"
-                          >
-                            {deleteLoading && deletingUser?._id === user._id ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                            ) : (
-                              <Trash2 className="w-4 h-4 mr-2" />
-                            )}
-                            Delete
-                          </DropdownMenuItem>
+                          {/* Chỉ hiển thị nút Delete nếu không phải chính mình */}
+                          {canDeleteUser(user) && (
+                            <DropdownMenuItem 
+                              onClick={() => setDeletingUser(user)}
+                              className="text-red-600"
+                            >
+                              {deleteLoading && deletingUser?._id === user._id ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                              ) : (
+                                <Trash2 className="w-4 h-4 mr-2" />
+                              )}
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenu>
                       </div>
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
-          </div>
+                                </tbody>
+                </table>
+              )}
+            </div>
           {/* Pagination footer */}
           <div className="flex items-center justify-between px-6 py-4 border-t">
             <div className="text-sm text-gray-600">

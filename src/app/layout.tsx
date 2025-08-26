@@ -21,8 +21,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "F.AI Interview",
-  description: "Improve your interview skills with our AI-powered platform",
+  title: 'F.AI Interview',
+  description: 'Practice interviews with AI-powered avatars. Get real-time feedback and improve your skills.',
+  icons: {
+    // Sử dụng file logo.png chính (tự động scale)
+    icon: [
+      { url: '/logo.png', sizes: '128x128', type: 'image/png' },
+      { url: '/logo.png', sizes: '96x96', type: 'image/png' },
+      { url: '/logo.png', sizes: '64x64', type: 'image/png' },
+      { url: '/logo.png', sizes: '48x48', type: 'image/png' },
+      { url: '/logo.png', sizes: '32x32', type: 'image/png' },
+      { url: '/logo.png', sizes: '16x16', type: 'image/png' },
+    ],
+    // Nếu muốn tạo file riêng cho favicon:
+    // icon: [
+    //   { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    //   { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+    // ],
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

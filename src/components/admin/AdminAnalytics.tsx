@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Users,
   Activity,
   Target,
   Clock,
   Star,
   BarChart3,
-  PieChart,
   Download,
   RefreshCw,
   FileText
@@ -119,13 +117,30 @@ export default function AdminAnalytics() {
   const [timeRange, setTimeRange] = useState('30');
   const [includeCharts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Pagination for Top Performers
+  const [tpPage, setTpPage] = useState(1);
+  const [tpPageSize] = useState(5);
+  // Pagination for Recent Activities
+  const [raPage, setRaPage] = useState(1);
+  const [raPageSize] = useState(5);
+
+  // Keep RA page in range when data length changes
+  useEffect(() => {
+    const len = data?.recentActivities?.length || 0;
+    const totalPages = Math.max(1, Math.ceil(len / raPageSize));
+    if (raPage > totalPages) {
+      setRaPage(totalPages);
+    }
+  }, [data?.recentActivities?.length, raPage, raPageSize]);
 
   const fetchAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        days: timeRange,
-        charts: includeCharts.toString()
+        timeframe: timeRange,
+        charts: includeCharts.toString(),
+        recentLimit: '0',
+        topLimit: '0'
       });
 
       const response = await fetch(`/api/admin/user-activities/analytics?${params}`);
@@ -153,14 +168,7 @@ export default function AdminAnalytics() {
     setRefreshing(false);
   };
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-  };
+
 
   const formatNumber = (num: number) => {
     const safeNum = safeNumber(num);
@@ -218,13 +226,7 @@ export default function AdminAnalytics() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Platform Analytics</h1>
-          <p className="text-gray-500">
-            Comprehensive analytics for the last {timeRange} days
-          </p>
-        </div>
-        
+      
         <div className="flex gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-[140px]">
@@ -254,349 +256,225 @@ export default function AdminAnalytics() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Users className="h-4 w-4 text-blue-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-2xl font-bold">{formatNumber(data.overview.totalUsers)}</p>
-                <p className="text-xs text-gray-500">
-                  {data.overview.activeUsers} active ({Math.round(safeNumber(data.overview.platformEngagement))}%)
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Activity className="h-4 w-4 text-green-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-gray-600">Total Activities</p>
-                <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs)}</p>
-                <p className="text-xs text-gray-500">
-                  {Math.round(safeNumber((data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs) / Math.max(safeNumber(data.overview.activeUsers), 1)))} per active user
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Star className="h-4 w-4 text-yellow-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-gray-600">Study Streak</p>
-                <p className="text-2xl font-bold">{Math.round(safeNumber(data.learningStats.averageStreak))} days</p>
-                <p className="text-xs text-gray-500">Average across users</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 text-purple-600" />
-              <div className="ml-2">
-                <p className="text-sm font-medium text-gray-600">Study Time</p>
-                <p className="text-2xl font-bold">{formatDuration(data.learningStats.totalStudyTime)}</p>
-                <p className="text-xs text-gray-500">
-                  Total across platform
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Activity Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
             Activity Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
-                <Activity className="h-8 w-8 text-purple-600" />
-              </div>
-              <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalInterviews)}</p>
-              <p className="text-sm text-gray-600">Interviews</p>
-              <p className="text-xs text-gray-500 mt-1">
-                                <p className="text-xs text-gray-500">
-                {Math.round(safeNumber((data.activityStats.totalInterviews / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
-                </p>
-              </p>
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="text-center">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
+              <Activity className="h-8 w-8 text-purple-600" />
             </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full">
-                <Star className="h-8 w-8 text-blue-600" />
-              </div>
-              <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalQuizzes)}</p>
-              <p className="text-sm text-gray-600">Quizzes</p>
-              <p className="text-xs text-gray-500 mt-1">
-                                <p className="text-xs text-gray-500">
-                {Math.round(safeNumber((data.activityStats.totalQuizzes / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
-                </p>
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
-                <Target className="h-8 w-8 text-green-600" />
-              </div>
-              <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalTests)}</p>
-              <p className="text-sm text-gray-600">Test Mode</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {Math.round(safeNumber((data.activityStats.totalTests / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
-              </p>
-            </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
-                <FileText className="h-8 w-8 text-purple-600" />
-              </div>
-              <p className="text-2xl font-bold">{formatNumber(data.activityStats.totalJDs)}</p>
-              <p className="text-sm text-gray-600">JD Analysis</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {Math.round(safeNumber((data.activityStats.totalJDs / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
-              </p>
-            </div>
+            <p className="text-2xl font-bold text-gray-900">{formatNumber(data.activityStats.totalInterviews)}</p>
+            <p className="text-sm text-gray-600">Interviews</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round(safeNumber((data.activityStats.totalInterviews / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full">
+              <Star className="h-8 w-8 text-blue-600" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{formatNumber(data.activityStats.totalQuizzes)}</p>
+            <p className="text-sm text-gray-600">Quizzes</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round(safeNumber((data.activityStats.totalQuizzes / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
+            </p>
+          </div>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full">
+              <Target className="h-8 w-8 text-green-600" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{formatNumber(data.activityStats.totalTests)}</p>
+            <p className="text-sm text-gray-600">Assessment Mode</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round(safeNumber((data.activityStats.totalTests / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
+            </p>
+          </div>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full">
+              <FileText className="h-8 w-8 text-purple-600" />
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{formatNumber(data.activityStats.totalJDs)}</p>
+            <p className="text-sm text-gray-600">JD Analysis</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {Math.round(safeNumber((data.activityStats.totalJDs / Math.max(data.activityStats.totalInterviews + data.activityStats.totalQuizzes + data.activityStats.totalTests + data.activityStats.totalJDs, 1)) * 100))}% of total
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Goal Metrics */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              Goal Completion Metrics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Total Completed Goals</span>
-                <Badge className="bg-green-100 text-green-800">
-                  {data.learningStats.completedGoals}
-                </Badge>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Total Goals</span>
-                <Badge className="bg-blue-100 text-blue-800">
-                  {data.learningStats.totalGoals}
-                </Badge>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-gray-700">Goal Statistics:</p>
-                <div className="flex items-center justify-between text-sm">
-                  <span>Completion Rate</span>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
-                      {data.learningStats.totalGoals > 0 ? Math.round(safeNumber((data.learningStats.completedGoals / data.learningStats.totalGoals) * 100)) : 0}%
-                    </Badge>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>Average Goals per User</span>
-                  <div className="flex items-center gap-2">
-                    <span>{Math.round(safeNumber(data.learningStats.averageGoalsPerUser) * 10) / 10}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        
         {/* Top Skills */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5" />
-              Top Skills
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {(data.skillDistribution || []).slice(0, 8).map((skill, index) => (
-                <div key={skill.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
-                      {index + 1}
+
+      </div>
+
+  
+
+      {/* Recent Activities */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Recent Activities
+          </h3>
+          <Button variant="outline" size="sm" onClick={async () => { await handleRefresh(); setRaPage(1); }}>
+            <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+          </Button>
+        </div>
+        <div className="space-y-4">
+          {(() => {
+            const sorted = [...(data.recentActivities || [])]
+              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / raPageSize));
+            const currentPage = Math.min(raPage, totalPages);
+            const start = (currentPage - 1) * raPageSize;
+            const end = start + raPageSize;
+            const pageItems = sorted.slice(start, end);
+            return (
+              <>
+                {pageItems.map((activity, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={
+                          activity.type === 'jd' ? 'default' :
+                          activity.type === 'interview' ? 'default' :
+                          activity.type === 'quiz' ? 'secondary' : 'outline'
+                        }>
+                          {activity.type === 'jd' ? 'JD Practice' : activity.type}
+                        </Badge>
+                        <span className="font-medium text-gray-900">{activity.userName}</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{activity.userEmail}</p>
                     </div>
-                    <div>
-                      <p className="font-medium">{skill.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {skill.userCount} users • Avg: {skill.averageScore}%
+                    <div className="text-right">
+                      {activity.type === 'jd' ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                            Completed
+                          </Badge>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg text-gray-900">
+                            {safeNumber(activity.score)}/10
+                          </span>
+                          <Badge variant={safeNumber(activity.score) >= 7 ? 'default' : safeNumber(activity.score) >= 5 ? 'secondary' : 'destructive'}>
+                            {safeNumber(activity.score) >= 7 ? 'Good' : safeNumber(activity.score) >= 5 ? 'Average' : 'Needs Work'}
+                          </Badge>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(activity.timestamp).toLocaleDateString()} • {activity.duration}min
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-1">
-                    <div 
-                      className="w-2 h-4 bg-red-200 rounded-sm" 
-                      style={{ 
-                        height: `${(skill.levelDistribution.beginner / skill.userCount) * 100}%`,
-                        minHeight: '2px'
-                      }}
-                    />
-                    <div 
-                      className="w-2 h-4 bg-yellow-200 rounded-sm"
-                      style={{ 
-                        height: `${(skill.levelDistribution.intermediate / skill.userCount) * 100}%`,
-                        minHeight: '2px'
-                      }}
-                    />
-                    <div 
-                      className="w-2 h-4 bg-blue-200 rounded-sm"
-                      style={{ 
-                        height: `${(skill.levelDistribution.advanced / skill.userCount) * 100}%`,
-                        minHeight: '2px'
-                      }}
-                    />
-                    <div 
-                      className="w-2 h-4 bg-green-200 rounded-sm"
-                      style={{ 
-                        height: `${(skill.levelDistribution.expert / skill.userCount) * 100}%`,
-                        minHeight: '2px'
-                      }}
-                    />
+                ))}
+                {(!data.recentActivities || data.recentActivities.length === 0) && (
+                  <p className="text-center text-gray-500 py-4">No recent activities found</p>
+                )}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <span className="text-sm text-gray-500">Page {currentPage} of {totalPages} • {total} activities</span>
+                  <div className="flex gap-2">
+                    <button
+                      className={`px-3 py-1.5 rounded-lg text-sm border ${currentPage === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                      onClick={() => currentPage > 1 && setRaPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      aria-label="Previous page"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      className={`px-3 py-1.5 rounded-lg text-sm border ${currentPage === totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                      onClick={() => currentPage < totalPages && setRaPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      aria-label="Next page"
+                    >
+                      Next
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </>
+            );
+          })()}
+        </div>
       </div>
 
-      {/* User Engagement */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChart className="h-5 w-5" />
-            User Engagement Metrics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
-                {data.engagementMetrics.dailyActiveUsers}
-              </div>
-              <p className="text-sm text-gray-600">Daily Active Users</p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
-                {data.engagementMetrics.weeklyActiveUsers}
-              </div>
-              <p className="text-sm text-gray-600">Weekly Active Users</p>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">
-                {data.engagementMetrics.monthlyActiveUsers}
-              </div>
-              <p className="text-sm text-gray-600">Monthly Active Users</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activities */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Recent Activities
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {(data.recentActivities || []).map((activity, index) => (
-              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={
-                      activity.type === 'jd' ? 'default' :
-                      activity.type === 'interview' ? 'default' :
-                      activity.type === 'quiz' ? 'secondary' : 'outline'
-                    }>
-                      {activity.type === 'jd' ? 'JD Practice' : activity.type}
-                    </Badge>
-                    <span className="font-medium">{activity.userName}</span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">{activity.userEmail}</p>
-                </div>
-                <div className="text-right">
-                  {/* Show different display for JD vs other activities */}
-                  {activity.type === 'jd' ? (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                        Completed
-                      </Badge>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-lg">
-                        {safeNumber(activity.score)}/10
-                      </span>
-                      <Badge variant={safeNumber(activity.score) >= 7 ? 'default' : safeNumber(activity.score) >= 5 ? 'secondary' : 'destructive'}>
-                        {safeNumber(activity.score) >= 7 ? 'Good' : safeNumber(activity.score) >= 5 ? 'Average' : 'Needs Work'}
-                      </Badge>
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">
-                    {new Date(activity.timestamp).toLocaleDateString()} • {activity.duration}min
-                  </p>
-                </div>
-              </div>
-            ))}
-            {(!data.recentActivities || data.recentActivities.length === 0) && (
-              <p className="text-center text-gray-500 py-4">No recent activities found</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Top Performers */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             <Star className="h-5 w-5" />
             Top Performers
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {(data.topPerformers || []).slice(0, 5).map((performer, index) => (
-              <div key={index} className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">
-                    {performer.userName || 'Unknown User'}
-                  </p>
-                  <p className="text-sm text-gray-500">{performer.email}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">{performer.totalActivities} activities</p>
-                  <p className="text-sm text-gray-500">{performer.studyStreak} day streak</p>
-                </div>
+          </h3>
+        </div>
+        <div className="space-y-4">
+          {(() => {
+            const sorted = [...(data.topPerformers || [])]
+              .filter(p => safeNumber(p.totalActivities) > 0)
+              .sort((a, b) => {
+                const byActivities = (b.totalActivities || 0) - (a.totalActivities || 0);
+                if (byActivities !== 0) return byActivities;
+                return (b.studyStreak || 0) - (a.studyStreak || 0);
+              });
+            const total = sorted.length;
+            const totalPages = Math.max(1, Math.ceil(total / tpPageSize));
+            const currentPage = Math.min(tpPage, totalPages);
+            const start = (currentPage - 1) * tpPageSize;
+            const end = start + tpPageSize;
+            const pageItems = sorted.slice(start, end);
+            return (
+              <>
+                {pageItems.map((performer, index) => (
+            <div key={index} className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">
+                  {performer.userName || 'Unknown User'}
+                </p>
+                <p className="text-sm text-gray-500">{performer.email}</p>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              <div className="text-right">
+                <p className="font-bold text-gray-900">{performer.totalActivities} activities</p>
+                <p className="text-sm text-gray-500">{performer.studyStreak} day streak</p>
+              </div>
+            </div>
+                ))}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <span className="text-sm text-gray-500">Page {currentPage} of {totalPages} • {total} users</span>
+                  <div className="flex gap-2">
+                    <button
+                      className={`px-3 py-1.5 rounded-lg text-sm border ${currentPage === 1 ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                      onClick={() => currentPage > 1 && setTpPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      aria-label="Previous page"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      className={`px-3 py-1.5 rounded-lg text-sm border ${currentPage === totalPages ? 'text-gray-400 border-gray-200 cursor-not-allowed' : 'text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                      onClick={() => currentPage < totalPages && setTpPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      aria-label="Next page"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
     </div>
   );
 }

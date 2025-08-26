@@ -1,5 +1,7 @@
 "use client";
 
+import { Logo } from '@/components/ui/logo';
+
 const Footer = () => {
   return (
     <footer className="w-full bg-black">
@@ -8,12 +10,7 @@ const Footer = () => {
           {/* Company Info */}
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center space-x-2 mb-6">
-              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none">
-                  <path d="M8 12C8 9.79086 9.79086 8 12 8H14C16.2091 8 18 9.79086 18 12C18 14.2091 16.2091 16 14 16H12C9.79086 16 8 14.2091 8 12Z" fill="currentColor"/>
-                </svg>
-              </div>
-              <span className="text-white font-bold text-xl">F.AI Interview</span>
+              <Logo size="sm" />
             </div>
             <p className="text-gray-400 mb-6">
               Enhance your interview skills with intelligent AI

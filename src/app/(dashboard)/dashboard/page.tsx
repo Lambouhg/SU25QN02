@@ -3,7 +3,7 @@
 import { 
   Brain, FileText,
   TestTube, FileQuestion, TrendingUp,
-  Clock, Award, Users, Target
+  Clock, Award, Users, Target, Home, BookOpen, Calendar, Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -17,12 +17,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
 } from 'recharts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +24,10 @@ import { Label } from '@/components/ui/label';
 import { usePet } from '@/hooks/usePet';
 import { PetDisplay } from '@/components/pet/PetDisplay';
 import { getPetEvolutionStages } from '@/utils/petLogic';
+import { ChartRadarLinesOnly } from '@/components/ui/chart-radar-lines-only';
+import { ChartMultiAreaInteractive } from '@/components/ui/chart-multi-area-interactive';
+import MagicDock from '@/components/ui/magicdock';
+import { useRouter } from 'next/navigation';
 
 interface SkillProgress {
   name: string;
@@ -77,8 +75,41 @@ interface ProgressData {
 
 export default function DashboardPage() {
   const { isLoaded, user } = useUser();
+  const router = useRouter();
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // User navigation items for MagicDock
+  const userDockItems = [
+    {
+      id: 1,
+      icon: <Home className="w-6 h-6 text-white" />,
+      label: "Dashboard",
+      description: "Main overview",
+      onClick: () => router.push("/dashboard")
+    },
+    {
+      id: 2,
+      icon: <BookOpen className="w-6 h-6 text-white" />,
+      label: "Practice",
+      description: "Start interview",
+      onClick: () => router.push("/avatar-interview")
+    },
+    {
+      id: 3,
+      icon: <Calendar className="w-6 h-6 text-white" />,
+      label: "History",
+      description: "View progress",
+      onClick: () => router.push("/dashboard")
+    },
+    {
+      id: 4,
+      icon: <Settings className="w-6 h-6 text-white" />,
+      label: "Profile",
+      description: "Account settings",
+      onClick: () => router.push("/profile")
+    }
+  ];
 
   // Multi-Line Chart State
   const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day');
@@ -125,6 +156,7 @@ export default function DashboardPage() {
 
   // --- STREAK FEATURE STATE & LOGIC ---
   const [showStreakModal, setShowStreakModal] = useState(false);
+  const [showStreakWelcome, setShowStreakWelcome] = useState(false);
 
   // Lấy số ngày streak thực tế từ progress.stats.studyStreak
   const currentStreak = progress?.stats?.studyStreak || 0;
@@ -202,17 +234,25 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [isLoaded, user]);
 
+  // Show welcome streak popup once after onboarding redirect
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const flag = localStorage.getItem('showStreakWelcome');
+      if (flag) {
+        setShowStreakWelcome(true);
+        localStorage.removeItem('showStreakWelcome');
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     if (!progress) return;
     
     // Sử dụng allActivities thay vì recentActivities để có đầy đủ dữ liệu
     const activities = progress.allActivities || progress.recentActivities || [];
     
-    console.log('Dashboard Chart Debug:', {
-      totalActivities: activities.length,
-      quizActivities: activities.filter(a => a.type === 'quiz').length,
-      activities: activities.map(a => ({ type: a.type, timestamp: a.timestamp }))
-    });
+
 
     
     const groupKey = (date: Date): string => {
@@ -251,8 +291,7 @@ export default function DashboardPage() {
         };
       }
     }).sort((a, b) => a.period.localeCompare(b.period));
-    
-    console.log('Chart Data Generated:', chartData);
+
 
     setLineChartData(chartData);
   }, [progress, viewMode, lineMode]);
@@ -427,20 +466,19 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineChartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="period" />
-                    <YAxis domain={[0, lineMode === 'score' ? 100 : 'auto']} />
-                    <Tooltip formatter={(value: number) => lineMode === 'score' ? `${value.toFixed(1)}%` : value} />
-                    <Legend />
-                    <Line type="monotone" dataKey="quiz" name="Quiz" stroke="#7c3aed" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="test" name="Test" stroke="#dc2626" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="interview" name="Interview" stroke="#059669" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              <ChartMultiAreaInteractive
+                data={lineChartData.map(d => ({
+                  // map period -> date to keep X axis formatter compatible
+                  date: d.period,
+                  quiz: d.quiz,
+                  test: d.test,
+                  interview: d.interview,
+                }))}
+                height={288}
+                title=""
+                description=""
+                hideCard={true}
+              />
             </div>
           </div>
           {/* Spider Chart - Right */}
@@ -457,55 +495,17 @@ export default function DashboardPage() {
                 </Button>
               </div>
               <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={overallSpiderData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="subject" />
-                    <PolarRadiusAxis angle={90} domain={[0, 100]} />
-                    <Tooltip 
-                      content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          const currentValue = payload[0].value as number;
-                          const targetValue = data.target || 0;
-                          const unit = data.unit || '';
-                          return (
-                            <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-                              <p className="font-semibold text-gray-800 mb-1">{label}</p>
-                              <div className="space-y-1">
-                                <p className="text-blue-600 font-medium">
-                                  Current: {currentValue}{unit}
-                                </p>
-                                {targetValue > 0 && (
-                                  <p className="text-sm text-gray-600">
-                                    Target: {targetValue}{unit}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Legend />
-                    <Radar
-                      name="Current"
-                      dataKey="A"
-                      stroke="#2563eb"
-                      fill="#2563eb"
-                      fillOpacity={0.3}
-                    />
-                    <Radar
-                      name="Target"
-                      dataKey="target"
-                      stroke="#f59e0b"
-                      fill="#f59e0b"
-                      fillOpacity={0.1}
-                      strokeDasharray="5 5"
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <ChartRadarLinesOnly 
+                  data={overallSpiderData.map(item => ({
+                    month: item.subject,
+                    desktop: item.A,
+                    mobile: item.target
+                  }))}
+                  title=""
+                  description=""
+                  showTargets={true}
+                  hideCard={true}
+                />
               </div>
             </div>
           </div>
@@ -546,7 +546,7 @@ export default function DashboardPage() {
                   className="flex flex-col items-center p-4 rounded-lg border border-gray-200 hover:border-purple-500 hover:shadow-md transition-all group">
                   <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-3">
                     <TestTube className="w-6 h-6 text-purple-600" />
-                  </div>                  <span className="text-sm font-medium text-gray-900 text-center">Test Mode</span>
+                  </div>                  <span className="text-sm font-medium text-gray-900 text-center">Assessment Mode</span>
                   <span className="text-xs text-gray-500 mt-1">Check your Test score</span>
                   <button className="mt-3 px-4 py-2 bg-purple-600 text-white text-xs rounded-lg hover:bg-purple-700 transition-colors">
                     Take Test
@@ -684,6 +684,20 @@ export default function DashboardPage() {
           </div>
         </div>
      </div>
+      {/* Streak Welcome Popup */}
+      {showStreakWelcome && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl text-center">
+            <div className="text-3xl mb-2">🔥</div>
+            <h3 className="text-xl font-semibold mb-2">Start your streak!</h3>
+            <p className="text-sm text-gray-600 mb-4">Keep learning daily to grow your study pet and hit milestones.</p>
+            <div className="flex justify-center gap-2">
+              <Button onClick={() => setShowStreakWelcome(false)} className="px-6">Got it</Button>
+              <Button variant="outline" onClick={() => { setShowStreakWelcome(false); setShowStreakModal(true); }}>Learn more</Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Target Modal */}
       {showTargetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
@@ -807,7 +821,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <h5 className="font-semibold text-yellow-800 mb-2">⚠️ Important Notice</h5>
+                <h5 className="font-semibold text-yellow-800 mb-2"> Important Notice</h5>
                 <p className="text-sm text-yellow-700">
                   If you don&#39;t study for 2 consecutive days, your pet will disappear and you&#39;ll have to start over!
                 </p>
@@ -819,6 +833,14 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      
+      {/* User Navigation Dock */}
+      <MagicDock 
+        items={userDockItems}
+        variant="tooltip"
+        magnification={70}
+        className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50"
+      />
     </DashboardLayout>
   );
 }

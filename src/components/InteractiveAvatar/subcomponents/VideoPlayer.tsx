@@ -133,6 +133,54 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       await startListening();
     }
   };
+
+  // Auto-manage microphone based on avatar talking state
+  useEffect(() => {
+    const handleAvatarTalkingChange = async () => {
+      if (isAvatarTalking) {
+        // Stop listening when avatar starts talking
+        if (isListening) {
+          console.log('Auto-stopping microphone: Avatar started talking');
+          await stopListening();
+        }
+      }
+      // Note: We don't auto-start listening when avatar stops talking
+      // to give user control over when they want to speak
+    };
+
+    handleAvatarTalkingChange();
+  }, [isAvatarTalking, isListening, stopListening]);
+
+  // Show visual feedback when microphone is disabled due to avatar talking
+  const getMicrophoneStatus = () => {
+    if (isAvatarTalking) {
+      return {
+        status: 'disabled',
+        message: 'Microphone disabled - Avatar is speaking',
+        color: 'text-amber-600',
+        bgColor: 'bg-amber-50',
+        iconColor: 'text-amber-500'
+      };
+    } else if (isListening) {
+      return {
+        status: 'active',
+        message: 'Listening for your voice...',
+        color: 'text-green-600',
+        bgColor: 'bg-green-50',
+        iconColor: 'text-green-500'
+      };
+    } else {
+      return {
+        status: 'inactive',
+        message: 'Click microphone to start speaking',
+        color: 'text-gray-500',
+        bgColor: 'bg-gray-50',
+        iconColor: 'text-gray-400'
+      };
+    }
+  };
+
+  const microphoneStatus = getMicrophoneStatus();
  
   // Use external isInterrupting state if available, otherwise use local state
   const isInterrupting = externalIsInterrupting || localIsInterrupting;
@@ -263,14 +311,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
                   <Button 
                     size="icon" 
-                    variant="ghost" 
-                    className="text-white hover:bg-white/20"
+                    variant={isListening ? "default" : "ghost"}
+                    className={`${isListening ? 'bg-green-500 hover:bg-green-600' : 'text-white hover:bg-white/20'} ${isAvatarTalking ? 'opacity-50' : ''}`}
                     onClick={toggleMicrophone}
                     disabled={voiceDisabled || isAvatarTalking || isInitializing}
-                    title={isListening ? 'Stop speaking' : 'Start speaking'}
+                    title={
+                      isAvatarTalking 
+                        ? 'Microphone disabled - Avatar is speaking' 
+                        : isListening 
+                          ? 'Stop speaking' 
+                          : 'Start speaking'
+                    }
                   >
                     {isInitializing ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : isListening ? (
+                      <div className="relative">
+                        <Mic className="w-5 h-5" />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                      </div>
                     ) : (
                       <Mic className="w-5 h-5" />
                     )}
@@ -340,9 +399,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
             <span className="text-sm font-semibold text-gray-700">Live Conversation</span>
           </div>
-          <p className="text-gray-800 leading-relaxed font-medium">
-            {isAvatarTalking ? "Avatar is speaking..." : "Ready for your response..."}
-          </p>
+          <div className="space-y-2">
+            <p className="text-gray-800 leading-relaxed font-medium">
+              {isAvatarTalking ? "Avatar is speaking..." : "Ready for your response..."}
+            </p>
+            
+            {/* Voice interaction status */}
+            <div className={`flex items-center gap-2 text-sm p-3 rounded-lg ${microphoneStatus.bgColor}`}>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${microphoneStatus.status === 'active' ? 'bg-green-500' : microphoneStatus.status === 'disabled' ? 'bg-amber-500' : 'bg-gray-400'}`}></div>
+              <span className={microphoneStatus.color}>{microphoneStatus.message}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

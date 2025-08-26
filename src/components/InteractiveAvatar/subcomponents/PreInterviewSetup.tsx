@@ -208,7 +208,10 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       },
       language: config.language,
       avatar: config.avatarName,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      // Thêm thông tin job role để API có thể sử dụng mapping mới
+      jobRoleTitle: selectedJobRole.title,
+      jobRoleLevel: selectedJobRole.level
     };
   }, [selectedJobRole, config.language, config.avatarName]);
 
@@ -452,37 +455,14 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                <div className="flex items-center text-sm text-gray-600">
                  <span className="font-medium mr-2">Field:</span>
                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                   {selectedJobRole.category?.name || 'Unknown'}
+                   {selectedJobRole.title || 'Unknown'}
                  </span>
-                 {selectedJobRole.category?.name && (
+                 {selectedJobRole.title && (
                    <span className="ml-2 text-gray-500">
                      {(() => {
-                       // Field mapping logic
-                       const fieldMapping: Record<string, string[]> = {
-                         'Frontend': ['Frontend Development', 'Web Development'],
-                         'Backend': ['Backend Development', 'Server Development'],
-                         'Full Stack': ['Full Stack Development', 'Web Development'],
-                         'Mobile': ['Mobile Development', 'iOS Development', 'Android Development'],
-                         'Data Science': ['Data Science', 'Machine Learning', 'AI'],
-                         'DevOps': ['DevOps', 'Infrastructure', 'Cloud'],
-                         'QA': ['Quality Assurance', 'Testing', 'QA'],
-                         'UI/UX': ['UI/UX Design', 'Design', 'User Experience'],
-                         'Web Development': ['Frontend Development', 'Web Development'],
-                         'Mobile Development': ['Mobile Development', 'iOS Development', 'Android Development'],
-                         'AI/ML': ['Data Science', 'Machine Learning', 'AI'],
-                         'Product Management': ['Product Management'],
-                         'Software Development': ['Frontend Development', 'Backend Development', 'Web Development'],
-                         'Cloud': ['Cloud Computing', 'DevOps', 'Infrastructure'],
-                         'Security': ['Security', 'Web Security'],
-                         'Design': ['UI/UX Design', 'Design', 'User Experience'],
-                         'Data': ['Data Science', 'Machine Learning', 'AI']
-                       };
-                       
-                       const mappedFields = fieldMapping[selectedJobRole.category?.name] || [selectedJobRole.category?.name];
-                       const totalCount = mappedFields.reduce((total, field) => {
-                         const fieldStat = questionBankStats.fieldStats.find(f => f.field === field);
-                         return total + (fieldStat?.count || 0);
-                       }, 0);
+                       // Find the field stat for this job role title
+                       const fieldStat = questionBankStats.fieldStats.find(f => f.field === selectedJobRole.title);
+                       const totalCount = fieldStat?.count || 0;
                        
                        return `(${totalCount} questions)`;
                      })()}
@@ -497,20 +477,9 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                  </span>
                                     <span className="ml-2 text-gray-500">
                      {(() => {
-                       // Level mapping logic - API stats returns JobRole level names
-                       const levelMapping: Record<string, string[]> = {
-                         'Intern': ['Intern'],
-                         'Junior': ['Junior'],
-                         'Mid': ['Mid'],
-                         'Senior': ['Senior'],
-                         'Lead': ['Senior']
-                       };
-                       
-                       const mappedLevels = levelMapping[selectedJobRole.level] || [selectedJobRole.level];
-                       const totalCount = mappedLevels.reduce((total, level) => {
-                         const levelStat = questionBankStats.levelStats.find(l => l.level === level);
-                         return total + (levelStat?.count || 0);
-                       }, 0);
+                       // Find the level stat for this job role level
+                       const levelStat = questionBankStats.levelStats.find(l => l.level === selectedJobRole.level);
+                       const totalCount = levelStat?.count || 0;
                        
                        return `(${totalCount} questions)`;
                      })()}

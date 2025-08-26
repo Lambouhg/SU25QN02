@@ -45,18 +45,23 @@ export function useRoleInvalidation() {
       // Set the signal
       localStorage.setItem(ROLE_INVALIDATION_KEY, JSON.stringify(signal));
       
-      // Immediately trigger storage event for same tab
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: ROLE_INVALIDATION_KEY,
-        newValue: JSON.stringify(signal),
-        oldValue: null,
-        storageArea: localStorage
-      }));
+      // Thêm debounce để tránh multiple rapid broadcasts
+      const timeoutId = setTimeout(() => {
+        // Immediately trigger storage event for same tab
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: ROLE_INVALIDATION_KEY,
+          newValue: JSON.stringify(signal),
+          oldValue: null,
+          storageArea: localStorage
+        }));
+      }, 50); // 50ms delay để tránh rapid successive calls
       
       // Remove the signal after a short delay to clean up
       setTimeout(() => {
         localStorage.removeItem(ROLE_INVALIDATION_KEY);
       }, 1000);
+      
+      return () => clearTimeout(timeoutId);
     }
   };
 

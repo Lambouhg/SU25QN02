@@ -15,17 +15,17 @@ interface InteractiveAvatarProps {
 const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) => {
   const [interviewResult, setInterviewResult] = React.useState<Interview | null>(null);
 
-  // UI callback khi nhận kết quả phỏng vấn
+  // UI callback when interview result is received
   const handleEndSessionUI = (data: Interview) => {
     console.log('handleEndSessionUI called with data:', data);
     setInterviewResult(data);
-    // Gọi onEndSession từ component cha nếu có
+    // Call onEndSession from parent component if provided
     if (onEndSession) {
       onEndSession(data);
     }
   };
 
-  // Handler để chuyển đến trang evaluation
+  // Handler to navigate to evaluation page
   const handleViewEvaluation = () => {
     if (interviewResult?.id) {
       window.location.href = `/avatar-interview/evaluation?id=${interviewResult.id}`;
@@ -34,15 +34,15 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
 
   const handleBackToInterview = () => {
     setInterviewResult(null);
-    // Có thể reset thêm các state khác nếu muốn
+    // Optionally reset other states if needed
   };
 
   // Handler for VideoPlayer onStopSession (no-arg)
   const handleStopSession = async () => {
-    // Reset UI or state as needed when user stops session manually
+    // Reset UI or state when user manually stops session
     setInterviewResult(null);
     resetAutoPrompt(); // Reset auto-prompt when stopping session
-    await handleEndSession(); // cleanup Heygen/avatar session đúng chuẩn
+    await handleEndSession(); // Properly clean up Heygen/avatar session
     if (onEndSession) {
       onEndSession();
     }
@@ -102,8 +102,8 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
             </svg>
             <div className="text-xl text-blue-600 font-medium">
               {isSavingInterview
-                ? 'Đang lưu kết quả phỏng vấn...'
-                : 'Đang chuẩn bị phỏng vấn...'}
+                ? 'Saving interview results...'
+                : 'Preparing interview...'}
             </div>
           </div>
         )}
@@ -126,7 +126,8 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
             jobRoles={jobRoles}
           />
         ) : (
-          <div className="flex h-screen bg-gray-50 overflow-hidden">            {/* Video Player - Main content area */}
+          <div className="flex h-screen bg-gray-50 overflow-hidden">
+            {/* Video Player - Main content area */}
             <div className="flex-1 flex flex-col min-w-0">
               <div className="flex-1 flex min-h-0">
                 <VideoPlayer
@@ -146,7 +147,6 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
                   voiceLanguage={config.language === 'en' ? 'en-US' : 'vi-VN'}
                 />
 
-
                 {/* Chat Controls - Right sidebar */}
                 <ChatControls
                   sessionState={sessionState}
@@ -164,7 +164,6 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
                 />
               </div>
             </div>
-
           </div>
         )}
       </div>

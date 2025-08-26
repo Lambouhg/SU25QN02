@@ -56,28 +56,28 @@ interface InterviewDetailDialogProps {
 function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDialogProps) {
   if (!interview || !isOpen) return null;
 
-  // Mapping dữ liệu
-  const candidateName = interview.userId || "Ứng viên";
-  const position = interview.jobRole?.title || "Không có tên vị trí";
+  // Data mapping
+  const candidateName = interview.userId || "Candidate";
+  const position = interview.jobRole?.title || "No position title";
   const date = new Date(interview.startTime).toLocaleString();
   const status = interview.status;
   const summary = interview.evaluation?.recommendations?.join(', ') || "";
-  const notes = ""; // Nếu có trường notes thì lấy, không thì để trống
+  const notes = ""; // If there's a notes field, get it, otherwise leave empty
   const conversationHistory = interview.conversationHistory?.map(msg => ({
-    speaker: msg.role === 'user' ? 'Bạn' : 'AI',
+    speaker: msg.role === 'user' ? 'You' : 'AI',
     text: msg.content
   })) || [];
   const skillScores = interview.skillAssessment || {};
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case "Hoàn thành":
+      case "Completed":
       case "completed":
         return "default";
-      case "Đang chờ":
+      case "Pending":
       case "pending":
         return "secondary";
-      case "Đã hủy":
+      case "Cancelled":
       case "cancelled":
         return "destructive";
       default:
@@ -96,8 +96,8 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
       <div className="bg-white rounded-3xl shadow-2xl max-w-[800px] w-full max-h-[90vh] flex flex-col relative border border-gray-100">
         <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white rounded-t-3xl">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Chi tiết phiên phỏng vấn</h2>
-            <p className="text-gray-600 mt-1">Thông tin chi tiết về phiên phỏng vấn này</p>
+            <h2 className="text-2xl font-bold text-gray-900">Interview Session Details</h2>
+            <p className="text-gray-600 mt-1">Detailed information about this interview session</p>
           </div>
           <Button 
             variant="ghost" 
@@ -118,7 +118,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
               <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
                 <User className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="text-sm font-medium text-blue-900">Ứng viên</p>
+                  <p className="text-sm font-medium text-blue-900">Candidate</p>
                   <p className="text-sm text-blue-700">{candidateName}</p>
                 </div>
               </div>
@@ -126,7 +126,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
               <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl border border-purple-100">
                 <Briefcase className="h-5 w-5 text-purple-600" />
                 <div>
-                  <p className="text-sm font-medium text-purple-900">Vị trí</p>
+                  <p className="text-sm font-medium text-purple-900">Position</p>
                   <p className="text-sm text-purple-700">{position}</p>
                 </div>
               </div>
@@ -134,7 +134,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
               <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-100">
                 <Clock className="h-5 w-5 text-green-600" />
                 <div>
-                  <p className="text-sm font-medium text-green-900">Ngày</p>
+                  <p className="text-sm font-medium text-green-900">Date</p>
                   <p className="text-sm text-green-700">{date}</p>
                 </div>
               </div>
@@ -144,21 +144,21 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
               <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
                 <TrendingUp className="h-5 w-5 text-orange-600" />
                 <div>
-                  <p className="text-sm font-medium text-orange-900">Trạng thái</p>
+                  <p className="text-sm font-medium text-orange-900">Status</p>
                   <Badge variant={getStatusVariant(status)} className="mt-1">{status}</Badge>
                 </div>
               </div>
               
               {summary && (
                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <p className="text-sm font-medium text-gray-900 mb-2">Tóm tắt</p>
+                  <p className="text-sm font-medium text-gray-900 mb-2">Summary</p>
                   <p className="text-sm text-gray-700">{summary}</p>
                 </div>
               )}
               
               {notes && (
                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <p className="text-sm font-medium text-gray-900 mb-2">Ghi chú</p>
+                  <p className="text-sm font-medium text-gray-900 mb-2">Notes</p>
                   <p className="text-sm text-gray-700">{notes}</p>
                 </div>
               )}
@@ -170,7 +170,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5 text-indigo-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Lịch sử hội thoại</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Conversation History</h3>
               </div>
               <div className="max-h-[300px] overflow-y-auto space-y-3 border border-gray-200 rounded-xl p-4 bg-gray-50">
                 {conversationHistory.map((msg, index) => (
@@ -182,7 +182,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
                     }`}>
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs font-medium opacity-80">
-                          {msg.speaker === 'Bạn' ? 'Bạn' : 'AI Interviewer'}
+                          {msg.speaker === 'You' ? 'You' : 'AI Interviewer'}
                         </span>
                       </div>
                       <p className="text-sm leading-relaxed">{msg.text}</p>
@@ -198,7 +198,7 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Award className="h-5 w-5 text-amber-600" />
-                <h3 className="text-lg font-semibold text-gray-900">Đánh giá kỹ năng</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Skill Assessment</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {Object.entries(skillScores).map(([skill, score]) => (
@@ -304,13 +304,13 @@ export default function InterviewHistoryPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Hoàn thành":
+      case "Completed":
       case "completed":
         return "text-green-600 bg-green-50 border-green-200";
-      case "Đang chờ":
+      case "Pending":
       case "pending":
         return "text-orange-600 bg-orange-50 border-orange-200";
-      case "Đã hủy":
+      case "Cancelled":
       case "cancelled":
         return "text-red-600 bg-red-50 border-red-200";
       default:
@@ -321,7 +321,7 @@ export default function InterviewHistoryPage() {
   return (
     <DashboardLayout>
       <div className="w-full px-0">
-        {/* Loading overlay khi xóa */}
+        {/* Loading overlay when deleting */}
         {isDeleting && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="bg-white rounded-2xl px-8 py-8 flex flex-col items-center shadow-2xl border border-gray-100">
@@ -329,12 +329,12 @@ export default function InterviewHistoryPage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
                 <div className="absolute inset-0 rounded-full h-12 w-12 border-4 border-transparent border-t-blue-400 animate-ping opacity-30"></div>
               </div>
-              <span className="text-blue-600 font-medium text-lg">Đang xóa phiên phỏng vấn...</span>
+              <span className="text-blue-600 font-medium text-lg">Deleting interview session...</span>
             </div>
           </div>
         )}
         
-        {/* Toast báo xóa thành công */}
+        {/* Success toast */}
         {deleteSuccess && (
           <div className="fixed top-6 right-6 z-[100] bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in border border-green-400">
             <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
@@ -342,7 +342,7 @@ export default function InterviewHistoryPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <span className="font-medium">Xóa thành công!</span>
+            <span className="font-medium">Deleted successfully!</span>
           </div>
         )}
         
@@ -354,9 +354,9 @@ export default function InterviewHistoryPage() {
                   <Clock className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-3xl font-bold text-gray-900">Lịch sử phiên phỏng vấn</CardTitle>
+                  <CardTitle className="text-3xl font-bold text-gray-900">Interview History</CardTitle>
                   <CardDescription className="text-lg text-gray-600 mt-1">
-                    Quản lý và xem chi tiết các phiên phỏng vấn đã diễn ra
+                    Manage and view details of completed interview sessions
                   </CardDescription>
                 </div>
               </div>
@@ -364,11 +364,11 @@ export default function InterviewHistoryPage() {
               <div className="relative max-w-md">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  placeholder="Tìm kiếm theo vị trí..."
+                  placeholder="Search by position..."
                   value={searchTerm}
                   onChange={e => { setSearchTerm(e.target.value); setPage(1); }}
                   className="pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base transition-all duration-200"
-                  aria-label="Tìm kiếm phiên phỏng vấn"
+                  aria-label="Search interview sessions"
                 />
               </div>
             </div>
@@ -388,8 +388,8 @@ export default function InterviewHistoryPage() {
                   <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Clock className="h-10 w-10 text-gray-400" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy phiên phỏng vấn nào</h3>
-                  <p className="text-gray-600">Hãy thử thay đổi từ khóa tìm kiếm hoặc bắt đầu một phiên phỏng vấn mới</p>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No interview sessions found</h3>
+                  <p className="text-gray-600">Try changing your search terms or start a new interview session</p>
                 </div>
               ) : (
                 paginatedInterviews.map(i => (
@@ -406,31 +406,31 @@ export default function InterviewHistoryPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-xl text-gray-900 group-hover:text-blue-600 transition-colors duration-200">
-                                {i.jobRole?.title || 'Không có tên vị trí'}
+                                {i.jobRole?.title || 'No position title'}
                               </h3>
                               <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                                 <span className="flex items-center gap-1">
                                   <Briefcase className="h-4 w-4" />
-                                  {i.jobRole?.category?.name || i.jobRole?.specialization?.name || 'Không có vị trí'}
+                                  {i.jobRole?.category?.name || i.jobRole?.specialization?.name || 'No position'}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-4 w-4" />
-                                  {new Date(i.startTime).toLocaleDateString('vi-VN')}
+                                  {new Date(i.startTime).toLocaleDateString('en-US')}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <TrendingUp className="h-4 w-4" />
-                                  {i.jobRole?.level || 'Không có level'}
+                                  {i.jobRole?.level || 'No level'}
                                 </span>
                               </div>
                               <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                                 <span className="flex items-center gap-1">
                                   <MessageSquare className="h-4 w-4" />
-                                  {i.questionCount} câu hỏi
+                                  {i.questionCount} questions
                                 </span>
                                 {i.evaluation?.overallRating && (
                                   <span className="flex items-center gap-1">
                                     <TrendingUp className="h-4 w-4" />
-                                    Điểm: <span className="font-bold text-amber-600">{i.evaluation.overallRating}</span>
+                                    Score: <span className="font-bold text-amber-600">{i.evaluation.overallRating}</span>
                                   </span>
                                 )}
                               </div>
@@ -454,7 +454,7 @@ export default function InterviewHistoryPage() {
                               className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200"
                             >
                               <Eye className="h-4 w-4" />
-                              Chi tiết
+                              Details
                             </Button>
                             
                             {i.evaluation && (
@@ -465,7 +465,7 @@ export default function InterviewHistoryPage() {
                                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                               >
                                 <Award className="h-4 w-4" />
-                                Đánh giá
+                                Evaluation
                               </Button>
                             )}
                             
@@ -476,7 +476,7 @@ export default function InterviewHistoryPage() {
                               className="flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-200"
                             >
                               <Trash2 className="h-4 w-4" />
-                              Xóa
+                              Delete
                             </Button>
                           </div>
                         </div>
@@ -487,7 +487,7 @@ export default function InterviewHistoryPage() {
               )}
             </div>
             
-            {/* Nút Xem thêm nếu còn dữ liệu */}
+            {/* Load more button if there's more data */}
             {filteredInterviews.length > page * pageSize && (
               <div className="flex justify-center mt-8">
                 <Button 
@@ -495,14 +495,14 @@ export default function InterviewHistoryPage() {
                   variant="outline"
                   className="px-8 py-3 rounded-xl border-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200"
                 >
-                  Xem thêm ({filteredInterviews.length - page * pageSize} phiên còn lại)
+                  Load more ({filteredInterviews.length - page * pageSize} sessions remaining)
                 </Button>
               </div>
             )}
           </CardContent>
         </Card>
         
-        {/* Modal xác nhận xóa và modal chi tiết giữ nguyên */}
+        {/* Delete confirmation modal and detail modal remain unchanged */}
         <InterviewDetailDialog
           interview={selectedInterview}
           isOpen={!!selectedInterview && showDetailDialog}
@@ -518,8 +518,8 @@ export default function InterviewHistoryPage() {
                     <HighlightOffIcon className="!w-6 !h-6 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">Xác nhận xóa</h3>
-                    <p className="text-gray-600 text-sm">Bạn có chắc chắn muốn xóa phiên phỏng vấn này?</p>
+                    <h3 className="text-xl font-bold text-gray-900">Confirm Delete</h3>
+                    <p className="text-gray-600 text-sm">Are you sure you want to delete this interview session?</p>
                   </div>
                 </div>
                 <div className="flex justify-end gap-3">
@@ -528,14 +528,14 @@ export default function InterviewHistoryPage() {
                     onClick={cancelDelete}
                     className="px-6 py-2 rounded-xl border-2 border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
                   >
-                    Hủy
+                    Cancel
                   </Button>
                   <Button 
                     variant="destructive" 
                     onClick={confirmDelete}
                     className="px-6 py-2 rounded-xl bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200"
                   >
-                    Xóa
+                    Delete
                   </Button>
                 </div>
               </div>

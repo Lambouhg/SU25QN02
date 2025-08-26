@@ -297,10 +297,12 @@ export async function POST(request: Request) {
     // Clear user list cache
     setUserListCache({ success: true, users: [], totalCount: 0 });
 
+    // Define a type for the result object to avoid using 'any'
+    type ResultWithRole = typeof user & { role?: { name?: string } };
     // Transform result for backward compatibility
     const transformedResult = {
       ...result,
-      role: ((result as any)?.role?.name) || 'user'
+      role: ((result as ResultWithRole)?.role?.name) || 'user'
     };
 
     return (NextResponse.json(transformedResult));

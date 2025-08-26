@@ -1,880 +1,995 @@
-'use client';
+"use client"
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { CheckCircle, ChevronLeft, ChevronRight, User, Briefcase, Star, FileText } from 'lucide-react';
-import OnboardingComplete from './OnboardingComplete';
+import { useState, useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Monitor,
+  Server,
+  Layers,
+  CheckCircle,
+  Award,
+  Calendar,
+  Building2,
+  Sparkles,
+} from "lucide-react"
+import OnboardingComplete from "./OnboardingComplete"
+import { useRouter } from "next/navigation"
 
-interface JobRole {
-  id: string;
-  key: string;
-  title: string;
-  level: string;
-  description?: string;
-  category?: {
-    id: string;
-    name: string;
-    skills?: string[];
-  };
-  specialization?: {
-    id: string;
-    name: string;
-  };
+type OnboardingStep = 1 | 2 | 3 | 4
+
+interface FormData {
+  jobRole: string
+  experienceLevel: string
+  skills: string[]
+  firstName: string
+  lastName: string
+  phone: string
+  department: string
+  joinDate: string
+  bio: string
 }
 
-interface OnboardingData {
-  jobRoleId?: string;
-  experienceLevel?: 'junior' | 'mid' | 'senior';
-  skills: string[];
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  bio?: string;
-  department?: string;
-  joinDate?: string;
+interface FormErrors {
+  firstName?: string
+  lastName?: string
+  phone?: string
+  department?: string
+  joinDate?: string
 }
 
-interface OnboardingStepsProps {
-  onComplete: () => void;
-}
+const jobRoles = [
+  {
+    id: "frontend",
+    title: "Frontend Developer",
+    description: "Create responsive web applications using modern frameworks like React, Vue, and Angular",
+    icon: Monitor,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["React", "TypeScript", "CSS", "HTML", "JavaScript"],
+  },
+  {
+    id: "backend",
+    title: "Backend Developer",
+    description: "Design and implement scalable server-side architecture, APIs, and database systems",
+    icon: Server,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Node.js", "Python", "Java", "SQL", "Docker"],
+  },
+  {
+    id: "fullstack",
+    title: "Full Stack Developer",
+    description: "Build end-to-end solutions combining frontend interfaces with backend infrastructure",
+    icon: Layers,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["React", "Node.js", "TypeScript", "PostgreSQL", "AWS"],
+  },
+  {
+    id: "devops",
+    title: "DevOps Engineer",
+    description: "Streamline development workflows through automation, CI/CD, and cloud infrastructure",
+    icon: Building2,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Docker", "Kubernetes", "AWS", "Jenkins", "Terraform"],
+  },
+  {
+    id: "mobile",
+    title: "Mobile Developer",
+    description: "Build native and cross-platform mobile applications for iOS and Android",
+    icon: Monitor,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["React Native", "Flutter", "Swift", "Kotlin", "Firebase"],
+  },
+  {
+    id: "data",
+    title: "Data Engineer",
+    description: "Design and build data pipelines, warehouses, and analytics solutions",
+    icon: Server,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Python", "SQL", "Spark", "Airflow", "AWS"],
+  },
+  {
+    id: "ai",
+    title: "AI/ML Engineer",
+    description: "Develop machine learning models and AI-powered applications",
+    icon: Layers,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Python", "TensorFlow", "PyTorch", "Scikit-learn", "AWS"],
+  },
+  {
+    id: "security",
+    title: "Security Engineer",
+    description: "Protect systems and data through security measures and best practices",
+    icon: Building2,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Network Security", "Penetration Testing", "Cryptography", "Compliance", "AWS"],
+  },
+  {
+    id: "ui-ux",
+    title: "UI/UX Designer",
+    description: "Create intuitive and beautiful user interfaces and user experiences",
+    icon: Monitor,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Figma", "Adobe XD", "Sketch", "Prototyping", "User Research"],
+  },
+  {
+    id: "qa",
+    title: "QA Engineer",
+    description: "Ensure software quality through comprehensive testing and quality assurance",
+    icon: Server,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Selenium", "Jest", "Cypress", "Manual Testing", "Test Automation"],
+  },
+  {
+    id: "product",
+    title: "Product Manager",
+    description: "Lead product strategy, development, and go-to-market initiatives",
+    icon: Layers,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Product Strategy", "User Stories", "Agile", "Analytics", "Stakeholder Management"],
+  },
+  {
+    id: "cloud",
+    title: "Cloud Architect",
+    description: "Design and implement scalable cloud infrastructure and solutions",
+    icon: Building2,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["AWS", "Azure", "Google Cloud", "Terraform", "Kubernetes"],
+  },
+  {
+    id: "blockchain",
+    title: "Blockchain Developer",
+    description: "Build decentralized applications and smart contracts",
+    icon: Monitor,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Solidity", "Ethereum", "Web3", "Smart Contracts", "DeFi"],
+  },
+  {
+    id: "game",
+    title: "Game Developer",
+    description: "Create engaging video games and interactive experiences",
+    icon: Server,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Unity", "Unreal Engine", "C#", "C++", "Game Design"],
+  },
+  {
+    id: "embedded",
+    title: "Embedded Systems Engineer",
+    description: "Develop software for embedded systems and IoT devices",
+    icon: Layers,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["C", "C++", "RTOS", "Microcontrollers", "IoT"],
+  },
+  {
+    id: "network",
+    title: "Network Engineer",
+    description: "Design and maintain network infrastructure and connectivity",
+    icon: Building2,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Cisco", "Network Security", "VPN", "Routing", "Switching"],
+  },
+  {
+    id: "database",
+    title: "Database Administrator",
+    description: "Manage and optimize database systems and data storage",
+    icon: Monitor,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["MySQL", "PostgreSQL", "MongoDB", "Redis", "Database Design"],
+  },
+  {
+    id: "site-reliability",
+    title: "Site Reliability Engineer",
+    description: "Ensure system reliability, availability, and performance",
+    icon: Server,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Monitoring", "Incident Response", "Automation", "Infrastructure", "DevOps"],
+  },
+  {
+    id: "technical-writer",
+    title: "Technical Writer",
+    description: "Create clear and comprehensive technical documentation",
+    icon: Layers,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Documentation", "API Docs", "User Guides", "Markdown", "Technical Communication"],
+  },
+  {
+    id: "data-scientist",
+    title: "Data Scientist",
+    description: "Analyze complex data to drive business decisions and insights",
+    icon: Building2,
+    levels: ["Junior", "Mid-Level", "Senior"],
+    skills: ["Python", "R", "Machine Learning", "Statistics", "Data Visualization"],
+  },
+]
 
-const OnboardingSteps: React.FC<OnboardingStepsProps> = ({ onComplete }) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
-  const [suggestedSkills, setSuggestedSkills] = useState<string[]>([]);
-  const FALLBACK_SKILLS_BY_ROLE: Record<string, string[]> = {
-    frontend: ['React', 'Next.js', 'TypeScript', 'JavaScript', 'Tailwind', 'Redux', 'HTML5', 'CSS3'],
-    backend: ['Node.js', 'Express', 'NestJS', 'TypeScript', 'PostgreSQL', 'MongoDB', 'Redis', 'Docker'],
-    fullstack: ['React', 'Next.js', 'Node.js', 'TypeScript', 'PostgreSQL', 'Docker'],
-    mobile: ['React Native', 'Flutter', 'TypeScript'],
-    devops: ['Docker', 'Kubernetes', 'AWS', 'Terraform'],
-  };
-  const [skillIconMap] = useState<Record<string, string>>({
-    react: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg',
-    vue: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vuejs/vuejs-original.svg',
-    angular: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/angularjs/angularjs-original.svg',
-    javascript: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/javascript/javascript-original.svg',
-    typescript: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/typescript/typescript-original.svg',
-    node: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg',
-    next: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nextjs/nextjs-original.svg',
-    tailwind: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-plain.svg',
-    html: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/html5/html5-original.svg',
-    css: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/css3/css3-original.svg',
-    redux: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/redux/redux-original.svg'
-  });
-  const [brokenIcons, setBrokenIcons] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(false);
-  const getTodayDateStr = () => {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  };
+const experienceLevels = [
+  {
+    id: "junior",
+    title: "Junior Level",
+    description: "Building foundational skills and gaining hands-on experience",
+    years: "0-2 years of professional experience",
+  },
+  {
+    id: "mid",
+    title: "Mid-Level",
+    description: "Developing expertise and taking on complex technical challenges",
+    years: "2-5 years of professional experience",
+  },
+  {
+    id: "senior",
+    title: "Senior Level",
+    description: "Leading technical decisions and mentoring development teams",
+    years: "5+ years of professional experience",
+  },
+]
 
-  const [data, setData] = useState<OnboardingData>({
+const suggestedSkills = [
+  // Frontend
+  "React",
+  "Vue.js",
+  "Angular",
+  "TypeScript",
+  "JavaScript",
+  "HTML5",
+  "CSS3",
+  "Sass",
+  "Tailwind CSS",
+  // Backend
+  "Node.js",
+  "Python",
+  "Java",
+  "C#",
+  ".NET",
+  "PHP",
+  "Go",
+  "Rust",
+  // Databases
+  "PostgreSQL",
+  "MySQL",
+  "MongoDB",
+  "Redis",
+  "Elasticsearch",
+  // Cloud & DevOps
+  "AWS",
+  "Azure",
+  "Google Cloud",
+  "Docker",
+  "Kubernetes",
+  "Jenkins",
+  "GitLab CI",
+  "Terraform",
+  // Tools & Methodologies
+  "Git",
+  "Agile",
+  "Scrum",
+  "REST APIs",
+  "GraphQL",
+  "Microservices",
+  "Testing",
+  "Performance Optimization",
+]
+
+export default function OnboardingSteps() {
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>(1)
+  const [formData, setFormData] = useState<FormData>({
+    jobRole: "",
+    experienceLevel: "",
     skills: [],
-    joinDate: typeof window === 'undefined' ? undefined : undefined,
-  });
-  const [newSkill, setNewSkill] = useState('');
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [initialUserSkills, setInitialUserSkills] = useState<string[] | null>(null);
-  const [skillsPrefilled, setSkillsPrefilled] = useState(false);
-  const [roleQuery, setRoleQuery] = useState('');
-  const [roleSort, setRoleSort] = useState<'relevance' | 'title-asc'>('relevance');
-  const [rolesLoading, setRolesLoading] = useState(false);
+    firstName: "",
+    lastName: "",
+    phone: "",
+    department: "",
+    joinDate: "",
+    bio: "",
+  })
+  const [formErrors, setFormErrors] = useState<FormErrors>({})
+  const [isTransitioning, setIsTransitioning] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isCompleted, setIsCompleted] = useState(false)
+  const router = useRouter()
   
-  const getSkillIcon = (skillName: string) => {
-    const key = skillName.trim().toLowerCase();
-    const entry = Object.keys(skillIconMap).find(k => key.includes(k));
-    const url = entry ? skillIconMap[entry] : '';
-    if (!url || brokenIcons[key]) {
-      return <span className="mr-1">🔧</span>;
+  // Ref for scrolling to bottom
+  const bottomRef = useRef<HTMLDivElement>(null)
+  
+  // Pagination settings
+  const itemsPerPage = 4
+  const totalPages = Math.ceil(jobRoles.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentJobRoles = jobRoles.slice(startIndex, endIndex)
+
+  const progress = (currentStep / 4) * 100
+
+  const nextStep = () => {
+    if (currentStep < 4) {
+      setIsTransitioning(true)
+      setTimeout(() => {
+        setCurrentStep((prev) => (prev + 1) as OnboardingStep)
+        setIsTransitioning(false)
+      }, 200)
     }
-    return (
-      // use plain img to allow simple onError fallback
-      /* eslint-disable-next-line @next/next/no-img-element */
-      <img
-        src={url}
-        alt={skillName}
-        width={16}
-        height={16}
-        className="mr-1 object-contain"
-        onError={() => setBrokenIcons(prev => ({ ...prev, [key]: true }))}
-      />
-    );
-  };
+  }
 
-  const steps = [
-    {
-      id: 'job-role',
-      title: 'Choose a job role',
-      description: 'Select the role you want to focus on',
-      icon: Briefcase
-    },
-    {
-      id: 'experience',
-      title: 'Experience level',
-      description: 'Pick your current level of experience',
-      icon: Star
-    },
-    {
-      id: 'skills',
-      title: 'Your skills',
-      description: 'Add your key skills',
-      icon: FileText
-    },
-    {
-      id: 'profile',
-      title: 'Personal information',
-      description: 'Complete your personal information',
-      icon: User
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setIsTransitioning(true)
+      setTimeout(() => {
+        setCurrentStep((prev) => (prev - 1) as OnboardingStep)
+        setIsTransitioning(false)
+      }, 200)
     }
-  ];
+  }
 
-  useEffect(() => {
-    fetchJobRoles();
-    loadFromLocalDraftThenUser();
-    // Intentionally keep deps empty to run once on mount; functions are stable in this component
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Ensure default join date when profile step is opened or when data loads without joinDate
-  useEffect(() => {
-    if (!data.joinDate) {
-      setData(prev => ({ ...prev, joinDate: getTodayDateStr() }));
-    }
-  }, [data.joinDate]);
-
-  const fetchJobRoles = async () => {
-    try {
-      setRolesLoading(true);
-      const response = await fetch('/api/positions');
-      if (response.ok) {
-        const roles = await response.json();
-        setJobRoles(roles);
-      }
-    } catch {}
-    finally {
-      setRolesLoading(false);
-    }
-  };
-
-  // Derived filters for Category and Specialization (based on available JobRoles)
-  const categories = React.useMemo(() => {
-    return Array.from(
-      new Set(
-        jobRoles
-          .map((r) => r.category?.name)
-          .filter((n): n is string => Boolean(n))
-      )
-    ).sort();
-  }, [jobRoles]);
-
-  const specializations = React.useMemo(() => {
-    return Array.from(
-      new Set(
-        jobRoles
-          .filter((r) => (selectedCategory ? r.category?.name === selectedCategory : true))
-          .map((r) => r.specialization?.name)
-          .filter((n): n is string => Boolean(n))
-      )
-    ).sort();
-  }, [jobRoles, selectedCategory]);
-
-  // Update suggested skills when job role changes
-  useEffect(() => {
-    if (!data.jobRoleId) {
-      setSuggestedSkills([]);
-      return;
-    }
-    const role = jobRoles.find(r => r.id === data.jobRoleId);
-    let categorySkills = role?.category?.skills || [];
-    if (categorySkills.length === 0) {
-      const key = (role?.key || role?.title || '').toLowerCase();
-      const fallbackKey = Object.keys(FALLBACK_SKILLS_BY_ROLE).find(k => key.includes(k));
-      categorySkills = fallbackKey ? FALLBACK_SKILLS_BY_ROLE[fallbackKey] : [];
-    }
-    setSuggestedSkills(categorySkills);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.jobRoleId, jobRoles]);
-
-  // Prefill user's selected skills as intersection(user skills, category skills) once per role selection
-  useEffect(() => {
-    if (!data.jobRoleId) return;
-    if (skillsPrefilled) return;
-    if ((suggestedSkills || []).length === 0) return;
-    const base = Array.isArray(initialUserSkills)
-      ? initialUserSkills
-      : (Array.isArray(data.skills) ? data.skills : []);
-    const currentSkills = Array.isArray(data.skills) ? data.skills : [];
-    const isUntouched = (currentSkills.length === 0) || (Array.isArray(initialUserSkills) && currentSkills.join('|') === initialUserSkills.join('|'));
-    if (!isUntouched) return;
-    const intersection = base.filter(s => suggestedSkills.includes(s));
-    if (intersection.length > 0) {
-      setData(prev => ({ ...prev, skills: Array.from(new Set(intersection)) }));
-      setSkillsPrefilled(true);
-    }
-  }, [data.jobRoleId, suggestedSkills, skillsPrefilled, initialUserSkills, data.skills]);
-
-  const DRAFT_KEY = 'onboarding_draft_v1';
-
-  const loadFromLocalDraftThenUser = async () => {
-    try {
-      // 1) Read from localStorage
-      if (typeof window !== 'undefined') {
-        const raw = localStorage.getItem(DRAFT_KEY);
-        if (raw) {
-          try {
-            const draft = JSON.parse(raw);
-            setData(prev => {
-              const draftSkills = draft?.['skills']?.skills;
-              const profile = draft?.['profile'] || {};
-              return {
+  const addSkill = (skill: string) => {
+    if (!formData.skills.includes(skill)) {
+      setFormData((prev) => ({
                 ...prev,
-                jobRoleId: draft?.['job-role']?.jobRoleId ?? prev.jobRoleId,
-                experienceLevel: draft?.['experience']?.experienceLevel ?? prev.experienceLevel,
-                skills: Array.isArray(draftSkills) ? draftSkills : (Array.isArray(prev.skills) ? prev.skills : []),
-                firstName: profile.firstName ?? prev.firstName,
-                lastName: profile.lastName ?? prev.lastName,
-                phone: profile.phone ?? prev.phone,
-                bio: profile.bio ?? prev.bio,
-                department: profile.department ?? prev.department,
-                joinDate: profile.joinDate ?? prev.joinDate,
-              } as OnboardingData;
-            });
-          } catch {}
-        }
-      }
+        skills: [...prev.skills, skill],
+      }))
+    }
+  }
 
-      // 2) Fill from current user as fallback
-      const response = await fetch('/api/user/current');
-      if (response.ok) {
-        const user = await response.json();
-        setData(prev => ({
+  const removeSkill = (skill: string) => {
+    setFormData((prev) => ({
           ...prev,
-          jobRoleId: prev.jobRoleId || user.preferredJobRoleId,
-          experienceLevel: prev.experienceLevel || user.experienceLevel,
-          skills: (Array.isArray(prev.skills) && prev.skills.length > 0)
-            ? prev.skills
-            : (Array.isArray(user.skills) ? user.skills : []),
-          firstName: prev.firstName || user.firstName,
-          lastName: prev.lastName || user.lastName,
-          phone: prev.phone || user.phone,
-          bio: prev.bio || user.bio,
-          department: prev.department || user.department,
-          joinDate: prev.joinDate || user.joinDate
-        }));
-        if (!initialUserSkills) {
-          setInitialUserSkills(Array.isArray(user.skills) ? user.skills : []);
-        }
-      }
-    } catch {}
-  };
+      skills: prev.skills.filter((s) => s !== skill),
+    }))
+  }
 
-  const saveStep = async (stepData: Partial<OnboardingData>) => {
-    setLoading(true);
-    try {
-      // Save draft to localStorage only
-      if (typeof window !== 'undefined') {
-        const raw = localStorage.getItem(DRAFT_KEY);
-        const draft = raw ? JSON.parse(raw) : {};
-        draft[steps[currentStep].id] = stepData;
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-      }
-      setData(prev => ({ ...prev, ...stepData }));
-      return true;
-    } catch {
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleNext = async () => {
-    const currentStepData = getCurrentStepData();
-    if (!currentStepData) return;
-
-    const success = await saveStep(currentStepData);
-    if (success) {
-      if (currentStep === steps.length - 1) {
-        // Hoàn thành onboarding
-        await completeOnboarding();
-      } else {
-        setCurrentStep(prev => prev + 1);
-      }
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
-  };
-
-  const isValidPhone = (value: string) => {
-    const normalized = value.replace(/\s|-/g, '');
-    const vnPattern = /^(\+?84|0)([3|5|7|8|9])\d{8}$/;
-    return vnPattern.test(normalized);
-  };
-
-  const getCurrentStepData = () => {
-    switch (steps[currentStep].id) {
-      case 'job-role':
-        return data.jobRoleId ? { jobRoleId: data.jobRoleId } : null;
-      case 'experience':
-        return data.experienceLevel ? { experienceLevel: data.experienceLevel } : null;
-      case 'skills':
-        return { skills: data.skills };
-      case 'profile':
-        // basic validation for phone (no state updates during render)
-        if (!data.phone || !isValidPhone(data.phone)) {
-          return null;
-        }
-        return {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          bio: data.bio,
-          department: data.department,
-          joinDate: data.joinDate
-        };
-      default:
-        return null;
-    }
-  };
-
-  const validateAndSetPhone = (value: string) => {
-    // Cho phép +84 hoặc 0, theo chuẩn VN: 10 chữ số sau khi chuẩn hóa
-    if (!isValidPhone(value)) {
-      setPhoneError('Invalid phone number (e.g., 0912345678 or +84912345678)');
-      return false;
-    }
-    setPhoneError(null);
-    return true;
-  };
-
-  const completeOnboarding = async () => {
-    try {
-      // 1) Read full draft from localStorage then persist
-      let payload: OnboardingData = { ...data };
-      if (typeof window !== 'undefined') {
-        const raw = localStorage.getItem(DRAFT_KEY);
-        if (raw) {
-          try {
-            const draft = JSON.parse(raw);
-            payload = {
-              jobRoleId: draft['job-role']?.jobRoleId ?? data.jobRoleId,
-              experienceLevel: draft['experience']?.experienceLevel ?? data.experienceLevel,
-              skills: draft['skills']?.skills ?? data.skills,
-              firstName: draft['profile']?.firstName ?? data.firstName,
-              lastName: draft['profile']?.lastName ?? data.lastName,
-              phone: draft['profile']?.phone ?? data.phone,
-              bio: draft['profile']?.bio ?? data.bio,
-              department: draft['profile']?.department ?? data.department,
-              joinDate: draft['profile']?.joinDate ?? data.joinDate,
-            } as OnboardingData;
-          } catch {}
-        }
-      }
-
-      const response = await fetch('/api/user/onboarding', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        // create a welcome activity to kick off streak = 1
-        try {
-          await fetch('/api/user/activity', { method: 'POST' });
-        } catch {}
-
-        // clear local draft
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem(DRAFT_KEY);
-          // flag to show reminder popup on dashboard
-          localStorage.setItem('showStreakReminderAfterOnboarding', '1');
-        }
-        setIsCompleted(true);
-      }
-    } catch {}
-  };
-
-  const addSkill = () => {
-    const currentSkills = Array.isArray(data.skills) ? data.skills : [];
-    if (newSkill.trim() && !currentSkills.includes(newSkill.trim())) {
-      setData(prev => ({
-        ...prev,
-        skills: [ ...(Array.isArray(prev.skills) ? prev.skills : []), newSkill.trim() ]
-      }));
-      setNewSkill('');
-    }
-  };
-
-  const removeSkill = (skillToRemove: string) => {
-    setData(prev => ({
+  const handleInputChange = (field: keyof FormData, value: string) => {
+    setFormData((prev) => ({
       ...prev,
-      skills: (Array.isArray(prev.skills) ? prev.skills : []).filter(skill => skill !== skillToRemove)
-    }));
-  };
+      [field]: value,
+    }))
+    
+    // Clear error when user starts typing
+    if (formErrors[field as keyof FormErrors]) {
+      setFormErrors((prev) => ({
+        ...prev,
+        [field]: undefined,
+      }))
+    }
+    
+    // Auto scroll to bottom when job role is selected
+    if (field === "jobRole" && bottomRef.current) {
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        })
+      }, 300) // Small delay to ensure the selection animation completes
+    }
+  }
 
-  const progress = ((currentStep + 1) / steps.length) * 100;
+  const renderStepIndicator = () => (
+    <div className="flex items-center justify-center mb-8" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+      {[
+        { step: 1, label: "Role" },
+        { step: 2, label: "Experience" },
+        { step: 3, label: "Skills" },
+        { step: 4, label: "Profile" },
+      ].map(({ step, label }, index) => (
+        <div key={step} className="flex items-center">
+          <div className="flex flex-col items-center">
+            <div
+              className={`
+                w-12 h-12 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-700 border-2 relative
+                ${
+                  step <= currentStep
+                    ? "bg-gradient-to-br from-primary to-secondary text-white border-primary shadow-2xl"
+                    : "bg-card text-muted-foreground border-border hover:border-primary/50 hover:scale-110"
+                }
+              `}
+              style={{ 
+                animationDelay: `${index * 0.5}s`,
+                animation: step <= currentStep ? 'float 3s ease-in-out infinite, pulse-glow 2s ease-in-out infinite' : 'none'
+              }}
+            >
+              {step < currentStep ? (
+                <CheckCircle className="w-6 h-6" style={{ animation: 'scaleIn 0.4s ease-out' }} />
+              ) : step === currentStep ? (
+                <Sparkles className="w-6 h-6" style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                step
+              )}
+              {step === currentStep && (
+                <>
+                  <div className="absolute inset-0 rounded-full border-2 border-primary opacity-75" style={{ animation: 'ping 1s cubic-bezier(0, 0, 0.2, 1) infinite' }}></div>
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20" style={{ animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}></div>
+                </>
+              )}
+            </div>
+            <span
+              className={`text-xs mt-2 font-bold transition-all duration-500 ${
+                step <= currentStep ? "text-primary" : "text-muted-foreground"
+              }`}
+              style={step <= currentStep ? { animation: 'shimmer 2s infinite' } : {}}
+            >
+              {label}
+            </span>
+          </div>
+          {index < 3 && (
+            <div
+              className={`
+                w-20 h-1.5 mx-6 mt-[-18px] transition-all duration-700 rounded-full relative overflow-hidden
+                ${step < currentStep ? "bg-gradient-to-r from-primary via-secondary to-accent" : "bg-border"}
+              `}
+              style={step < currentStep ? { animation: 'gradient-shift 3s ease infinite' } : {}}
+            >
+              {step < currentStep && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent" style={{ animation: 'shimmer 2s infinite' }}></div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
 
-  const renderStepContent = () => {
-    switch (steps[currentStep].id) {
-      case 'job-role':
+  const renderStep1 = () => (
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          Choose Your Role
+        </h2>
+        <p className="text-muted-foreground text-lg">Select your primary area of expertise</p>
+      </div>
+
+      <div className="grid gap-6">
+        {currentJobRoles.map((role, index) => {
+          const IconComponent = role.icon
         return (
-          <div className="space-y-4">
-            {/* Category & Specialization Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <Label className="mb-1 block">Search</Label>
-                <Input
-                  placeholder="Search job roles, categories, specializations..."
-                  value={roleQuery}
-                  onChange={(e) => setRoleQuery(e.target.value)}
-                />
+            <Card
+              key={role.id}
+              className={`cursor-pointer card-hover border-2 ${
+                formData.jobRole === role.id
+                  ? "ring-4 ring-primary/30 border-primary bg-gradient-to-br from-primary/10 to-secondary/5 shadow-2xl animate-pulse-glow"
+                  : "border-border hover:border-primary/50 hover:bg-primary/5"
+              }`}
+              onClick={() => handleInputChange("jobRole", role.id)}
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start space-x-6">
+                  <div
+                    className={`p-4 rounded-xl transition-all duration-300 ${
+                      formData.jobRole === role.id
+                        ? "bg-gradient-to-br from-primary to-secondary text-white shadow-lg animate-pulse"
+                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                    }`}
+                  >
+                    <IconComponent className="w-8 h-8" />
               </div>
-              <div>
-                <Label className="mb-1 block">Category</Label>
-                <Select value={selectedCategory} onValueChange={(val) => {
-                  const normalized = val === '__all__' ? '' : val;
-                  setSelectedCategory(normalized);
-                  setSelectedSpecialization('');
-                  setData((prev) => ({ ...prev, jobRoleId: undefined }));
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All categories</SelectItem>
-                    {categories.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-xl mb-2 font-mono">{role.title}</h3>
+                    <p className="text-muted-foreground mb-4 leading-relaxed text-base">{role.description}</p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {role.levels.map((level) => (
+                        <Badge key={level} variant="secondary" className="text-xs font-semibold py-1 px-2">
+                          {level}
+                        </Badge>
+                      ))}
               </div>
-              <div>
-                <Label className="mb-1 block">Specialization</Label>
-                <Select value={selectedSpecialization} onValueChange={(val) => {
-                  const normalized = val === '__all__' ? '' : val;
-                  setSelectedSpecialization(normalized);
-                  setData((prev) => ({ ...prev, jobRoleId: undefined }));
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a specialization (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">All specializations</SelectItem>
-                    {specializations.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    <div className="flex flex-wrap gap-1">
+                      {role.skills.map((skill) => (
+                        <Badge key={skill} variant="outline" className="text-xs skill-badge">
+                          {skill}
+                        </Badge>
+                      ))}
               </div>
-              <div>
-                <Label className="mb-1 block">Sort</Label>
-                <Select value={roleSort} onValueChange={(val) => setRoleSort(val as 'relevance' | 'title-asc')}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sort roles" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="relevance">Relevance</SelectItem>
-                    <SelectItem value="title-asc">Title A → Z</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
             </div>
 
-            {/* Result count + Clear filters */}
-            <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>{
-                jobRoles
-                  .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
-                  .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
-                  .filter((role) => {
-                    if (!roleQuery.trim()) return true;
-                    const q = roleQuery.toLowerCase();
-                    const title = role.title?.toLowerCase() || '';
-                    const cat = role.category?.name?.toLowerCase() || '';
-                    const spec = role.specialization?.name?.toLowerCase() || '';
-                    return title.includes(q) || cat.includes(q) || spec.includes(q);
-                  }).length
-              } roles found</span>
-              {(selectedCategory || selectedSpecialization || roleQuery) && (
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center gap-2 mt-8">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { setSelectedCategory(''); setSelectedSpecialization(''); setRoleQuery(''); setRoleSort('relevance'); }}
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="btn-magical"
                 >
-                  Clear filters
+            <ChevronLeft className="w-4 h-4" />
+            Previous
                 </Button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rolesLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i} className="animate-pulse">
-                    <CardContent className="p-4 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-2/3" />
-                      <div className="h-3 bg-gray-200 rounded w-1/3" />
-                      <div className="h-3 bg-gray-100 rounded w-1/2" />
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                jobRoles
-                  .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
-                  .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
-                  .filter((role) => {
-                    if (!roleQuery.trim()) return true;
-                    const q = roleQuery.toLowerCase();
-                    const title = role.title?.toLowerCase() || '';
-                    const cat = role.category?.name?.toLowerCase() || '';
-                    const spec = role.specialization?.name?.toLowerCase() || '';
-                    return title.includes(q) || cat.includes(q) || spec.includes(q);
-                  })
-                  .sort((a, b) => {
-                    if (roleSort === 'title-asc') {
-                      return a.title.localeCompare(b.title);
-                    }
-                    return 0;
-                  })
-                  .map((role) => (
-                    <Card
-                      key={role.id}
-                      className={`cursor-pointer transition-all ${
-                        data.jobRoleId === role.id
-                          ? 'ring-2 ring-blue-500 bg-blue-50'
-                          : 'hover:shadow-md'
-                      }`}
-                      onClick={() => setData(prev => ({ ...prev, jobRoleId: prev.jobRoleId === role.id ? undefined : role.id }))}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold text-sm">{role.title}</h3>
-                          <Badge variant="secondary" className="text-xs">
-                            {role.level}
-                          </Badge>
-                        </div>
-                        {role.category && (
-                          <p className="text-xs text-gray-600 mb-1">
-                            {role.category.name}
-                          </p>
-                        )}
-                        {role.specialization && (
-                          <p className="text-xs text-gray-500">
-                            {role.specialization.name}
-                          </p>
-                        )}
-                        {role.description && (
-                          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{role.description}</p>
-                        )}
-                        {data.jobRoleId === role.id && (
-                          <CheckCircle className="w-5 h-5 text-blue-500 mt-2" />
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))
-              )}
-            </div>
-            {!rolesLoading && jobRoles
-              .filter((role) => (selectedCategory ? role.category?.name === selectedCategory : true))
-              .filter((role) => (selectedSpecialization ? role.specialization?.name === selectedSpecialization : true))
-              .filter((role) => {
-                if (!roleQuery.trim()) return true;
-                const q = roleQuery.toLowerCase();
-                const title = role.title?.toLowerCase() || '';
-                const cat = role.category?.name?.toLowerCase() || '';
-                const spec = role.specialization?.name?.toLowerCase() || '';
-                return title.includes(q) || cat.includes(q) || spec.includes(q);
-              }).length === 0 && (
-              <div className="text-sm text-gray-500 text-center py-8">
-                No roles match your filters.
-              </div>
-            )}
-          </div>
-        );
-
-      case 'experience':
-        return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { value: 'junior', label: 'Junior', description: '0-2 years of experience' },
-                { value: 'mid', label: 'Mid-level', description: '2-5 years of experience' },
-                { value: 'senior', label: 'Senior', description: '5+ years of experience' }
-              ].map((level) => (
-                <Card
-                  key={level.value}
-                  className={`cursor-pointer transition-all ${
-                    data.experienceLevel === level.value
-                      ? 'ring-2 ring-blue-500 bg-blue-50'
-                      : 'hover:shadow-md'
-                  }`}
-                  onClick={() => setData(prev => ({ ...prev, experienceLevel: level.value as OnboardingData['experienceLevel'] }))}
-                >
-                  <CardContent className="p-6 text-center">
-                    <h3 className="font-semibold mb-2">{level.label}</h3>
-                    <p className="text-sm text-gray-600">{level.description}</p>
-                    {data.experienceLevel === level.value && (
-                      <CheckCircle className="w-6 h-6 text-blue-500 mt-3 mx-auto" />
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'skills':
-        return (
-          <div className="space-y-4">
-            {suggestedSkills.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm text-gray-700">Suggestions based on the selected role</p>
-                <div className="flex flex-wrap gap-2">
-                  {suggestedSkills.map((skill, idx) => {
-                    const isSelected = data.skills.includes(skill);
-                    return (
-                      <Badge
-                        key={idx}
-                        variant={isSelected ? 'default' : 'secondary'}
-                        className={`cursor-pointer px-2 py-1 ${isSelected ? 'bg-blue-600 text-white' : 'bg-white'}`}
-                        onClick={() => {
-                          setData(prev => ({
-                            ...prev,
-                            skills: isSelected
-                              ? prev.skills.filter(s => s !== skill)
-                              : [...prev.skills, skill]
-                          }));
-                        }}
-                      >
-                        <span className="flex items-center gap-1">
-                          {getSkillIcon(skill)}
-                          {skill}
-                        </span>
-                      </Badge>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add a skill..."
-                value={newSkill}
-                onChange={(e) => setNewSkill(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addSkill()}
-              />
-              <Button onClick={addSkill} disabled={!newSkill.trim()}>
-                Add
+          
+          <div className="flex gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <Button
+                key={page}
+                variant={currentPage === page ? "default" : "outline"}
+                size="sm"
+                onClick={() => setCurrentPage(page)}
+                className={`w-8 h-8 p-0 ${currentPage === page ? 'bg-primary text-white' : ''}`}
+              >
+                {page}
               </Button>
+            ))}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(Array.isArray(data.skills) ? data.skills : []).map((skill, index) => (
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className="btn-magical"
+          >
+            Next
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+                        </div>
+              )}
+            </div>
+  )
+
+      const renderStep2 = () => (
+    <div className="space-y-6 animate-slide-in-right">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-2 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          Experience Level
+        </h2>
+        <p className="text-muted-foreground text-base">What's your current professional level?</p>
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        {experienceLevels.map((level, index) => (
+          <Card
+            key={level.id}
+            className={`cursor-pointer card-hover border-2 transition-all duration-300 ${
+              formData.experienceLevel === level.id
+                ? "ring-2 ring-primary/30 border-primary bg-gradient-to-br from-primary/10 to-secondary/5 shadow-lg animate-pulse-glow"
+                : "border-border hover:border-primary/50 hover:bg-primary/5"
+            }`}
+            onClick={() => handleInputChange("experienceLevel", level.id)}
+            style={{ animationDelay: `${index * 0.2}s` }}
+          >
+            <CardContent className="p-4 text-center">
+              <div className="mb-3">
+                <Award
+                  className={`w-8 h-8 mx-auto transition-all duration-300 ${
+                    formData.experienceLevel === level.id
+                      ? "text-primary animate-bounce"
+                      : "text-muted-foreground hover:text-primary"
+                  }`}
+                />
+              </div>
+              <h3 className="font-bold text-base mb-1 font-mono">{level.title}</h3>
+              <p className="text-primary font-bold mb-1 text-xs">{level.years}</p>
+              <p className="text-muted-foreground leading-relaxed text-xs">{level.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+
+      const renderStep3 = () => (
+    <div className="space-y-6 animate-fade-in-up">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-foreground mb-2 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          Technical Skills
+        </h2>
+        <p className="text-muted-foreground text-base">Select your areas of expertise</p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="skills" className="text-sm font-bold mb-3 block">
+            {formData.jobRole ? `Popular skills for ${jobRoles.find(j=>j.id===formData.jobRole)?.title}` : "Choose from popular technologies"}
+          </Label>
+          {(() => {
+            const selectedRole = jobRoles.find(j => j.id === formData.jobRole)
+            const skillsSource = selectedRole ? selectedRole.skills : suggestedSkills
+            return (
+              <div className="flex flex-wrap gap-2 max-h-[200px] overflow-y-auto custom-scrollbar">
+                {skillsSource.map((skill, index) => (
+                  <Badge
+                    key={skill}
+                    variant={formData.skills.includes(skill) ? "default" : "outline"}
+                    className={`cursor-pointer skill-badge text-xs py-1 px-2 font-semibold transition-all duration-200 ${
+                      formData.skills.includes(skill)
+                        ? "bg-gradient-to-r from-primary to-secondary text-white shadow-md animate-pulse-glow"
+                        : "hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+                    }`}
+                    onClick={() => (formData.skills.includes(skill) ? removeSkill(skill) : addSkill(skill))}
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    {skill}
+                    {formData.skills.includes(skill) && <CheckCircle className="w-3 h-3 ml-1 animate-spin" />}
+                  </Badge>
+                ))}
+              </div>
+            )
+          })()}
+        </div>
+
+        {formData.skills.length > 0 && (
+          <div className="bg-gradient-to-br from-primary/10 to-secondary/5 rounded-lg p-4 border border-primary/20 shadow-lg animate-fade-in-up">
+            <Label className="text-sm font-bold mb-3 block text-primary flex items-center gap-2">
+              <Sparkles className="w-4 h-4 animate-pulse" />
+              Selected Skills ({formData.skills.length})
+            </Label>
+            <div className="flex flex-wrap gap-2 max-h-[120px] overflow-y-auto custom-scrollbar">
+              {formData.skills.map((skill, index) => (
                 <Badge
-                  key={index}
-                  variant="secondary"
-                  className="cursor-pointer hover:bg-red-100"
-                  onClick={() => removeSkill(skill)}
+                  key={skill}
+                  className="bg-gradient-to-r from-primary to-secondary text-white text-xs py-1 px-2 font-semibold shadow-md animate-fade-in-up"
+                  style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  {skill} ×
+                  {skill}
+                  <button
+                    onClick={() => removeSkill(skill)}
+                    className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-all duration-200 hover:scale-110"
+                  >
+                    ×
+                  </button>
                 </Badge>
               ))}
             </div>
           </div>
-        );
+        )}
+      </div>
+    </div>
+  )
 
-      case 'profile':
-        return (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="firstName">First name</Label>
+    const renderStep4 = () => (
+    <div className="space-y-8 animate-slide-in-right">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+          Professional Profile
+        </h2>
+        <p className="text-muted-foreground text-lg">Complete your professional information</p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+            <Label htmlFor="firstName" className="text-sm font-bold">
+              First Name *
+            </Label>
                 <Input
                   id="firstName"
-                  value={data.firstName || ''}
-                  onChange={(e) => setData(prev => ({ ...prev, firstName: e.target.value }))}
+              value={formData.firstName}
+              onChange={(e) => handleInputChange("firstName", e.target.value)}
                   placeholder="Enter your first name"
+              className={`mt-2 h-10 text-sm border-2 transition-all duration-300 ${
+                formErrors.firstName 
+                  ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" 
+                  : "border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
+              }`}
                 />
+                {formErrors.firstName && (
+                  <p className="text-red-500 text-xs mt-1 animate-fade-in-up">{formErrors.firstName}</p>
+                )}
               </div>
-              <div>
-                <Label htmlFor="lastName">Last name</Label>
+          <div className="animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+            <Label htmlFor="lastName" className="text-sm font-bold">
+              Last Name *
+            </Label>
                 <Input
                   id="lastName"
-                  value={data.lastName || ''}
-                  onChange={(e) => setData(prev => ({ ...prev, lastName: e.target.value }))}
+              value={formData.lastName}
+              onChange={(e) => handleInputChange("lastName", e.target.value)}
                   placeholder="Enter your last name"
+              className={`mt-2 h-10 text-sm border-2 transition-all duration-300 ${
+                formErrors.lastName 
+                  ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" 
+                  : "border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
+              }`}
                 />
+                {formErrors.lastName && (
+                  <p className="text-red-500 text-xs mt-1 animate-fade-in-up">{formErrors.lastName}</p>
+                )}
               </div>
             </div>
-            <div>
-              <Label htmlFor="phone">Phone number</Label>
+
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
+          <Label htmlFor="phone" className="text-sm font-bold">
+            Phone Number *
+          </Label>
               <Input
                 id="phone"
-                value={data.phone || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setData(prev => ({ ...prev, phone: value }));
-                  if (value) {
-                    validateAndSetPhone(value);
-                  } else {
-                    setPhoneError('Phone number is required');
-                  }
-                }}
-                placeholder="Enter your phone number"
+            value={formData.phone}
+            onChange={(e) => handleInputChange("phone", e.target.value)}
+                placeholder="+84 912 345 678 hoặc 0912 345 678"
+            className={`mt-2 h-10 text-sm border-2 transition-all duration-300 ${
+              formErrors.phone 
+                ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" 
+                : "border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
+            }`}
               />
-              {phoneError && (
-                <p className="text-xs text-red-600 mt-1">{phoneError}</p>
+              {formErrors.phone && (
+                <p className="text-red-500 text-xs mt-1 animate-fade-in-up">{formErrors.phone}</p>
               )}
             </div>
-            <div>
-              <Label htmlFor="department">Department</Label>
+
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+          <Label htmlFor="department" className="text-sm font-bold">
+            Department *
+          </Label>
               <Input
                 id="department"
-                value={data.department || ''}
-                onChange={(e) => setData(prev => ({ ...prev, department: e.target.value }))}
-                placeholder="Enter your department"
+            value={formData.department}
+            onChange={(e) => handleInputChange("department", e.target.value)}
+            placeholder="e.g., Engineering, Product, Design"
+            className={`mt-2 h-10 text-sm border-2 transition-all duration-300 ${
+              formErrors.department 
+                ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" 
+                : "border-border focus:border-primary focus:border-primary focus:ring-2 focus:ring-primary/20"
+            }`}
               />
+              {formErrors.department && (
+                <p className="text-red-500 text-xs mt-1 animate-fade-in-up">{formErrors.department}</p>
+              )}
             </div>
-            <div>
-              <Label htmlFor="joinDate">Join date</Label>
+
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
+          <Label htmlFor="joinDate" className="text-sm font-bold">
+            Start Date *
+          </Label>
+          <div className="relative mt-2">
               <Input
                 id="joinDate"
                 type="date"
-                value={data.joinDate || ''}
-                onChange={(e) => setData(prev => ({ ...prev, joinDate: e.target.value }))}
+              value={formData.joinDate}
+              onChange={(e) => handleInputChange("joinDate", e.target.value)}
+              className={`h-10 text-sm border-2 transition-all duration-300 ${
+                formErrors.joinDate 
+                  ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20" 
+                  : "border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
+              }`}
               />
+            <Calendar className="absolute right-4 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             </div>
-            <div>
-              <Label htmlFor="bio">Bio</Label>
+              {formErrors.joinDate && (
+                <p className="text-red-500 text-xs mt-1 animate-fade-in-up">{formErrors.joinDate}</p>
+              )}
+        </div>
+
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.6s" }}>
+          <Label htmlFor="bio" className="text-sm font-bold">
+            Professional Bio
+          </Label>
               <Textarea
                 id="bio"
-                value={data.bio || ''}
-                onChange={(e) => setData(prev => ({ ...prev, bio: e.target.value }))}
-                placeholder="A short introduction about yourself..."
-                rows={4}
+            value={formData.bio}
+            onChange={(e) => handleInputChange("bio", e.target.value)}
+            placeholder="Brief introduction about your professional background and interests..."
+            rows={3}
+            className="mt-2 resize-none text-sm border-2 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300"
               />
             </div>
           </div>
-        );
+    </div>
+  )
 
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case 1:
+        return renderStep1()
+      case 2:
+        return renderStep2()
+      case 3:
+        return renderStep3()
+      case 4:
+        return renderStep4()
       default:
-        return null;
+        return null
     }
-  };
+  }
 
+  const validateStep4 = () => {
+    const errors: FormErrors = {}
+    
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First name is required"
+    }
+    
+    if (!formData.lastName.trim()) {
+      errors.lastName = "Last name is required"
+    }
+    
+    if (!formData.phone.trim()) {
+      errors.phone = "Phone number is required"
+    } else {
+      // Vietnamese phone formats: +84 9xx xxx xxx, +84 1xx..., 09xx xxx xxx, 01xx xxx xxx
+      const vnPhoneRegex = /^(\+84\s?|0)(?:3\d{2}|5\d{2}|7\d{2}|8\d{2}|9\d{2})(?:[\s.-]?\d{3}){2}$/
+      if (!vnPhoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        errors.phone = "Số điện thoại không hợp lệ (ví dụ: +84 912 345 678)"
+      }
+    }
+    
+    if (!formData.department.trim()) {
+      errors.department = "Department is required"
+    }
+    
+    if (!formData.joinDate) {
+      errors.joinDate = "Start date is required"
+    }
+    
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.jobRole !== ""
+      case 2:
+        return formData.experienceLevel !== ""
+      case 3:
+        return formData.skills.length > 0
+      case 4:
+        return formData.firstName !== "" && formData.lastName !== "" && formData.phone !== "" && formData.department !== "" && formData.joinDate !== ""
+      default:
+        return false
+    }
+  }
+  // Persist onboarding so onboarding-status becomes completed
+  const completeOnboarding = async () => {
+    try {
+      setIsLoading(true)
+      let jobRoleId: string | undefined = undefined
+      try {
+        const res = await fetch('/api/positions')
+        if (res.ok) {
+          const roles = await res.json()
+          const key = `${formData.jobRole}-${formData.experienceLevel}`
+          const matchByKey = roles.find((r: any) => r.key === key)
+          if (matchByKey) {
+            jobRoleId = matchByKey.id
+          } else {
+            const levelMap: Record<string, string> = { junior: 'Junior', mid: 'Mid', senior: 'Senior' }
+            const targetLevel = levelMap[formData.experienceLevel]
+            const matchByTitle = roles.find((r: any) =>
+              typeof r.title === 'string' && r.title.toLowerCase().includes(formData.jobRole) &&
+              (r.level === targetLevel || r.level?.toLowerCase() === formData.experienceLevel)
+            )
+            if (matchByTitle) jobRoleId = matchByTitle.id
+          }
+        }
+      } catch {}
+
+      await fetch('/api/user/onboarding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobRoleId,
+          experienceLevel: formData.experienceLevel,
+          skills: formData.skills,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phone: formData.phone,
+          bio: formData.bio,
+          department: formData.department,
+          joinDate: formData.joinDate,
+        }),
+      })
+
+      setIsCompleted(true)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // When completed, show the completion screen
   if (isCompleted) {
-    return <OnboardingComplete onContinue={onComplete} />;
+    return (
+      <OnboardingComplete onContinue={() => { try { if (typeof window !== 'undefined') { localStorage.setItem('showStreakWelcome', '1') } } catch {} router.push('/dashboard') }} />
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-4xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-gray-800">
-            Welcome!
-          </CardTitle>
-          <p className="text-gray-600 mt-2">
-            Complete the steps below to personalize your experience
-          </p>
-        </CardHeader>
-        
-        <CardContent className="space-y-6">
-          {/* Progress Bar */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Step {currentStep + 1} / {steps.length}</span>
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-
-          {/* Step Indicator */}
-          <div className="flex justify-center space-x-4">
-            {steps.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <div
-                  key={step.id}
-                  className={`flex flex-col items-center space-y-2 ${
-                    index <= currentStep ? 'text-blue-600' : 'text-gray-400'
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      index < currentStep
-                        ? 'bg-green-500 text-white'
-                        : index === currentStep
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 text-gray-500'
-                    }`}
-                  >
-                    {index < currentStep ? (
-                      <CheckCircle className="w-5 h-5" />
-                    ) : (
-                      <Icon className="w-5 h-5" />
-                    )}
-                  </div>
-                  <span className="text-xs text-center max-w-20">{step.title}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Current Step Content */}
-          <div className="space-y-4">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-800">
-                {steps[currentStep].title}
-              </h2>
-              <p className="text-gray-600 mt-1">
-                {steps[currentStep].description}
+    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10 flex items-center justify-center p-4" style={{ position: 'relative', overflow: 'hidden', margin: 0, padding: 0, top: 0 }}>
+      <div className="absolute inset-0" style={{
+        backgroundImage: `radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(124, 58, 237, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 40% 40%, rgba(167, 139, 250, 0.05) 0%, transparent 50%)`,
+        animation: 'float 6s ease-in-out infinite',
+        pointerEvents: 'none'
+      }}></div>
+      <div className="w-full max-w-4xl md:max-w-5xl relative z-10">
+        <Card className="shadow-2xl border-0 bg-card/95 backdrop-blur-sm overflow-hidden" style={{ animation: 'fadeInUp 0.6s ease-out' }}>
+          <CardContent className="p-6 md:p-10 lg:p-12">
+            <div className="text-center mb-12">
+              <h1 className="text-4xl font-bold text-foreground mb-6 font-mono bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent" style={{ 
+                background: 'linear-gradient(-45deg, #4c1d95, #7c3aed, #8b5cf6, #a78bfa)',
+                backgroundSize: '400% 400%',
+                animation: 'gradient-shift 3s ease infinite, float 3s ease-in-out infinite',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                Welcome to the Team!
+              </h1>
+              <p className="text-muted-foreground text-lg" style={{ animation: 'fadeInUp 0.6s ease-out', animationDelay: "0.3s" }}>
+                Let's set up your professional profile in just a few steps
               </p>
-            </div>
-            
-            <div className="min-h-[300px]">
-              {renderStepContent()}
-            </div>
           </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between pt-6">
+            <div className="mb-8 md:mb-12">
+              <div className="flex justify-between items-center mb-6">
+                <span className="text-base font-semibold text-muted-foreground" style={{ animation: 'slideInLeft 0.5s ease-out' }}>
+                  Step {currentStep} of 4
+                </span>
+                <span className="text-base font-bold text-primary bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-2 rounded-full border border-primary/30" style={{ 
+                  animation: 'slideInRight 0.5s ease-out, pulse-glow 2s ease-in-out infinite'
+                }}>
+                  {Math.round(progress)}% Complete
+                </span>
+                  </div>
+              <div className="relative">
+                <Progress value={progress} className="h-4 bg-muted shadow-inner rounded-full overflow-hidden" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent rounded-full" style={{ animation: 'shimmer 2s infinite' }}></div>
+                </div>
+          </div>
+
+            {renderStepIndicator()}
+
+            <div
+              className={`mb-8 md:mb-12 transition-all duration-500 ${isTransitioning ? "opacity-0 transform scale-95" : "opacity-100 transform scale-100"}`}
+              style={{ animation: 'fadeInUp 0.6s ease-out' }}
+            >
+              {renderCurrentStep()}
+          </div>
+
+                         <div className="flex justify-between">
             <Button
               variant="outline"
-              onClick={handlePrevious}
-              disabled={currentStep === 0}
-              className="flex items-center gap-2"
-            >
-              <ChevronLeft className="w-4 h-4" />
+                 onClick={prevStep}
+                 disabled={currentStep === 1}
+                 className="flex items-center gap-3 h-12 px-8 font-bold text-base bg-transparent border-2 hover:bg-primary/10 hover:border-primary transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100"
+                 style={{
+                   position: 'relative',
+                   overflow: 'hidden',
+                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                 }}
+               >
+                 <ChevronLeft className="w-5 h-5" />
               Back
             </Button>
             
             <Button
-              onClick={handleNext}
-              disabled={loading || !getCurrentStepData()}
-              className="flex items-center gap-2"
-            >
-              {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
-              {currentStep < steps.length - 1 && <ChevronRight className="w-4 h-4" />}
+                 onClick={
+                   currentStep === 4
+                     ? async () => {
+                         if (validateStep4()) {
+                           await completeOnboarding()
+                         }
+                       }
+                     : nextStep
+                 }
+                 disabled={!canProceed()}
+                 className="flex items-center gap-3 h-12 px-10 font-bold text-base bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 hover:scale-105 shadow-2xl hover:shadow-3xl disabled:opacity-50 disabled:hover:scale-100"
+                 style={{
+                   position: 'relative',
+                   overflow: 'hidden',
+                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                   animation: 'pulse-glow 2s ease-in-out infinite'
+                 }}
+               >
+                 {currentStep === 4 ? "Complete Setup" : "Continue"}
+                 {currentStep < 4 && <ChevronRight className="w-5 h-5" />}
             </Button>
           </div>
+             
+             {/* Invisible div for scrolling to bottom */}
+             <div ref={bottomRef} />
         </CardContent>
       </Card>
     </div>
-  );
-};
-
-export default OnboardingSteps;
+    </div>
+  )
+}
