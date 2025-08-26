@@ -26,7 +26,7 @@ export default function Navbar() {
           {/* Logo */}
           <div className="flex items-center space-x-2">
             <div className="rounded-full bg-white p-1.5 ring-1 ring-white/80 shadow-sm">
-              <Logo variant="dark" size="md" />
+              <Logo size="md" />
             </div>
           </div>
 
@@ -58,6 +58,12 @@ export default function Navbar() {
               className="text-white font-medium hover:text-purple-300 transition-colors"
             >
               Pricing
+            </button>
+            <button 
+              onClick={() => scrollToSection('ourteams')}
+              className="text-white font-medium hover:text-purple-300 transition-colors"
+            >
+              Team
             </button>
             <Link href="/Pricing" className="text-white font-medium hover:text-purple-300 transition-colors">
               Full Pricing
@@ -155,6 +161,15 @@ export default function Navbar() {
                   className="block w-full text-left py-2 text-gray-700 font-medium hover:text-purple-600"
                 >
                   Pricing
+                </button>
+                <button 
+                  onClick={() => {
+                    scrollToSection('ourteams');
+                    setIsMenuOpen(false);
+                  }}
+                  className="block w-full text-left py-2 text-gray-700 font-medium hover:text-purple-600"
+                >
+                  Team
                 </button>
                 <Link href="/Pricing" className="block py-2 text-gray-700 font-medium hover:text-purple-600">
                   Full Pricing
