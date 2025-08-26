@@ -2,8 +2,7 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, Briefcase } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 interface StartScreenProps {
   category: string;
@@ -15,8 +14,6 @@ interface StartScreenProps {
   setLevel: (v: string) => void;
   setDuration: (v: number) => void;
   startInterview: () => void;
-  CATEGORY_ROLE_OPTIONS: { category: string; roles: string[] }[];
-  levelOptions: string[];
   isLoading?: boolean;
 }
 
@@ -24,10 +21,41 @@ const StartScreen: React.FC<StartScreenProps> = ({
   category, position, level, duration,
   setCategory, setPosition, setLevel, setDuration,
   startInterview,
-  isLoading = false,
-  CATEGORY_ROLE_OPTIONS, levelOptions
+  isLoading = false
 }) => {
-  const positionOptions = CATEGORY_ROLE_OPTIONS.find(c => c.category === category)?.roles || [];
+  // Position is now sourced from user preferences; selector removed from UI
+  const [prefLoading, setPrefLoading] = React.useState(false);
+  const [preferredJobRole, setPreferredJobRole] = React.useState<any | null>(null);
+
+  // Load user interview preferences (same API used by avatar interview)
+  React.useEffect(() => {
+    const fetchPrefs = async () => {
+      try {
+        setPrefLoading(true);
+        const res = await fetch('/api/profile/interview-preferences');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data?.preferredJobRole) {
+          setPreferredJobRole(data.preferredJobRole);
+          // Map preferred job role to test-mode selectors
+          const roleTitle = data.preferredJobRole.title || '';
+          const roleLevel = data.preferredJobRole.level || '';
+          const categoryName = data.preferredJobRole.category?.name || '';
+
+          // Directly set from preferences (no local constants needed)
+          if (categoryName) setCategory(categoryName);
+          if (roleTitle) setPosition(roleTitle);
+          if (roleLevel) setLevel(roleLevel);
+        }
+      } catch (e) {
+        // silent fail
+      } finally {
+        setPrefLoading(false);
+      }
+    };
+    fetchPrefs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   return (
     <Card className="bg-white/60 backdrop-blur-sm rounded-xl shadow border border-slate-200">
@@ -38,69 +66,43 @@ const StartScreen: React.FC<StartScreenProps> = ({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label htmlFor="category">Industry/Field</Label>
-            <Select 
-              value={category} 
-              onValueChange={(value) => {
-                setCategory(value);
-                const newRoles = CATEGORY_ROLE_OPTIONS.find(c => c.category === value)?.roles || [];
-                setPosition(newRoles[0] || '');
-              }}
-              disabled={isLoading}
-            >
-              <SelectTrigger id="category" className="w-full">
-                <SelectValue placeholder={isLoading ? "Loading..." : "Select field"} />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoading ? (
-                  <SelectItem value="loading" disabled>Loading categories...</SelectItem>
-                ) : CATEGORY_ROLE_OPTIONS.map((option) => (
-                  <SelectItem key={option.category} value={option.category}>{option.category}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="position">Position applied for</Label>
-            <Select value={position} onValueChange={setPosition} disabled={isLoading}>
-              <SelectTrigger id="position" className="w-full">
-                <SelectValue placeholder={isLoading ? "Loading..." : "Select position"} />
-              </SelectTrigger>
-              <SelectContent>
-                {isLoading ? (
-                  <SelectItem value="loading" disabled>Loading positions...</SelectItem>
-                ) : positionOptions.map((role: string) => (
-                  <SelectItem key={role} value={role}>{role}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Cấp độ phỏng vấn */}
-        <div className="bg-blue-50/70 p-4 rounded-lg border border-blue-100">
-          <h3 className="font-medium text-blue-800 mb-2 flex items-center">
-            <Briefcase className="w-5 h-5 mr-2" />
-            Select interview level:
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {levelOptions.filter(lv => lv === 'Junior' || lv === 'Mid-level' || lv === 'Senior').map((lv) => (
-              <div
-                key={lv}
-                className={`border rounded-xl p-3 cursor-pointer transition-colors ${level === lv ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-200 shadow-sm' : 'bg-white/70 border-slate-200 hover:bg-slate-50'}`}
-                onClick={() => setLevel(lv)}
-              >
-                <div className="font-medium mb-1">{lv}</div>
-                <div className="text-xs text-gray-600">
-                  {lv === 'Junior' ? '0-2 years experience' : lv === 'Mid-level' ? '2-5 years experience' : lv === 'Senior' ? '5+ years experience' : ''}
+        {/* Preferred Job Role (from preferences) */}
+        {preferredJobRole && (
+          <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h4 className="text-2xl font-bold text-blue-900">{preferredJobRole.title}</h4>
+                <p className="text-blue-700 font-medium">{preferredJobRole.category?.name || '—'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                <p className="text-xs text-blue-700 font-medium">Level</p>
+                <p className="text-sm font-semibold text-blue-900">{preferredJobRole.level || '—'}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                <p className="text-xs text-blue-700 font-medium">Experience</p>
+                <p className="text-sm font-semibold text-blue-900">{preferredJobRole.minExperience}-{preferredJobRole.maxExperience ?? '∞'} years</p>
+              </div>
+            </div>
+            {preferredJobRole.description && (
+              <div className="bg-white rounded-lg p-4 border border-blue-100 mb-4">
+                <p className="text-xs text-blue-700 font-medium mb-1">Job Description</p>
+                <p className="text-sm text-blue-900">{preferredJobRole.description}</p>
+              </div>
+            )}
+            {preferredJobRole.category?.skills && preferredJobRole.category.skills.length > 0 && (
+              <div>
+                <p className="text-xs text-blue-700 font-medium mb-2">Required Skills</p>
+                <div className="flex flex-wrap gap-2">
+                  {preferredJobRole.category.skills.slice(0, 12).map((skill: string, idx: number) => (
+                    <span key={idx} className="px-3 py-1 bg-white border border-blue-200 text-blue-800 text-xs font-medium rounded-full">{skill}</span>
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-
+        )}
         {/* Thời gian phỏng vấn */}
         <div className="space-y-2">
           <div className="flex justify-between">

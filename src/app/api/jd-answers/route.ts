@@ -75,13 +75,6 @@ export async function POST(request: NextRequest) {
       result = await JdAnswerService.saveAnswer(answerData);
     }
 
-    // Track activity for admin analytics (without score to avoid confusion)
-    console.log('📊 Attempting to track JD activity:', {
-      userId,
-      jdQuestionSetId,
-      timeSpent: timeSpent || 0,
-      note: 'JD activity tracking - no score calculated'
-    });
     
     try {
       await UserActivityService.addActivity(userId, {
@@ -91,9 +84,8 @@ export async function POST(request: NextRequest) {
         duration: timeSpent || 0,
         timestamp: new Date()
       });
-      console.log('✅ JD activity tracking successful');
     } catch (activityError) {
-      console.error('❌ Error tracking JD activity:', activityError);
+      console.error(' Error tracking JD activity:', activityError);
       // Don't fail the main operation if activity tracking fails
     }
 

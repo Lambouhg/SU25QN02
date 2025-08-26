@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useUser } from '@clerk/nextjs';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { getAIResponse } from '../../../services/azureAiservicesforJD';
 import { questionSetService } from '@/services/questionSetService';
@@ -14,13 +15,22 @@ import SavedQuestionSets from '@/components/JobDescription/SavedQuestionSets';
 import ValidationInfoDisplay from '@/components/JobDescription/ValidationInfoDisplay';
 import Toast from '@/components/ui/Toast';
 import type { QuestionSetData } from '@/services/questionSetService';
+import { AlertTriangle, Eye, Plus, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+type MinimalQuestionSet = {
+  id?: string | null;
+  originalJDText: string;
+  questions: string[];
+};
 
 const UploadJDPageContent = () => {
   const searchParams = useSearchParams();
+  const { user } = useUser();
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
-  const [messageType, setMessageType] = useState<'success' | 'error' | ''>(''); 
+  const [messageType, setMessageType] = useState<'success' | 'error' | 'warning' | ''>(''); 
   const [dragActive, setDragActive] = useState<boolean>(false);  const [questions, setQuestions] = useState<string[]>([]);
   const [questionType, setQuestionType] = useState<'technical' | 'behavioral' | ''>('');
   const [level, setLevel] = useState<'junior' | 'mid' | 'senior'>('junior');
@@ -45,11 +55,172 @@ const UploadJDPageContent = () => {
   // Key for localStorage
   const STORAGE_KEY = 'jd_page_state';
 
+  const [duplicateJDInfo, setDuplicateJDInfo] = useState<{
+    isDuplicate: boolean;
+    existingSet?: MinimalQuestionSet;
+    similarity?: number;
+  } | null>(null);
+  const [showDuplicateOptions, setShowDuplicateOptions] = useState(false);
+
   // Toast helper function
   const showToastMessage = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
     setToastMessage(message);
     setToastType(type);
     setShowToast(true);
+  };
+
+  const getAllQuestionsFromJD = async (jdText: string): Promise<string[]> => {
+    try {
+      // Lấy tất cả question sets của user
+      const response = await fetch('/api/jd/question-sets');
+      if (response.ok) {
+        const questionSets = await response.json() as MinimalQuestionSet[];
+        
+        // Tìm tất cả question sets có JD tương tự
+        const similarSets = questionSets.filter((set) => {
+          const similarity = calculateSimilarity(jdText, set.originalJDText);
+          return similarity > 0.7; // Ngưỡng 70% similarity
+        });
+        
+        // Trả về tất cả câu hỏi từ các sets tương tự
+        return similarSets.flatMap((set) => set.questions);
+      }
+    } catch (error) {
+      console.error('Error getting existing questions:', error);
+    }
+    
+    return [];
+  };
+
+  const calculateSimilarity = (text1: string, text2: string): number => {
+    const normalize = (text: string) => 
+      text.toLowerCase()
+         .replace(/[^\w\s]/g, '')
+         .replace(/\s+/g, ' ')
+         .trim();
+
+    const normalized1 = normalize(text1);
+    const normalized2 = normalize(text2);
+
+    const words1 = new Set(normalized1.split(' '));
+    const words2 = new Set(normalized2.split(' '));
+    
+    const intersection = new Set(Array.from(words1).filter(x => words2.has(x)));
+    const union = new Set(Array.from(words1).concat(Array.from(words2)));
+    
+    return intersection.size / union.size;
+  };
+
+  const handleGenerateWithNewParams = async () => {
+    if (!file) {
+      showToastMessage('Please select a file first.', 'error');
+      return;
+    }
+
+    if (file.type !== 'application/pdf') {
+      showToastMessage('Only PDF files are supported.', 'error');
+      return;
+    }
+
+    if (!questionType) {
+      showToastMessage('Please select a question type.', 'error');
+      return;
+    }
+
+    if (!level) {
+      showToastMessage('Please select a level.', 'error');
+      return;
+    }
+
+    setUploading(true);
+    setMessage('Generating interview questions with new parameters...');
+    setMessageType('');
+    setValidationInfo(null);
+
+    showToastMessage('AI is generating your interview questions...', 'info');
+
+    try {
+      const text = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            resolve(event.target.result as string);
+          } else {
+            reject(new Error('Failed to read file content'));
+          }
+        };
+        reader.onerror = (error) => {
+          reject(error);
+        };
+        reader.readAsText(file);
+      });
+
+      if (!text.trim()) {
+        throw new Error('No text content found in the file');
+      }
+
+      // Lấy tất cả câu hỏi đã có từ JD này để tránh trùng lặp
+      const allExistingQuestions = await getAllQuestionsFromJD(text);
+      
+      const aiResponse = await getAIResponse(text, [], {
+        questionType: questionType as 'technical' | 'behavioral',
+        language: 'en',
+        level: level as 'junior' | 'mid' | 'senior',
+        avoidDuplicates: allExistingQuestions
+      });
+
+      const allLines = aiResponse
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => line.trim());
+
+      const validQuestions = allLines
+        .filter(line => isValidQuestion(line))
+        .map((line, index) => {
+          const cleanLine = line.replace(/^(\d+\.\s*)?/, '').replace(/^-\s*/, '').trim();
+          return `${index + 1}. ${cleanLine}`;
+        });
+
+      if (validQuestions.length === 0) {
+        throw new Error('No valid interview questions found. Please try with a different job description.');
+      }
+
+      setQuestions(validQuestions);
+      setMessage(`Successfully generated ${validQuestions.length} interview questions with new parameters!`);
+      setMessageType('success');
+      showToastMessage(`Successfully generated ${validQuestions.length} interview questions!`, 'success');
+
+      // Tự động lưu question set vào database
+      try {
+        const jobTitle = questionSetService.extractJobTitle(file.name, text);
+        const savedQuestionSet = await questionSetService.saveQuestionSet({
+          jobTitle,
+          questionType: questionType as 'technical' | 'behavioral',
+          level: level as 'junior' | 'mid' | 'senior',
+          questions: validQuestions,
+          originalJDText: text,
+          fileName: file.name
+        });
+        
+        if (savedQuestionSet && savedQuestionSet.id) {
+          setCurrentQuestionSetId(savedQuestionSet.id);
+        }
+        
+        setTimeout(() => {
+          showToastMessage('Questions saved to your library!', 'info');
+        }, 2000);
+      } catch (saveError) {
+        console.error('Error saving question set:', saveError);
+        showToastMessage(' Questions generated but failed to save to library', 'warning');
+      }
+    } catch (error) {
+      console.error('Error generating with new params:', error);
+      setMessage(error instanceof Error ? error.message : 'Error generating questions. Please try again.');
+      setMessageType('error');
+      showToastMessage(`❌ ${error instanceof Error ? error.message : 'Error generating questions. Please try again.'}`, 'error');
+    } finally {
+      setUploading(false);
+    }
   };
 
   // Load state from localStorage on component mount
@@ -267,7 +438,7 @@ const UploadJDPageContent = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/jd/process-pdf', {
+      const processResponse = await fetch('/api/jd/process-pdf', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -280,7 +451,7 @@ const UploadJDPageContent = () => {
 
       // Race between response and timeout
       const responseText = await Promise.race([
-        response.text(),
+        processResponse.text(),
         timeoutPromise
       ]) as string;
 
@@ -294,9 +465,9 @@ const UploadJDPageContent = () => {
         throw new Error('Server returned invalid response. Please try again.');
       }
 
-      if (!response.ok) {
+      if (!processResponse.ok) {
         // Handle validation errors specifically
-        if (response.status === 422 && responseData.validation) {
+        if (processResponse.status === 422 && responseData.validation) {
           setValidationInfo(responseData.validation);
           setMessage('Invalid Job Description');
           setMessageType('error');
@@ -324,6 +495,37 @@ const UploadJDPageContent = () => {
       
       // Show AI generation toast
       showToastMessage('AI is generating your interview questions...', 'info');
+
+      // Gọi API với thông tin đầy đủ
+      const response = await fetch('/api/jd/process-pdf', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-id': user?.id || ''
+        },
+        body: JSON.stringify({
+          text,
+          questionType,
+          level,
+          userId: user?.id
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success === false && result.error === 'Duplicate JD detected') {
+        // Xử lý JD trùng lặp
+        setDuplicateJDInfo({
+          isDuplicate: true,
+          existingSet: result.existingQuestionSet,
+          similarity: result.similarity
+        });
+        
+        setMessage('Duplicate JD detected. You can view existing questions or generate new ones.');
+        setMessageType('warning');
+        showToastMessage('⚠️ Duplicate JD detected!', 'warning');
+        return;
+      }
 
       const aiResponse = await getAIResponse(text, [], {
         questionType: questionType,
@@ -567,8 +769,67 @@ const UploadJDPageContent = () => {
               />
             </div>
           </div>
-        )}        <FeatureHighlights />
-      </div>
+                  )}
+
+          {/* Duplicate JD Warning */}
+          {duplicateJDInfo?.isDuplicate && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-medium text-yellow-800">
+                    Similar Job Description Detected
+                  </h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    This JD is {duplicateJDInfo.similarity}% similar to one you&apos;ve already processed.
+                  </p>
+                  
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (!duplicateJDInfo?.existingSet) return;
+                          // Hiển thị câu hỏi đã có
+                          setQuestions(duplicateJDInfo.existingSet.questions);
+                          setCurrentQuestionSetId(duplicateJDInfo.existingSet.id ?? null);
+                          setDuplicateJDInfo(null);
+                        }}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        View Existing Questions ({duplicateJDInfo.existingSet?.questions.length ?? 0})
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // Tạo câu hỏi mới với parameters khác
+                          setShowDuplicateOptions(true);
+                        }}
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Generate Different Questions
+                      </Button>
+                    </div>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDuplicateJDInfo(null)}
+                      className="text-yellow-600 hover:text-yellow-700"
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <FeatureHighlights />
+        </div>
 
       {/* Toast Notifications */}
       <Toast 
@@ -577,6 +838,76 @@ const UploadJDPageContent = () => {
         show={showToast}
         onClose={() => setShowToast(false)}
       />
+
+      {/* Duplicate Options Modal */}
+      {showDuplicateOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Generate Different Questions</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDuplicateOptions(false)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Choose different parameters to generate unique questions from this JD.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Question Type</label>
+                <select
+                  value={questionType}
+                  onChange={(e) => setQuestionType(e.target.value as 'technical' | 'behavioral')}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="technical">Technical</option>
+                  <option value="behavioral">Behavioral</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Level</label>
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as 'junior' | 'mid' | 'senior')}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="junior">Junior</option>
+                  <option value="mid">Mid-level</option>
+                  <option value="senior">Senior</option>
+                </select>
+              </div>
+              
+              <div className="flex space-x-3 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDuplicateOptions(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowDuplicateOptions(false);
+                    setDuplicateJDInfo(null);
+                    // Generate với parameters mới
+                    handleGenerateWithNewParams();
+                  }}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                >
+                  Generate
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

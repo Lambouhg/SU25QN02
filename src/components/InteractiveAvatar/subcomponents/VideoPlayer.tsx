@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-import { VolumeX, Mic, VideoIcon, Phone, MessageSquare, Settings } from 'lucide-react';
+import { VolumeX, Mic, Phone, MessageSquare, Settings } from 'lucide-react';
 import { useAzureVoiceInteraction } from '@/hooks/useAzureVoiceInteraction';
 
 // UI Components
@@ -107,6 +107,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const [isEnding, setIsEnding] = useState(false);
   const [localIsInterrupting, setLocalIsInterrupting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   // VoiceInteraction state/logic
   const [error, setError] = useState<string | null>(null);
   // const [interimTranscript, setInterimTranscript] = useState<string>('');
@@ -185,24 +186,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Use external isInterrupting state if available, otherwise use local state
   const isInterrupting = externalIsInterrupting || localIsInterrupting;
 
-  const handleEndSession = async () => {
-    if (isEnding) return; // Prevent double-click
-    
-    if (window.confirm('Are you sure you want to end this session?')) {
-      try {
-        setIsEnding(true);
-        console.log('VideoPlayer: User confirmed session end');
-        
-        // Call the parent's end session handler
-        await onStopSession();
-        
-        console.log('VideoPlayer: Session ended successfully');
-      } catch (error) {
-        console.error('VideoPlayer: Error ending session:', error);
-      } finally {
-        setIsEnding(false);
-      }
+  const handleOpenConfirm = () => {
+    if (isEnding) return;
+    setShowConfirm(true);
+  };
+
+  const handleConfirmEnd = async () => {
+    if (isEnding) return;
+    try {
+      setIsEnding(true);
+      console.log('VideoPlayer: User confirmed session end');
+      await onStopSession();
+      console.log('VideoPlayer: Session ended successfully');
+    } catch (error) {
+      console.error('VideoPlayer: Error ending session:', error);
+    } finally {
+      setIsEnding(false);
+      setShowConfirm(false);
     }
+  };
+
+  const handleCancelEnd = () => {
+    if (isEnding) return;
+    setShowConfirm(false);
   };
 
   const handleInterruptSpeech = React.useCallback(async () => {
@@ -335,20 +341,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     )}
                   </Button>
 
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="text-white hover:bg-white/20"
-                    onClick={() => {}}
-                    title="Toggle video"
-                  >
-                    <VideoIcon className="w-5 h-5" />
-                  </Button>
 
                   <Button 
                     size="icon" 
                     variant="danger"
-                    onClick={handleEndSession}
+                    onClick={handleOpenConfirm}
                     disabled={isEnding}
                     title="End call"
                   >
@@ -412,6 +409,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Confirm End Session Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 mx-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">!
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">End interview session?</h3>
+                <p className="mt-1 text-sm text-gray-600">You can start again anytime. This will disconnect the current call.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={handleCancelEnd} disabled={isEnding}>Cancel</Button>
+              <Button variant="danger" className="flex-1" onClick={handleConfirmEnd} disabled={isEnding}>
+                {isEnding ? 'Ending...' : 'End Session'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

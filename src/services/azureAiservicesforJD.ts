@@ -36,6 +36,7 @@ export const getAIResponse = async (
     questionType?: 'technical' | 'behavioral';
     level?: 'junior' | 'mid' | 'senior';
     language?: 'en' | 'vi';
+    avoidDuplicates?: string[]; // Thêm parameter này để tránh trùng lặp
   } = {},
   retries: number = 3,
   delay: number = 60000 // 60 giây
@@ -333,7 +334,24 @@ export const getAIResponse = async (
     const level = options.level || 'junior';
     const language = options.language || 'en';
     
-    const systemPrompt = systemPrompts[questionType][language][level];
+    let systemPrompt = systemPrompts[questionType][language][level];
+    
+    // Thêm logic tránh trùng lặp nếu có
+    if (options.avoidDuplicates && options.avoidDuplicates.length > 0) {
+      const avoidDuplicatesPrompt = `
+
+AVOID DUPLICATES (CRITICAL):
+The following questions already exist. DO NOT create any question that is similar to these:
+${options.avoidDuplicates.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+REQUIREMENTS:
+- Create COMPLETELY DIFFERENT questions
+- Focus on different aspects of the same technologies
+- Use different question formats and approaches
+- Ensure no similarity with existing questions`;
+
+      systemPrompt = systemPrompt + avoidDuplicatesPrompt;
+    }
 
     // Tạo messages array
     const messages: ChatCompletionMessageParam[] = [

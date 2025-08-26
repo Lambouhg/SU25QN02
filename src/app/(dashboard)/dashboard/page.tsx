@@ -91,16 +91,16 @@ export default function DashboardPage() {
     {
       id: 2,
       icon: <BookOpen className="w-6 h-6 text-white" />,
-      label: "Practice",
-      description: "Start interview",
-      onClick: () => router.push("/avatar-interview")
+      label: "Review Question",
+      description: "Question Bank",
+      onClick: () => router.push("/review")
     },
     {
       id: 3,
       icon: <Calendar className="w-6 h-6 text-white" />,
-      label: "History",
-      description: "View progress",
-      onClick: () => router.push("/dashboard")
+      label: "Practice",
+      description: "AI Bot",
+      onClick: () => router.push("/avatar-interview")
     },
     {
       id: 4,
@@ -156,8 +156,6 @@ export default function DashboardPage() {
 
   // --- STREAK FEATURE STATE & LOGIC ---
   const [showStreakModal, setShowStreakModal] = useState(false);
-  const [showStreakWelcome, setShowStreakWelcome] = useState(false);
-
   // Lấy số ngày streak thực tế từ progress.stats.studyStreak
   const currentStreak = progress?.stats?.studyStreak || 0;
   const totalActivities = progress?.allActivities?.length || 0;
@@ -234,17 +232,18 @@ export default function DashboardPage() {
     return () => clearInterval(interval);
   }, [isLoaded, user]);
 
-  // Show welcome streak popup once after onboarding redirect
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const flag = localStorage.getItem('showStreakWelcome');
-      if (flag) {
-        setShowStreakWelcome(true);
-        localStorage.removeItem('showStreakWelcome');
-      }
-    } catch {}
-  }, []);
+
+
+  // Calculate today's activities
+  const getTodayActivities = () => {
+    if (!progress?.allActivities) return 0;
+    const today = new Date().toDateString();
+    return progress.allActivities.filter(activity => {
+      if (!activity.timestamp) return false;
+      const activityDate = new Date(activity.timestamp).toDateString();
+      return activityDate === today;
+    }).length;
+  };
 
   useEffect(() => {
     if (!progress) return;
@@ -684,20 +683,6 @@ export default function DashboardPage() {
           </div>
         </div>
      </div>
-      {/* Streak Welcome Popup */}
-      {showStreakWelcome && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl text-center">
-            <div className="text-3xl mb-2">🔥</div>
-            <h3 className="text-xl font-semibold mb-2">Start your streak!</h3>
-            <p className="text-sm text-gray-600 mb-4">Keep learning daily to grow your study pet and hit milestones.</p>
-            <div className="flex justify-center gap-2">
-              <Button onClick={() => setShowStreakWelcome(false)} className="px-6">Got it</Button>
-              <Button variant="outline" onClick={() => { setShowStreakWelcome(false); setShowStreakModal(true); }}>Learn more</Button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Target Modal */}
       {showTargetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
