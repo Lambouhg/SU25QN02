@@ -91,16 +91,16 @@ export default function DashboardPage() {
     {
       id: 2,
       icon: <BookOpen className="w-6 h-6 text-white" />,
-      label: "Practice",
-      description: "Start interview",
-      onClick: () => router.push("/avatar-interview")
+      label: "Review Question",
+      description: "Question Bank",
+      onClick: () => router.push("/review")
     },
     {
       id: 3,
       icon: <Calendar className="w-6 h-6 text-white" />,
-      label: "History",
-      description: "View progress",
-      onClick: () => router.push("/dashboard")
+      label: "Practice",
+      description: "AI Bot",
+      onClick: () => router.push("/avatar-interview")
     },
     {
       id: 4,

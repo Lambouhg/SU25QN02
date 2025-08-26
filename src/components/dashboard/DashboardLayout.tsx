@@ -141,6 +141,12 @@ export default function DashboardLayout({
       key: 'dashboard'
     },
     { 
+      icon: BookOpen, 
+      label: 'Review Question', 
+      href: '/review',
+      key: 'review'
+  },
+    { 
       icon: Brain, 
       label: 'Practice Modes', 
       key: 'practice',
@@ -169,12 +175,7 @@ export default function DashboardLayout({
       href: '/saved',
       key: 'saved'
     },
-          { 
-        icon: BookOpen, 
-        label: 'Review Question', 
-        href: '/review',
-        key: 'review'
-    },
+  
   ], []);
 
   // Optimized modal close functions

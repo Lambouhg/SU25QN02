@@ -18,11 +18,15 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  const { userId, redirectToSignIn } = await auth();
-  
+  const { userId } = await auth();
+
   // Protect routes that require authentication
   if (isProtectedRoute(req) && !userId) {
-    return redirectToSignIn();
+    // Always send unauthenticated users to our custom sign-in page
+    const url = new URL('/sign-in', req.url);
+    // preserve where the user was heading (optional)
+    url.searchParams.set('redirect_url', req.nextUrl.pathname + req.nextUrl.search);
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

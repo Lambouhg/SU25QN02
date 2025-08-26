@@ -3,6 +3,7 @@
 import { Search, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import BackgroundMeteors from '@/components/ui/backgroundmeteors';
 import { Logo } from '@/components/ui/logo';
@@ -24,7 +25,9 @@ export default function Navbar() {
         <div className="flex items-center justify-between px-4 md:px-12 py-4 md:py-6 relative z-50 max-w-[2100px] mx-auto">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <Logo size="md" />
+            <div className="rounded-full bg-white p-1.5 ring-1 ring-white/80 shadow-sm">
+              <Logo variant="dark" size="md" />
+            </div>
           </div>
 
           {/* Desktop Navigation */}
@@ -104,9 +107,16 @@ export default function Navbar() {
           </button>
 
           {/* Mobile Menu */}
-          {isMenuOpen && (
-            <div className="md:hidden absolute top-full left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
-              <div className="p-4 space-y-4">
+          {isMenuOpen && typeof window !== 'undefined' && createPortal((
+            <div className="md:hidden fixed inset-0 z-[2147483647]">
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => setIsMenuOpen(false)}
+              />
+              {/* Panel */}
+              <div className="absolute left-0 right-0 top-16 bg-white border-t border-gray-200 shadow-xl">
+                <div className="p-4 space-y-4">
                 <button 
                   onClick={() => {
                     scrollToSection('home');
@@ -168,9 +178,10 @@ export default function Navbar() {
                     Sign-up
                   </Link>
                 </SignedOut>
+                </div>
               </div>
             </div>
-          )}
+          ), document.body)}
         </div>
       </nav>
     </BackgroundMeteors>

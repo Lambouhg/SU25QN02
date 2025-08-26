@@ -41,7 +41,7 @@ const Tabs = ({ defaultValue, children }: TabsProps) => {
 
 const TabsList = ({ children }: { children: ReactNode }) => {
   return (
-    <div className="flex border-b border-gray-200 dark:border-gray-800">
+    <div className="flex border-b border-gray-200 dark:border-gray-800 space-x-1">
       {children}
     </div>
   );
@@ -59,7 +59,7 @@ const TabsTrigger = ({ value, children }: TabsTriggerProps) => {
   return (
     <button
       onClick={() => setActiveTab(value)}
-      className="relative px-4 py-2 text-sm font-medium rounded-t-md overflow-hidden transition-colors duration-500"
+      className="relative px-6 py-3 text-sm font-medium rounded-t-md overflow-hidden transition-colors duration-500"
     >
       <span
         className={twMerge(
@@ -91,7 +91,7 @@ const TabsContent = ({
   children,
 }: TabsContentProps): ReactElement | null => {
   const { activeTab } = useTabsContext();
-  return activeTab === value ? <div className="p-4">{children}</div> : null;
+  return activeTab === value ? <div className="p-6">{children}</div> : null;
 };
 
 export { Tabs, TabsList, TabsTrigger, TabsContent };
