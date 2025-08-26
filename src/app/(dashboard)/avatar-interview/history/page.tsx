@@ -56,28 +56,28 @@ interface InterviewDetailDialogProps {
 function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDialogProps) {
   if (!interview || !isOpen) return null;
 
-  // Mapping dữ liệu
+  // Data mapping
   const candidateName = interview.userId || "Candidate";
   const position = interview.jobRole?.title || "No position title";
-  const date = new Date(interview.startTime).toLocaleString('en-US');
+  const date = new Date(interview.startTime).toLocaleString();
   const status = interview.status;
   const summary = interview.evaluation?.recommendations?.join(', ') || "";
-  const notes = ""; // Nếu có trường notes thì lấy, không thì để trống
+  const notes = ""; // If there's a notes field, get it, otherwise leave empty
   const conversationHistory = interview.conversationHistory?.map(msg => ({
-    speaker: msg.role === 'user' ? 'You' : 'AI Interviewer',
+    speaker: msg.role === 'user' ? 'You' : 'AI',
     text: msg.content
   })) || [];
   const skillScores = interview.skillAssessment || {};
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case "Hoàn thành":
+      case "Completed":
       case "completed":
         return "default";
-      case "Đang chờ":
+      case "Pending":
       case "pending":
         return "secondary";
-      case "Đã hủy":
+      case "Cancelled":
       case "cancelled":
         return "destructive";
       default:
@@ -174,9 +174,9 @@ function InterviewDetailDialog({ interview, isOpen, onClose }: InterviewDetailDi
               </div>
               <div className="max-h-[300px] overflow-y-auto space-y-3 border border-gray-200 rounded-xl p-4 bg-gray-50">
                 {conversationHistory.map((msg, index) => (
-                  <div key={index} className={`flex gap-3 ${msg.speaker === 'You' ? 'justify-end' : 'justify-start'}`}>
+                  <div key={index} className={`flex gap-3 ${msg.speaker === 'Bạn' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] p-3 rounded-2xl ${
-                      msg.speaker === 'You' 
+                      msg.speaker === 'Bạn' 
                         ? 'bg-blue-500 text-white' 
                         : 'bg-white text-gray-800 border border-gray-200'
                     }`}>
@@ -304,13 +304,13 @@ export default function InterviewHistoryPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "Hoàn thành":
+      case "Completed":
       case "completed":
         return "text-green-600 bg-green-50 border-green-200";
-      case "Đang chờ":
+      case "Pending":
       case "pending":
         return "text-orange-600 bg-orange-50 border-orange-200";
-      case "Đã hủy":
+      case "Cancelled":
       case "cancelled":
         return "text-red-600 bg-red-50 border-red-200";
       default:
@@ -321,7 +321,7 @@ export default function InterviewHistoryPage() {
   return (
     <DashboardLayout>
       <div className="w-full px-0">
-        {/* Loading overlay while deleting */}
+        {/* Loading overlay when deleting */}
         {isDeleting && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
             <div className="bg-white rounded-2xl px-8 py-8 flex flex-col items-center shadow-2xl border border-gray-100">
@@ -334,7 +334,7 @@ export default function InterviewHistoryPage() {
           </div>
         )}
         
-        {/* Toast: deletion succeeded */}
+        {/* Success toast */}
         {deleteSuccess && (
           <div className="fixed top-6 right-6 z-[100] bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in border border-green-400">
             <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
@@ -356,7 +356,7 @@ export default function InterviewHistoryPage() {
                 <div>
                   <CardTitle className="text-3xl font-bold text-gray-900">Interview History</CardTitle>
                   <CardDescription className="text-lg text-gray-600 mt-1">
-                    Manage and view details of past interview sessions
+                    Manage and view details of completed interview sessions
                   </CardDescription>
                 </div>
               </div>
@@ -389,7 +389,7 @@ export default function InterviewHistoryPage() {
                     <Clock className="h-10 w-10 text-gray-400" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">No interview sessions found</h3>
-                  <p className="text-gray-600">Try adjusting your search or start a new interview session</p>
+                  <p className="text-gray-600">Try changing your search terms or start a new interview session</p>
                 </div>
               ) : (
                 paginatedInterviews.map(i => (
@@ -487,7 +487,7 @@ export default function InterviewHistoryPage() {
               )}
             </div>
             
-            {/* Nút Xem thêm nếu còn dữ liệu */}
+            {/* Load more button if there's more data */}
             {filteredInterviews.length > page * pageSize && (
               <div className="flex justify-center mt-8">
                 <Button 
@@ -495,14 +495,14 @@ export default function InterviewHistoryPage() {
                   variant="outline"
                   className="px-8 py-3 rounded-xl border-2 border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700 transition-all duration-200"
                 >
-                  Load more ({filteredInterviews.length - page * pageSize} remaining)
+                  Load more ({filteredInterviews.length - page * pageSize} sessions remaining)
                 </Button>
               </div>
             )}
           </CardContent>
         </Card>
         
-        {/* Modal xác nhận xóa và modal chi tiết giữ nguyên */}
+        {/* Delete confirmation modal and detail modal remain unchanged */}
         <InterviewDetailDialog
           interview={selectedInterview}
           isOpen={!!selectedInterview && showDetailDialog}
@@ -518,7 +518,7 @@ export default function InterviewHistoryPage() {
                     <HighlightOffIcon className="!w-6 !h-6 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900">Confirm deletion</h3>
+                    <h3 className="text-xl font-bold text-gray-900">Confirm Delete</h3>
                     <p className="text-gray-600 text-sm">Are you sure you want to delete this interview session?</p>
                   </div>
                 </div>

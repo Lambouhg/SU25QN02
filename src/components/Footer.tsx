@@ -10,7 +10,7 @@ const Footer = () => {
           {/* Company Info */}
           <div className="col-span-1 md:col-span-1">
             <div className="flex items-center space-x-2 mb-6">
-              <Logo variant="white" size="sm" />
+              <Logo size="sm" />
             </div>
             <p className="text-gray-400 mb-6">
               Enhance your interview skills with intelligent AI

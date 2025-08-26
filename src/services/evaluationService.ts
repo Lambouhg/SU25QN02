@@ -1,5 +1,5 @@
 import { ChatMessage, callOpenAI } from './openaiService';
-import { InterviewEvaluation } from './Avatar-AI';
+import { InterviewEvaluation, QuestionAnalysis } from './Avatar-AI';
 
 // Detailed evaluation criteria by position and level
 interface EvaluationCriteria {
@@ -172,6 +172,133 @@ function getSalaryRange(position: string, level: string): { min: number; max: nu
   };
 }
 
+// Function to extract Q&A pairs from conversation
+function extractQuestionAnswerPairs(conversation: ChatMessage[]): Array<{question: string, answer: string}> {
+  const pairs: Array<{question: string, answer: string}> = [];
+  
+  for (let i = 0; i < conversation.length - 1; i++) {
+    const currentMsg = conversation[i];
+    const nextMsg = conversation[i + 1];
+    
+    // Look for AI asking a question followed by user answering
+    if (currentMsg.role === 'assistant' && nextMsg.role === 'user') {
+      // Extract the question (remove any system-like prefixes)
+      let question = currentMsg.content.trim();
+      if (question.startsWith('INSTRUCTION:')) continue;
+      
+      // Clean up the question
+      question = question.replace(/^(Question \d+[:.]?\s*)/i, '');
+      
+      const answer = nextMsg.content.trim();
+      
+      if (question && answer && question.length > 10 && answer.length > 5) {
+        pairs.push({ question, answer });
+      }
+    }
+  }
+  
+  return pairs;
+}
+
+// Function to generate detailed analysis for a single question-answer pair
+async function analyzeQuestionAnswer(
+  question: string,
+  answer: string,
+  field: string,
+  level: string,
+  language: 'vi-VN' | 'en-US'
+): Promise<QuestionAnalysis> {
+  const prompt = `You are evaluating a candidate's answer for a ${field} position at ${level} level.
+
+QUESTION: ${question}
+ANSWER: ${answer}
+
+Please provide a detailed analysis of this answer. Consider:
+1. Technical accuracy and depth
+2. Completeness of the response
+3. Clarity of communication
+4. Relevant strengths and weaknesses
+5. Specific suggestions for improvement
+6. Key technical terms and concepts mentioned
+7. Skills demonstrated
+
+Respond in ${language === 'vi-VN' ? 'Vietnamese' : 'English'}.
+
+REQUIRED JSON FORMAT:
+{
+  "score": number (1-10, overall quality),
+  "technicalAccuracy": number (1-10, technical correctness),
+  "completeness": number (1-10, how complete the answer is),
+  "clarity": number (1-10, communication clarity),
+  "strengths": string[] (specific strengths in the answer),
+  "weaknesses": string[] (areas that need improvement),
+  "suggestions": string[] (specific suggestions for improvement),
+  "keywords": string[] (key technical terms/concepts mentioned),
+  "skillTags": string[] (skills demonstrated in this answer),
+  "category": string (question category: technical, behavioral, problem-solving, etc.),
+  "feedback": string (detailed written feedback)
+}`;
+
+  try {
+    const messages: ChatMessage[] = [
+      { role: 'system', content: prompt },
+      { role: 'user', content: `Analyze this Q&A pair for a ${field} ${level} position.` }
+    ];
+
+    const response = await callOpenAI(messages);
+    
+    if (!response.choices || !response.choices[0]?.message?.content) {
+      throw new Error('Invalid response from AI');
+    }
+
+    let content = response.choices[0].message.content.trim();
+    
+    // Remove markdown formatting if present
+    if (content.startsWith('```json')) {
+      content = content.replace(/```json\n?/, '').replace(/```\n?/, '');
+    } else if (content.startsWith('```')) {
+      content = content.replace(/```\n?/, '').replace(/```\n?/, '');
+    }
+
+    const analysis = JSON.parse(content);
+    
+    return {
+      question,
+      userAnswer: answer,
+      score: validateScore(analysis.score),
+      technicalAccuracy: validateScore(analysis.technicalAccuracy),
+      completeness: validateScore(analysis.completeness),
+      clarity: validateScore(analysis.clarity),
+      strengths: Array.isArray(analysis.strengths) ? analysis.strengths : [],
+      weaknesses: Array.isArray(analysis.weaknesses) ? analysis.weaknesses : [],
+      suggestions: Array.isArray(analysis.suggestions) ? analysis.suggestions : [],
+      keywords: Array.isArray(analysis.keywords) ? analysis.keywords : [],
+      skillTags: Array.isArray(analysis.skillTags) ? analysis.skillTags : [],
+      category: analysis.category || 'general',
+      feedback: analysis.feedback || ''
+    };
+  } catch (error) {
+    console.error('Error analyzing question-answer pair:', error);
+    
+    // Return default analysis
+    return {
+      question,
+      userAnswer: answer,
+      score: 5,
+      technicalAccuracy: 5,
+      completeness: 5,
+      clarity: 5,
+      strengths: [],
+      weaknesses: [],
+      suggestions: [],
+      keywords: [],
+      skillTags: [],
+      category: 'general',
+      feedback: language === 'vi-VN' ? 'Không thể phân tích câu trả lời này.' : 'Unable to analyze this answer.'
+    };
+  }
+}
+
 export async function generateInterviewEvaluation(
   conversation: ChatMessage[],
   field: string,
@@ -184,6 +311,17 @@ export async function generateInterviewEvaluation(
     const levelBenchmark = getLevelBenchmark(level);
     const benchmarks = criteria.benchmarks[levelBenchmark];
     const salaryRange = getSalaryRange(field, level);
+
+    // Extract Q&A pairs for detailed analysis
+    const questionAnswerPairs = extractQuestionAnswerPairs(conversation);
+    
+    // Generate detailed analysis for each Q&A pair
+    const questionAnalysisPromises = questionAnswerPairs.map(pair => 
+      analyzeQuestionAnswer(pair.question, pair.answer, field, level, language)
+    );
+    
+    // Wait for all question analyses to complete
+    const questionAnalysis = await Promise.all(questionAnalysisPromises);
 
     const prompt = `You are a senior technical interviewer specializing in ${field} positions. 
 You are evaluating a candidate for a ${level} ${field} developer role.
@@ -273,25 +411,19 @@ REQUIRED JSON FORMAT:
     
     // Remove any markdown formatting if present
     if (content.startsWith('```json')) {
-      content = content.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      content = content.replace(/```json\n?/, '').replace(/```\n?/, '');
     } else if (content.startsWith('```')) {
-      content = content.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      content = content.replace(/```\n?/, '').replace(/```\n?/, '');
     }
-    
-    // Try to find JSON object if there's additional text
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      content = jsonMatch[0];
-    }
-    
-    // If content doesn't look like JSON, return comprehensive default evaluation
-    if (!content.startsWith('{') || !content.endsWith('}')) {
+
+    let evaluation;
+    try {
+      evaluation = JSON.parse(content);
+    } catch {
       console.warn('AI returned non-JSON response, using enhanced default evaluation');
       return generateDefaultEvaluation(field, level, language, salaryRange);
     }
 
-    const evaluation = JSON.parse(content);
-    
     // Ensure all required fields are present and valid
     const validatedEvaluation: InterviewEvaluation = {
       technicalScore: validateScore(evaluation.technicalScore),
@@ -320,7 +452,8 @@ REQUIRED JSON FORMAT:
         currentLevel: evaluation.levelAssessment.currentLevel || level,
         readinessForNextLevel: Boolean(evaluation.levelAssessment.readinessForNextLevel),
         gapAnalysis: Array.isArray(evaluation.levelAssessment.gapAnalysis) ? evaluation.levelAssessment.gapAnalysis : []
-      } : undefined
+      } : undefined,
+      questionAnalysis: questionAnalysis
     };
     
     return validatedEvaluation;
@@ -394,6 +527,7 @@ function generateDefaultEvaluation(
         language === 'vi-VN' ? 'Tăng cường kinh nghiệm thực tế' : 'Strengthen practical experience',
         language === 'vi-VN' ? 'Phát triển kỹ năng giao tiếp kỹ thuật' : 'Develop technical communication skills'
       ]
-    }
+    },
+    questionAnalysis: [] // No question analysis for default evaluation
   };
 }

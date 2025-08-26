@@ -24,7 +24,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between px-4 md:px-12 py-4 md:py-6 relative z-50 max-w-[2100px] mx-auto">
           {/* Logo */}
           <div className="flex items-center space-x-2">
-            <Logo variant="white" size="md" />
+            <Logo size="md" />
           </div>
 
           {/* Desktop Navigation */}

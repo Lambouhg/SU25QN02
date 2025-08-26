@@ -51,6 +51,22 @@ export interface InterviewResponse {
   };
 }
 
+export interface QuestionAnalysis {
+  question: string;
+  userAnswer: string;
+  score: number;
+  technicalAccuracy: number;
+  completeness: number;
+  clarity: number;
+  strengths: string[];
+  weaknesses: string[];
+  suggestions: string[];
+  keywords: string[];
+  skillTags: string[];
+  category: string;
+  feedback: string;
+}
+
 export interface InterviewEvaluation {
   technicalScore: number;
   communicationScore: number;
@@ -77,6 +93,7 @@ export interface InterviewEvaluation {
     readinessForNextLevel: boolean;
     gapAnalysis: string[];
   };
+  questionAnalysis?: QuestionAnalysis[];
 }
 
 export async function processInterviewResponse(

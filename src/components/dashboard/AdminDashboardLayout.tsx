@@ -150,7 +150,7 @@ export default function AdminDashboardLayout({
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               <Link href="/admin/dashboard" className="flex items-center ml-2 lg:ml-0">
-                <Logo variant="dark" size="sm" />
+                <Logo size="sm" />
                 <span className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full font-medium">
                   Admin Panel
                 </span>

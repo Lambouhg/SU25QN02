@@ -244,7 +244,7 @@ export default function DashboardLayout({
                 {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               <Link href="/dashboard" className="flex items-center ml-2 lg:ml-0">
-                <Logo variant="dark" size="sm" />
+                <Logo size="sm" />
               </Link>
             </div>
 
