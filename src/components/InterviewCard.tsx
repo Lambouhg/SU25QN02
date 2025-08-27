@@ -21,7 +21,7 @@ export default function InterviewCard() {
           <div className="absolute inset-0">
             <iframe
               className="w-full h-full"
-              src="https://www.youtube.com/embed/gKzT650Qy1w?rel=0&modestbranding=1"
+              src="https://www.youtube.com/embed/k3ZItY0S57k?si=jjW91WHpEiSsG4KH"
               title="Product demo"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"

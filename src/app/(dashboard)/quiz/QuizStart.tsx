@@ -1,22 +1,10 @@
 "use client"
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, ChevronLeft, Target, BarChart3 } from 'lucide-react';
 import type { Quiz } from './QuizPanel';
-
-interface FieldType {
-  id: string;
-  name: string;
-}
-
-interface TopicType {
-  id: string;
-  name: string;
-  icon: string;
-}
 
 interface ConfigType {
   field: string;
@@ -35,94 +23,6 @@ interface QuizStartProps {
   error: string | null
 }
 
-const PREDEFINED_FIELDS = [
-  { id: "frontend", name: "Frontend", icon: "🎨", color: "from-blue-500 to-cyan-500" },
-  { id: "backend", name: "Backend", icon: "⚙️", color: "from-green-500 to-emerald-500" },
-  { id: "devops", name: "DevOps", icon: "🔧", color: "from-orange-500 to-red-500" },
-  { id: "ai-engineer", name: "AI Engineer", icon: "🤖", color: "from-purple-500 to-pink-500" },
-  { id: "data-analyst", name: "Data Analyst", icon: "📊", color: "from-indigo-500 to-blue-500" },
-  { id: "game-developer", name: "Game Developer", icon: "🎮", color: "from-pink-500 to-rose-500" },
-  { id: "product-manager", name: "Product Manager", icon: "📋", color: "from-teal-500 to-cyan-500" },
-  { id: "qa", name: "QA", icon: "🔍", color: "from-yellow-500 to-orange-500" },
-  { id: "mobile-app", name: "Mobile App", icon: "📱", color: "from-violet-500 to-purple-500" },
-  { id: "database", name: "Database Admin", icon: "🗄️", color: "from-green-700 to-blue-700" },
-]
-
-const PREDEFINED_TOPICS = [
-  { id: "sql", name: "SQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mysql/mysql-original.svg" },
-  { id: "computer-science", name: "Computer Science", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/computercraft/computercraft-original.svg" },
-  { id: "react", name: "React", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
-  { id: "vue", name: "Vue", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/vuejs/vuejs-original.svg" },
-  { id: "angular", name: "Angular", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/angularjs/angularjs-original.svg" },
-  { id: "javascript", name: "JavaScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/javascript/javascript-original.svg" },
-  { id: "nodejs", name: "Node.js", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nodejs/nodejs-original.svg" },
-  { id: "typescript", name: "TypeScript", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" },
-  { id: "python", name: "Python", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/python/python-original.svg" },
-  { id: "system-design", name: "System Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
-  { id: "api-design", name: "API Design", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/fastapi/fastapi-original.svg" },
-  { id: "aspnet-core", name: "ASP.NET Core", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/dotnetcore/dotnetcore-original.svg" },
-  { id: "java", name: "Java", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/java/java-original.svg" },
-  { id: "cpp", name: "C++", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cplusplus/cplusplus-original.svg" },
-  { id: "flutter", name: "Flutter", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/flutter/flutter-original.svg" },
-  { id: "spring-boot", name: "Spring Boot", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/spring/spring-original.svg" },
-  { id: "go", name: "Go Roadmap", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/go/go-original.svg" },
-  { id: "rust", name: "Rust", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/rust/rust-plain.svg" },
-  { id: "graphql", name: "GraphQL", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/graphql/graphql-plain.svg" },
-  { id: "design-architecture", name: "Design and Architecture", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/figma/figma-original.svg" },
-  { id: "design-system", name: "Design System", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/sketch/sketch-original.svg" },
-  { id: "react-native", name: "React Native", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" },
-  { id: "aws", name: "AWS", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" },
-  { id: "code-review", name: "Code Review", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/git/git-original.svg" },
-  { id: "docker", name: "Docker", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" },
-  { id: "kubernetes", name: "Kubernetes", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-plain.svg" },
-  { id: "linux", name: "Linux", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linux/linux-original.svg" },
-  { id: "mongodb", name: "MongoDB", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" },
-  { id: "prompt-engineering", name: "Prompt Engineering", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg" },
-  { id: "terraform", name: "Terraform", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg" },
-  { id: "data-structures", name: "Data Structures & Algorithms", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/algorithm/algorithm-original.svg" },
-  { id: "git-github", name: "Git and GitHub", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" },
-  { id: "redis", name: "Redis", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" },
-  { id: "php", name: "PHP", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/php/php-original.svg" },
-  { id: "cloudflare", name: "Cloudflare", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/cloudflare/cloudflare-original.svg" },
-  { id: "ai-agents", name: "AI Agents", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tensorflow/tensorflow-original.svg", isNew: true },
-  { id: "ai-red-teaming", name: "AI Red Teaming", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/pytorch/pytorch-original.svg", isNew: true },
-  { id: "backup-recovery", name: "Backup & Recovery", icon: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" },
-]
-
-// Thêm mapping field -> topics
-const FIELD_TOPICS_MAP: Record<string, string[]> = {
-  frontend: [
-    "react", "vue", "angular", "javascript", "typescript", "design-system", "design-architecture"
-  ],
-  backend: [
-    "nodejs", "java", "spring-boot", "python", "go", "rust", "graphql", "api-design", "system-design", "php", "aspnet-core"
-  ],
-  devops: [
-    "docker", "kubernetes", "linux", "terraform", "cloudflare", "aws"
-  ],
-  "ai-engineer": [
-    "python", "prompt-engineering", "ai-agents", "ai-red-teaming"
-  ],
-  "data-analyst": [
-    "sql", "mongodb", "data-structures", "python"
-  ],
-  "game-developer": [
-    "cpp", "system-design"
-  ],
-  "product-manager": [
-    "system-design", "code-review", "design-architecture"
-  ],
-  "qa": [
-    "code-review", "api-design", "javascript"
-  ],
-  "mobile-app": [
-    "react-native", "flutter"
-  ],
-  database: [
-    "sql", "mongodb", "redis", "database-design", "performance-tuning", "backup-recovery"
-  ],
-}
-
 const experienceLevels = [
   { value: "junior", label: "Junior", description: "0-2 years experience" },
   { value: "middle", label: "Middle", description: "2-5 years experience" },
@@ -139,11 +39,15 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
   const [isGenerating, setIsGenerating] = useState(false);
   const [levelUnlock, setLevelUnlock] = useState<{ junior: boolean; middle: boolean; senior: boolean }>({ junior: true, middle: false, senior: false });
   const [historyLoading, setHistoryLoading] = useState(false);
+  
+  // New state for dynamic data
+  const [availableFields, setAvailableFields] = useState<string[]>([]);
+  const [availableTopics, setAvailableTopics] = useState<string[]>([]);
+  const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [topicsLoading, setTopicsLoading] = useState(false);
 
   // Lọc topic theo field đã chọn
-  const filteredTopics = selectedField
-    ? PREDEFINED_TOPICS.filter(topic => FIELD_TOPICS_MAP[selectedField]?.includes(topic.id))
-    : PREDEFINED_TOPICS;
+  const filteredTopics = availableTopics;
 
   const quizSettings = [
     { questions: 5, timeLimit: 5, label: "5 questions - 5 minutes",  type: "Quick", color: "from-green-400 to-emerald-400" },
@@ -152,30 +56,59 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
     { questions: 20, timeLimit: 20, label: "20 questions - 20 minutes",  type: "Comprehensive", color: "from-orange-400 to-red-400" },
   ]
 
-  const handleFieldSelect = (field: FieldType) => {
-    setSelectedField(field.id)
-    onChange({ ...config, field: field.name })
+  const handleFieldSelect = (field: string) => {
+    setSelectedField(field)
+    onChange({ ...config, field: field })
     setStep("topic")
+    // Load topics for selected field
+    fetchTopicsByField(field)
   }
 
-  const handleTopicSelect = (topic: TopicType) => {
-    setSelectedTopic(topic.id)
-    onChange({ ...config, topic: topic.name })
-    
-    // Auto-detect field based on selected topic
-    const detectedField = Object.entries(FIELD_TOPICS_MAP).find(([, topics]) => 
-      topics.includes(topic.id)
-    );
-    
-    if (detectedField) {
-      const fieldId = detectedField[0];
-      const fieldName = PREDEFINED_FIELDS.find(f => f.id === fieldId)?.name || "";
-      setSelectedField(fieldId);
-      onChange({ ...config, topic: topic.name, field: fieldName });
-    }
-    
+  const handleTopicSelect = (topic: string) => {
+    setSelectedTopic(topic)
+    onChange({ ...config, topic: topic })
     setStep("config")
   }
+
+  // Fetch available fields on component mount
+  useEffect(() => {
+    const fetchFields = async () => {
+      setFieldsLoading(true);
+      try {
+        const response = await fetch('/api/questions/metadata');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.type === 'fields') {
+            setAvailableFields(result.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching fields:', error);
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    fetchFields();
+  }, []);
+
+  // Function to fetch topics by field
+  const fetchTopicsByField = async (field: string) => {
+    setTopicsLoading(true);
+    try {
+      const response = await fetch(`/api/questions/metadata?field=${encodeURIComponent(field)}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.type === 'topics') {
+          setAvailableTopics(result.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching topics:', error);
+    } finally {
+      setTopicsLoading(false);
+    }
+  };
 
   const validateCustomInputs = () => {
     return true; // No custom inputs anymore
@@ -191,8 +124,8 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          field: PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field,
-          topic: PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic,
+          field: selectedField,
+          topic: selectedTopic,
           level: level || "junior",
           count: Number(questionCount),
           timeLimit: Number(timeLimit),
@@ -221,29 +154,36 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         <p className="text-gray-600 text-sm">Which specialization do you want to practice?</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        {PREDEFINED_FIELDS.map((field: typeof PREDEFINED_FIELDS[number]) => (
-          <div
-            key={field.id}
-            onClick={() => handleFieldSelect(field)}
-            className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
-              selectedField === field.id
-                ? `bg-gradient-to-r ${field.color.replace("500", "50")} border-purple-500 shadow-lg`
-                : "bg-white/70 border-gray-200 hover:border-purple-300 hover:shadow-md"
-            }`}
-          >
-            <div className="text-center">
-              <div className="text-3xl mb-2">{field.icon}</div>
-              <h4 className="font-bold text-gray-800 text-sm">{field.name}</h4>
-            </div>
-            {selectedField === field.id && (
-              <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-3 h-3 text-white" />
+      {fieldsLoading ? (
+        <div className="text-center py-8">
+          <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 mt-2">Loading fields...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {availableFields.map((field: string) => (
+            <div
+              key={field}
+              onClick={() => handleFieldSelect(field)}
+              className={`group relative p-4 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+                selectedField === field
+                  ? `bg-gradient-to-r from-blue-50 to-cyan-50 border-purple-500 shadow-lg`
+                  : "bg-white/70 border-gray-200 hover:border-purple-300 hover:shadow-md"
+              }`}
+            >
+              <div className="text-center">
+                <div className="text-3xl mb-2">📚</div>
+                <h4 className="font-bold text-gray-800 text-sm">{field}</h4>
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+              {selectedField === field && (
+                <div className="absolute top-2 right-2 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 
@@ -254,45 +194,38 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         <p className="text-gray-600 text-sm">Choose the topic you want to practice.</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        {filteredTopics.map((topic: typeof PREDEFINED_TOPICS[number]) => (
-          <div
-            key={topic.id}
-            onClick={() => handleTopicSelect(topic)}
-            className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
-              selectedTopic === topic.id
-                ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-500 shadow-lg"
-                : "bg-white/70 border-gray-200 hover:border-green-300 hover:shadow-md"
-            }`}
-          >
-            <div className="text-center">
-              <div className="flex justify-center mb-2">
-                <Image 
-                  src={topic.icon} 
-                  alt={topic.name}
-                  width={28}
-                  height={28}
-                  className="object-contain"
-                  onError={() => {
-                    // You can handle errors here if needed
-                  }}
-                />
+      {topicsLoading ? (
+        <div className="text-center py-8">
+          <div className="inline-block w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-600 mt-2">Loading topics...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {filteredTopics.map((topic: string) => (
+            <div
+              key={topic}
+              onClick={() => handleTopicSelect(topic)}
+              className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+                selectedTopic === topic
+                  ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-500 shadow-lg"
+                  : "bg-white/70 border-gray-200 hover:border-green-300 hover:shadow-md"
+              }`}
+            >
+              <div className="text-center">
+                <div className="flex justify-center mb-2">
+                  <div className="text-2xl">🏷️</div>
+                </div>
+                <h4 className="font-semibold text-gray-800 text-xs leading-tight">{topic}</h4>
               </div>
-              <h4 className="font-semibold text-gray-800 text-xs leading-tight">{topic.name}</h4>
-              {topic.isNew && (
-                <span className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs font-medium rounded-full">
-                  New
-                </span>
+              {selectedTopic === topic && (
+                <div className="absolute top-2 right-2 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-3 h-3 text-white" />
+                </div>
               )}
             </div>
-            {selectedTopic === topic.id && (
-              <div className="absolute top-2 right-2 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-3 h-3 text-white" />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
       <div className="flex justify-center pt-4">
         <Button variant="outline" onClick={() => setStep("field")} className="flex items-center gap-2 text-sm">
           <ChevronLeft className="w-4 h-4" />
@@ -314,7 +247,7 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-600">Specialization:</span>
               <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                {PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name || config.field}
+                {selectedField || config.field}
               </span>
             </div>
           </div>
@@ -323,7 +256,7 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-600">Topic:</span>
               <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                {PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name || config.topic}
+                {selectedTopic || config.topic}
               </span>
             </div>
           </div>
@@ -441,18 +374,9 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         const data = await res.json();
         const quizzes = data.quizzes || [];
         
-        // Get field and topic names for matching
-        const fieldName = PREDEFINED_FIELDS.find(f => f.id === selectedField)?.name;
-        const topicName = PREDEFINED_TOPICS.find(t => t.id === selectedTopic)?.name;
-        
-        if (!fieldName || !topicName) {
-          setLevelUnlock({ junior: true, middle: false, senior: false });
-          return;
-        }
-        
         // Filter quizzes by exact field and topic match
         const filteredQuizzes = quizzes.filter((q: { field: string; topic: string; level: string; score?: number }) => {
-          return q.field === fieldName && q.topic === topicName;
+          return q.field === selectedField && q.topic === selectedTopic;
         });
         
         // Find best scores for each level
@@ -479,7 +403,7 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
         setLevelUnlock(unlock);
 
         // Debug logging
-        console.log(`Field: ${fieldName}, Topic: ${topicName}`);
+        console.log(`Field: ${selectedField}, Topic: ${selectedTopic}`);
         console.log(`Best scores - Junior: ${bestJunior}, Middle: ${bestMiddle}, Senior: ${bestSenior}`);
         console.log(`Unlocks - Junior: ${unlock.junior}, Middle: ${unlock.middle}, Senior: ${unlock.senior}`);
         

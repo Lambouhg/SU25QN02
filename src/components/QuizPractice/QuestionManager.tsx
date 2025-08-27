@@ -75,17 +75,17 @@ export default function QuestionManager() {
           return;
         }
         // Fallback legacy
-        const fieldsRes = await fetch("/api/questions/fields");
+        const fieldsRes = await fetch("/api/questions/metadata");
         const fieldsData = await fieldsRes.json();
         setFields(fieldsData || []);
         setAllSkills([]);
-        setLevelsOptions(["Junior","Mid","Senior"]);
+        setLevelsOptions(["Junior","Middle","Senior"]);
       } catch {}
     };
     loadMeta();
   }, []);
 
-  const fetchQuestions = async (page = pagination.page) => {
+  const fetchQuestions = React.useCallback(async (page = pagination.page) => {
     setLoading(true);
     setError(null);
     try {
@@ -118,9 +118,9 @@ export default function QuestionManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, searchParams]);
 
-  useEffect(() => { fetchQuestions(1); }, [searchParams.field, searchParams.topic, searchParams.level, searchParams.search]);
+  useEffect(() => { fetchQuestions(1); }, [fetchQuestions]);
 
   const handleCreate = () => { setEditing(null); setFormOpen(true); };
   const handleEdit = (q: QuestionRow) => { setEditing(q); setFormOpen(true); };

@@ -11,17 +11,17 @@ interface QuestionFiltersProps {
   };
   onChange: (next: QuestionFiltersProps['searchParams']) => void;
   topicsByField?: Record<string, string[]>; // skills by category
-  levelsOptions?: string[]; // job role levels: e.g., Junior/Mid/Senior/Lead
+  levelsOptions?: string[]; // job role levels: e.g., Junior/Middle/Senior/Lead
 }
 
 const toQuizLevel = (label: string) => {
   const m = (label || '').toLowerCase();
-  if (m === 'mid') return 'middle';
+  if (m === 'middle') return 'middle';
   if (m === 'lead') return 'senior';
   return m; // junior/senior
 };
 
-export default function QuestionFilters({ fields, topics, searchParams, onChange, topicsByField = {}, levelsOptions = ['Junior','Mid','Senior'] }: QuestionFiltersProps) {
+export default function QuestionFilters({ fields, topics, searchParams, onChange, topicsByField = {}, levelsOptions = ['Junior','Middle','Senior'] }: QuestionFiltersProps) {
   const filteredTopics = useMemo(() => {
     if (!searchParams.field) return topics;
     const list = topicsByField[searchParams.field];

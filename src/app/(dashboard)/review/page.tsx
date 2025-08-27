@@ -20,6 +20,7 @@ import {
   Bookmark,
 } from "lucide-react"
 import toast from "react-hot-toast"
+import { useAuth } from "@clerk/nextjs"
 
 interface Question {
   id: string
@@ -30,11 +31,31 @@ interface Question {
   levels?: string[]
 }
 
+interface UserPreferences {
+  preferredJobRoleId?: string
+  preferredLanguage?: string
+  autoStartWithPreferences?: boolean
+  preferredJobRole?: {
+    id: string
+    title: string
+    level: string
+    category?: {
+      name: string
+      skills?: string[]
+    }
+    specialization?: {
+      name: string
+    }
+  }
+}
+
 export default function ReviewQuestionPage() {
+  const { userId } = useAuth()
   const [questions, setQuestions] = useState<Question[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filterField, setFilterField] = useState("all")
   const [filterTopic, setFilterTopic] = useState("all")
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([])  // New: for multiple topics
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid")
   const [showFlashCards, setShowFlashCards] = useState(false)
@@ -45,6 +66,51 @@ export default function ReviewQuestionPage() {
   const [bookmarkedQuestions, setBookmarkedQuestions] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false)
+  
+  // User preferences state
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null)
+  const [isPreferencesApplied, setIsPreferencesApplied] = useState(false)
+
+  // Load user preferences on component mount
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      if (!userId) return
+      
+      try {
+        const response = await fetch('/api/profile/interview-preferences')
+        if (response.ok) {
+          const preferences = await response.json()
+          setUserPreferences(preferences)
+          
+          // Auto-apply preferences if user has them and autoStartWithPreferences is enabled
+          if (preferences.autoStartWithPreferences && preferences.preferredJobRole) {
+            const { preferredJobRole } = preferences
+            
+              // Map JobCategory.name to field
+              if (preferredJobRole.category?.name) {
+                setFilterField(preferredJobRole.category.name)
+              }
+            
+            // Map ALL JobCategory.skills to selectedTopics
+              // Do NOT auto-select skills, only set filterTopic to "all"
+              if (preferredJobRole.category?.skills && preferredJobRole.category.skills.length > 0) {
+                setFilterTopic("all")
+              }
+            
+            setIsPreferencesApplied(true)
+            toast.success(`Applied preferences for ${preferredJobRole.title} with ${preferredJobRole.category?.skills?.length || 0} skills`, {
+              duration: 3000,
+              icon: '⚡'
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user preferences:', error)
+      }
+    }
+
+    loadUserPreferences()
+  }, [userId])
 
   // Fetch questions từ question bank, filter trực tiếp từ API
   const fetchQuestions = useCallback(async () => {
@@ -52,7 +118,14 @@ export default function ReviewQuestionPage() {
       setIsLoading(true)
       const params = new URLSearchParams()
       if (filterField !== "all") params.append("field", filterField)
-      if (filterTopic !== "all") params.append("topic", filterTopic)
+      
+      // Use selectedTopics for multiple topic filtering
+      if (selectedTopics.length > 0) {
+        selectedTopics.forEach(topic => params.append("topic", topic))
+      } else if (filterTopic !== "all") {
+        params.append("topic", filterTopic)
+      }
+      
       params.append("limit", "100")
       const response = await fetch(`/api/questions?${params.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch questions")
@@ -63,7 +136,7 @@ export default function ReviewQuestionPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [filterField, filterTopic])
+  }, [filterField, filterTopic, selectedTopics])
 
   useEffect(() => {
     fetchQuestions()
@@ -74,9 +147,17 @@ export default function ReviewQuestionPage() {
   if (filterField !== "all") {
     filteredQuestions = filteredQuestions.filter((q) => q.fields?.includes(filterField))
   }
-  if (filterTopic !== "all") {
+  
+  // Filter by selected topics (multiple selection)
+  if (selectedTopics.length > 0) {
+    filteredQuestions = filteredQuestions.filter((q) => 
+      q.topics?.some(topic => selectedTopics.includes(topic))
+    )
+  } else if (filterTopic !== "all") {
+    // Fallback to single topic filter if no selected topics
     filteredQuestions = filteredQuestions.filter((q) => q.topics?.includes(filterTopic))
   }
+  
   if (searchQuery) {
     filteredQuestions = filteredQuestions.filter(
       (q) =>
@@ -145,9 +226,13 @@ export default function ReviewQuestionPage() {
   const clearAllFilters = () => {
     setFilterField("all")
     setFilterTopic("all")
+    setSelectedTopics([])
     setSearchQuery("")
+    setIsPreferencesApplied(false)
     toast.success("Filters cleared")
   }
+
+
 
   const currentCard = flashCardQuestions[currentCardIndex]
 
@@ -199,6 +284,64 @@ export default function ReviewQuestionPage() {
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/90 backdrop-blur-sm"
                 />
               </div>
+
+              {/* Preferences Applied Indicator */}
+              {isPreferencesApplied && userPreferences?.preferredJobRole && (
+                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <Star className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-blue-900">
+                          Applied Your Preferences
+                        </h4>
+                        <p className="text-xs text-blue-700">
+                          Questions for: {userPreferences.preferredJobRole.category?.name}
+                          {userPreferences.preferredJobRole.category?.skills && userPreferences.preferredJobRole.category.skills.length > 0 && (
+                            <>
+                              <br />
+                              <span>Skills:</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={clearAllFilters}
+                      className="flex items-center gap-1 px-3 py-1 bg-white/80 hover:bg-white text-blue-600 hover:text-blue-700 rounded-lg text-xs font-medium transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                      Clear
+                    </button>
+                  </div>
+                  
+                  {/* Skills Tags Display */}
+                  {userPreferences.preferredJobRole.category?.skills && userPreferences.preferredJobRole.category.skills.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {userPreferences.preferredJobRole.category.skills.map((skill, index) => {
+                          const isSelected = selectedTopics.includes(skill)
+                          return (
+                            <button
+                              key={index}
+                              className={`px-2 py-1 text-xs font-medium rounded-full border transition-all hover:shadow-md ${
+                                isSelected
+                                  ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
+                                  : 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
+                              }`}
+                            >
+                              {skill}
+                              {isSelected && ' ✓'}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Filter Toggle */}
               <div className="flex items-center justify-between mb-4">
