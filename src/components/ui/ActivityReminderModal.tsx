@@ -63,12 +63,12 @@ export default function ActivityReminderModal({
           </div>
           
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            🔥 {userProgress.streak > 0 ? `Maintain your ${userProgress.streak}-day streak!` : 'Start your streak!'}
+            🔥 {userProgress.streak > 0 ? `Maintain your ${userProgress.streak}-streak days!` : 'Start your streak!'}
           </h2>
           
           <p className="text-gray-600 text-sm">
             {userProgress.streak > 0 
-              ? `You have a ${userProgress.streak}-day streak! Keep going to maintain it.`
+              ? `You have a ${userProgress.streak}-streak days! Keep going to maintain it.`
               : 'You haven\'t had any activity today. Start now to build your streak and improve your skills!'
             }
           </p>

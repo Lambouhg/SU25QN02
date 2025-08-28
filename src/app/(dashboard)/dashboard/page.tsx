@@ -342,7 +342,7 @@ export default function DashboardPage() {
               <div className={`text-3xl mb-1 ${getStreakBadge(currentStreak).color} ${getStreakBadge(currentStreak).text} rounded-full p-1.5 shadow-md`}>
                 {getStreakBadge(currentStreak).emoji}
               </div>
-              <div className="text-sm font-bold mb-1">{currentStreak} day streak</div>
+              <div className="text-sm font-bold mb-1">{currentStreak} streak days</div>
               <div className="flex gap-1 flex-wrap justify-center">
                 {[3, 10, 30, 50, 100].map((milestone) => (
                   <div

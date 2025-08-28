@@ -46,12 +46,12 @@ export default function CelebrationModal({
 
   const getMilestoneMessage = () => {
     switch (milestone) {
-      case 3: return { title: "Awesome Start!", subtitle: "You've got a 3-day streak! 🔥", color: "from-green-400 to-green-600" };
-      case 10: return { title: "Amazing!", subtitle: "10-day streak - You're doing great! 🔥", color: "from-orange-400 to-orange-600" };
-      case 30: return { title: "Incredible!", subtitle: "30-day streak - You're incredible! 🔥", color: "from-blue-400 to-blue-600" };
-      case 50: return { title: "Legendary!", subtitle: "50-day streak - You're legendary! 🔥", color: "from-purple-400 to-purple-600" };
-      case 100: return { title: "Epic Master!", subtitle: "100-day streak - You're a master! 🔥", color: "from-yellow-400 to-yellow-600" };
-      default: return { title: "Congratulations!", subtitle: `${streakCount}-day streak! 🔥`, color: "from-blue-500 to-purple-600" };
+      case 3: return { title: "Awesome Start!", subtitle: "You've got a 3-streak days! 🔥", color: "from-green-400 to-green-600" };
+      case 10: return { title: "Amazing!", subtitle: "10-streak days - You're doing great! 🔥", color: "from-orange-400 to-orange-600" };
+      case 30: return { title: "Incredible!", subtitle: "30-streak days - You're incredible! 🔥", color: "from-blue-400 to-blue-600" };
+      case 50: return { title: "Legendary!", subtitle: "50-streak days - You're legendary! 🔥", color: "from-purple-400 to-purple-600" };
+      case 100: return { title: "Epic Master!", subtitle: "100-streak days - You're a master! 🔥", color: "from-yellow-400 to-yellow-600" };
+      default: return { title: "Congratulations!", subtitle: `${streakCount}-streak days! 🔥`, color: "from-blue-500 to-purple-600" };
     }
   };
 
