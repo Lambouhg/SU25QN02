@@ -32,7 +32,7 @@ const PaymentCancelContent: React.FC = () => {
   }, [orderCode]);
 
   const handleTryAgain = () => {
-    router.push('/Pricing');
+    router.push('/Usage');
   };
 
   const handleGoHome = () => {
@@ -58,17 +58,17 @@ const PaymentCancelContent: React.FC = () => {
           </div>
           
           <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent mb-6">
-            Thanh toán bị hủy
+            Payment cancelled
           </h1>
           
           <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-            Không sao đâu! Bạn có thể thử lại bất cứ lúc nào. Giao dịch của bạn chưa được hoàn tất.
+            No worries! You can try again anytime. Your transaction was not completed.
           </p>
           
           {orderCode && (
             <div className="mt-4 inline-flex items-center gap-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full px-6 py-3">
               <Package className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-400 text-sm">Mã đơn hàng: {orderCode}</span>
+              <span className="text-gray-400 text-sm">Order code: {orderCode}</span>
             </div>
           )}
         </div>
@@ -79,9 +79,9 @@ const PaymentCancelContent: React.FC = () => {
           <Card className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl shadow-2xl">
             <CardHeader className="text-center pb-6">
               <CardTitle className="text-2xl font-bold text-white mb-2">
-                Tại sao thanh toán bị hủy?
+                Why was the payment cancelled?
               </CardTitle>
-              <p className="text-gray-400">Có thể do một trong những lý do sau</p>
+              <p className="text-gray-400">Possible reasons include</p>
             </CardHeader>
             
             <CardContent className="space-y-6">
@@ -90,9 +90,9 @@ const PaymentCancelContent: React.FC = () => {
                   <Shield className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">Bảo mật</h4>
+                  <h4 className="text-lg font-semibold text-white mb-2">Security</h4>
                   <p className="text-gray-400 text-sm">
-                    Bạn có thể đã hủy để kiểm tra lại thông tin thanh toán hoặc vì lý do bảo mật.
+                    You may have cancelled to recheck payment details or for security reasons.
                   </p>
                 </div>
               </div>
@@ -102,9 +102,9 @@ const PaymentCancelContent: React.FC = () => {
                   <Clock className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">Thời gian</h4>
+                  <h4 className="text-lg font-semibold text-white mb-2">Timing</h4>
                   <p className="text-gray-400 text-sm">
-                    Phiên thanh toán có thể đã hết hạn hoặc bạn cần thêm thời gian để quyết định.
+                    The checkout session may have expired or you needed more time to decide.
                   </p>
                 </div>
               </div>
@@ -114,9 +114,9 @@ const PaymentCancelContent: React.FC = () => {
                   <Package className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold text-white mb-2">Gói dịch vụ</h4>
+                  <h4 className="text-lg font-semibold text-white mb-2">Plan selection</h4>
                   <p className="text-gray-400 text-sm">
-                    Bạn có thể muốn xem xét lại các gói dịch vụ khác hoặc thay đổi lựa chọn.
+                    You may want to review other plans or change your selection.
                   </p>
                 </div>
               </div>
@@ -127,42 +127,42 @@ const PaymentCancelContent: React.FC = () => {
           <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-sm border border-white/10 rounded-3xl shadow-2xl">
             <CardHeader className="text-center pb-6">
               <CardTitle className="text-2xl font-bold text-white mb-2">
-                Bước tiếp theo
+                What’s next
               </CardTitle>
-              <p className="text-gray-400">Bạn có thể làm gì bây giờ?</p>
+              <p className="text-gray-400">What you can do now</p>
             </CardHeader>
             
             <CardContent className="space-y-6">
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                 <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
                   <RefreshCw className="h-5 w-5 text-blue-400" />
-                  Thử lại thanh toán
+                  Try payment again
                 </h4>
                 <p className="text-gray-400 text-sm mb-4">
-                  Quay lại trang gói dịch vụ và thử thanh toán lại. Quá trình này chỉ mất vài phút.
+                  Go back to the pricing page and try again. It only takes a minute.
                 </p>
                 <Button
                   onClick={handleTryAgain}
                   className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold transition-all duration-300"
                 >
-                  Thử lại ngay
+                  Try again now
                 </Button>
               </div>
               
               <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                 <h4 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
                   <Package className="h-5 w-5 text-green-400" />
-                  Xem lại gói dịch vụ
+                  Review plans
                 </h4>
                 <p className="text-gray-400 text-sm mb-4">
-                  So sánh các gói dịch vụ khác nhau để tìm lựa chọn phù hợp nhất với nhu cầu của bạn.
+                  Compare different plans to find the best fit for your needs.
                 </p>
                 <Button
                   onClick={handleTryAgain}
-                  variant="outline"
-                  className="w-full border-white/20 text-white hover:bg-white/10 rounded-xl font-semibold transition-all duration-300"
+                  variant="ghost"
+                  className="w-full bg-transparent border border-white/20 text-white hover:bg-white/10 hover:text-white focus-visible:ring-white/30 rounded-xl font-semibold transition-all duration-300"
                 >
-                  Xem gói dịch vụ
+                  View Usage
                 </Button>
               </div>
             </CardContent>
@@ -173,7 +173,7 @@ const PaymentCancelContent: React.FC = () => {
         <div className="text-center mb-12">
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 max-w-3xl mx-auto">
             <h3 className="text-2xl font-bold text-white mb-6">
-              Bạn muốn làm gì tiếp theo?
+              What would you like to do next?
             </h3>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -183,29 +183,29 @@ const PaymentCancelContent: React.FC = () => {
               >
                 <span className="flex items-center gap-2">
                   <RefreshCw className="h-5 w-5" />
-                  Thử lại thanh toán
+                  Try payment again
                 </span>
               </Button>
               
               <Button
                 onClick={handleGoToDashboard}
-                variant="outline"
-                className="px-8 py-4 border-white/20 text-white hover:bg-white/10 rounded-2xl font-semibold transition-all duration-300 text-lg"
+                variant="ghost"
+                className="px-8 py-4 bg-transparent border border-white/20 text-white hover:bg-white/10 hover:text-white focus-visible:ring-white/30 rounded-2xl font-semibold transition-all duration-300 text-lg"
               >
                 <span className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  Đi đến Dashboard
+                  Go to Dashboard
                 </span>
               </Button>
               
               <Button
                 onClick={handleGoHome}
-                variant="outline"
-                className="px-8 py-4 border-white/20 text-white hover:bg-white/10 rounded-2xl font-semibold transition-all duration-300 text-lg"
+                variant="ghost"
+                className="px-8 py-4 bg-transparent border border-white/20 text-white hover:bg-white/10 hover:text-white focus-visible:ring-white/30 rounded-2xl font-semibold transition-all duration-300 text-lg"
               >
                 <span className="flex items-center gap-2">
                   <ArrowLeft className="h-5 w-5" />
-                  Về trang chủ
+                  Go to Home
                 </span>
               </Button>
             </div>
@@ -216,23 +216,23 @@ const PaymentCancelContent: React.FC = () => {
         <div className="text-center">
           <div className="bg-gradient-to-r from-orange-600/20 to-red-600/20 backdrop-blur-sm border border-white/10 rounded-3xl p-8 max-w-2xl mx-auto">
             <h3 className="text-xl font-semibold text-white mb-4">
-              Gặp vấn đề với thanh toán?
+              Having issues with payment?
             </h3>
             <p className="text-gray-300 mb-6">
-              Đội ngũ hỗ trợ của chúng tôi luôn sẵn sàng giúp đỡ bạn giải quyết mọi vấn đề
+              Our support team is always ready to help you.
             </p>
             <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-400">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span>Hỗ trợ 24/7</span>
+                <span>24/7 Support</span>
               </div>
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4" />
-                <span>Bảo mật 100%</span>
+                <span>100% Secure</span>
               </div>
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4" />
-                <span>Hoàn tiền nếu cần</span>
+                <span>Refunds available if needed</span>
               </div>
             </div>
           </div>
@@ -243,34 +243,34 @@ const PaymentCancelContent: React.FC = () => {
           <Card className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl font-bold text-white">
-                Câu hỏi thường gặp
+                Frequently Asked Questions
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                 <h4 className="text-lg font-semibold text-white mb-2">
-                  Tôi có bị mất tiền không?
+                  Will I be charged?
                 </h4>
                 <p className="text-gray-400 text-sm">
-                  Không, bạn không bị mất tiền. Giao dịch đã bị hủy và không có khoản phí nào được thu.
+                  No. The transaction was cancelled and no charges were made.
                 </p>
               </div>
               
               <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                 <h4 className="text-lg font-semibold text-white mb-2">
-                  Tôi có thể thử lại bao nhiêu lần?
+                  How many times can I retry?
                 </h4>
                 <p className="text-gray-400 text-sm">
-                  Bạn có thể thử lại thanh toán không giới hạn số lần. Mỗi lần thử đều an toàn và miễn phí.
+                  You can retry as many times as you need. Each attempt is safe and free.
                 </p>
               </div>
               
               <div className="bg-white/5 rounded-2xl p-4 border border-white/10">
                 <h4 className="text-lg font-semibold text-white mb-2">
-                  Làm sao để thanh toán thành công?
+                  How to ensure a successful payment?
                 </h4>
                 <p className="text-gray-400 text-sm">
-                  Đảm bảo thông tin thẻ chính xác, kết nối internet ổn định và hoàn tất quá trình thanh toán trong thời gian quy định.
+                  Ensure correct card details, stable internet, and complete the process within the time limit.
                 </p>
               </div>
             </CardContent>

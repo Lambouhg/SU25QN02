@@ -92,6 +92,27 @@ const UploadJDPageContent = () => {
     return [];
   };
 
+  // Check JD upload quota before attempting actions
+  const checkJdQuota = async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/user-package/check-active');
+      const json = await res.json();
+      if (!res.ok) {
+        showToastMessage(json?.error || 'Failed to check your package status', 'error');
+        return false;
+      }
+      const canUse = Boolean(json?.usage?.jdUpload?.canUse);
+      if (!canUse) {
+        showToastMessage('No remaining JD uploads. Please upgrade your plan.', 'warning');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      showToastMessage('Failed to verify usage. Please try again.', 'error');
+      return false;
+    }
+  };
+
   const calculateSimilarity = (text1: string, text2: string): number => {
     const normalize = (text: string) => 
       text.toLowerCase()
@@ -131,6 +152,10 @@ const UploadJDPageContent = () => {
       showToastMessage('Please select a level.', 'error');
       return;
     }
+
+    // Pre-check JD quota
+    const ok = await checkJdQuota();
+    if (!ok) return;
 
     setUploading(true);
     setMessage('Generating interview questions with new parameters...');
@@ -432,6 +457,10 @@ const UploadJDPageContent = () => {
     setMessageType('');
     setValidationInfo(null); // Clear previous validation
 
+    // Pre-check JD quota
+    const ok = await checkJdQuota();
+    if (!ok) return;
+
     // Show processing toast
     showToastMessage('Processing your job description...', 'info');    try {
       // Create FormData and append file
@@ -556,6 +585,25 @@ const UploadJDPageContent = () => {
 
       // Show success toast
       showToastMessage(`Successfully generated ${validQuestions.length} interview questions!`, 'success');
+
+      // Consume 1 JD upload credit
+      try {
+        const consumeRes = await fetch('/api/user-package/consume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resource: 'jd' })
+        });
+        const consumeJson = await consumeRes.json();
+        if (!consumeRes.ok) {
+          // If no remaining usage, inform user but keep generated result
+          showToastMessage(consumeJson?.error || 'No remaining JD uploads. Please upgrade your plan.', 'warning');
+        } else {
+          showToastMessage(`JD upload recorded. Remaining: ${consumeJson.remaining}`, 'info');
+        }
+      } catch (e) {
+        // Silent fail, but log to console for debugging
+        console.error('Failed to consume JD usage', e);
+      }
 
       // Tự động lưu question set vào database
       try {

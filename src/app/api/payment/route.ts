@@ -33,11 +33,12 @@ export async function POST(req: NextRequest) {
     include: { servicePackage: true },
   });
 
-  // Tìm gói trả phí cao nhất hiện tại (không phải gói free)
-  const paidPackage = userPackages.find(pkg => pkg.servicePackage.price > 0);
+  // Xác định gói trả phí đang được xem là "gói hiện tại": chọn gói có giá cao nhất trong số các gói trả phí đang active
+  const paidPackages = userPackages.filter(pkg => pkg.servicePackage.price > 0);
+  const paidPackage = paidPackages.sort((a, b) => b.servicePackage.price - a.servicePackage.price)[0];
   const freePackage = userPackages.find(pkg => pkg.servicePackage.price === 0);
 
-  console.log(`📊 User packages: Paid=${paidPackage?.servicePackage?.name || 'None'}, Free=${freePackage?.servicePackage?.name || 'None'}`);
+  console.log(`📊 User packages: CurrentPaid=${paidPackage?.servicePackage?.name || 'None'}, Free=${freePackage?.servicePackage?.name || 'None'}`);
 
   // Kiểm tra nâng cấp hợp lệ
   if (paidPackage && paidPackage.servicePackage) {
@@ -51,21 +52,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Tính tiền nâng cấp: trừ THẲNG giá gói trả phí hiện tại (không prorate)
+  // Ví dụ: 599,000 - 10,000 = 589,000
   let amount = servicePackage.price;
   let refundAmount = 0;
-
   if (paidPackage && paidPackage.servicePackage) {
-    // Tính số ngày còn lại của gói trả phí cũ
-    const now = new Date();
-    const endDate = paidPackage.endDate as Date;
-    const startDate = paidPackage.startDate as Date;
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-    // Giá trị còn lại của gói trả phí cũ
-    if (totalDays > 0 && paidPackage.servicePackage.price > 0) {
-      refundAmount = Math.round(paidPackage.servicePackage.price * (daysLeft / totalDays));
-      amount = Math.max(0, servicePackage.price - refundAmount);
-    }
+    refundAmount = paidPackage.servicePackage.price;
+    amount = Math.max(0, servicePackage.price - refundAmount);
   }
    
   const orderCode = Number(String(Date.now()).slice(-6));
