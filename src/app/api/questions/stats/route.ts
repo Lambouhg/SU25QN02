@@ -73,7 +73,9 @@ export async function GET() {
       levels: Object.keys(jobRoleLevelMapping), // Job role levels
       fieldStats: mappedFieldStats,
       topicStats: Array.from(topicCounts.entries()).map(([topic, count]) => ({ topic, count })),
-      levelStats: mappedLevelStats
+      levelStats: mappedLevelStats,
+      // expose raw category stats based directly on question fields
+      categoryStats: Array.from(fieldCounts.entries()).map(([category, count]) => ({ category, count }))
     });
 
   } catch (error) {

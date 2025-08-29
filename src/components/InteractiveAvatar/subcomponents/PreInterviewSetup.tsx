@@ -7,6 +7,7 @@ import type { StartAvatarRequest } from "@heygen/streaming-avatar"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@clerk/nextjs"
 import { UserPackageService, type PackageLimitInfo } from "../../../services/userPackage"
+import { mapUILanguageToAI, getLanguageDisplayName } from "../../../utils/languageMapping"
 
 interface PreInterviewSetupProps {
   config: StartAvatarRequest
@@ -92,6 +93,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
     fieldStats: Array<{ field: string; count: number }>
     topicStats: Array<{ topic: string; count: number }>
     levelStats: Array<{ level: string; count: number }>
+    categoryStats?: Array<{ category: string; count: number }>
   } | null>(null)
 
   // Load user preferences and question bank stats on component mount
@@ -228,6 +230,8 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
         key: selectedJobRole.key,
       },
       language: config.language,
+      aiLanguage: mapUILanguageToAI(config.language || 'en'),
+      languageDisplayName: getLanguageDisplayName(config.language || 'en'),
       avatar: config.avatarName,
       timestamp: new Date().toISOString(),
       // Thêm thông tin job role để API có thể sử dụng mapping mới
@@ -566,23 +570,25 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                   {selectedJobRole && (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-200">
-                        <span className="text-emerald-700 font-medium">Field Match</span>
+                        <span className="text-emerald-700 font-medium">Category Match</span>
                         <div className="flex items-center gap-2">
                           <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg text-sm font-semibold">
-                            {selectedJobRole.title}
+                            {selectedJobRole.category?.name || "Unknown"}
                           </span>
                           <span className="text-emerald-600 text-sm">
                             ({(() => {
-                              const fieldStat = questionBankStats.fieldStats.find(
-                                (f) => f.field === selectedJobRole.title,
+                              const catName = selectedJobRole.category?.name
+                              if (!catName) return 0
+                              const catStat = questionBankStats.categoryStats?.find(
+                                (c) => c.category === catName,
                               )
-                              return fieldStat?.count || 0
+                              return catStat?.count || 0
                             })()})
                           </span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-200">
-                        <span className="text-blue-700 font-medium">Level Match</span>
+                        <span className="text-blue-700 font-medium">Role Match</span>
                         <div className="flex items-center gap-2">
                           <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-lg text-sm font-semibold">
                             {selectedJobRole.level}

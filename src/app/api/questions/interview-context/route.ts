@@ -36,6 +36,7 @@ export async function POST(req: Request) {
       where.levels = { hasSome: filter.levels as QuizLevel[] };
     } else {
       // Fallback to old mapping logic
+      // field lúc này là category name (ví dụ: Frontend, Backend,...)
       if (field) {
         const fieldMapping: Record<string, string[]> = {
           'Frontend': ['Frontend Development', 'Web Development'],
@@ -52,20 +53,51 @@ export async function POST(req: Request) {
       }
       
       if (level) {
-        const levelMapping: Record<string, QuizLevel[]> = {
-          'Intern': [QuizLevel.JUNIOR],
-          'Junior': [QuizLevel.JUNIOR],
-          'Mid': [QuizLevel.MIDDLE],
-          'Senior': [QuizLevel.SENIOR],
-          'Lead': [QuizLevel.SENIOR]
+        // level được dùng như job role title (ví dụ: Frontend Developer)
+        const roleTitleToFields: Record<string, string[]> = {
+          'Frontend Developer': ['Frontend Development', 'Web Development'],
+          'Backend Developer': ['Backend Development', 'Server Development'],
+          'Full Stack Developer': ['Full Stack Development', 'Web Development'],
+          'Mobile Developer': ['Mobile Development', 'iOS Development', 'Android Development'],
+          'Data Scientist': ['Data Science', 'Machine Learning', 'AI'],
+          'DevOps Engineer': ['DevOps', 'Infrastructure', 'Cloud'],
+          'QA Engineer': ['Quality Assurance', 'Testing', 'QA'],
+          'UI/UX Designer': ['UI/UX Design', 'Design', 'User Experience']
         };
-        const mappedLevels = levelMapping[level] || [QuizLevel.JUNIOR];
-        where.levels = { hasSome: mappedLevels };
+
+        if (roleTitleToFields[level]) {
+          const fieldsFromRole = roleTitleToFields[level];
+          if (where.fields && 'hasSome' in where.fields) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const existing = (where.fields as any).hasSome as string[];
+            where.fields = { hasSome: Array.from(new Set([...existing, ...fieldsFromRole])) };
+          } else {
+            where.fields = { hasSome: fieldsFromRole };
+          }
+        } else {
+          // fallback coi level là cấp độ truyền thống
+          const levelMapping: Record<string, QuizLevel[]> = {
+            'Intern': [QuizLevel.JUNIOR],
+            'Junior': [QuizLevel.JUNIOR],
+            'Mid': [QuizLevel.MIDDLE],
+            'Senior': [QuizLevel.SENIOR],
+            'Lead': [QuizLevel.SENIOR]
+          };
+          const mappedLevels = levelMapping[level] || [QuizLevel.JUNIOR];
+          where.levels = { hasSome: mappedLevels };
+        }
       }
     }
     
     if (topic) {
-      where.topics = { has: topic };
+      // Nới lỏng so khớp topic để bao phủ các biến thể phổ biến
+      const topicMapping: Record<string, string[]> = {
+        'React Development': ['React', 'React Advanced'],
+        'React': ['React'],
+        'Frontend Development': ['HTML/CSS', 'JavaScript', 'React']
+      };
+      const mappedTopics = topicMapping[topic] || [topic];
+      where.topics = { hasSome: mappedTopics };
     }
 
     // Get questions from database

@@ -9,6 +9,7 @@ import { useInterviewSession } from './useInterviewSession';
 import { generateInterviewEvaluation } from '@/services/evaluationService';
 import { AVATARS } from '../HeygenConfig';
 import { ChatMessage } from '@/services/openaiService';
+import { mapUILanguageToAI } from '@/utils/languageMapping';
 import { AvatarQuality, VoiceEmotion, StartAvatarRequest, ElevenLabsModel } from '@heygen/streaming-avatar';
 
 // Local type definitions
@@ -172,6 +173,18 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
 
 
 
+  // Tạo config cho question bank integration
+  const questionBankConfig = {
+    field: jobRoles.find(role => role.id === jobRoleId)?.category?.name || 'software development',
+    level: jobRoles.find(role => role.id === jobRoleId)?.level || 'mid',
+    language: mapUILanguageToAI(config.language || 'en'),
+    jobRoleTitle: jobRoles.find(role => role.id === jobRoleId)?.title,
+    jobRoleLevel: jobRoles.find(role => role.id === jobRoleId)?.level
+  };
+
+  // Log config để debug
+  console.log('🔗 Question Bank Config created:', questionBankConfig);
+
   const {
     isThinking,
     processMessage: aiProcessMessage,
@@ -206,8 +219,9 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         setPendingInterviewEnd(result);
       }
     },
-    language: config.language === 'vi' ? 'vi-VN' : 'en-US',
-    isInterviewComplete: isInterviewComplete
+    language: mapUILanguageToAI(config.language || 'en'),
+    isInterviewComplete: isInterviewComplete,
+    config: questionBankConfig
   });
 
 
@@ -282,6 +296,18 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         
         console.log('Starting interview with normalized field:', normalizedPosition, 'specialization:', selectedJobRole.specialization?.name, 'level:', selectedJobRole.level, 'experience:', `${selectedJobRole.minExperience}-${selectedJobRole.maxExperience || selectedJobRole.minExperience + 2} years`);
         
+        // Log config trước khi gọi AI
+        const aiConfig = {
+          field: normalizedPosition,
+          level: selectedJobRole.level,
+          specialization: selectedJobRole.specialization?.name,
+          minExperience: selectedJobRole.minExperience,
+          maxExperience: selectedJobRole.maxExperience || selectedJobRole.minExperience + 2,
+          jobRoleTitle: selectedJobRole.title,
+          jobRoleLevel: selectedJobRole.level
+        };
+        console.log('🎯 Calling AI with config:', aiConfig);
+        
         // Gọi AI với context đầy đủ
         await aiStartNewInterview(
           normalizedPosition, 
@@ -327,7 +353,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         aiConversationHistory,
         positionName,
         positionLevel,
-        config.language === 'vi' ? 'vi-VN' : 'en-US'
+        mapUILanguageToAI(config.language || 'en')
       );
       const messages = conversation as unknown as ConversationMessage[];
       // Ensure every message has a valid timestamp string
@@ -350,7 +376,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       const token = await getToken();
       const requestData = {
         jobRoleId: jobRoleId,
-        language: config.language === 'vi' ? 'vi-VN' : 'en-US',
+        language: mapUILanguageToAI(config.language || 'en'),
         startTime: interviewStartTime || startTime,
         endTime,
         duration,
@@ -416,6 +442,12 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
       addMessage(
         config.language === 'vi'
           ? 'Đã xảy ra lỗi khi lưu kết quả phỏng vấn. Vui lòng kiểm tra đăng nhập và thử lại.'
+          : config.language === 'zh'
+          ? '保存面试结果时发生错误。请检查登录并重试。'
+          : config.language === 'ja'
+          ? '面接結果の保存中にエラーが発生しました。ログインを確認して再試行してください。'
+          : config.language === 'ko'
+          ? '면접 결과 저장 중 오류가 발생했습니다. 로그인을 확인하고 다시 시도해 주세요.'
           : 'Error saving interview results. Please check your login and try again.',
         'system',
         true

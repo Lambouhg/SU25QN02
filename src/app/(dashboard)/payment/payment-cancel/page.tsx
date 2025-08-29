@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { XCircle, ArrowLeft, RefreshCw, Package, Shield, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,23 @@ const PaymentCancelContent: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderCode = searchParams.get('orderCode');
+
+  // Update payment status to cancelled when returning with orderCode
+  useEffect(() => {
+    const updateCancelled = async () => {
+      if (!orderCode) return;
+      try {
+        await fetch('/api/payment/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderCode, status: 'cancelled' })
+        });
+      } catch (err) {
+        console.error('Failed to update cancelled payment status', err);
+      }
+    };
+    updateCancelled();
+  }, [orderCode]);
 
   const handleTryAgain = () => {
     router.push('/Pricing');

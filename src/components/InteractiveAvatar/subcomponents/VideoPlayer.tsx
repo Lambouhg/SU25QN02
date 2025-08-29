@@ -87,6 +87,10 @@ interface VideoPlayerProps {
   onSpeechResult: (text: string) => void;
   voiceDisabled?: boolean;
   voiceLanguage?: 'vi-VN' | 'en-US';
+  // Optional tuning knobs for voice input handling
+  voiceSilenceTimeoutMs?: number; // override hook silence timeout
+  voiceDebounceMs?: number; // debounce before sending buffered transcript
+  voiceMinWords?: number; // minimum words to accept as valid utterance
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -103,13 +107,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   elapsedTime,
   onSpeechResult,
   voiceDisabled = false,
-  voiceLanguage = 'vi-VN'
+  voiceLanguage = 'vi-VN',
+  voiceSilenceTimeoutMs,
+  voiceDebounceMs = 700,
+  voiceMinWords = 3
 }) => {
   const [isEnding, setIsEnding] = useState(false);
   const [localIsInterrupting, setLocalIsInterrupting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   // VoiceInteraction state/logic
   const [error, setError] = useState<string | null>(null);
+  // Buffering & debounce to avoid premature sends and reduce noise
+  const speechBufferRef = React.useRef<string>("");
+  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   // const [interimTranscript, setInterimTranscript] = useState<string>('');
   const {
     isListening,
@@ -118,13 +128,74 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     stopListening
   } = useAzureVoiceInteraction({
     onSpeechResult: (text: string) => {
-      onSpeechResult(text);
+      // Ignore while avatar is talking or voice disabled
+      if (voiceDisabled || isAvatarTalking) {
+        return;
+      }
+
+      const cleaned = cleanUtterance(text);
+      if (!cleaned) return;
+
+      // Append to buffer and debounce send
+      const next = speechBufferRef.current ? `${speechBufferRef.current} ${cleaned}` : cleaned;
+      speechBufferRef.current = next;
+      scheduleBufferedSend(next);
     },
     onError: setError,
   // onInterimResult: setInterimTranscript,
     language: voiceLanguage,
-    silenceTimeout: 2000
+    silenceTimeout: voiceSilenceTimeoutMs ?? 2000
   });
+
+  // Utility: very simple filler/noise filtering and trimming
+  const fillerWords = React.useMemo(() => new Set([
+    'uh','um','erm','hmm','ờ','ừ','ừm','à','ạ','vâng','kiểu','kiểu như','kiểu là','nói chung'
+  ]), []);
+
+  const cleanUtterance = (raw: string): string => {
+    if (!raw) return '';
+    const normalized = raw
+      .replace(/[\s]+/g, ' ')
+      .replace(/[“”]/g, '"')
+      .replace(/[‘’]/g, "'")
+      .trim();
+
+    if (!normalized) return '';
+
+    // Remove standalone filler words
+    const tokens = normalized
+      .toLowerCase()
+      .split(' ')
+      .filter(Boolean)
+      .filter(w => !fillerWords.has(w));
+
+    const cleaned = tokens.join(' ').trim();
+    if (!cleaned) return '';
+
+    return cleaned;
+  };
+
+  const hasSentenceEnding = (text: string): boolean => /[\.!?…]$/.test(text.trim());
+
+  const scheduleBufferedSend = (bufferSnapshot: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      // Do not send if avatar started talking meanwhile
+      if (isAvatarTalking) return;
+
+      const words = bufferSnapshot.trim().split(/\s+/).filter(Boolean);
+      if (words.length < voiceMinWords && !hasSentenceEnding(bufferSnapshot)) {
+        // Not confident it's a complete thought yet
+        return;
+      }
+
+      // Flush
+      onSpeechResult(bufferSnapshot.trim());
+      speechBufferRef.current = "";
+    }, voiceDebounceMs);
+  };
   const toggleMicrophone = async () => {
     if (voiceDisabled) return;
     if (isAvatarTalking) return;
@@ -144,6 +215,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           console.log('Auto-stopping microphone: Avatar started talking');
           await stopListening();
         }
+        // Also clear any pending buffered send when avatar speaks
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
+        }
+        speechBufferRef.current = "";
       }
       // Note: We don't auto-start listening when avatar stops talking
       // to give user control over when they want to speak
@@ -151,6 +228,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     handleAvatarTalkingChange();
   }, [isAvatarTalking, isListening, stopListening]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   // Show visual feedback when microphone is disabled due to avatar talking
   const getMicrophoneStatus = () => {
@@ -252,14 +338,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }, [isAvatarTalking, isInterrupting, sessionState, SessionState.CONNECTED, onInterruptAvatar, handleInterruptSpeech]);
 
   return (
-    <div className="flex-1 flex flex-col">
-      <div className="px-6 pt-6 pb-4 bg-gradient-to-br from-slate-50 to-gray-100 shrink-0">
+    <div className="flex flex-col lg:flex-1">
+      {/* Mobile responsive padding */}
+      <div className="px-3 sm:px-6 pt-3 sm:pt-6 pb-2 sm:pb-4 bg-gradient-to-br from-slate-50 to-gray-100 shrink-0">
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm shadow-xl border-0 overflow-hidden">
           <div className="p-0 relative">
             <div className="aspect-video bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl overflow-hidden relative">
               {sessionState === SessionState.INACTIVE ? (
                 <div className="w-full h-full flex items-center justify-center text-white">
-                  <h6 className="text-xl font-semibold">
+                  <h6 className="text-lg sm:text-xl font-semibold px-4 text-center">
                     Avatar {avatarId} ready to start
                   </h6>
                 </div>
@@ -272,45 +359,43 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 />
               )}
 
-              {/* Top-left: Main participant info */}
-              <div className="absolute top-6 left-6">
-                <div className="flex items-center gap-3 bg-white/10 text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/20">
-                  <div className="relative flex h-8 w-8 shrink-0 overflow-hidden rounded-full bg-white/10 text-white/80 text-sm items-center justify-center">
+              {/* Top-left: Main participant info - Mobile responsive */}
+              <div className="absolute top-2 sm:top-6 left-2 sm:left-6">
+                <div className="flex items-center gap-2 sm:gap-3 bg-white/10 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-full backdrop-blur-md border border-white/20">
+                  <div className="relative flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 overflow-hidden rounded-full bg-white/10 text-white/80 text-xs sm:text-sm items-center justify-center">
                     {avatarName?.[0] ?? 'A'}
                   </div>
-                  <span className="text-sm font-medium">{avatarName}</span>
+                  <span className="text-xs sm:text-sm font-medium hidden sm:block">{avatarName}</span>
                   {sessionState === SessionState.CONNECTED}
                   {elapsedTime && (
-                    <Badge variant="outline" className="ml-2 text-white border-white/30">
+                    <Badge variant="outline" className="ml-1 sm:ml-2 text-white border-white/30 text-xs">
                       {elapsedTime}
                     </Badge>
                   )}
                   {sessionState === SessionState.CONNECTED && connectionQuality !== 'UNKNOWN' && (
-                    <Badge variant="outline" className="ml-2 text-white border-white/30">
+                    <Badge variant="outline" className="ml-1 sm:ml-2 text-white border-white/30 text-xs hidden sm:block">
                       {connectionQuality}
                     </Badge>
                   )}
                 </div>
               </div>
 
-              
-
-              {/* Bottom-center: Control bar */}
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2">
-                <div className="flex items-center gap-3 bg-white/10 px-6 py-3 rounded-full backdrop-blur-md border border-white/20">
+              {/* Bottom-center: Control bar - Mobile responsive */}
+              <div className="absolute bottom-2 sm:bottom-6 left-1/2 transform -translate-x-1/2">
+                <div className="flex items-center gap-1 sm:gap-3 bg-white/10 px-3 sm:px-6 py-2 sm:py-3 rounded-full backdrop-blur-md border border-white/20">
                   {isAvatarTalking && onInterruptAvatar && (
                     <Button 
                       size="icon" 
                       variant="ghost" 
-                      className="text-white hover:bg-white/20"
+                      className="text-white hover:bg-white/20 w-8 h-8 sm:w-12 sm:h-12"
                       onClick={handleInterruptSpeech}
                       disabled={isInterrupting}
                       title="Stop avatar speaking (ESC)"
                     >
                       {isInterrupting ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       ) : (
-                        <VolumeX className="w-5 h-5" />
+                        <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />
                       )}
                     </Button>
                   )}
@@ -318,7 +403,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   <Button 
                     size="icon" 
                     variant={isListening ? "default" : "ghost"}
-                    className={`${isListening ? 'bg-green-500 hover:bg-green-600' : 'text-white hover:bg-white/20'} ${isAvatarTalking ? 'opacity-50' : ''}`}
+                    className={`${isListening ? 'bg-green-500 hover:bg-green-600' : 'text-white hover:bg-white/20'} ${isAvatarTalking ? 'opacity-50' : ''} w-8 h-8 sm:w-12 sm:h-12`}
                     onClick={toggleMicrophone}
                     disabled={voiceDisabled || isAvatarTalking || isInitializing}
                     title={
@@ -330,17 +415,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     }
                   >
                     {isInitializing ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : isListening ? (
                       <div className="relative">
-                        <Mic className="w-5 h-5" />
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full animate-pulse"></div>
                       </div>
                     ) : (
-                      <Mic className="w-5 h-5" />
+                      <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
                     )}
                   </Button>
-
 
                   <Button 
                     size="icon" 
@@ -348,36 +432,38 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     onClick={handleOpenConfirm}
                     disabled={isEnding}
                     title="End call"
+                    className="w-8 h-8 sm:w-12 sm:h-12"
                   >
                     {isEnding ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <Phone className="w-5 h-5" />
+                      <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
                     )}
                   </Button>
 
+                  {/* Hide less important buttons on mobile */}
                   <Button 
                     size="icon" 
                     variant="ghost" 
-                    className="text-white hover:bg-white/20"
+                    className="text-white hover:bg-white/20 w-8 h-8 sm:w-12 sm:h-12 hidden sm:block"
                     onClick={() => {}}
                     title="Messages"
                   >
-                    <MessageSquare className="w-5 h-5" />
+                    <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
 
                   <Button 
                     size="icon" 
                     variant="ghost" 
-                    className="text-white hover:bg-white/20"
+                    className="text-white hover:bg-white/20 w-8 h-8 sm:w-12 sm:h-12 hidden sm:block"
                     onClick={() => {}}
                     title="Settings"
                   >
-                    <Settings className="w-5 h-5" />
+                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                 </div>
                 {error && (
-                  <div className="mt-2 text-center text-red-500 text-xs">{error}</div>
+                  <div className="mt-2 text-center text-red-500 text-xs px-2">{error}</div>
                 )}
               </div>
             </div>
@@ -385,24 +471,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       </div>
 
-      {/* Live Conversation Section */}
-      <div className="flex-1 px-6 pb-6 bg-gradient-to-br from-slate-50 to-gray-100 overflow-y-auto">
-        <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
-          <div className="flex items-center gap-3 mb-4">
+      {/* Live Conversation Section - Mobile responsive */}
+      <div className="lg:flex-1 px-3 sm:px-6 pb-2 sm:pb-6 bg-gradient-to-br from-slate-50 to-gray-100 lg:overflow-y-auto">
+        <div className="bg-white rounded-2xl p-3 sm:p-6 shadow-lg border border-gray-100">
+          <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-4">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
               <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" style={{ animationDelay: "0.2s" }}></div>
               <div className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" style={{ animationDelay: "0.4s" }}></div>
             </div>
-            <span className="text-sm font-semibold text-gray-700">Live Conversation</span>
+            <span className="text-xs sm:text-sm font-semibold text-gray-700">Live Conversation</span>
           </div>
           <div className="space-y-2">
-            <p className="text-gray-800 leading-relaxed font-medium">
+            <p className="text-gray-800 leading-relaxed font-medium text-sm sm:text-base">
               {isAvatarTalking ? "Avatar is speaking..." : "Ready for your response..."}
             </p>
             
             {/* Voice interaction status */}
-            <div className={`flex items-center gap-2 text-sm p-3 rounded-lg ${microphoneStatus.bgColor}`}>
+            <div className={`flex items-center gap-2 text-xs sm:text-sm p-2 sm:p-3 rounded-lg ${microphoneStatus.bgColor}`}>
               <div className={`w-2 h-2 rounded-full animate-pulse ${microphoneStatus.status === 'active' ? 'bg-green-500' : microphoneStatus.status === 'disabled' ? 'bg-amber-500' : 'bg-gray-400'}`}></div>
               <span className={microphoneStatus.color}>{microphoneStatus.message}</span>
             </div>
@@ -410,21 +496,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       </div>
 
-      {/* Confirm End Session Modal */}
+      {/* Confirm End Session Modal - Mobile responsive */}
       {showConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 mx-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-4 sm:p-6">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">!
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-sm sm:text-base">!
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">End interview session?</h3>
-                <p className="mt-1 text-sm text-gray-600">You can start again anytime. This will disconnect the current call.</p>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">End interview session?</h3>
+                <p className="mt-1 text-xs sm:text-sm text-gray-600">You can start again anytime. This will disconnect the current call.</p>
               </div>
             </div>
-            <div className="mt-6 flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={handleCancelEnd} disabled={isEnding}>Cancel</Button>
-              <Button variant="danger" className="flex-1" onClick={handleConfirmEnd} disabled={isEnding}>
+            <div className="mt-4 sm:mt-6 flex gap-2 sm:gap-3">
+              <Button variant="outline" className="flex-1 text-sm" onClick={handleCancelEnd} disabled={isEnding}>Cancel</Button>
+              <Button variant="danger" className="flex-1 text-sm" onClick={handleConfirmEnd} disabled={isEnding}>
                 {isEnding ? 'Ending...' : 'End Session'}
               </Button>
             </div>

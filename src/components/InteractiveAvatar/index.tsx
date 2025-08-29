@@ -126,10 +126,10 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
             jobRoles={jobRoles}
           />
         ) : (
-          <div className="flex h-screen bg-gray-50 overflow-hidden">
-            {/* Video Player - Main content area */}
-            <div className="flex-1 flex flex-col min-w-0">
-              <div className="flex-1 flex min-h-0">
+          <div className="flex flex-col lg:flex-row h-screen bg-gray-50 overflow-hidden">
+            {/* Video Player - Left side (Mobile: above chat, Desktop: left sidebar) */}
+            <div className="lg:flex-1 flex flex-col min-w-0 order-1">
+              <div className="lg:flex-1 flex flex-col lg:min-h-0">
                 <VideoPlayer
                   videoRef={videoRef}
                   connectionQuality={connectionQuality}
@@ -146,23 +146,43 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
                   voiceDisabled={sessionState !== SessionState.CONNECTED || isInterviewComplete || isSubmitting}
                   voiceLanguage={config.language === 'en' ? 'en-US' : 'vi-VN'}
                 />
-
-                {/* Chat Controls - Right sidebar */}
-                <ChatControls
-                  sessionState={sessionState}
-                  inputText={message}
-                  setInputText={setMessage}
-                  isAvatarTalking={isAvatarTalking}
-                  conversation={conversation}
-                  onSendMessage={handleSendMessageWithReset}
-                  isThinking={isThinking}
-                  isInterviewComplete={isInterviewComplete}
-                  questionCount={questionCount}
-                  skillAssessment={interviewState.skillAssessment}
-                  coveredTopics={interviewState.coveredTopics}
-                  progress={interviewState.progress || 0}
-                />
               </div>
+            </div>
+
+            {/* Chat Controls - Right side (Mobile: below video, Desktop: right sidebar) */}
+            <div className="lg:hidden flex-shrink-0 order-2 w-full">
+              <ChatControls
+                sessionState={sessionState}
+                inputText={message}
+                setInputText={setMessage}
+                isAvatarTalking={isAvatarTalking}
+                conversation={conversation}
+                onSendMessage={handleSendMessageWithReset}
+                isThinking={isThinking}
+                isInterviewComplete={isInterviewComplete}
+                questionCount={questionCount}
+                skillAssessment={interviewState.skillAssessment}
+                coveredTopics={interviewState.coveredTopics}
+                progress={interviewState.progress || 0}
+              />
+            </div>
+
+            {/* Chat Controls - Desktop: Right sidebar */}
+            <div className="hidden lg:block flex-shrink-0 order-2">
+              <ChatControls
+                sessionState={sessionState}
+                inputText={message}
+                setInputText={setMessage}
+                isAvatarTalking={isAvatarTalking}
+                conversation={conversation}
+                onSendMessage={handleSendMessageWithReset}
+                isThinking={isThinking}
+                isInterviewComplete={isInterviewComplete}
+                questionCount={questionCount}
+                skillAssessment={interviewState.skillAssessment}
+                coveredTopics={interviewState.coveredTopics}
+                progress={interviewState.progress || 0}
+              />
             </div>
           </div>
         )}

@@ -264,20 +264,20 @@ const ChatControls: React.FC<ChatControlsProps> = ({
   };
 
   return (
-    <div className="w-80 h-full bg-white border-l flex flex-col shrink-0">
-      <div className="p-4 pt-8 flex-1 flex flex-col min-h-0">
-        {/* People attending */}
-        <div className="mb-4">
+    <div className="w-full sm:w-80 h-full bg-white border-l flex flex-col shrink-0">
+      <div className="p-2 sm:p-4 flex-1 flex flex-col min-h-0">
+        {/* People attending - Mobile responsive */}
+        <div className="mb-2 sm:mb-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-gray-600" />
-              <span className="text-sm font-medium">Interview Session</span>
+              <span className="text-xs sm:text-sm font-medium">Interview Session</span>
             </div>
-            <Button size="sm" variant="ghost" className="text-purple-600 hover:bg-purple-50 p-1">
-              <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+            <Button size="sm" variant="ghost" className="text-purple-600 hover:bg-purple-50 p-1 text-xs">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-purple-100 flex items-center justify-center">
                 <span className="text-xs font-bold"></span>
               </div>
-              <span className="text-xs ml-1">View Report</span>
+              <span className="text-xs ml-1 hidden sm:block">View Report</span>
             </Button>
           </div>
         </div>
@@ -516,12 +516,12 @@ const ChatControls: React.FC<ChatControlsProps> = ({
                     type="text"
                     placeholder={
                       isInterviewComplete
-                        ? 'Phỏng vấn đã kết thúc'
+                        ? 'Interview completed'
                         : isAvatarTalking
-                          ? 'Đang nói...'
+                          ? 'Speaking...'
                           : isThinking
-                            ? 'Đang suy nghĩ...'
-                            : 'Nhập câu trả lời của bạn...'
+                            ? 'Thinking...'
+                            : 'Type your answer...'
                     }
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}

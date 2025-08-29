@@ -206,7 +206,7 @@ async function analyzeQuestionAnswer(
   answer: string,
   field: string,
   level: string,
-  language: 'vi-VN' | 'en-US'
+  language: 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR'
 ): Promise<QuestionAnalysis> {
   const prompt = `You are evaluating a candidate's answer for a ${field} position at ${level} level.
 
@@ -222,7 +222,7 @@ Please provide a detailed analysis of this answer. Consider:
 6. Key technical terms and concepts mentioned
 7. Skills demonstrated
 
-Respond in ${language === 'vi-VN' ? 'Vietnamese' : 'English'}.
+Respond in ${language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chinese' : language === 'ja-JP' ? 'Japanese' : language === 'ko-KR' ? 'Korean' : 'English'}.
 
 REQUIRED JSON FORMAT:
 {
@@ -294,7 +294,15 @@ REQUIRED JSON FORMAT:
       keywords: [],
       skillTags: [],
       category: 'general',
-      feedback: language === 'vi-VN' ? 'Không thể phân tích câu trả lời này.' : 'Unable to analyze this answer.'
+      feedback: language === 'vi-VN' 
+        ? 'Không thể phân tích câu trả lời này.' 
+        : language === 'zh-CN'
+        ? '无法分析此答案。'
+        : language === 'ja-JP'
+        ? 'この回答を分析できません。'
+        : language === 'ko-KR'
+        ? '이 답변을 분석할 수 없습니다.'
+        : 'Unable to analyze this answer.'
     };
   }
 }
@@ -303,7 +311,7 @@ export async function generateInterviewEvaluation(
   conversation: ChatMessage[],
   field: string,
   level: string,
-  language: 'vi-VN' | 'en-US'
+  language: 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR'
 ): Promise<InterviewEvaluation> {
   try {
     // Use the provided level parameter instead of extracting from conversation
@@ -364,7 +372,7 @@ HIRING RECOMMENDATIONS:
 - consider: Mixed results, some concerns but potential upside
 - reject: Does not meet minimum requirements for ${level} level
 
-Please respond in ${language === 'vi-VN' ? 'Vietnamese' : 'English'} with detailed analysis.
+Please respond in ${language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chinese' : language === 'ja-JP' ? 'Japanese' : language === 'ko-KR' ? 'Korean' : 'English'} with detailed analysis.
 
 REQUIRED JSON FORMAT:
 {
@@ -438,10 +446,10 @@ REQUIRED JSON FORMAT:
         ? evaluation.hiringRecommendation 
         : 'consider',
       detailedFeedback: {
-        technical: evaluation.detailedFeedback?.technical || (language === 'vi-VN' ? 'Cần đánh giá thêm' : 'Needs further assessment'),
-        softSkills: evaluation.detailedFeedback?.softSkills || (language === 'vi-VN' ? 'Cần đánh giá thêm' : 'Needs further assessment'),
-        experience: evaluation.detailedFeedback?.experience || (language === 'vi-VN' ? 'Cần đánh giá thêm' : 'Needs further assessment'),
-        potential: evaluation.detailedFeedback?.potential || (language === 'vi-VN' ? 'Cần đánh giá thêm' : 'Needs further assessment')
+        technical: evaluation.detailedFeedback?.technical || (language === 'vi-VN' ? 'Cần đánh giá thêm' : language === 'zh-CN' ? '需要进一步评估' : language === 'ja-JP' ? 'さらなる評価が必要' : language === 'ko-KR' ? '추가 평가 필요' : 'Needs further assessment'),
+        softSkills: evaluation.detailedFeedback?.softSkills || (language === 'vi-VN' ? 'Cần đánh giá thêm' : language === 'zh-CN' ? '需要进一步评估' : language === 'ja-JP' ? 'さらなる評価が必要' : language === 'ko-KR' ? '추가 평가 필요' : 'Needs further assessment'),
+        experience: evaluation.detailedFeedback?.experience || (language === 'vi-VN' ? 'Cần đánh giá thêm' : language === 'zh-CN' ? '需要进一步评估' : language === 'ja-JP' ? 'さらなる評価が必要' : language === 'ko-KR' ? '추가 평가 필요' : 'Needs further assessment'),
+        potential: evaluation.detailedFeedback?.potential || (language === 'vi-VN' ? 'Cần đánh giá thêm' : language === 'zh-CN' ? '需要进一步评估' : language === 'ja-JP' ? 'さらなる評価が必要' : language === 'ko-KR' ? '추가 평가 필요' : 'Needs further assessment')
       },
       salary_range: {
         min: evaluation.salary_range?.min || salaryRange.min,
@@ -477,7 +485,7 @@ function validateScore(score: unknown): number {
 function generateDefaultEvaluation(
   field: string, 
   level: string, 
-  language: 'vi-VN' | 'en-US',
+  language: 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR',
   salaryRange: { min: number; max: number; currency: string }
 ): InterviewEvaluation {
   const criteria = EVALUATION_CRITERIA[field] || EVALUATION_CRITERIA["Full Stack"];
@@ -491,31 +499,83 @@ function generateDefaultEvaluation(
     cultureFitScore: 6,
     overallRating: Math.round((benchmarks.technical * criteria.technicalWeight + 6 * (1 - criteria.technicalWeight))),
     technicalStrengths: [
-      language === 'vi-VN' ? `Kiến thức cơ bản về ${field}` : `Basic knowledge of ${field}`,
-      language === 'vi-VN' ? 'Tiềm năng phát triển' : 'Development potential'
+      language === 'vi-VN' ? `Kiến thức cơ bản về ${field}` 
+        : language === 'zh-CN' ? `${field}的基础知识`
+        : language === 'ja-JP' ? `${field}の基礎知識`
+        : language === 'ko-KR' ? `${field} 기본 지식`
+        : `Basic knowledge of ${field}`,
+      language === 'vi-VN' ? 'Tiềm năng phát triển' 
+        : language === 'zh-CN' ? '发展潜力'
+        : language === 'ja-JP' ? '成長の可能性'
+        : language === 'ko-KR' ? '성장 잠재력'
+        : 'Development potential'
     ],
     technicalWeaknesses: [
-      language === 'vi-VN' ? 'Cần đánh giá kỹ thuật chi tiết hơn' : 'Needs more detailed technical assessment',
-      language === 'vi-VN' ? 'Thiếu thông tin về kinh nghiệm thực tế' : 'Limited information on practical experience'
+      language === 'vi-VN' ? 'Cần đánh giá kỹ thuật chi tiết hơn' 
+        : language === 'zh-CN' ? '需要更详细的技术评估'
+        : language === 'ja-JP' ? 'より詳細な技術評価が必要'
+        : language === 'ko-KR' ? '더 상세한 기술 평가 필요'
+        : 'Needs more detailed technical assessment',
+      language === 'vi-VN' ? 'Thiếu thông tin về kinh nghiệm thực tế' 
+        : language === 'zh-CN' ? '缺乏实际经验信息'
+        : language === 'ja-JP' ? '実務経験に関する情報が不足'
+        : language === 'ko-KR' ? '실무 경험 정보 부족'
+        : 'Limited information on practical experience'
     ],
     recommendations: [
-      language === 'vi-VN' ? `Tiến hành phỏng vấn kỹ thuật sâu hơn về ${field}` : `Conduct deeper technical interview on ${field}`,
-      language === 'vi-VN' ? 'Đánh giá qua bài tập thực tế' : 'Evaluate through practical assignments',
-      language === 'vi-VN' ? 'Kiểm tra portfolio và dự án cá nhân' : 'Review portfolio and personal projects'
+      language === 'vi-VN' ? `Tiến hành phỏng vấn kỹ thuật sâu hơn về ${field}` 
+        : language === 'zh-CN' ? `进行更深入的${field}技术面试`
+        : language === 'ja-JP' ? `${field}に関するより深い技術面接を実施`
+        : language === 'ko-KR' ? `${field}에 대한 더 깊은 기술 면접 진행`
+        : `Conduct deeper technical interview on ${field}`,
+      language === 'vi-VN' ? 'Đánh giá qua bài tập thực tế' 
+        : language === 'zh-CN' ? '通过实际作业进行评估'
+        : language === 'ja-JP' ? '実践的な課題を通じて評価'
+        : language === 'ko-KR' ? '실무 과제를 통한 평가'
+        : 'Evaluate through practical assignments',
+      language === 'vi-VN' ? 'Kiểm tra portfolio và dự án cá nhân' 
+        : language === 'zh-CN' ? '检查作品集和个人项目'
+        : language === 'ja-JP' ? 'ポートフォリオと個人プロジェクトの確認'
+        : language === 'ko-KR' ? '포트폴리오 및 개인 프로젝트 검토'
+        : 'Review portfolio and personal projects'
     ],
     hiringRecommendation: 'consider' as const,
     detailedFeedback: {
       technical: language === 'vi-VN' 
         ? `Ứng viên cho thấy hiểu biết cơ bản về ${field}. Cần đánh giá sâu hơn về kinh nghiệm thực tế và khả năng áp dụng kiến thức vào dự án thực tế.`
+        : language === 'zh-CN'
+        ? `候选人表现出对${field}的基本理解。需要进一步评估实际经验和将知识应用到实际项目的能力。`
+        : language === 'ja-JP'
+        ? `候補者は${field}の基本的な理解を示している。実務経験と知識を実際のプロジェクトに適用する能力について、さらなる評価が必要。`
+        : language === 'ko-KR'
+        ? `후보자는 ${field}에 대한 기본적인 이해를 보여줍니다. 실제 경험과 지식을 실제 프로젝트에 적용하는 능력에 대한 추가 평가가 필요합니다.`
         : `Candidate shows basic understanding of ${field}. Further assessment needed on practical experience and ability to apply knowledge to real projects.`,
       softSkills: language === 'vi-VN'
         ? 'Khả năng giao tiếp ở mức trung bình. Cần đánh giá thêm về kỹ năng làm việc nhóm và giải quyết vấn đề.'
+        : language === 'zh-CN'
+        ? '沟通能力处于中等水平。需要进一步评估团队合作和问题解决技能。'
+        : language === 'ja-JP'
+        ? 'コミュニケーション能力は平均レベル。チームワークと問題解決スキルについて追加評価が必要。'
+        : language === 'ko-KR'
+        ? '의사소통 능력은 평균 수준입니다. 팀워크와 문제 해결 기술에 대한 추가 평가가 필요합니다.'
         : 'Communication skills at average level. Additional assessment needed on teamwork and problem-solving skills.',
       experience: language === 'vi-VN'
         ? `Kinh nghiệm ${level} cần được xác minh qua các dự án cụ thể và thử thách kỹ thuật.`
+        : language === 'zh-CN'
+        ? `${level}经验需要通过具体项目和技术挑战进行验证。`
+        : language === 'ja-JP'
+        ? `${level}経験は具体的なプロジェクトと技術的課題を通じて確認する必要がある。`
+        : language === 'ko-KR'
+        ? `${level} 경험은 구체적인 프로젝트와 기술적 도전을 통해 검증해야 합니다.`
         : `${level} experience needs verification through specific projects and technical challenges.`,
       potential: language === 'vi-VN'
         ? 'Cho thấy tiềm năng học hỏi và phát triển. Nên đầu tư thời gian đào tạo và hỗ trợ.'
+        : language === 'zh-CN'
+        ? '显示出学习和发展的潜力。应该投入培训和支持时间。'
+        : language === 'ja-JP'
+        ? '学習と成長の可能性を示している。トレーニングとサポートに時間を投資すべき。'
+        : language === 'ko-KR'
+        ? '학습과 성장의 잠재력을 보여줍니다. 훈련과 지원에 시간을 투자해야 합니다.'
         : 'Shows learning potential and development capability. Should invest in training and support.'
     },
     salary_range: salaryRange,
@@ -523,9 +583,21 @@ function generateDefaultEvaluation(
       currentLevel: levelBenchmark,
       readinessForNextLevel: false,
       gapAnalysis: [
-        language === 'vi-VN' ? `Cần cải thiện kiến thức chuyên sâu về ${field}` : `Need to improve deep knowledge of ${field}`,
-        language === 'vi-VN' ? 'Tăng cường kinh nghiệm thực tế' : 'Strengthen practical experience',
-        language === 'vi-VN' ? 'Phát triển kỹ năng giao tiếp kỹ thuật' : 'Develop technical communication skills'
+        language === 'vi-VN' ? `Cần cải thiện kiến thức chuyên sâu về ${field}` 
+          : language === 'zh-CN' ? `需要改进${field}的深入知识`
+          : language === 'ja-JP' ? `${field}の深い知識を改善する必要がある`
+          : language === 'ko-KR' ? `${field}에 대한 깊은 지식 개선 필요`
+          : `Need to improve deep knowledge of ${field}`,
+        language === 'vi-VN' ? 'Tăng cường kinh nghiệm thực tế' 
+          : language === 'zh-CN' ? '加强实际经验'
+          : language === 'ja-JP' ? '実務経験の強化'
+          : language === 'ko-KR' ? '실무 경험 강화'
+          : 'Strengthen practical experience',
+        language === 'vi-VN' ? 'Phát triển kỹ năng giao tiếp kỹ thuật' 
+          : language === 'zh-CN' ? '发展技术沟通技能'
+          : language === 'ja-JP' ? '技術コミュニケーションスキルの開発'
+          : language === 'ko-KR' ? '기술 커뮤니케이션 기술 개발'
+          : 'Develop technical communication skills'
       ]
     },
     questionAnalysis: [] // No question analysis for default evaluation

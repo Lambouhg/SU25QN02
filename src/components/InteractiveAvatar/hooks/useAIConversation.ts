@@ -23,8 +23,15 @@ interface UseAIConversationProps {
   onFollowUpQuestion?: (question: string) => void;
   onInterviewComplete?: (result: InterviewCompleteResult) => void;
   onEndSession?: () => void; // callback cleanup Heygen/avatar session khi auto-prompt kết thúc
-  language: 'en-US' | 'vi-VN';
+  language: 'en-US' | 'vi-VN' | 'zh-CN' | 'ja-JP' | 'ko-KR';
   isInterviewComplete?: boolean; // Trạng thái phỏng vấn từ bên ngoài
+  config?: {
+    field: string;
+    level: string;
+    language: 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR';
+    jobRoleTitle?: string;
+    jobRoleLevel?: string;
+  }; // Thêm config để truyền vào processInterviewResponse
 }
 
 // Constants for auto-prompt feature
@@ -49,7 +56,8 @@ export const useAIConversation = ({
   onInterviewComplete,
   onEndSession,
   language,
-  isInterviewComplete = false
+  isInterviewComplete = false,
+  config
 }: UseAIConversationProps) => {
   const [isThinking, setIsThinking] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
@@ -114,9 +122,15 @@ export const useAIConversation = ({
       try {
         const promptInstructions = language === 'vi-VN' 
           ? `INSTRUCTION: Ứng viên chưa trả lời câu hỏi sau ${AUTO_PROMPT_DELAY/1000} giây. Đây là lần nhắc nhở thứ ${currentCount + 1}/${MAX_AUTO_PROMPTS}. Hãy tạo ra MỘT lời nhắc nhở ngắn gọn, thân thiện để khuyến khích ứng viên trả lời. ${currentCount === 0 ? 'Lần đầu tiên nên nhẹ nhàng.' : currentCount === 1 ? 'Lần thứ hai nên rõ ràng hơn.' : 'Lần cuối cùng nên quyết đoán nhưng lịch sự.'}`
+          : language === 'zh-CN'
+          ? `INSTRUCTION: 候选人在${AUTO_PROMPT_DELAY/1000}秒后仍未回答问题。这是第${currentCount + 1}/${MAX_AUTO_PROMPTS}次提醒。请创建一个简短、友好的提醒来鼓励候选人回答。${currentCount === 0 ? '第一次应该温和。' : currentCount === 1 ? '第二次应该更明确。' : '最后一次应该果断但礼貌。'}`
+          : language === 'ja-JP'
+          ? `INSTRUCTION: 候補者が${AUTO_PROMPT_DELAY/1000}秒後にまだ質問に答えていません。これは${currentCount + 1}/${MAX_AUTO_PROMPTS}回目のリマインダーです。候補者に回答を促す短く、親しみやすいリマインダーを作成してください。${currentCount === 0 ? '最初は優しく。' : currentCount === 1 ? '2回目はより明確に。' : '最後は断定的だが礼儀正しく。'}`
+          : language === 'ko-KR'
+          ? `INSTRUCTION: 후보자가 ${AUTO_PROMPT_DELAY/1000}초 후에도 질문에 답하지 않았습니다. 이것은 ${currentCount + 1}/${MAX_AUTO_PROMPTS}번째 알림입니다. 후보자가 답변하도록 격려하는 짧고 친근한 알림을 만드세요.${currentCount === 0 ? '첫 번째는 부드럽게.' : currentCount === 1 ? '두 번째는 더 명확하게.' : '마지막은 단호하지만 예의 바르게.'}`
           : `INSTRUCTION: The candidate hasn't answered after ${AUTO_PROMPT_DELAY/1000} seconds. This is prompt ${currentCount + 1}/${MAX_AUTO_PROMPTS}. Generate ONE brief, friendly reminder to encourage the candidate to respond. ${currentCount === 0 ? 'First time should be gentle.' : currentCount === 1 ? 'Second time should be clearer.' : 'Final time should be decisive but polite.'}`;
 
-        const response = await processInterviewResponse(promptInstructions, conversationHistory, language);
+        const response = await processInterviewResponse(promptInstructions, conversationHistory, language, config);
         setAutoPromptCount(prev => {
           autoPromptCountRef.current = prev + 1;
           return prev + 1;
@@ -235,17 +249,21 @@ export const useAIConversation = ({
       
       console.log('🎯 Starting interview with field:', field, 'specialization:', specialization, 'level:', level, 'experience:', `${minExperience}-${maxExperience} years`);
       console.log('📝 System message created:', systemMessage.content);
+      console.log('🔗 Question Bank Config:', { jobRoleTitle: config?.jobRoleTitle, jobRoleLevel: config?.jobRoleLevel });
       
       setConversationHistory([systemMessage]);
 
-      // Get initial question from AI
+      // Get initial question from AI with question bank context
       const response = await startInterview({
         field,
         level,
         language,
         specialization,
         minExperience,
-        maxExperience
+        maxExperience,
+        // Thêm job role mapping để AI có thể sử dụng question bank
+        jobRoleTitle: config?.jobRoleTitle,
+        jobRoleLevel: config?.jobRoleLevel
       });
 
       if (!response || !response.answer) {
@@ -273,7 +291,7 @@ export const useAIConversation = ({
     } finally {
       setIsThinking(false);
     }
-  }, [language, onAnswer, onError, updateInterviewState, resetAutoPrompt]);
+  }, [language, onAnswer, onError, updateInterviewState, resetAutoPrompt, config]);
 
   
   const processMessage = useCallback(
@@ -326,7 +344,7 @@ export const useAIConversation = ({
         setConversationHistory(updatedHistory);
 
         // Process response with updated history
-        const response = await processInterviewResponse(text, updatedHistory, language);
+        const response = await processInterviewResponse(text, updatedHistory, language, config);
 
         if (!response || !response.answer) {
           throw new Error('Failed to get AI response');

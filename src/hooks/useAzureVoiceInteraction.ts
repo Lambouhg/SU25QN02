@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
-import { startVoiceRecognition, stopVoiceRecognition, SpeechRecognitionError } from '@/utils/speech/voiceInteractionUtils';
+import { startVoiceRecognition, stopVoiceRecognition, SpeechRecognitionError, StartRecognitionOptions } from '@/utils/speech/voiceInteractionUtils';
 
 interface UseAzureVoiceInteractionProps {
   onSpeechResult: (text: string) => void;
@@ -8,6 +8,11 @@ interface UseAzureVoiceInteractionProps {
   onInterimResult?: (text: string) => void;
   language?: 'vi-VN' | 'en-US';
   silenceTimeout?: number;
+  initialSilenceTimeoutMs?: number;
+  endSilenceTimeoutMs?: number;
+  enablePunctuation?: boolean;
+  profanityOption?: 'Masked' | 'Removed' | 'Raw';
+  phraseHints?: string[];
 }
 
 export const useAzureVoiceInteraction = ({
@@ -15,7 +20,12 @@ export const useAzureVoiceInteraction = ({
   onError,
   onInterimResult,
   language = 'vi-VN',
-  silenceTimeout = 3000
+  silenceTimeout = 3000,
+  initialSilenceTimeoutMs,
+  endSilenceTimeoutMs,
+  enablePunctuation,
+  profanityOption,
+  phraseHints
 }: UseAzureVoiceInteractionProps) => {
   const [isListening, setIsListening] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -98,6 +108,15 @@ export const useAzureVoiceInteraction = ({
       transcriptRef.current = '';
 
       // Start new recognition
+      const options: StartRecognitionOptions = {
+        onInterim: (t) => handleSpeechResult(t, false),
+        initialSilenceTimeoutMs,
+        endSilenceTimeoutMs,
+        enablePunctuation,
+        profanityOption,
+        phraseHints
+      };
+
       const newRecognizer = await startVoiceRecognition(
         (text) => handleSpeechResult(text, true),
         (error: SpeechRecognitionError) => {
@@ -108,7 +127,8 @@ export const useAzureVoiceInteraction = ({
           setIsListening(false);
           setIsInitializing(false);
         },
-        language
+        language,
+        options
       );
 
       if (newRecognizer) {
