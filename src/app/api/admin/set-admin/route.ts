@@ -40,11 +40,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Tìm role admin theo name để tránh hardcode roleId
+    const adminRole = await prisma.role.findFirst({ where: { name: "admin" } });
+    if (!adminRole) {
+      return NextResponse.json(
+        { error: "Admin role not found" },
+        { status: 400 }
+      );
+    }
+
     // Update role thành admin
     const updatedUser = await prisma.user.update({
       where,
       data: {
-        roleId: 'admin_role_id'
+        roleId: adminRole.id
       },
       select: {
         id: true,

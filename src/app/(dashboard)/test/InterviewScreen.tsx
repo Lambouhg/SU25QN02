@@ -1,6 +1,5 @@
 import React from "react";
 import { InterviewChat } from '@/components/ui/test-mode/InterviewChat';
-import ReactMarkdown from 'react-markdown';
 
 interface InterviewScreenProps {
   position: string;
