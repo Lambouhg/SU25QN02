@@ -19,7 +19,7 @@ export const AVATARS = [
 
 export const STT_LANGUAGE_LIST = [
   // { label: "Bulgarian", value: "bg", key: "bg" },
-  // { label: "Chinese", value: "zh", key: "zh" },
+  { label: "Chinese", value: "zh", key: "zh" },
   // { label: "Czech", value: "cs", key: "cs" },
   // { label: "Danish", value: "da", key: "da" },
   // { label: "Dutch", value: "nl", key: "nl" },
@@ -32,8 +32,8 @@ export const STT_LANGUAGE_LIST = [
   // { label: "Hungarian", value: "hu", key: "hu" },
   // { label: "Indonesian", value: "id", key: "id" },
   // { label: "Italian", value: "it", key: "it" },
-  // { label: "Japanese", value: "ja", key: "ja" },
-  // { label: "Korean", value: "ko", key: "ko" },
+  { label: "Japanese", value: "ja", key: "ja" },
+  { label: "Korean", value: "ko", key: "ko" },
   // { label: "Malay", value: "ms", key: "ms" },
   // { label: "Norwegian", value: "no", key: "no" },
   // { label: "Polish", value: "pl", key: "pl" },

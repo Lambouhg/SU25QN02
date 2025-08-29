@@ -13,7 +13,7 @@ interface PaymentData {
   servicePackageId: string;
   orderCode: string;
   amount: number;
-  refundAmount: number;
+  refundAmount: number; 
   description: string;
   status: string;
   paymentMethod: string | null;
@@ -125,9 +125,9 @@ function PaymentHistory({ }: PaymentHistoryProps) {
   };
 
   const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("vi-VN", {
       style: "currency",
-      currency: "USD"
+      currency: "VND"
     }).format(amount);
   };
 

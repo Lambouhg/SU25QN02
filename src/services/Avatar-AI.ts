@@ -1,17 +1,18 @@
 // src/services/azureAiService.ts
 import { ChatMessage, callOpenAI } from './openaiService';
-import { createSystemMessageWithQuestionBank } from './questionBankIntegration';
 
 export interface InterviewConfig {
   field: string;
   level: string;
-  language: 'vi-VN' | 'en-US';
+  language: 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR';
   specialization?: string;
   minExperience?: number;
   maxExperience?: number;
+  jobRoleTitle?: string; // Thêm jobRoleTitle để mapping với question bank
+  jobRoleLevel?: string; // Thêm jobRoleLevel để mapping với question bank
 }
 
-const FIXED_QUESTIONS = 4 ;
+const FIXED_QUESTIONS = 10 ;
 
 const INTERVIEW_STRUCTURE = {
   junior: {
@@ -30,6 +31,75 @@ const INTERVIEW_STRUCTURE = {
     guidance: 'Evaluate system design capabilities, technical leadership, and strategic thinking'
   }
 };
+
+// Thêm function để lấy question bank context
+async function getQuestionBankContext(config: InterviewConfig): Promise<{
+  questions: Array<{
+    id: string;
+    question: string;
+    answers: Array<{ content: string; isCorrect: boolean }>;
+    fields: string[];
+    topics: string[];
+    levels: string[];
+    explanation?: string;
+  }>;
+  contextPrompt: string;
+  jobRoleMapping: {
+    jobRoleKey: string;
+    jobRoleTitle: string;
+    jobRoleLevel: string;
+    categoryName: string;
+    skills: string[];
+    interviewFocusAreas: string[];
+  } | null;
+} | null> {
+  try {
+    console.log('🔗 Fetching question bank context for:', {
+      field: config.field,
+      level: config.level,
+      jobRoleTitle: config.jobRoleTitle,
+      jobRoleLevel: config.jobRoleLevel,
+      questionCount: FIXED_QUESTIONS
+    });
+
+    const response = await fetch('/api/questions/interview-context', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        field: config.field,
+        level: config.level,
+        jobRoleTitle: config.jobRoleTitle,
+        jobRoleLevel: config.jobRoleLevel,
+        questionCount: FIXED_QUESTIONS
+      })
+    });
+
+    console.log('🔗 Question bank API response status:', response.status);
+
+    if (!response.ok) {
+      console.warn('Failed to fetch question bank context:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('🔗 Question bank API response data:', {
+      questionsCount: data.questions?.length || 0,
+      hasContextPrompt: !!data.contextPrompt,
+      hasJobRoleMapping: !!data.jobRoleMapping
+    });
+
+    return {
+      questions: data.questions || [],
+      contextPrompt: data.contextPrompt || '',
+      jobRoleMapping: data.jobRoleMapping || null
+    };
+  } catch (error) {
+    console.error('Error fetching question bank context:', error);
+    return null;
+  }
+}
 
 export interface InterviewResponse {
   answer: string;
@@ -99,7 +169,8 @@ export interface InterviewEvaluation {
 export async function processInterviewResponse(
   userMessage: string,
   conversationHistory: ChatMessage[] = [],
-  language: 'vi-VN' | 'en-US' = 'en-US'
+  language: 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR' = 'en-US',
+  config?: InterviewConfig // Thêm config parameter để có thể truy cập jobRoleTitle và jobRoleLevel
 ): Promise<InterviewResponse> {
   try {
     
@@ -108,7 +179,10 @@ export async function processInterviewResponse(
     const isEndingInstruction = isInstruction && (
       userMessage.includes('kết thúc phỏng vấn') || 
       userMessage.includes('end the interview') ||
-      userMessage.includes('conclude the interview')
+      userMessage.includes('conclude the interview') ||
+      userMessage.includes('结束面试') ||
+      userMessage.includes('面接を終了') ||
+      userMessage.includes('면접 종료')
     );
     
     // Extract field and level
@@ -122,6 +196,16 @@ export async function processInterviewResponse(
       const levelMatch = content.match(/at (.*?) level/);
       if (fieldMatch?.[1]) field = fieldMatch[1];
       if (levelMatch?.[1]) level = levelMatch[1];
+    }
+
+    // Lấy question bank context nếu có config
+    let questionBankContext = null;
+    if (config) {
+      console.log('🔗 Getting question bank context for config:', config);
+      questionBankContext = await getQuestionBankContext(config);
+      console.log('🔗 Question bank context result:', questionBankContext ? 'Success' : 'Failed/No data');
+    } else {
+      console.log('⚠️ No config provided for question bank integration');
     }
 
     const expLevel = level.toLowerCase().includes('senior') ? 'senior' 
@@ -142,18 +226,26 @@ export async function processInterviewResponse(
     const hasUserRespondedToFinalQuestion = userResponses.length >= FIXED_QUESTIONS;
     
     
-    const messages: ChatMessage[] = [
-      {
-        role: 'system',
-        content: `You are a senior technical interviewer conducting a professional interview for a ${field} position at ${level} level.
-IMPORTANT: ONLY respond in ${language === 'vi-VN' ? 'Vietnamese' : 'English'}.
+    // Tạo system message với question bank context nếu có
+    let systemContent = `You are a senior technical interviewer conducting a professional interview for a ${field} position at ${level} level.
+IMPORTANT: ONLY respond in ${language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chinese' : language === 'ja-JP' ? 'Japanese' : language === 'ko-KR' ? 'Korean' : 'English'}.
 
 INTERVIEWER PERSONA:
 - Be professional but friendly
 - Ask questions that are relevant to real-world ${field} scenarios
 - Probe deeper when answers are superficial
 - Provide constructive feedback
-- Adapt questions based on candidate's responses while staying within ${field} domain
+- Adapt questions based on candidate's responses while staying within ${field} domain`;
+
+    // Thêm question bank context nếu có
+    if (questionBankContext?.contextPrompt) {
+      systemContent += `\n\n${questionBankContext.contextPrompt}`;
+    }
+
+    const messages: ChatMessage[] = [
+      {
+        role: 'system',
+        content: systemContent + `
 
 INTERVIEW STRATEGY FOR ${level.toUpperCase()} ${field.toUpperCase()} POSITION:
 ${level === 'junior' ? `
@@ -491,6 +583,12 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
     return {
       answer: language === 'vi-VN' 
         ? 'Xin lỗi, đã xảy ra lỗi. Vui lòng thử lại.'
+        : language === 'zh-CN'
+        ? '抱歉，发生错误。请重试。'
+        : language === 'ja-JP'
+        ? '申し訳ございません。エラーが発生しました。もう一度お試しください。'
+        : language === 'ko-KR'
+        ? '죄송합니다. 오류가 발생했습니다. 다시 시도해 주세요.'
         : 'Sorry, an error occurred. Please try again.',
       currentTopic: "error",
       shouldMoveToNewTopic: false,
@@ -512,21 +610,39 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
 
 export async function startInterview(config: InterviewConfig): Promise<InterviewResponse> {
   try {
-    // Tạo system message với question bank integration
-    const systemMessage = await createSystemMessageWithQuestionBank(
-      config.field,
-      config.level,
-      config.specialization,
-      config.language,
-      FIXED_QUESTIONS
-    );
+    
+    console.log('🎯 Starting interview with config:', config);
+    
+    // Lấy question bank context trước
+    const questionBankContext = await getQuestionBankContext(config);
+    
+    // Tạo system message với question bank context nếu có
+    let systemContent = `You are a senior technical interviewer conducting a professional interview for a ${config.level} level ${config.field} position${config.specialization ? ` - ${config.specialization}` : ''}.
+IMPORTANT: ONLY respond in ${config.language === 'vi-VN' ? 'Vietnamese' : config.language === 'zh-CN' ? 'Chinese' : config.language === 'ja-JP' ? 'Japanese' : config.language === 'ko-KR' ? 'Korean' : 'English'}.`;
+
+    // Thêm question bank context nếu có
+    if (questionBankContext?.contextPrompt) {
+      console.log('✅ Adding question bank context to system message');
+      systemContent += `\n\n${questionBankContext.contextPrompt}`;
+    } else {
+      console.log('⚠️ No question bank context available, using basic system message');
+    }
 
     const messages: ChatMessage[] = [
-      systemMessage,
+      {
+        role: 'system',
+        content: systemContent
+      },
       { 
         role: 'user', 
         content: config.language === 'vi-VN'
           ? `Bắt đầu cuộc phỏng vấn cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''}.`
+          : config.language === 'zh-CN'
+          ? `开始${config.field}${config.specialization ? ` - ${config.specialization}` : ''}职位的面试。`
+          : config.language === 'ja-JP'
+          ? `${config.field}${config.specialization ? ` - ${config.specialization}` : ''}ポジションの面接を開始します。`
+          : config.language === 'ko-KR'
+          ? `${config.field}${config.specialization ? ` - ${config.specialization}` : ''} 포지션 면접을 시작합니다.`
           : `Start the interview for ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position.`
       }
     ];
@@ -550,6 +666,12 @@ export async function startInterview(config: InterviewConfig): Promise<Interview
       return {
         answer: result.answer || (config.language === 'vi-VN' 
           ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field}${config.specialization ? ` và ${config.specialization}` : ''} của bạn không?` 
+          : config.language === 'zh-CN'
+          ? `您好！我是您的AI面试官，负责${config.level}级别${config.field}${config.specialization ? ` - ${config.specialization}` : ''}职位。您能介绍一下您在${config.field}${config.specialization ? `和${config.specialization}` : ''}方面的经验和技能吗？`
+          : config.language === 'ja-JP'
+          ? `こんにちは！私は${config.level}レベルの${config.field}${config.specialization ? ` - ${config.specialization}` : ''}ポジションのAI面接官です。${config.field}${config.specialization ? `と${config.specialization}` : ''}の経験とスキルについて教えていただけますか？`
+          : config.language === 'ko-KR'
+          ? `안녕하세요! 저는 ${config.level} 레벨 ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} 포지션의 AI 면접관입니다. ${config.field}${config.specialization ? `와 ${config.specialization}` : ''} 경험과 기술에 대해 소개해 주실 수 있나요?`
           : `Hello! I am your AI interviewer for the ${config.level} ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position. Could you tell me about your ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} experience and skills?`),
         currentTopic: "introduction",
         shouldMoveToNewTopic: false,
@@ -570,6 +692,12 @@ export async function startInterview(config: InterviewConfig): Promise<Interview
       // Fallback if JSON parsing fails
       const fallbackGreeting = config.language === 'vi-VN' 
         ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field}${config.specialization ? ` và ${config.specialization}` : ''} của bạn không?` 
+        : config.language === 'zh-CN'
+        ? `您好！我是您的AI面试官，负责${config.level}级别${config.field}${config.specialization ? ` - ${config.specialization}` : ''}职位。您能介绍一下您在${config.field}${config.specialization ? `和${config.specialization}` : ''}方面的经验和技能吗？`
+        : config.language === 'ja-JP'
+        ? `こんにちは！私は${config.level}レベルの${config.field}${config.specialization ? ` - ${config.specialization}` : ''}ポジションのAI面接官です。${config.field}${config.specialization ? `と${config.specialization}` : ''}の経験とスキルについて教えていただけますか？`
+        : config.language === 'ko-KR'
+        ? `안녕하세요! 저는 ${config.level} 레벨 ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} 포지션의 AI 면접관입니다. ${config.field}${config.specialization ? `와 ${config.specialization}` : ''} 경험과 기술에 대해 소개해 주실 수 있나요?`
         : `Hello! I am your AI interviewer for the ${config.level} ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position. Could you tell me about your ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} experience and skills?`;
         
       return {
@@ -595,6 +723,12 @@ export async function startInterview(config: InterviewConfig): Promise<Interview
     console.error('Error starting interview:', error);
     const fallbackGreeting = config.language === 'vi-VN' 
       ? `Xin chào! Tôi là người phỏng vấn AI cho vị trí ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} cấp độ ${config.level}. Bạn có thể giới thiệu về kinh nghiệm và kỹ năng ${config.field}${config.specialization ? ` và ${config.specialization}` : ''} của bạn không?` 
+      : config.language === 'zh-CN'
+      ? `您好！我是您的AI面试官，负责${config.level}级别${config.field}${config.specialization ? ` - ${config.specialization}` : ''}职位。您能介绍一下您在${config.field}${config.specialization ? `和${config.specialization}` : ''}方面的经验和技能吗？`
+      : config.language === 'ja-JP'
+      ? `こんにちは！私は${config.level}レベルの${config.field}${config.specialization ? ` - ${config.specialization}` : ''}ポジションのAI面接官です。${config.field}${config.specialization ? `と${config.specialization}` : ''}の経験とスキルについて教えていただけますか？`
+      : config.language === 'ko-KR'
+      ? `안녕하세요! 저는 ${config.level} 레벨 ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} 포지션의 AI 면접관입니다. ${config.field}${config.specialization ? `와 ${config.specialization}` : ''} 경험과 기술에 대해 소개해 주실 수 있나요?`
       : `Hello! I am your AI interviewer for the ${config.level} ${config.field}${config.specialization ? ` - ${config.specialization}` : ''} position. Could you tell me about your ${config.field}${config.specialization ? ` and ${config.specialization}` : ''} experience and skills?`;
       
     return {

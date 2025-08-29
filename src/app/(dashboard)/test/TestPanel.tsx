@@ -216,7 +216,7 @@ export default function TestPanel() {
     };
 
     loadPreferencesForTestMode();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // NEW: Send initial AI message only on client after interviewing starts

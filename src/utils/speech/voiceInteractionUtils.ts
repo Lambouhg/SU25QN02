@@ -39,16 +39,63 @@ const createSpeechError = (message: string, details?: unknown): SpeechRecognitio
   return error;
 };
 
+export interface StartRecognitionOptions {
+  onInterim?: (text: string) => void;
+  initialSilenceTimeoutMs?: number;
+  endSilenceTimeoutMs?: number;
+  enablePunctuation?: boolean;
+  profanityOption?: 'Masked' | 'Removed' | 'Raw';
+  phraseHints?: string[];
+}
+
 export const startVoiceRecognition = async (
   onResult: (text: string) => void, 
   onError: (err: SpeechRecognitionError) => void, 
-  language = 'en-US'
+  language = 'en-US',
+  options: StartRecognitionOptions = {}
 ): Promise<sdk.SpeechRecognizer | null> => {
   try {
     const sessionConfig = createSpeechConfig(language);
+    if (options.initialSilenceTimeoutMs != null) {
+      sessionConfig.setProperty(
+        sdk.PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs,
+        String(options.initialSilenceTimeoutMs)
+      );
+    }
+    if (options.endSilenceTimeoutMs != null) {
+      sessionConfig.setProperty(
+        sdk.PropertyId.SpeechServiceConnection_EndSilenceTimeoutMs,
+        String(options.endSilenceTimeoutMs)
+      );
+    }
+    if (options.enablePunctuation) {
+      sessionConfig.setProperty(
+        sdk.PropertyId.SpeechServiceResponse_PostProcessingOption,
+        'TrueText'
+      );
+    }
+    if (options.profanityOption) {
+      const map: Record<string, sdk.ProfanityOption> = {
+        Masked: sdk.ProfanityOption.Masked,
+        Removed: sdk.ProfanityOption.Removed,
+        Raw: sdk.ProfanityOption.Raw
+      };
+      sessionConfig.setProfanity(map[options.profanityOption]);
+    }
+ 
     const audioConfig = sdk.AudioConfig.fromDefaultMicrophoneInput();
     const recognizer = new sdk.SpeechRecognizer(sessionConfig, audioConfig);
-
+    if (options.phraseHints && options.phraseHints.length > 0) {
+      try {
+        const phraseList = sdk.PhraseListGrammar.fromRecognizer(recognizer);
+        for (const phrase of options.phraseHints) {
+          if (phrase && phrase.trim()) phraseList.addPhrase(phrase.trim());
+        }
+      } catch (e) {
+        console.warn('PhraseListGrammar init failed:', e);
+      }
+    }
+ 
     // Setup all event handlers before starting recognition
     recognizer.recognized = (_, e) => {
       console.log('🎯 Azure Speech recognized event:', { 
@@ -69,7 +116,7 @@ export const startVoiceRecognition = async (
         console.log('❌ Azure Speech recognition failed or no speech detected');
       }
     };
-
+ 
     recognizer.recognizing = (_, e) => {
       console.log('🔄 Azure Speech recognizing:', { 
         reason: e.result.reason, 
@@ -80,9 +127,12 @@ export const startVoiceRecognition = async (
         console.log('🔍 No speech could be recognized');
       } else {
         console.log('👂 Recognizing interim:', e.result.text);
+        if (options.onInterim && e.result.text) {
+          options.onInterim(e.result.text);
+        }
       }
     };
-
+ 
     recognizer.canceled = (_, e) => {
       const error = createSpeechError('Voice recognition canceled');
       error.code = e.errorCode?.toString();
@@ -98,15 +148,15 @@ export const startVoiceRecognition = async (
         onError(error);
       }
     };
-
+ 
     recognizer.sessionStarted = (_, e) => {
       console.log('Voice recognition session started:', e);
     };
-
+ 
     recognizer.sessionStopped = (_, e) => {
       console.log('Voice recognition session stopped:', e);
     };
-
+ 
     // Start continuous recognition and wait for it to be ready
     await new Promise<void>((resolve, reject) => {
       recognizer.startContinuousRecognitionAsync(
@@ -127,7 +177,7 @@ export const startVoiceRecognition = async (
         }
       );
     });
-
+ 
     return recognizer;
   } catch (err) {
     console.error("Error in startVoiceRecognition:", err);
