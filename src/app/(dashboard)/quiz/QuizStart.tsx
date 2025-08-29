@@ -39,6 +39,7 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
   const [isGenerating, setIsGenerating] = useState(false);
   const [levelUnlock, setLevelUnlock] = useState<{ junior: boolean; middle: boolean; senior: boolean }>({ junior: true, middle: false, senior: false });
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [jobRoles, setJobRoles] = useState<Array<{ title: string; category?: { name?: string; skills?: string[] } | null }>>([]);
   
   // New state for dynamic data
   const [availableFields, setAvailableFields] = useState<string[]>([]);
@@ -58,57 +59,17 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
 
   const handleFieldSelect = (field: string) => {
     setSelectedField(field)
-    onChange({ ...config, field: field })
+    onChange({ ...config, field: field, error: undefined })
     setStep("topic")
-    // Load topics for selected field
-    fetchTopicsByField(field)
   }
 
   const handleTopicSelect = (topic: string) => {
     setSelectedTopic(topic)
-    onChange({ ...config, topic: topic })
+    onChange({ ...config, topic: topic, error: undefined })
     setStep("config")
   }
 
-  // Fetch available fields on component mount
-  useEffect(() => {
-    const fetchFields = async () => {
-      setFieldsLoading(true);
-      try {
-        const response = await fetch('/api/questions/metadata');
-        if (response.ok) {
-          const result = await response.json();
-          if (result.type === 'fields') {
-            setAvailableFields(result.data);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching fields:', error);
-      } finally {
-        setFieldsLoading(false);
-      }
-    };
-
-    fetchFields();
-  }, []);
-
-  // Function to fetch topics by field
-  const fetchTopicsByField = async (field: string) => {
-    setTopicsLoading(true);
-    try {
-      const response = await fetch(`/api/questions/metadata?field=${encodeURIComponent(field)}`);
-      if (response.ok) {
-        const result = await response.json();
-        if (result.type === 'topics') {
-          setAvailableTopics(result.data);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching topics:', error);
-    } finally {
-      setTopicsLoading(false);
-    }
-  };
+  // Removed old metadata endpoints; now using /api/positions
 
   const validateCustomInputs = () => {
     return true; // No custom inputs anymore
@@ -131,8 +92,19 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
           timeLimit: Number(timeLimit),
         }),
       });
+      // Handle non-OK status codes with proper error message
+      if (!quizRes.ok) {
+        let serverError = 'Failed to start quiz';
+        try {
+          const errJson = await quizRes.json();
+          serverError = errJson?.error || serverError;
+        } catch {}
+        onChange({ ...config, error: serverError });
+        setIsGenerating(false);
+        return;
+      }
       const quizData = await quizRes.json();
-      if (quizData.error) {
+      if (quizData?.error) {
         onChange({ ...config, error: quizData.error });
         setIsGenerating(false);
         return;
@@ -419,6 +391,53 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
     fetchHistory();
   }, [selectedField, selectedTopic]);
 
+  // Fetch available fields (categories) from /api/positions on mount
+  useEffect(() => {
+    const fetchPositions = async () => {
+      setFieldsLoading(true);
+      try {
+        const response = await fetch('/api/positions');
+        if (!response.ok) throw new Error('Failed to fetch positions');
+        const roles: Array<{ title: string; category?: { name?: string; skills?: string[] } | null }> = await response.json();
+        setJobRoles(roles);
+
+        // Derive unique category names as "fields"
+        const specs = Array.from(
+          new Set(
+            roles
+              .map(r => r.category?.name)
+              .filter((n): n is string => Boolean(n))
+          )
+        );
+        setAvailableFields(specs);
+      } catch (e) {
+        console.error('Error fetching positions:', e);
+        setAvailableFields([]);
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    fetchPositions();
+  }, []);
+
+  // Derive topics (skills) by selected category locally (no extra API call)
+  useEffect(() => {
+    if (!selectedField) return;
+    setTopicsLoading(true);
+    try {
+      const skillSet = new Set<string>();
+      jobRoles
+        .filter(r => (r.category?.name || '') === selectedField)
+        .forEach(r => {
+          (r.category?.skills || []).forEach(s => skillSet.add(s));
+        });
+      setAvailableTopics(Array.from(skillSet));
+    } finally {
+      setTopicsLoading(false);
+    }
+  }, [selectedField, jobRoles]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
       <div className="relative container mx-auto px-4 py-6">
@@ -440,7 +459,7 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
                   <div className="text-center">
                     <button
                       onClick={handleStartQuiz}
-                      disabled={isLoading || isGenerating}
+                      disabled={isLoading || isGenerating || Boolean(error)}
                       className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:hover:scale-100"
                     >
                       {isLoading || isGenerating ? (
@@ -457,6 +476,11 @@ export default function QuizStart({ config, onChange, onStart, isLoading, error 
                         </>
                       )}
                     </button>
+                    {error && (
+                      <p className="text-sm text-red-600 mt-3" role="alert" aria-live="assertive">
+                        {error}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-500 mt-3">
                       AI will generate personalized questions based on your selections
                     </p>

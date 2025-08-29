@@ -47,40 +47,39 @@ export default function QuestionManager() {
     const loadMeta = async () => {
       try {
         const posRes = await fetch("/api/positions");
-        if (posRes.ok) {
-          const positions: ApiPositionItem[] = await posRes.json();
-          const fieldSet = new Set<string>();
-          const skillsMap: Record<string, Set<string>> = {};
-          const levelSet = new Set<string>();
+        if (!posRes.ok) throw new Error("Failed to fetch positions");
 
-          positions.forEach((p) => {
-            const fieldName = p.category?.name;
-            if (fieldName) fieldSet.add(fieldName);
+        const positions: ApiPositionItem[] = await posRes.json();
+        const fieldSet = new Set<string>();
+        const skillsMap: Record<string, Set<string>> = {};
+        const levelSet = new Set<string>();
 
-            const skills = p.category?.skills || [];
-            if (fieldName && skills.length) {
-              if (!skillsMap[fieldName]) skillsMap[fieldName] = new Set<string>();
-              skills.forEach(s => skillsMap[fieldName].add(s));
-            }
-            if (p.level) levelSet.add(p.level);
-          });
+        positions.forEach((p) => {
+          const fieldName = p.category?.name;
+          if (fieldName) fieldSet.add(fieldName);
 
-          const skillsByFieldObj: Record<string, string[]> = {};
-          Object.entries(skillsMap).forEach(([k, v]) => { skillsByFieldObj[k] = Array.from(v).sort(); });
+          const skills = p.category?.skills || [];
+          if (fieldName && skills.length) {
+            if (!skillsMap[fieldName]) skillsMap[fieldName] = new Set<string>();
+            skills.forEach(s => skillsMap[fieldName].add(s));
+          }
+          if (p.level) levelSet.add(p.level);
+        });
 
-          setFields(Array.from(fieldSet).sort());
-          setSkillsByField(skillsByFieldObj);
-          setAllSkills(Array.from(new Set(Object.values(skillsByFieldObj).flat())).sort());
-          setLevelsOptions(Array.from(levelSet).sort());
-          return;
-        }
-        // Fallback legacy
-        const fieldsRes = await fetch("/api/questions/metadata");
-        const fieldsData = await fieldsRes.json();
-        setFields(fieldsData || []);
+        const skillsByFieldObj: Record<string, string[]> = {};
+        Object.entries(skillsMap).forEach(([k, v]) => { skillsByFieldObj[k] = Array.from(v).sort(); });
+
+        setFields(Array.from(fieldSet).sort());
+        setSkillsByField(skillsByFieldObj);
+        setAllSkills(Array.from(new Set(Object.values(skillsByFieldObj).flat())).sort());
+        setLevelsOptions(Array.from(levelSet).sort());
+      } catch (e) {
+        console.error(e);
+        setFields([]);
+        setSkillsByField({});
         setAllSkills([]);
         setLevelsOptions(["Junior","Middle","Senior"]);
-      } catch {}
+      }
     };
     loadMeta();
   }, []);
