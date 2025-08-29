@@ -70,7 +70,7 @@ export default function UsagePage() {
         return;
       }
       setData(json as UsageResponse);
-    } catch (e) {
+    } catch {
       setError('Failed to load usage');
     } finally {
       if (showSpinner) setLoading(false);
@@ -126,10 +126,14 @@ export default function UsagePage() {
     </div>
   );
 
+  type PackageListItem = { id: string; name: string; price: number; type: 'PAID' | 'FREE'; isActive: boolean; endDate?: string };
+  const hasPaidActive = useMemo(() => {
+    const items = (data as { allPackages?: PackageListItem[] } | null | undefined)?.allPackages || [];
+    const now = new Date();
+    return items.some(pkg => pkg.type === 'PAID' && pkg.isActive && (!pkg.endDate || new Date(pkg.endDate) >= now));
+  }, [data]);
   const packageList = useMemo(() => {
-    const items = (data as any)?.allPackages as Array<{
-      id: string; name: string; price: number; type: 'PAID' | 'FREE'; isActive: boolean; endDate?: string;
-    }> | undefined;
+    const items = (data as { allPackages?: PackageListItem[] } | null | undefined)?.allPackages;
     if (!items || !items.length) return null;
     const currentId = data?.selectedPackage?.id;
     return (
@@ -193,6 +197,11 @@ export default function UsagePage() {
                       {typeof data.timeInfo?.daysRemaining === 'number' && (
                         <span className="ml-2">({data.timeInfo.daysRemaining} days left)</span>
                       )}
+                    </div>
+                    <div>
+                      <a href="/Pricing" className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-md">
+                        {hasPaidActive ? 'Change plan' : 'Upgrade'}
+                      </a>
                     </div>
                   </div>
                 </div>
