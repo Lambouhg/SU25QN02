@@ -521,8 +521,8 @@ export default function OnboardingSteps() {
                </div>
              </div>
 
-            {/* Step Indicators */}
-            <div className="flex items-center justify-center mb-8 animate-fade-in-up">
+            {/* Step Indicators (static labels, no animation) */}
+            <div className="flex items-center justify-center mb-8">
               {[
                 { step: 1, label: "Role" },
                 { step: 2, label: "Experience" },
@@ -557,8 +557,8 @@ export default function OnboardingSteps() {
                       )}
                     </div>
                     <span
-                      className={`text-xs mt-3 font-bold transition-all duration-500 ${
-                        step <= currentStep ? "text-primary animate-shimmer" : "text-muted-foreground"
+                      className={`text-xs mt-3 font-bold ${
+                        step <= currentStep ? "text-primary" : "text-muted-foreground"
                       }`}
                     >
                       {label}
