@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   const { servicePackageId } = await req.json();
   // Thiết lập returnUrl và cancelUrl
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000/payment';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
   const returnUrl = `${baseUrl}/payment-success`;
   const cancelUrl = `${baseUrl}/payment-cancel`;
   const servicePackage = await prisma.servicePackage.findUnique({ where: { id: servicePackageId } });
