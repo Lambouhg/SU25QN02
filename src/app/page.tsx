@@ -7,7 +7,7 @@ import WhyChooseSection from '@/components/WhyChooseSection';
 import CustomerReviews from '@/components/CustomerReviews';
 import HowItWorksSection from '@/components/HowItWorksSection';
 import PricingSection from '@/components/PricingSection';
-import OurTeamSection from '@/components/OurTeamSection';
+// import OurTeamSection from '@/components/OurTeamSection';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -35,9 +35,9 @@ export default function Home() {
         <div id="features">
           <WhyChooseSection />
         </div>
-        <div id="ourteams">
+        {/* <div id="ourteams">
           <OurTeamSection />
-        </div>
+        </div> */}
         <div id="reviews">
           <CustomerReviews />
         </div>

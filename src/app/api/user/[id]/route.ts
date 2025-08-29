@@ -40,7 +40,7 @@ export async function GET(
       firstName: user.firstName,
       lastName: user.lastName,
       fullName,
-      role: user.role,
+      role: user.role?.name || 'user',
       status: user.status,
       avatar: user.avatar,
       imageUrl: user.avatar, // Add imageUrl alias
@@ -145,7 +145,7 @@ export async function PATCH(
         firstName: user.firstName,
         lastName: user.lastName,
         fullName,
-        role: user.role,
+        role: user.role?.name || 'user',
         status: user.status,
         avatar: user.avatar,
         imageUrl: user.avatar // Add imageUrl alias

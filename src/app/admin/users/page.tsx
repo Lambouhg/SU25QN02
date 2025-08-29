@@ -66,14 +66,7 @@ export default function AdminUsersPage() {
     return !isCurrentUser(user); // Không thể xóa chính mình
   };
 
-  // Helper function to check if user role can be changed
-  const canChangeUserRole = (user: User, newRole: 'admin' | 'user') => {
-    // Không thể tự hạ cấp chính mình
-    if (isCurrentUser(user) && newRole === 'user') {
-      return false;
-    }
-    return true;
-  };
+  
 
 
 
@@ -247,44 +240,7 @@ export default function AdminUsersPage() {
     setToast({ show: true, message, type });
   };
 
-  const changeUserRole = async (userId: string, newRole: 'admin' | 'user') => {
-    const user = users.find(u => u._id === userId);
-    if (!user) return;
-
-    // Kiểm tra: Không cho phép admin tự hạ cấp chính mình
-    if (isCurrentUser(user) && newRole === 'user') {
-      showToast('You cannot demote yourself from admin role', 'error');
-      return;
-    }
-
-    const actionText = newRole === 'admin' ? 'promote' : 'demote';
-
-    try {
-      const response = await fetch(`/api/user/${user.clerkId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role: newRole }),
-      });
-
-      if (response.ok) {
-        setUsers(prev => prev.map(u => (
-          u._id === userId ? { ...u, role: newRole } : u
-        )));
-
-        // Trigger role invalidation
-        broadcastRoleInvalidation(user.clerkId);
-        refreshRole();
-        showToast(`Successfully ${actionText}d ${user.fullName}`, 'success');
-      } else {
-        showToast(`Failed to ${actionText} ${user.fullName}`, 'error');
-      }
-    } catch (error) {
-        console.error('Error changing user role:', error);
-        showToast(`Failed to ${actionText} ${user?.fullName || 'user'}`, 'error');
-    }
-  };
+  
 
   
 
@@ -453,9 +409,9 @@ export default function AdminUsersPage() {
                             Edit
                           </DropdownMenuItem>
                           {/* Chỉ hiển thị nút Promote/Demote nếu có thể thay đổi role */}
-                          {canChangeUserRole(user, (typeof user.role === 'string' ? user.role : 'user') === 'admin' ? 'user' : 'admin') && (
+                          {/* {canChangeUserRole(user, (typeof user.role === 'string' ? user.role : 'user') === 'admin' ? 'user' : 'admin') && (
                             <DropdownMenuItem 
-                              onClick={() => changeUserRole(user._id, (typeof user.role === 'string' ? user.role : 'user') === 'admin' ? 'user' : 'admin')}
+                              onClick={() => changeUserRole(user.clerkId, (typeof user.role === 'string' ? user.role : 'user') === 'admin' ? 'user' : 'admin')}
                             >
                               {(typeof user.role === 'string' ? user.role : 'user') === 'admin' ? (
                                 <>
@@ -469,7 +425,7 @@ export default function AdminUsersPage() {
                                 </>
                               )}
                             </DropdownMenuItem>
-                          )}
+                          )} */}
                           <DropdownMenuSeparator />
                           {/* Chỉ hiển thị nút Delete nếu không phải chính mình */}
                           {canDeleteUser(user) && (

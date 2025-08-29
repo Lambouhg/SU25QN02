@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { X, CreditCard, Star, ChevronDown, BarChart3, Brain, Award, BookOpen, Zap, Target, Clock, Users } from 'lucide-react';
+import { X, CreditCard, Star, BarChart3, Brain, Award, BookOpen, Zap, Target, Users } from 'lucide-react';
 import { extractTopics, generateQuestionsForTopic, evaluateAnswer } from '@/services/interviewService';
 import StartScreen from './StartScreen';
 import InterviewScreen from './InterviewScreen';
@@ -1000,7 +1000,7 @@ export default function TestPanel() {
                       <Zap className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h1 className="text-2xl font-bold text-white">Test Mode - Interview Practice</h1>
+                      <h1 className="text-2xl font-bold text-white">Assessment Mode - Interview Practice</h1>
                       <p className="text-blue-100">Choose your settings and start practicing for your dream job</p>
                     </div>
                   </div>
@@ -1227,7 +1227,7 @@ export default function TestPanel() {
                   <CreditCard className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">
-                  Hạn mức đã hết
+                  Upgrade to Premium
                 </h3>
               </div>
             </div>
@@ -1236,9 +1236,9 @@ export default function TestPanel() {
             <div className="p-6">
               {/* Message */}
               <p className="text-gray-600 mb-4">
-                {packageLimitInfo.packageName === 'Chưa có gói' 
-                  ? 'Bạn chưa có gói dịch vụ hoặc gói đã hết hạn.'
-                  : `Bạn đã sử dụng hết ${packageLimitInfo.currentUsage}/${packageLimitInfo.totalLimit} lượt Test/EQ của gói ${packageLimitInfo.packageName}.`
+                {packageLimitInfo.packageName === 'No package' 
+                  ? 'You don\'t have any package or your package has expired.'
+                  : `You have used up ${packageLimitInfo.currentUsage}/${packageLimitInfo.totalLimit} times of Test/EQ from the package ${packageLimitInfo.packageName}.`
                 }
               </p>
               
@@ -1246,7 +1246,7 @@ export default function TestPanel() {
               {packageLimitInfo.packageName !== 'Chưa có gói' && packageLimitInfo.totalLimit > 0 && (
                 <div className="mb-4">
                   <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Lượt sử dụng</span>
+                    <span>Usage</span>
                     <span>{packageLimitInfo.currentUsage}/{packageLimitInfo.totalLimit}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1260,31 +1260,31 @@ export default function TestPanel() {
               
               {/* Benefits */}
               <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-2">Lợi ích khi nâng cấp:</h4>
+                <h4 className="font-semibold text-gray-900 mb-2">Benefits of upgrading:</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    Không giới hạn số lần luyện tập
+                    Unlimited practice times
                   </li>
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    Tiếp cận tất cả tính năng premium
+                    Access to all premium features
                   </li>
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    AI feedback chi tiết và cá nhân hóa
+                    Detailed AI feedback and personalized
                   </li>
                   <li className="flex items-center">
                     <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    Ưu tiên support 24/7
+                    Priority support 24/7
                   </li>
                 </ul>
               </div>
@@ -1298,14 +1298,14 @@ export default function TestPanel() {
                   }}
                 >
                   <Star className="h-5 w-5 mr-2" />
-                  Nâng cấp ngay
+                  Upgrade now
                 </Button>
                 <Button 
                   variant="outline" 
                   className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-3 rounded-xl"
                   onClick={() => setShowUpgradeModal(false)}
                 >
-                  Để sau
+                  Later
                 </Button>
               </div>
             </div>

@@ -29,6 +29,14 @@ interface RevenueData {
     count: number;
     revenue: number;
   }>;
+  recentPayments?: Array<{
+    id: string;
+    amount: number;
+    packageName: string;
+    userEmail: string;
+    paidAt: string; // ISO datetime
+    status: string;
+  }>;
 }
 
 export default function AdminDashboard() {
@@ -153,8 +161,7 @@ export default function AdminDashboard() {
             </div>
           ) : revenueData ? (
             <div className="mb-8">
-              {/* Test with sample data first to ensure chart works */}
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+              {/* <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Test Chart (Sample Data)</h4>
                 <ChartAreaInteractive 
                   data={[
@@ -172,40 +179,59 @@ export default function AdminDashboard() {
                   height={250}
                   hideCard={true}
                 />
-              </div>
+              </div> */}
               
               <ChartAreaInteractive 
-                data={revenueData.chartData.map(item => {
-                  // Convert month name to date if needed
-                  let dateStr = item.month;
-                  if (typeof item.month === 'string') {
-                    if (!item.month.includes('-')) {
-                      // If month is like "August", convert to "2025-08-25" format
-                      const monthNames = [
-                        'January', 'February', 'March', 'April', 'May', 'June',
-                        'July', 'August', 'September', 'October', 'November', 'December'
-                      ];
-                      const monthIndex = monthNames.findIndex(name => 
-                        item.month.toLowerCase().includes(name.toLowerCase())
-                      );
-                      if (monthIndex !== -1) {
-                        // Use current year and set day to 25 (as requested)
-                        const year = new Date().getFullYear();
-                        const month = String(monthIndex + 1).padStart(2, '0');
-                        dateStr = `${year}-${month}-25`;
-                      }
-                    } else if (item.month.match(/^\d{4}-\d{2}$/)) {
-                      // If month is like "2025-08", convert to "2025-08-25" format
-                      dateStr = `${item.month}-25`;
+                data={(function() {
+                  // If API provides daily data via recentPayments, aggregate by date
+                  const payments = revenueData.recentPayments || [];
+                  const hasDailyFromPayments = payments.length > 0;
+                  const hasFullDatesInChart = revenueData.chartData?.some(d => /^\d{4}-\d{2}-\d{2}$/.test(d.month));
+
+                  if (hasDailyFromPayments && !hasFullDatesInChart) {
+                    const byDate: Record<string, { revenue: number; transactions: number }> = {};
+                    for (const p of payments) {
+                      const day = p.paidAt.slice(0, 10); // YYYY-MM-DD
+                      if (!byDate[day]) byDate[day] = { revenue: 0, transactions: 0 };
+                      byDate[day].revenue += Number(p.amount) || 0;
+                      byDate[day].transactions += 1;
                     }
+                    return Object.entries(byDate)
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([date, agg]) => ({ date, revenue: agg.revenue, transactions: agg.transactions }));
                   }
-                  
-                  return {
-                    date: dateStr,
-                    revenue: item.revenue,
-                    transactions: item.transactions
-                  };
-                })}
+
+                  // Fallback: keep existing logic (month names or YYYY-MM)
+                  return revenueData.chartData.map(item => {
+                    let dateStr = item.month;
+                    if (typeof item.month === 'string') {
+                      const isFullDate = /^\d{4}-\d{2}-\d{2}$/.test(item.month);
+                      if (isFullDate) {
+                        dateStr = item.month;
+                      } else if (!item.month.includes('-')) {
+                        const monthNames = [
+                          'January', 'February', 'March', 'April', 'May', 'June',
+                          'July', 'August', 'September', 'October', 'November', 'December'
+                        ];
+                        const monthIndex = monthNames.findIndex(name => 
+                          item.month.toLowerCase().includes(name.toLowerCase())
+                        );
+                        if (monthIndex !== -1) {
+                          const year = new Date().getFullYear();
+                          const month = String(monthIndex + 1).padStart(2, '0');
+                          dateStr = `${year}-${month}-15`;
+                        }
+                      } else if (item.month.match(/^\d{4}-\d{2}$/)) {
+                        dateStr = `${item.month}-15`;
+                      }
+                    }
+                    return {
+                      date: dateStr,
+                      revenue: item.revenue,
+                      transactions: item.transactions
+                    };
+                  });
+                })()}
                 title="PayOS Revenue Overview"
                 description="Showing revenue and transaction trends over time"
                 height={300}

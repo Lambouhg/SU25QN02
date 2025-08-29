@@ -101,7 +101,7 @@ export default function AdminDashboardLayout({
     },
     {
       icon: MessageSquare,
-      label: 'Content Management',
+      label: 'Question Management',
       key: 'content',
       subItems: [
         { label: 'Questions', href: '/admin/questions' },
