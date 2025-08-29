@@ -32,26 +32,9 @@ const INTERVIEW_STRUCTURE = {
   }
 };
 
-// Thêm function để lấy question bank context
+// Fetch fixed question list for the interview (simplified API shape)
 async function getQuestionBankContext(config: InterviewConfig): Promise<{
-  questions: Array<{
-    id: string;
-    question: string;
-    answers: Array<{ content: string; isCorrect: boolean }>;
-    fields: string[];
-    topics: string[];
-    levels: string[];
-    explanation?: string;
-  }>;
-  contextPrompt: string;
-  jobRoleMapping: {
-    jobRoleKey: string;
-    jobRoleTitle: string;
-    jobRoleLevel: string;
-    categoryName: string;
-    skills: string[];
-    interviewFocusAreas: string[];
-  } | null;
+  questions: Array<{ id: string; question: string }>
 } | null> {
   try {
     console.log('🔗 Fetching question bank context for:', {
@@ -70,8 +53,6 @@ async function getQuestionBankContext(config: InterviewConfig): Promise<{
       body: JSON.stringify({
         field: config.field,
         level: config.level,
-        jobRoleTitle: config.jobRoleTitle,
-        jobRoleLevel: config.jobRoleLevel,
         questionCount: FIXED_QUESTIONS
       })
     });
@@ -85,15 +66,11 @@ async function getQuestionBankContext(config: InterviewConfig): Promise<{
 
     const data = await response.json();
     console.log('🔗 Question bank API response data:', {
-      questionsCount: data.questions?.length || 0,
-      hasContextPrompt: !!data.contextPrompt,
-      hasJobRoleMapping: !!data.jobRoleMapping
+      questionsCount: data.questions?.length || 0
     });
 
     return {
-      questions: data.questions || [],
-      contextPrompt: data.contextPrompt || '',
-      jobRoleMapping: data.jobRoleMapping || null
+      questions: data.questions || []
     };
   } catch (error) {
     console.error('Error fetching question bank context:', error);
@@ -198,8 +175,8 @@ export async function processInterviewResponse(
       if (levelMatch?.[1]) level = levelMatch[1];
     }
 
-    // Lấy question bank context nếu có config
-    let questionBankContext = null;
+    // Lấy question list nếu có config
+    let questionBankContext: { questions: Array<{ id: string; question: string }> } | null = null;
     if (config) {
       console.log('🔗 Getting question bank context for config:', config);
       questionBankContext = await getQuestionBankContext(config);
@@ -226,7 +203,7 @@ export async function processInterviewResponse(
     const hasUserRespondedToFinalQuestion = userResponses.length >= FIXED_QUESTIONS;
     
     
-    // Tạo system message với question bank context nếu có
+    // Tạo system message và ép dùng danh sách câu hỏi nếu có
     let systemContent = `You are a senior technical interviewer conducting a professional interview for a ${field} position at ${level} level.
 IMPORTANT: ONLY respond in ${language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chinese' : language === 'ja-JP' ? 'Japanese' : language === 'ko-KR' ? 'Korean' : 'English'}.
 
@@ -237,9 +214,20 @@ INTERVIEWER PERSONA:
 - Provide constructive feedback
 - Adapt questions based on candidate's responses while staying within ${field} domain`;
 
-    // Thêm question bank context nếu có
-    if (questionBankContext?.contextPrompt) {
-      systemContent += `\n\n${questionBankContext.contextPrompt}`;
+    // Nếu có danh sách câu hỏi, ép hỏi đúng theo thứ tự
+    if (questionBankContext?.questions?.length) {
+      const questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
+      const nextQuestionIndex = Math.min(questionsAsked, questionBankContext.questions.length - 1);
+      const nextQuestionText = questionBankContext.questions[nextQuestionIndex]?.question || '';
+      systemContent += `
+
+FIXED QUESTION LIST (ASK EXACTLY THESE IN ORDER, ONE PER TURN):
+${questionsList}
+
+NEXT QUESTION INDEX: ${nextQuestionIndex + 1}
+YOU MUST ASK EXACTLY THIS QUESTION NOW (DO NOT REPHRASE, DO NOT ADD NEW QUESTIONS):
+${nextQuestionText}
+`;
     }
 
     const messages: ChatMessage[] = [
@@ -613,19 +601,28 @@ export async function startInterview(config: InterviewConfig): Promise<Interview
     
     console.log('🎯 Starting interview with config:', config);
     
-    // Lấy question bank context trước
+    // Lấy question list trước
     const questionBankContext = await getQuestionBankContext(config);
     
-    // Tạo system message với question bank context nếu có
+    // Tạo system message và ép dùng danh sách câu hỏi nếu có
     let systemContent = `You are a senior technical interviewer conducting a professional interview for a ${config.level} level ${config.field} position${config.specialization ? ` - ${config.specialization}` : ''}.
 IMPORTANT: ONLY respond in ${config.language === 'vi-VN' ? 'Vietnamese' : config.language === 'zh-CN' ? 'Chinese' : config.language === 'ja-JP' ? 'Japanese' : config.language === 'ko-KR' ? 'Korean' : 'English'}.`;
 
-    // Thêm question bank context nếu có
-    if (questionBankContext?.contextPrompt) {
-      console.log('✅ Adding question bank context to system message');
-      systemContent += `\n\n${questionBankContext.contextPrompt}`;
+    if (questionBankContext?.questions?.length) {
+      console.log('✅ Adding fixed question list to system message');
+      const questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
+      const firstQuestion = questionBankContext.questions[0]?.question || '';
+      systemContent += `
+
+FIXED QUESTION LIST (ASK EXACTLY THESE IN ORDER, ONE PER TURN):
+${questionsList}
+
+NEXT QUESTION INDEX: 1
+YOU MUST ASK EXACTLY THIS QUESTION NOW (DO NOT REPHRASE, DO NOT ADD NEW QUESTIONS):
+${firstQuestion}
+`;
     } else {
-      console.log('⚠️ No question bank context available, using basic system message');
+      console.log('⚠️ No question list available, using basic system message');
     }
 
     const messages: ChatMessage[] = [
