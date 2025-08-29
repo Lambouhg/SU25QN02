@@ -256,6 +256,11 @@ const PricingContent: React.FC = () => {
                   Dashboard
                 </Button>
               </a>
+              <a href="/usage">
+                <Button variant="ghost" size="sm" className="rounded-full text-slate-700 hover:bg-slate-100 px-4 py-2">
+                  Usage
+                </Button>
+              </a>
               <a href="/profile">
                 <Button variant="ghost" size="sm" className="rounded-full text-slate-700 hover:bg-slate-100 px-4 py-2">
                   Profile
@@ -464,6 +469,13 @@ const PricingContent: React.FC = () => {
                         <div className="w-full py-4 text-lg font-semibold bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 rounded-xl flex items-center justify-center gap-3 border border-emerald-200">
                           <Check className="h-5 w-5 text-emerald-600" />
                           Activated
+                        </div>
+                      )}
+
+                      {/* Disabled (current plan) helper */}
+                      {planStyle.disabled && pkg.price > 0 && (
+                        <div className="mt-3">
+                          <a href="/usage" className="inline-block w-full text-center text-sm px-4 py-3 border rounded-xl hover:bg-gray-50" title="You are currently on this plan. View your usage.">See your usage</a>
                         </div>
                       )}
                     </CardContent>

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion,  History, 
   Star, Settings, Menu, X, Search, LogOut, Shield,
-  ChevronRight, ChevronDown, BookOpen
+  ChevronRight, ChevronDown, BookOpen, BarChart3
 } from 'lucide-react';
 import Link from 'next/link';
 import { UserButton, useUser, useClerk } from '@clerk/nextjs';
@@ -156,6 +156,7 @@ export default function DashboardLayout({
         { label: 'Assessment Mode', href: '/test' },
       ]
     },
+   
     { 
       icon: FileQuestion, 
       label: 'JD Analysis', 
@@ -168,6 +169,12 @@ export default function DashboardLayout({
       label: 'History Quiz', 
       href: '/history',
       key: 'history'
+    },
+    {
+      icon: BarChart3,
+      label: 'Usage',
+      href: '/usage',
+      key: 'usage'
     },
     { 
       icon: Star, 

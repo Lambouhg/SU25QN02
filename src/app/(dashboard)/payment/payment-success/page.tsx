@@ -62,7 +62,7 @@ const PaymentSuccessContent: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-300 text-lg">Đang xác thực thanh toán...</p>
+          <p className="text-gray-300 text-lg">Verifying payment...</p>
         </div>
       </div>
     );
@@ -83,11 +83,11 @@ const PaymentSuccessContent: React.FC = () => {
           </div>
           
           <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent mb-6">
-            Thanh toán thành công!
+            Payment successful!
           </h1>
           
           <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-            Cảm ơn bạn đã tin tưởng chúng tôi. Gói dịch vụ của bạn đã được kích hoạt thành công.
+            Thank you for your purchase. Your plan has been activated.
           </p>
         </div>
 
@@ -96,9 +96,9 @@ const PaymentSuccessContent: React.FC = () => {
           <Card className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl mb-8 shadow-2xl">
             <CardHeader className="text-center pb-6">
               <CardTitle className="text-2xl font-bold text-white mb-2">
-                Chi tiết giao dịch
+                Transaction details
               </CardTitle>
-              <p className="text-gray-400">Mã đơn hàng: {paymentData.orderCode}</p>
+              <p className="text-gray-400">Order code: {paymentData.orderCode}</p>
             </CardHeader>
             
             <CardContent className="space-y-6">
@@ -136,24 +136,24 @@ const PaymentSuccessContent: React.FC = () => {
                 <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Clock className="h-5 w-5 text-blue-400" />
-                    Thời gian sử dụng
+                    Period
                   </h4>
                   <div className="space-y-2 text-gray-300">
                     <div className="flex justify-between">
-                      <span>Ngày bắt đầu:</span>
+                      <span>Start date:</span>
                       <span className="text-white font-medium">
-                        {new Date(paymentData.startDate).toLocaleDateString('vi-VN')}
+                        {new Date(paymentData.startDate).toLocaleDateString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Ngày kết thúc:</span>
+                      <span>End date:</span>
                       <span className="text-white font-medium">
-                        {new Date(paymentData.endDate).toLocaleDateString('vi-VN')}
+                        {new Date(paymentData.endDate).toLocaleDateString()}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Thời hạn:</span>
-                      <span className="text-green-400 font-medium">{paymentData.duration} ngày</span>
+                      <span>Duration:</span>
+                      <span className="text-green-400 font-medium">{paymentData.duration} days</span>
                     </div>
                   </div>
                 </div>
@@ -161,22 +161,22 @@ const PaymentSuccessContent: React.FC = () => {
                 <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Package className="h-5 w-5 text-green-400" />
-                    Thông tin thanh toán
+                    Payment info
                   </h4>
                   <div className="space-y-2 text-gray-300">
                     <div className="flex justify-between">
-                      <span>Mã đơn hàng:</span>
+                      <span>Order code:</span>
                       <span className="text-white font-mono">{paymentData.orderCode}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Số tiền:</span>
+                      <span>Amount:</span>
                       <span className="text-green-400 font-bold text-lg">
-                        {paymentData.amount.toLocaleString()}đ
+                        {paymentData.amount.toLocaleString()}₫
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Trạng thái:</span>
-                      <span className="text-green-400 font-medium">Đã thanh toán</span>
+                      <span>Status:</span>
+                      <span className="text-green-400 font-medium">Paid</span>
                     </div>
                   </div>
                 </div>
@@ -189,7 +189,7 @@ const PaymentSuccessContent: React.FC = () => {
         <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-sm border border-white/10 rounded-3xl mb-8">
           <CardContent className="p-8">
             <h3 className="text-2xl font-bold text-white mb-6 text-center">
-              Bạn có thể bắt đầu sử dụng ngay!
+              You can start using it right away!
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -198,7 +198,7 @@ const PaymentSuccessContent: React.FC = () => {
                   <Users className="h-8 w-8 text-white" />
                 </div>
                 <h4 className="text-lg font-semibold text-white mb-2">Avatar Interview</h4>
-                <p className="text-gray-400 text-sm">Luyện tập phỏng vấn với AI</p>
+                <p className="text-gray-400 text-sm">Practice interviews with AI</p>
               </div>
               
               <div className="text-center">
@@ -206,7 +206,7 @@ const PaymentSuccessContent: React.FC = () => {
                   <Sparkles className="h-8 w-8 text-white" />
                 </div>
                 <h4 className="text-lg font-semibold text-white mb-2">EQ/Quiz Tests</h4>
-                <p className="text-gray-400 text-sm">Kiểm tra kỹ năng và EQ</p>
+                <p className="text-gray-400 text-sm">Assess your skills and EQ</p>
               </div>
               
               <div className="text-center">
@@ -214,7 +214,7 @@ const PaymentSuccessContent: React.FC = () => {
                   <FileText className="h-8 w-8 text-white" />
                 </div>
                 <h4 className="text-lg font-semibold text-white mb-2">JD Upload</h4>
-                <p className="text-gray-400 text-sm">Tải lên JD và nhận câu hỏi</p>
+                <p className="text-gray-400 text-sm">Upload a JD to get questions</p>
               </div>
             </div>
 
@@ -224,17 +224,17 @@ const PaymentSuccessContent: React.FC = () => {
                 className="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-green-500/50 text-lg"
               >
                 <span className="flex items-center gap-2">
-                  Bắt đầu sử dụng ngay
+                  Start now
                   <ArrowRight className="h-5 w-5" />
                 </span>
               </Button>
               
               <Button
                 onClick={handleGoToDashboard}
-                variant="outline"
-                className="px-8 py-4 border-white/20 text-white hover:bg-white/10 rounded-2xl font-semibold transition-all duration-300 text-lg"
+                variant="ghost"
+                className="px-8 py-4 bg-transparent border border-white/20 text-white hover:bg-white/10 hover:text-white focus-visible:ring-white/30 rounded-2xl font-semibold transition-all duration-300 text-lg"
               >
-                Đi đến Dashboard
+                Go to Dashboard
               </Button>
             </div>
           </CardContent>
@@ -244,23 +244,23 @@ const PaymentSuccessContent: React.FC = () => {
         <div className="text-center">
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 max-w-2xl mx-auto">
             <h3 className="text-xl font-semibold text-white mb-4">
-              Cần hỗ trợ?
+              Need help?
             </h3>
             <p className="text-gray-400 mb-6">
-              Đội ngũ hỗ trợ của chúng tôi luôn sẵn sàng giúp đỡ bạn 24/7
+              Our support team is available 24/7.
             </p>
             <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-400">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                <span>Hỗ trợ 24/7</span>
+                <span>24/7 Support</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4" />
-                <span>Phản hồi trong 2h</span>
+                <span>Response within 2h</span>
               </div>
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4" />
-                <span>Bảo hành 100%</span>
+                <span>100% Guarantee</span>
               </div>
             </div>
           </div>

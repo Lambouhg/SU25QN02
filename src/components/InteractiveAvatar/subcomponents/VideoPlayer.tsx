@@ -120,6 +120,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Buffering & debounce to avoid premature sends and reduce noise
   const speechBufferRef = React.useRef<string>("");
   const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  // Track latest avatar talking state to avoid stale closures
+  const isAvatarTalkingRef = React.useRef<boolean>(isAvatarTalking);
   // const [interimTranscript, setInterimTranscript] = useState<string>('');
   const {
     isListening,
@@ -128,8 +130,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     stopListening
   } = useAzureVoiceInteraction({
     onSpeechResult: (text: string) => {
-      // Ignore while avatar is talking or voice disabled
-      if (voiceDisabled || isAvatarTalking) {
+      // Ignore while avatar is talking or voice disabled (use ref to avoid stale state)
+      if (voiceDisabled || isAvatarTalkingRef.current) {
         return;
       }
 
@@ -178,12 +180,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const hasSentenceEnding = (text: string): boolean => /[\.!?…]$/.test(text.trim());
 
   const scheduleBufferedSend = (bufferSnapshot: string) => {
+    // If avatar started talking, do not schedule anything
+    if (isAvatarTalkingRef.current) return;
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
     debounceTimerRef.current = setTimeout(() => {
       // Do not send if avatar started talking meanwhile
-      if (isAvatarTalking) return;
+      if (isAvatarTalkingRef.current) return;
 
       const words = bufferSnapshot.trim().split(/\s+/).filter(Boolean);
       if (words.length < voiceMinWords && !hasSentenceEnding(bufferSnapshot)) {
@@ -191,14 +195,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         return;
       }
 
-      // Flush
-      onSpeechResult(bufferSnapshot.trim());
+      // Flush then immediately stop listening to prevent overlap with avatar response
+      const finalText = bufferSnapshot.trim();
+      if (finalText) {
+        onSpeechResult(finalText);
+      }
       speechBufferRef.current = "";
+      // Proactively stop the microphone after sending user utterance
+      stopListening().catch(() => {});
     }, voiceDebounceMs);
   };
   const toggleMicrophone = async () => {
     if (voiceDisabled) return;
-    if (isAvatarTalking) return;
+    // Prevent starting mic while avatar is speaking
+    if (isAvatarTalkingRef.current) {
+      setError('Microphone is disabled while avatar is speaking');
+      setTimeout(() => setError(null), 2000);
+      return;
+    }
     if (isListening) {
       await stopListening();
     } else {
@@ -208,6 +222,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Auto-manage microphone based on avatar talking state
   useEffect(() => {
+    isAvatarTalkingRef.current = isAvatarTalking;
     const handleAvatarTalkingChange = async () => {
       if (isAvatarTalking) {
         // Stop listening when avatar starts talking
