@@ -120,7 +120,7 @@ export default function QuestionManager() {
     }
   }, [pagination.page, pagination.limit, searchParams]);
 
-  useEffect(() => { fetchQuestions(1); }, [fetchQuestions]);
+useEffect(() => { fetchQuestions(pagination.page); }, [fetchQuestions, pagination.page]);
 
   const handleCreate = () => { setEditing(null); setFormOpen(true); };
   const handleEdit = (q: QuestionRow) => { setEditing(q); setFormOpen(true); };
