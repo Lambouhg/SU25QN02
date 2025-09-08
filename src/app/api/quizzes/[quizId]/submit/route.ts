@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
+import TrackingEventService from '@/services/trackingEventService';
 import { QuizMappingService } from '@/hooks/useQuizMapping';
 
 // Handle OPTIONS request for CORS preflight
@@ -132,21 +132,22 @@ export async function POST(
       },
     });
 
-    // Tracking quiz completion
+    // Tracking quiz completion via event-based service
     try {
-      // Chuyển đổi questions sang format phù hợp nếu cần
-      const questions = Array.isArray(quiz.questions)
-        ? quiz.questions.map((q: { topics?: string[] }) => ({ topics: q.topics || [] }))
-        : [];
-      // Gọi tracking
-      await TrackingIntegrationService.trackQuizCompletion(
-        quiz.userId,
-        questions,
-        correctCount,
-        Math.max(1, Math.round((quiz.timeUsed || 0) / 60)) // luôn >= 1 phút
-      );
+      await TrackingEventService.trackQuizCompleted({
+        userId: quiz.userId,
+        quizId,
+        field: quiz.field,
+        topic: quiz.topic,
+        level: String(quiz.level),
+        score,
+        totalQuestions: quiz.questions.length,
+        correctAnswers: correctCount,
+        timeUsedSeconds: typeof timeUsed === 'number' ? timeUsed : (updatedQuiz.timeUsed || 0),
+        retryCount: quiz.retryCount || 0,
+      });
     } catch (err) {
-      console.error('Error tracking quiz completion:', err);
+      console.error('Error tracking quiz completion (events):', err);
     }
 
     return (NextResponse.json({

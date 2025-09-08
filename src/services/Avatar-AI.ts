@@ -118,8 +118,8 @@ export interface InterviewEvaluation {
   technicalScore: number;
   communicationScore: number;
   problemSolvingScore: number;
-  cultureFitScore: number;
-  overallRating: number;
+  deliveryScore: number; // Delivery/Presentation in practice context (replaces culture fit)
+  // overallRating được tính toán ở backend dựa trên 4 tiêu chí
   technicalStrengths: string[];
   technicalWeaknesses: string[];
   recommendations: string[];

@@ -355,7 +355,7 @@ BENCHMARK SCORES FOR ${level.toUpperCase()} LEVEL:
 
 EVALUATION INSTRUCTIONS:
 1. Analyze the conversation thoroughly for technical depth, accuracy, and breadth
-2. Assess communication clarity, problem-solving approach, and cultural fit
+2. Assess communication clarity, problem-solving approach, and delivery/presentation quality
 3. Compare against ${level} level expectations for ${field}
 4. Consider real-world application and practical knowledge
 5. Evaluate learning potential and growth mindset
@@ -379,8 +379,7 @@ REQUIRED JSON FORMAT:
   "technicalScore": number (1-10, weighted heavily for technical roles),
   "communicationScore": number (1-10),
   "problemSolvingScore": number (1-10),
-  "cultureFitScore": number (1-10),
-  "overallRating": number (1-10, calculated based on weighted scores),
+  "deliveryScore": number (1-10),
   "technicalStrengths": string[] (specific technical strengths observed),
   "technicalWeaknesses": string[] (areas needing improvement),
   "recommendations": string[] (actionable development suggestions),
@@ -437,8 +436,8 @@ REQUIRED JSON FORMAT:
       technicalScore: validateScore(evaluation.technicalScore),
       communicationScore: validateScore(evaluation.communicationScore),
       problemSolvingScore: validateScore(evaluation.problemSolvingScore),
-      cultureFitScore: validateScore(evaluation.cultureFitScore),
-      overallRating: validateScore(evaluation.overallRating),
+      deliveryScore: validateScore((evaluation as Partial<{ deliveryScore: unknown }>).deliveryScore),
+      // overallRating được tính toán ở backend dựa trên 4 tiêu chí
       technicalStrengths: Array.isArray(evaluation.technicalStrengths) ? evaluation.technicalStrengths : [],
       technicalWeaknesses: Array.isArray(evaluation.technicalWeaknesses) ? evaluation.technicalWeaknesses : [],
       recommendations: Array.isArray(evaluation.recommendations) ? evaluation.recommendations : [],
@@ -496,8 +495,8 @@ function generateDefaultEvaluation(
     technicalScore: benchmarks.technical,
     communicationScore: 6,
     problemSolvingScore: 6,
-    cultureFitScore: 6,
-    overallRating: Math.round((benchmarks.technical * criteria.technicalWeight + 6 * (1 - criteria.technicalWeight))),
+    deliveryScore: 6,
+    // overallRating được tính toán ở backend dựa trên 4 tiêu chí
     technicalStrengths: [
       language === 'vi-VN' ? `Kiến thức cơ bản về ${field}` 
         : language === 'zh-CN' ? `${field}的基础知识`

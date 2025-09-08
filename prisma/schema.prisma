@@ -74,7 +74,6 @@ model User {
   clerkSessionActive       Boolean          @default(false)
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
-  userActivityId           String?          @unique
   preferredJobRoleId       String?
   preferredLanguage        String?          @default("vi")
   interviewPreferences     Json?
@@ -86,9 +85,11 @@ model User {
   quizzes                  Quiz[]
   preferredJobRole         JobRole?         @relation("UserPreferredJobRole", fields: [preferredJobRoleId], references: [id])
   role                     Role             @relation(fields: [roleId], references: [id])
-  userActivity             UserActivity?
   userPackages             UserPackage[]
   savedQuestions           Question[]       @relation("SavedQuestions")
+  activityEvents           UserActivityEvent[]
+  dailyStats               UserDailyStats[]
+  skillSnapshots           UserSkillSnapshot[]
 
   @@index([roleId])
 }
@@ -149,21 +150,6 @@ model Question {
   createdBy   User?       @relation("QuestionsCreated", fields: [createdById], references: [id])
   quizzes     Quiz[]      @relation("QuizQuestions")
   usersSaved  User[]      @relation("SavedQuestions")
-}
-
-model UserActivity {
-  id              String    @id @default(uuid())
-  userId          String    @unique
-  activities      Json?
-  skills          Json?
-  goals           Json?
-  learningStats   Json?
-  strengths       String[]
-  weaknesses      String[]
-  recommendations String[]
-  lastActive      DateTime? @default(now())
-  progressHistory Json?
-  user            User      @relation(fields: [userId], references: [id])
 }
 
 model JdQuestions {
@@ -292,6 +278,56 @@ model PaymentHistory {
   @@index([servicePackageId])
   @@index([status])
   @@index([orderCode])
+}
+
+/// New event-based tracking models (backward compatible with existing UserActivity)
+model UserActivityEvent {
+  id            String        @id @default(uuid())
+  userId        String
+  activityType  ActivityType
+  feature       String?
+  action        String        // e.g., started, completed, resumed
+  score         Float?
+  duration      Int?
+  referenceId   String?
+  timestamp     DateTime      @default(now())
+  metadata      Json?
+  skillDeltas   Json?
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@index([userId, timestamp])
+  @@index([activityType, timestamp])
+  @@index([referenceId])
+}
+
+model UserDailyStats {
+  id                   String   @id @default(uuid())
+  userId               String
+  date                 DateTime
+  totalActivities      Int      @default(0)
+  totalDuration        Int      @default(0)
+  avgScore             Float?
+  activityTypeBreakdown Json?
+  skillAverages        Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model UserSkillSnapshot {
+  id          String        @id @default(uuid())
+  userId      String
+  skillName   String
+  score       Float
+  source      ActivityType?
+  referenceId String?
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@index([userId, skillName, createdAt])
 }
 
 model JobCategory {

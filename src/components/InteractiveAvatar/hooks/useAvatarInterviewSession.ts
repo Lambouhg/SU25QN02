@@ -431,7 +431,13 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         questionCount: questionCount ?? 0,
         coveredTopics: interviewState.coveredTopics ?? [],
         conversationHistory: apiConversation ?? [],
-        evaluation: evaluation,
+        evaluation: {
+          overallRating: Math.round((evaluation.technicalScore + evaluation.communicationScore + evaluation.problemSolvingScore + evaluation.deliveryScore) / 4),
+          technicalScore: evaluation.technicalScore,
+          communicationScore: evaluation.communicationScore,
+          problemSolvingScore: evaluation.problemSolvingScore,
+          recommendations: evaluation.recommendations
+        },
         skillAssessment: interviewState.skillAssessment
       };
       
