@@ -6,7 +6,7 @@ import { useAvatarControl } from './useAvatarControl';
 import { useAIConversation } from './useAIConversation';
 import { useInterviewApi } from './useInterviewApi';
 import { useInterviewSession } from './useInterviewSession';
-import { generateInterviewEvaluation } from '@/services/evaluationService';
+import { generateInterviewEvaluation } from '@/services/avatarInterviewService/evaluationService';
 import { AVATARS } from '../HeygenConfig';
 import { ChatMessage } from '@/services/openaiService';
 import { mapUILanguageToAI } from '@/utils/languageMapping';
