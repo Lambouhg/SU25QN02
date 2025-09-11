@@ -106,7 +106,9 @@ export default function AdminDashboardLayout({
       subItems: [
         { label: 'Questions', href: '/admin/question-bank/questions' },
         { label: 'Question Sets', href: '/admin/question-bank/sets' },
-        { label: 'Quiz Templates', href: '/admin/question-bank/templates' },
+        { label: 'Bulk Import', href: '/admin/question-bank/import' },
+        { label: 'AI Generator', href: '/admin/question-bank/generate' },
+        { label: 'Templates', href: '/admin/question-bank/templates' },
       ]
     },
     {

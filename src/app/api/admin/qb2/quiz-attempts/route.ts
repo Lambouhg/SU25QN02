@@ -7,7 +7,7 @@ type ListQuery = {
   page?: string;
   pageSize?: string;
   userId?: string;
-  templateId?: string;
+  questionSetId?: string;
   status?: string;
 };
 
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const where: any = {};
   if (q.userId) where.userId = q.userId;
-  if (q.templateId) where.templateId = q.templateId;
+  if (q.questionSetId) where.questionSetId = q.questionSetId;
   if (q.status) where.status = q.status;
 
   const [items, total] = await Promise.all([
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
         timeUsed: true,
         score: true,
         sectionScores: true,
-        template: { select: { id: true, name: true } },
+        questionSet: { select: { id: true, name: true } },
         user: { select: { id: true, email: true } },
       },
     }),

@@ -19,7 +19,6 @@ export async function GET(req: NextRequest) {
   const pageSize = Math.min(Math.max(parseInt(q.pageSize || "20", 10), 1), 100);
 
   const where: any = {};
-  if (q.jobRoleId) where.jobRoleId = q.jobRoleId;
   if (q.level) where.level = q.level;
   if (q.status) where.status = q.status;
   if (q.search) where.name = { contains: q.search, mode: "insensitive" };
@@ -30,7 +29,7 @@ export async function GET(req: NextRequest) {
       orderBy: { updatedAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: { items: { include: { question: { include: { options: true } } } }, jobRole: true },
+      include: { items: { include: { question: { include: { options: true } } } } },
     }),
     db.questionSet.count({ where }),
   ]);
@@ -40,7 +39,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, description, jobRoleId, level, topics = [], fields = [], status = "draft", version = 1, createdById } = body || {};
+  const { name, description, level, topics = [], fields = [], skills = [], status = "draft", version = 1, createdById } = body || {};
 
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 });
 
@@ -48,15 +47,15 @@ export async function POST(req: NextRequest) {
     data: {
       name,
       description: description || null,
-      jobRoleId: jobRoleId || null,
       level: level || null,
       topics,
       fields,
+      skills,
       status,
       version,
       createdById: createdById || null,
     },
-    include: { jobRole: true },
+    include: {},
   });
 
   return NextResponse.json({ data: created }, { status: 201 });

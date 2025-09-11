@@ -12,6 +12,9 @@ type ListQuery = {
   search?: string;
   topics?: string; // comma separated
   fields?: string; // comma separated
+  category?: string;
+  tags?: string; // comma separated
+  difficulty?: string; // easy|medium|hard
 };
 
 export async function GET(req: NextRequest) {
@@ -28,6 +31,9 @@ export async function GET(req: NextRequest) {
   if (q.topics) where.topics = { hasSome: q.topics.split(",").map((s) => s.trim()).filter(Boolean) };
   if (q.fields) where.fields = { hasSome: q.fields.split(",").map((s) => s.trim()).filter(Boolean) };
   if ((q as any).skills) where.skills = { hasSome: String((q as any).skills).split(",").map((s) => s.trim()).filter(Boolean) };
+  if (q.category) where.category = q.category;
+  if (q.tags) where.tags = { hasSome: q.tags.split(",").map((s) => s.trim()).filter(Boolean) };
+  if (q.difficulty) where.difficulty = q.difficulty;
 
   const [items, total] = await Promise.all([
     db.questionItem.findMany({
@@ -54,6 +60,13 @@ export async function POST(req: NextRequest) {
     fields = [],
     skills = [],
     difficulty = null,
+    // new metadata
+    category = null,
+    tags = [],
+    estimatedTime = null,
+    sourceAuthor = null,
+    version = 1,
+    isArchived = false,
     options = [],
     createdById,
   } = body || {};
@@ -61,6 +74,20 @@ export async function POST(req: NextRequest) {
   if (!type || !stem) {
     return NextResponse.json({ error: "type and stem are required" }, { status: 400 });
   }
+
+  // normalize difficulty to enum Difficulty | null
+  const normalizeDifficulty = (val: unknown) => {
+    if (val == null) return null;
+    const s = String(val).toLowerCase();
+    if (["easy", "medium", "hard"].includes(s)) return s;
+    const num = Number(val);
+    if (!Number.isNaN(num)) {
+      if (num <= 2) return "easy";
+      if (num <= 3) return "medium";
+      return "hard";
+    }
+    return null;
+  };
 
   const created = await db.questionItem.create({
     data: {
@@ -71,7 +98,13 @@ export async function POST(req: NextRequest) {
       topics,
       fields,
       skills,
-      difficulty: difficulty === null ? null : Number(difficulty),
+      difficulty: normalizeDifficulty(difficulty),
+      category: category || null,
+      tags: Array.isArray(tags) ? tags : String(tags || "").split(",").map((s) => s.trim()).filter(Boolean),
+      estimatedTime: estimatedTime == null ? null : Number(estimatedTime),
+      sourceAuthor: sourceAuthor || null,
+      version: Number.isFinite(Number(version)) ? Number(version) : 1,
+      isArchived: !!isArchived,
       createdById: createdById || null,
       options: options?.length
         ? {

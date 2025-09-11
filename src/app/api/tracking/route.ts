@@ -273,11 +273,6 @@ export async function GET() {
       }
     };
 
-    // Debug: Log dữ liệu trước khi trả về
-    console.log('🔍 API Tracking Debug - last60Events count:', last60Events.length);
-    console.log('🔍 API Tracking Debug - allActivities count:', response.allActivities.length);
-    console.log('🔍 API Tracking Debug - Sample allActivities:', response.allActivities.slice(0, 3));
-    
     return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching progress:', error);

@@ -148,12 +148,12 @@ export default function DashboardLayout({
   },
     { 
       icon: Brain, 
-      label: 'Practice Modes', 
+      label: 'Practice', 
       key: 'practice',
       subItems: [
         { label: 'AI Bot', href: '/avatar-interview' },
-        { label: 'Quiz Mode', href: '/quiz' },
-        { label: 'Assessment Mode', href: '/test' },
+        { label: 'Quiz Practice', href: '/quiz' },
+        { label: 'Assessment', href: '/test' },
       ]
     },
    
@@ -166,8 +166,8 @@ export default function DashboardLayout({
     
     { 
       icon: History, 
-      label: 'History Quiz', 
-      href: '/history',
+      label: 'Quiz History', 
+      href: '/quiz/history',
       key: 'history'
     },
     {

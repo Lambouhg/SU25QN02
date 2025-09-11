@@ -13,12 +13,26 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PUT(req: NextRequest, { params }: Params) {
   const body = await req.json();
-  const { type, stem, explanation, level, topics, fields, skills, difficulty, options } = body || {};
+  const { type, stem, explanation, level, topics, fields, skills, difficulty, options, category, tags, estimatedTime, sourceAuthor, version, isArchived } = body || {};
 
   const exist = await db.questionItem.findUnique({ where: { id: params.id } });
   if (!exist) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const updated = await db.$transaction(async (tx: any) => {
+    const normalizeDifficulty = (val: unknown, fallback: any) => {
+      if (val === undefined) return fallback;
+      if (val == null) return null;
+      const s = String(val).toLowerCase();
+      if (["easy", "medium", "hard"].includes(s)) return s;
+      const num = Number(val);
+      if (!Number.isNaN(num)) {
+        if (num <= 2) return "easy";
+        if (num <= 3) return "medium";
+        return "hard";
+      }
+      return fallback;
+    };
+
     const base = await tx.questionItem.update({
       where: { id: params.id },
       data: {
@@ -29,7 +43,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
         topics: topics ?? exist.topics,
         fields: fields ?? exist.fields,
         skills: skills ?? exist.skills,
-        difficulty: difficulty === undefined ? exist.difficulty : Number(difficulty),
+        difficulty: normalizeDifficulty(difficulty, exist.difficulty),
+        category: category === undefined ? exist.category : category,
+        tags: tags === undefined ? exist.tags : (Array.isArray(tags) ? tags : String(tags || "").split(",").map((s) => s.trim()).filter(Boolean)),
+        estimatedTime: estimatedTime === undefined ? exist.estimatedTime : (estimatedTime == null ? null : Number(estimatedTime)),
+        sourceAuthor: sourceAuthor === undefined ? exist.sourceAuthor : sourceAuthor,
+        version: version === undefined ? exist.version : Number(version) || exist.version,
+        isArchived: isArchived === undefined ? exist.isArchived : !!isArchived,
       },
     });
 

@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
+import QuestionBankQuickActions from "@/components/admin/QuestionBankQuickActions";
 
 type QuestionOption = { text: string; isCorrect?: boolean; order?: number; metadata?: unknown };
 type QuestionItem = {
@@ -11,7 +12,11 @@ type QuestionItem = {
   topics: string[];
   fields: string[];
   skills: string[];
-  difficulty?: number | null;
+  category?: string | null;
+  tags?: string[];
+  estimatedTime?: number | null;
+  sourceAuthor?: string | null;
+  difficulty?: string | null;
   options: QuestionOption[];
   updatedAt: string;
 };
@@ -35,6 +40,9 @@ export default function AdminQuestionsPage() {
   const [topics, setTopics] = useState<string>("");
   const [fields, setFields] = useState<string>("");
   const [skills, setSkills] = useState<string>("");
+  const [category, setCategory] = useState<string>("");
+  const [tags, setTags] = useState<string>("");
+  const [diffFilter, setDiffFilter] = useState<string>("");
   const [difficulty, setDifficulty] = useState<string>("");
   const [explanation, setExplanation] = useState<string>("");
   const [options, setOptions] = useState<QuestionOption[]>([{ text: "", isCorrect: true }, { text: "" }]);
@@ -45,8 +53,11 @@ export default function AdminQuestionsPage() {
     if (type) p.set("type", type);
     if (level) p.set("level", level);
     if (skills) p.set("skills", skills);
+    if (category) p.set("category", category);
+    if (tags) p.set("tags", tags);
+    if (diffFilter) p.set("difficulty", diffFilter);
     return p.toString();
-  }, [search, type, level, skills]);
+  }, [search, type, level, skills, category, tags, diffFilter]);
 
   async function load() {
     setLoading(true);
@@ -76,6 +87,9 @@ export default function AdminQuestionsPage() {
     setQLevel("");
     setTopics("");
     setFields("");
+    setCategory("");
+    setTags("");
+    setDifficulty("");
     setExplanation("");
     setOptions([{ text: "", isCorrect: true }, { text: "" }]);
     setFormOpen(true);
@@ -89,7 +103,9 @@ export default function AdminQuestionsPage() {
     setTopics(row.topics?.join(", ") || "");
     setFields(row.fields?.join(", ") || "");
     setSkills(row.skills?.join(", ") || "");
-    setDifficulty(row.difficulty != null ? String(row.difficulty) : "");
+    setCategory(row.category || "");
+    setTags((row.tags || []).join(", ") || "");
+    setDifficulty(row.difficulty || "");
     setExplanation(row.explanation || "");
     setOptions((row.options || []).map((o) => ({ text: o.text, isCorrect: !!o.isCorrect, order: o.order })));
     setFormOpen(true);
@@ -113,7 +129,12 @@ export default function AdminQuestionsPage() {
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-      difficulty: difficulty ? Number(difficulty) : null,
+      category: category || null,
+      tags: tags
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      difficulty: difficulty || null,
       options: options.map((o, idx) => ({ text: o.text, isCorrect: !!o.isCorrect, order: o.order ?? idx })),
     };
 
@@ -152,6 +173,8 @@ export default function AdminQuestionsPage() {
 
   return (
     <div className="p-4 space-y-4">
+      <QuestionBankQuickActions />
+      
       <div className="flex items-center gap-2">
         <h1 className="text-xl font-semibold">Question Bank - Questions</h1>
         <button className="ml-auto px-3 py-2 rounded bg-blue-600 text-white" onClick={openCreate}>Tạo câu hỏi</button>
@@ -186,6 +209,23 @@ export default function AdminQuestionsPage() {
           <label className="block text-sm">Skills (comma)</label>
           <input className="border px-2 py-1 rounded min-w-64" value={skills} onChange={(e) => setSkills(e.target.value)} />
         </div>
+        <div>
+          <label className="block text-sm">Category</label>
+          <input className="border px-2 py-1 rounded min-w-48" value={category} onChange={(e) => setCategory(e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm">Tags (comma)</label>
+          <input className="border px-2 py-1 rounded min-w-64" value={tags} onChange={(e) => setTags(e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-sm">Difficulty</label>
+          <select className="border px-2 py-1 rounded" value={diffFilter} onChange={(e) => setDiffFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="easy">easy</option>
+            <option value="medium">medium</option>
+            <option value="hard">hard</option>
+          </select>
+        </div>
         <button className="px-3 py-2 rounded border" onClick={load} disabled={loading}>Lọc</button>
       </div>
 
@@ -198,10 +238,12 @@ export default function AdminQuestionsPage() {
               <th className="text-left p-2 border">Stem</th>
               <th className="text-left p-2 border">Type</th>
               <th className="text-left p-2 border">Level</th>
+              <th className="text-left p-2 border">Category</th>
+              <th className="text-left p-2 border">Tags</th>
               <th className="text-left p-2 border">Options</th>
               <th className="text-left p-2 border">Explanation</th>
               <th className="text-left p-2 border">Skills</th>
-              <th className="text-left p-2 border">Diff</th>
+              <th className="text-left p-2 border">Difficulty</th>
               <th className="text-left p-2 border">Actions</th>
             </tr>
           </thead>
@@ -213,6 +255,8 @@ export default function AdminQuestionsPage() {
                 </td>
                 <td className="p-2 border align-top">{row.type}</td>
                 <td className="p-2 border align-top">{row.level || "-"}</td>
+                <td className="p-2 border align-top">{row.category || "-"}</td>
+                <td className="p-2 border align-top">{(row.tags||[]).slice(0,3).join(", ")}{(row.tags||[]).length>3?"…":""}</td>
                 <td className="p-2 border align-top">
                   <ul className="list-disc ml-5 space-y-1">
                     {row.options?.map((o, i) => (
@@ -224,7 +268,7 @@ export default function AdminQuestionsPage() {
                   <div className="line-clamp-2 text-sm text-gray-700">{row.explanation || '-'}</div>
                 </td>
                 <td className="p-2 border align-top">{(row.skills||[]).slice(0,3).join(", ")}{(row.skills||[]).length>3?"…":""}</td>
-                <td className="p-2 border align-top">{row.difficulty ?? "-"}</td>
+                <td className="p-2 border align-top">{row.difficulty || "-"}</td>
                 <td className="p-2 border align-top">
                   <div className="flex gap-2">
                     <button className="px-2 py-1 rounded border" onClick={() => openEdit(row)}>Sửa</button>
@@ -281,8 +325,21 @@ export default function AdminQuestionsPage() {
                 <input className="w-full border p-2 rounded" value={skills} onChange={(e) => setSkills(e.target.value)} />
               </div>
               <div>
-                <label className="block text-sm">Difficulty (0-1 hoặc điểm số)</label>
-                <input className="w-full border p-2 rounded" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} />
+                <label className="block text-sm">Difficulty</label>
+                <select className="w-full border p-2 rounded" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+                  <option value="">(none)</option>
+                  <option value="easy">easy</option>
+                  <option value="medium">medium</option>
+                  <option value="hard">hard</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm">Category</label>
+                <input className="w-full border p-2 rounded" value={category} onChange={(e) => setCategory(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm">Tags (comma)</label>
+                <input className="w-full border p-2 rounded" value={tags} onChange={(e) => setTags(e.target.value)} />
               </div>
               <div className="col-span-2">
                 <label className="block text-sm">Explanation</label>

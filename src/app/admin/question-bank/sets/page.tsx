@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 type QuestionItem = { id: string; stem: string; type?: string; level?: string | null };
 type SetItem = { questionId: string; order?: number; section?: string; weight?: number; isRequired?: boolean; timeSuggestion?: number | null; question?: QuestionItem };
-type QuestionSet = { id: string; name: string; status: string; version: number; jobRoleId?: string | null; level?: string | null; jobRole?: { title: string } | null; items: SetItem[] };
+type QuestionSet = { id: string; name: string; status: string; version: number; level?: string | null; skills?: string[]; items: SetItem[] };
 type Paged<T> = { data: T[]; page: number; pageSize: number; total: number };
 
 export default function AdminQuestionSetsPage() {
@@ -20,8 +20,11 @@ export default function AdminQuestionSetsPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
-  const [jobRoleId, setJobRoleId] = useState("");
+  const [description, setDescription] = useState("");
   const [level, setLevel] = useState("");
+  const [setSkills, setSetSkills] = useState<string>("");
+  const [status, setStatus] = useState("draft");
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [editing, setEditing] = useState<QuestionSet | null>(null);
   const [items, setItems] = useState<SetItem[]>([]);
@@ -64,14 +67,25 @@ export default function AdminQuestionSetsPage() {
   function openCreate() {
     setFormOpen(true);
     setName("");
-    setJobRoleId("");
     setLevel("");
+    setSetSkills("");
+    setDescription("");
+    setStatus("draft");
+    setFormError(null);
   }
 
   async function submitCreate() {
-    const payload: { name: string; jobRoleId?: string; level?: string } = { name };
-    if (jobRoleId) payload.jobRoleId = jobRoleId;
+    // simple validation
+    const normalizedLevel = level.trim().toLowerCase();
+    if (!name.trim()) { setFormError("Name là bắt buộc"); return; }
+    if (normalizedLevel && !["junior","middle","senior"].includes(normalizedLevel)) { setFormError("Level phải là junior/middle/senior hoặc để trống"); return; }
+    setFormError(null);
+
+    const payload: { name: string; level?: string; skills?: string[]; description?: string; status?: string } = { name };
     if (level) payload.level = level;
+    if (setSkills) payload.skills = setSkills.split(",").map(s=>s.trim()).filter(Boolean);
+    if (description) payload.description = description;
+    if (status) payload.status = status;
     const res = await fetch("/api/admin/qb2/question-sets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const j = await res.json();
     if (!res.ok) {
@@ -196,8 +210,8 @@ export default function AdminQuestionSetsPage() {
             <tr>
               <th className="text-left p-2 border">Name</th>
               <th className="text-left p-2 border">Status</th>
-              <th className="text-left p-2 border">JobRole</th>
               <th className="text-left p-2 border">Level</th>
+              <th className="text-left p-2 border">Skills</th>
               <th className="text-left p-2 border">Version</th>
               <th className="text-left p-2 border">Items</th>
               <th className="text-left p-2 border">Actions</th>
@@ -208,8 +222,8 @@ export default function AdminQuestionSetsPage() {
               <tr key={s.id} className="border-b">
                 <td className="p-2 border align-top">{s.name}</td>
                 <td className="p-2 border align-top">{s.status}</td>
-                <td className="p-2 border align-top">{s.jobRole?.title || '-'}</td>
                 <td className="p-2 border align-top">{s.level || '-'}</td>
+                <td className="p-2 border align-top">{(s.skills||[]).slice(0,3).join(", ")}{(s.skills||[]).length>3?"…":""}</td>
                 <td className="p-2 border align-top">{s.version}</td>
                 <td className="p-2 border align-top">{s.items?.length ?? 0}</td>
                 <td className="p-2 border align-top">
@@ -237,13 +251,26 @@ export default function AdminQuestionSetsPage() {
                 <input className="w-full border p-2 rounded" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
-                <label className="block text-sm">JobRoleId (tùy chọn)</label>
-                <input className="w-full border p-2 rounded" value={jobRoleId} onChange={(e) => setJobRoleId(e.target.value)} />
-              </div>
-              <div>
                 <label className="block text-sm">Level (junior/middle/senior)</label>
                 <input className="w-full border p-2 rounded" value={level} onChange={(e) => setLevel(e.target.value)} />
               </div>
+              <div>
+                <label className="block text-sm">Skills (comma)</label>
+                <input className="w-full border p-2 rounded" value={setSkills} onChange={(e) => setSetSkills(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm">Description (tùy chọn)</label>
+                <textarea className="w-full border p-2 rounded min-h-20" value={description} onChange={(e)=>setDescription(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm">Status</label>
+                <select className="w-full border p-2 rounded" value={status} onChange={(e)=>setStatus(e.target.value)}>
+                  <option value="draft">draft</option>
+                  <option value="published">published</option>
+                  <option value="archived">archived</option>
+                </select>
+              </div>
+              {formError && <div className="text-red-600 text-sm">{formError}</div>}
             </div>
             <div className="flex justify-end gap-2">
               <button className="px-3 py-2 rounded border" onClick={() => setFormOpen(false)}>Hủy</button>
@@ -262,33 +289,42 @@ export default function AdminQuestionSetsPage() {
             </div>
             <div className="space-y-2">
               {items.map((it, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-5">
-                    <label className="block text-xs">QuestionId</label>
-                    <input className="w-full border p-2 rounded" value={it.questionId} onChange={(e) => updateItem(idx, { questionId: e.target.value })} />
+                <div key={idx} className="grid grid-cols-12 gap-2 items-center border-b pb-2 mb-2">
+                  <div className="col-span-7">
+                    <label className="block text-xs font-medium">Câu hỏi</label>
+                    <div className="p-2 bg-gray-50 rounded text-sm">
+                      {it.question?.stem ? (
+                        <div className="line-clamp-2">{it.question.stem}</div>
+                      ) : (
+                        <div className="text-gray-500 italic">ID: {it.questionId}</div>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Type: {it.question?.type || 'N/A'} | Level: {it.question?.level || 'N/A'}
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-xs">Order</label>
+                    <label className="block text-xs font-medium">Thứ tự</label>
                     <input type="number" className="w-full border p-2 rounded" value={it.order ?? idx} onChange={(e) => updateItem(idx, { order: Number(e.target.value) })} />
                   </div>
                   <div>
-                    <label className="block text-xs">Section</label>
-                    <input className="w-full border p-2 rounded" value={it.section || ""} onChange={(e) => updateItem(idx, { section: e.target.value })} />
+                    <label className="block text-xs font-medium">Section</label>
+                    <input className="w-full border p-2 rounded" value={it.section || ''} onChange={(e) => updateItem(idx, { section: e.target.value })} />
                   </div>
                   <div>
-                    <label className="block text-xs">Weight</label>
-                    <input type="number" className="w-full border p-2 rounded" value={it.weight ?? 1} onChange={(e) => updateItem(idx, { weight: Number(e.target.value) })} />
+                    <label className="block text-xs font-medium">Weight</label>
+                    <input type="number" step="0.1" className="w-full border p-2 rounded" value={it.weight ?? 1} onChange={(e) => updateItem(idx, { weight: Number(e.target.value) })} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-xs font-medium">Required</label>
+                    <input type="checkbox" checked={!!it.isRequired} onChange={(e) => updateItem(idx, { isRequired: e.target.checked })} />
                   </div>
                   <div>
-                    <label className="block text-xs">Required</label>
-                    <input type="checkbox" checked={it.isRequired ?? true} onChange={(e) => updateItem(idx, { isRequired: e.target.checked })} />
-                  </div>
-                  <div>
-                    <label className="block text-xs">Time (s)</label>
-                    <input type="number" className="w-full border p-2 rounded" value={it.timeSuggestion ?? 0} onChange={(e) => updateItem(idx, { timeSuggestion: Number(e.target.value) || 0 })} />
+                    <label className="block text-xs font-medium">Time (min)</label>
+                    <input type="number" className="w-full border p-2 rounded" value={it.timeSuggestion ?? ''} onChange={(e) => updateItem(idx, { timeSuggestion: e.target.value ? Number(e.target.value) : null })} />
                   </div>
                   <div className="col-span-2 flex justify-end">
-                    <button className="px-2 py-1 rounded border" onClick={() => removeItem(idx)}>Xóa</button>
+                    <button className="px-2 py-1 rounded border text-red-600 hover:bg-red-50" onClick={() => removeItem(idx)}>Xóa</button>
                   </div>
                 </div>
               ))}
@@ -378,6 +414,7 @@ export default function AdminQuestionSetsPage() {
     </div>
   );
 }
+
 
 
 

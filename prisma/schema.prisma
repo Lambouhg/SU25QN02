@@ -53,9 +53,9 @@ model RolePermission {
 }
 
 model User {
-  id                       String           @id @default(uuid())
-  email                    String           @unique
-  clerkId                  String           @unique
+  id                       String              @id @default(uuid())
+  email                    String              @unique
+  clerkId                  String              @unique
   firstName                String?
   lastName                 String?
   avatar                   String?
@@ -63,36 +63,33 @@ model User {
   phone                    String?
   department               String?
   joinDate                 String?
-  status                   String?          @default("Hoạt động")
-  experienceLevel          ExperienceLevel? @default(mid)
-  roleId                   String           @default("user_role_id")
+  status                   String?             @default("Hoạt động")
+  experienceLevel          ExperienceLevel?    @default(mid)
+  roleId                   String              @default("ba1383db-8bbc-4bc8-952f-cb2b6ce8d363")
   skills                   String[]
   lastLogin                DateTime?
   lastSignInAt             DateTime?
   lastActivity             DateTime?
-  isOnline                 Boolean          @default(false)
-  clerkSessionActive       Boolean          @default(false)
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
+  isOnline                 Boolean             @default(false)
+  clerkSessionActive       Boolean             @default(false)
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
   preferredJobRoleId       String?
-  preferredLanguage        String?          @default("vi")
+  preferredLanguage        String?             @default("vi")
   interviewPreferences     Json?
-  autoStartWithPreferences Boolean          @default(true)
+  autoStartWithPreferences Boolean             @default(true)
   interviews               Interview[]
   paymentHistory           PaymentHistory[]
-  
-  preferredJobRole         JobRole?         @relation("UserPreferredJobRole", fields: [preferredJobRoleId], references: [id])
-  role                     Role             @relation(fields: [roleId], references: [id])
-  userPackages             UserPackage[]
-  
+  questionItemsCreated     QuestionItem[]      @relation("QuestionItemsCreated")
+  questionSetsCreated      QuestionSet[]       @relation("QuestionSetsCreated")
+  quizAttempts             QuizAttempt[]
+  preferredJobRole         JobRole?            @relation("UserPreferredJobRole", fields: [preferredJobRoleId], references: [id])
+  role                     Role                @relation(fields: [roleId], references: [id])
   activityEvents           UserActivityEvent[]
   dailyStats               UserDailyStats[]
+  userPackages             UserPackage[]
   skillSnapshots           UserSkillSnapshot[]
-  questionItemsCreated     QuestionItem[]     @relation("QuestionItemsCreated")
-  questionSetsCreated      QuestionSet[]      @relation("QuestionSetsCreated")
-  quizTemplatesCreated     QuizTemplate[]     @relation("QuizTemplatesCreated")
-  savedQuestionItems       QuestionItem[]     @relation("SavedQuestionItems")
-  quizAttempts             QuizAttempt[]
+  savedQuestionItems       QuestionItem[]      @relation("SavedQuestionItems")
 
   @@index([roleId])
 }
@@ -119,115 +116,101 @@ model Interview {
   @@index([jobRoleId])
 }
 
-// Legacy Quiz model removed after migration to new quiz flow
-// New Question Bank models (next-gen)
-
 model QuestionItem {
-  id           String              @id @default(uuid())
-  type         QuestionItemType
-  stem         String
-  explanation  String?
-  level        QuizLevel?
-  topics       String[]
-  fields       String[]
-  skills       String[]
-  difficulty   Float?
-  createdById  String?
-  createdBy    User?               @relation("QuestionItemsCreated", fields: [createdById], references: [id])
-  options      QuestionOption[]
-  usersSaved   User[]              @relation("SavedQuestionItems")
-  setLinks     QuestionSetQuestion[]
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id          String                @id @default(uuid())
+  type        QuestionItemType
+  stem        String
+  explanation String?
+  level       QuizLevel?
+  topics      String[]
+  fields      String[]
+  skills      String[]
+  // Metadata extensions
+  category     String?
+  tags         String[]
+  estimatedTime Int?
+  sourceAuthor  String?
+  version       Int                   @default(1)
+  isArchived    Boolean               @default(false)
+  difficulty    Difficulty?
+  createdById String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  createdBy   User?                 @relation("QuestionItemsCreated", fields: [createdById], references: [id])
+  options     QuestionOption[]
+  setLinks    QuestionSetQuestion[]
+  usersSaved  User[]                @relation("SavedQuestionItems")
+
+  @@index([category])
 }
 
 model QuestionOption {
-  id          String       @id @default(uuid())
-  questionId  String
-  text        String
-  isCorrect   Boolean      @default(false)
-  order       Int          @default(0)
-  metadata    Json?
-  question    QuestionItem @relation(fields: [questionId], references: [id])
+  id         String       @id @default(uuid())
+  questionId String
+  text       String
+  isCorrect  Boolean      @default(false)
+  order      Int          @default(0)
+  metadata   Json?
+  question   QuestionItem @relation(fields: [questionId], references: [id])
 }
 
 model QuestionSet {
-  id           String        @id @default(uuid())
-  name         String
-  description  String?
-  companyId    String?
-  jobRoleId    String?
-  level        QuizLevel?
-  topics       String[]
-  fields       String[]
-  version      Int           @default(1)
-  status       String        @default("draft")
-  createdById  String?
-  createdBy    User?         @relation("QuestionSetsCreated", fields: [createdById], references: [id])
-  jobRole      JobRole?      @relation(fields: [jobRoleId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  items        QuestionSetQuestion[]
-  templates    QuizTemplate[]
+  id          String                @id @default(uuid())
+  name        String
+  description String?
+  companyId   String?
+  level       QuizLevel?
+  topics      String[]
+  fields      String[]
+  skills      String[]
+  version     Int                   @default(1)
+  status      String                @default("draft")
+  createdById String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  createdBy   User?                 @relation("QuestionSetsCreated", fields: [createdById], references: [id])
+  items       QuestionSetQuestion[]
+  attempts    QuizAttempt[]
 
-  @@index([jobRoleId])
+  @@index([status])
+  @@index([level])
 }
 
 model QuestionSetQuestion {
-  id             String       @id @default(uuid())
-  questionSetId  String
-  questionId     String
-  order          Int          @default(0)
-  section        String?
-  weight         Float        @default(1)
-  isRequired     Boolean      @default(true)
+  id            String       @id @default(uuid())
+  questionSetId String
+  questionId    String
+  order         Int          @default(0)
+  // Set item attributes
+  section       String?
+  weight        Float?
+  isRequired    Boolean      @default(false)
   timeSuggestion Int?
-  questionSet    QuestionSet  @relation(fields: [questionSetId], references: [id])
-  question       QuestionItem @relation(fields: [questionId], references: [id])
+  question      QuestionItem @relation(fields: [questionId], references: [id])
+  questionSet   QuestionSet  @relation(fields: [questionSetId], references: [id])
 
   @@unique([questionSetId, questionId])
   @@index([questionSetId])
   @@index([questionId])
 }
 
-model QuizTemplate {
-  id            String       @id @default(uuid())
-  questionSetId String
-  name          String
-  description   String?
-  timeLimit     Int?
-  shuffle       Boolean      @default(true)
-  sectionRules  Json?
-  scoringPolicy Json?
-  retakePolicy  Json?
-  isActive      Boolean      @default(true)
-  createdById   String?
-  createdBy     User?        @relation("QuizTemplatesCreated", fields: [createdById], references: [id])
-  questionSet   QuestionSet  @relation(fields: [questionSetId], references: [id])
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  attempts      QuizAttempt[]
-
-  @@index([questionSetId])
-}
-
 model QuizAttempt {
-  id            String        @id @default(uuid())
-  templateId    String
+  id            String      @id @default(uuid())
+  questionSetId String
   userId        String
-  status        String        @default("in_progress")
-  startedAt     DateTime      @default(now())
+  status        String      @default("in_progress")
+  startedAt     DateTime    @default(now())
   completedAt   DateTime?
   timeUsed      Int?
   score         Float?
   sectionScores Json?
   itemsSnapshot Json
   responses     Json?
-  template      QuizTemplate  @relation(fields: [templateId], references: [id])
-  user          User          @relation(fields: [userId], references: [id])
+  questionSet   QuestionSet @relation(fields: [questionSetId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
 
   @@index([userId])
-  @@index([templateId])
+  @@index([questionSetId])
 }
 
 model JdQuestions {
@@ -360,18 +343,18 @@ model PaymentHistory {
 
 /// New event-based tracking models (backward compatible with existing UserActivity)
 model UserActivityEvent {
-  id            String        @id @default(uuid())
-  userId        String
-  activityType  ActivityType
-  feature       String?
-  action        String        // e.g., started, completed, resumed
-  score         Float?
-  duration      Int?
-  referenceId   String?
-  timestamp     DateTime      @default(now())
-  metadata      Json?
-  skillDeltas   Json?
-  user          User          @relation(fields: [userId], references: [id])
+  id           String       @id @default(uuid())
+  userId       String
+  activityType ActivityType
+  feature      String?
+  action       String
+  score        Float?
+  duration     Int?
+  referenceId  String?
+  timestamp    DateTime     @default(now())
+  metadata     Json?
+  skillDeltas  Json?
+  user         User         @relation(fields: [userId], references: [id])
 
   @@index([userId, timestamp])
   @@index([activityType, timestamp])
@@ -379,17 +362,17 @@ model UserActivityEvent {
 }
 
 model UserDailyStats {
-  id                   String   @id @default(uuid())
-  userId               String
-  date                 DateTime
-  totalActivities      Int      @default(0)
-  totalDuration        Int      @default(0)
-  avgScore             Float?
+  id                    String   @id @default(uuid())
+  userId                String
+  date                  DateTime
+  totalActivities       Int      @default(0)
+  totalDuration         Int      @default(0)
+  avgScore              Float?
   activityTypeBreakdown Json?
-  skillAverages        Json?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id])
+  skillAverages         Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, date])
   @@index([userId, date])
@@ -411,7 +394,7 @@ model UserSkillSnapshot {
 model JobCategory {
   id              String              @id @default(uuid())
   name            String              @unique
-  skills          String[]            // Array of skills like ["React", "Vite", "TypeScript"]
+  skills          String[]
   jobRoles        JobRole[]
   specializations JobSpecialization[]
 }
@@ -440,7 +423,6 @@ model JobRole {
   category         JobCategory?       @relation(fields: [categoryId], references: [id])
   specialization   JobSpecialization? @relation(fields: [specializationId], references: [id])
   usersPreferred   User[]             @relation("UserPreferredJobRole")
-  questionSets     QuestionSet[]
 
   @@index([title])
   @@index([level])
@@ -484,13 +466,18 @@ enum QuestionType {
   behavioral
 }
 
-// New enum for QuestionItem type (distinct from existing QuestionType)
 enum QuestionItemType {
   single_choice
   multiple_choice
   free_text
   scale
   coding
+}
+
+enum Difficulty {
+  easy
+  medium
+  hard
 }
 
 enum GoalStatus {
@@ -520,6 +507,7 @@ enum ActivityType {
   goal_completed
   goal_started
   jd
+  assessment
 }
 
 enum AssessmentType {
@@ -546,4 +534,3 @@ enum JobLevel {
   Senior
   Lead
 }
-
