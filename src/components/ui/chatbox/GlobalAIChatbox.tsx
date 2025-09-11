@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import type { GlobalChatboxContext } from '@/services/globalChatboxService';
 import { useUser } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
 import { 
@@ -33,7 +34,7 @@ interface GlobalAIChatboxProps {
   isOpen: boolean;
   onToggle: () => void;
   currentPage?: string;
-  currentContext?: any;
+  currentContext?: Partial<GlobalChatboxContext>;
 }
 
 const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
@@ -46,11 +47,11 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat');
-  const [chatHistory, setChatHistory] = useState<ChatMessageType[]>([]);
+  
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasShownWelcome, setHasShownWelcome] = useState(false);
-  const [language] = useState<'en' | 'vi'>('en'); // Fixed to English only
+  const [language, setLanguage] = useState<'en' | 'vi'>('en');
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
@@ -60,9 +61,115 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
-  // Quick help prompts based on current page
+  // Load chat history from localStorage on mount
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('globalChatHistory');
+    console.log('Loading chat history:', savedHistory);
+    if (savedHistory) {
+      try {
+        const parsedHistory = JSON.parse(savedHistory);
+        console.log('Parsed history:', parsedHistory);
+        if (Array.isArray(parsedHistory) && parsedHistory.length > 0) {
+          // Convert timestamp strings back to Date objects
+          const messagesWithDates = parsedHistory.map(msg => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+          setMessages(messagesWithDates);
+          setHasShownWelcome(true);
+          setIsHistoryLoaded(true);
+          console.log('Loaded chat history successfully');
+        }
+      } catch (error) {
+        console.error('Error loading chat history:', error);
+      }
+    } else {
+      console.log('No saved chat history found');
+    }
+    setIsHistoryLoaded(true); // Mark as loaded even if no history
+  }, []); // Only run once on mount
+
+  // Show welcome message if no history and not shown yet (only after history is loaded)
+  useEffect(() => {
+    if (isHistoryLoaded && messages.length === 0 && !hasShownWelcome) {
+      console.log('Creating welcome message');
+      const welcomeMessage: ChatMessageType = {
+        id: 'welcome',
+        content: language === 'vi'
+          ? 'Xin chào! Tôi là trợ lý AI của bạn. Tôi có thể hỗ trợ bạn luyện phỏng vấn, mô tả công việc, làm quiz và nhiều hơn nữa. Bạn cần tôi giúp gì?'
+          : `Hello! I'm your AI assistant. I can help with interview preparation, job descriptions, quizzes, and more. How can I help you today?`,
+        sender: 'ai',
+        timestamp: new Date(),
+        type: 'text'
+      };
+      setMessages([welcomeMessage]);
+      setHasShownWelcome(true);
+    }
+  }, [isHistoryLoaded, messages.length, hasShownWelcome, language]);
+
+  // Save chat history to localStorage whenever messages change (but not on initial load)
+  useEffect(() => {
+    if (messages.length > 0) {
+      console.log('Saving chat history:', messages);
+      localStorage.setItem('globalChatHistory', JSON.stringify(messages));
+      console.log('Saved to localStorage');
+    }
+  }, [messages]);
+  
+  // Quick help prompts based on current page and language
   const getQuickHelpPrompts = () => {
-    const prompts: { [key: string]: string[] } = {
+    if (language === 'vi') {
+      const viPrompts: { [key: string]: string[] } = {
+        'avatar-interview': [
+          'Cách bắt đầu phỏng vấn với avatar?',
+          'Làm sao để chọn avatar phù hợp?',
+          'Cách cài đặt ngôn ngữ và level?',
+          'Khắc phục sự cố voice/video'
+        ],
+        'jd-analysis': [
+          'Cách upload file JD?',
+          'Làm sao để tạo câu hỏi tốt?',
+          'Cách chọn loại câu hỏi?',
+          'Mẹo viết JD hiệu quả'
+        ],
+        'quiz': [
+          'Cách chọn quiz phù hợp?',
+          'Hiểu hệ thống chấm điểm',
+          'Mẹo làm quiz hiệu quả',
+          'Cách xem lại kết quả'
+        ],
+        'assessment': [
+          'Cách bắt đầu đánh giá kỹ năng?',
+          'Làm sao để chọn loại assessment?',
+          'Hiểu kết quả đánh giá EQ/Technical',
+          'Cách cải thiện điểm số'
+        ],
+        'review': [
+          'Cách sử dụng flash card hiệu quả?',
+          'Làm sao để shuffle flash card?',
+          'Cách lọc flash card theo bookmark?',
+          'Mẹo học tập với flash card'
+        ],
+        'dashboard': [
+          'Giải thích các chỉ số',
+          'Cách đọc đánh giá kỹ năng',
+          'Mẹo cải thiện điểm số',
+          'Cách đặt mục tiêu'
+        ],
+        'payment': [
+          'So sánh các gói dịch vụ',
+          'Hướng dẫn thanh toán',
+          'Quản lý gói đăng ký',
+          'Chính sách hoàn tiền'
+        ]
+      };
+      return viPrompts[currentPage] || [
+        'Hướng dẫn sử dụng nền tảng',
+        'Tổng quan tính năng chính',
+        'Mẹo để đạt kết quả tốt'
+      ];
+    }
+    const enPrompts: { [key: string]: string[] } = {
       'avatar-interview': [
         'How to start an avatar interview?',
         'How to choose the right avatar?',
@@ -81,6 +188,18 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
         'Tips for effective quiz taking',
         'How to review results'
       ],
+      'assessment': [
+        'How to start skill assessment?',
+        'How to choose assessment type?',
+        'Understanding EQ/Technical results',
+        'How to improve scores'
+      ],
+      'review': [
+        'How to use flash cards effectively?',
+        'How to shuffle flash cards?',
+        'How to filter flash cards by bookmark?',
+        'Study tips with flash cards'
+      ],
       'dashboard': [
         'Understanding metrics',
         'How to read skill assessment',
@@ -94,8 +213,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
         'Refund policy'
       ]
     };
-    
-    return prompts[currentPage] || [
+    return enPrompts[currentPage] || [
       'How to use this platform',
       'Main features overview',
       'Tips for best results'
@@ -131,25 +249,11 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
     }
   }, [messages, isGenerating, isTyping]);
 
-  useEffect(() => {
-    if (messages.length === 0 && !hasShownWelcome) {
-      // Add welcome message only once
-      const welcomeMessage: ChatMessageType = {
-        id: 'welcome',
-        content: `Hello! I'm your AI assistant. How can I help you today? I can assist with interview preparation, job descriptions, quizzes, and more.`,
-        sender: 'ai',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      setMessages([welcomeMessage]);
-      setHasShownWelcome(true);
-    }
-  }, [messages.length, hasShownWelcome]);
 
   const handleResetChat = () => {
     setMessages([]);
-    setChatHistory([]);
     setHasShownWelcome(false); // Reset the flag so welcome message can show again
+    setIsHistoryLoaded(false); // Reset history loaded flag
     localStorage.removeItem('globalChatHistory');
   };
 
@@ -188,18 +292,30 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
 
     try {
       // Use streaming function instead of regular sendMessage
+      // Helper to safely read user level from metadata without using any
+      const getUserLevelFromMetadata = (metadata: unknown): 'beginner' | 'intermediate' | 'advanced' => {
+        if (metadata && typeof metadata === 'object' && 'level' in metadata) {
+          const lvl = (metadata as { level?: unknown }).level;
+          if (lvl === 'beginner' || lvl === 'intermediate' || lvl === 'advanced') {
+            return lvl;
+          }
+        }
+        return 'beginner';
+      };
+
       await processGlobalChatboxMessageStreaming(
         inputMessage,
         {
           page: currentPage,
           userPreferences: {
             language: language,
-            name: user?.firstName || user?.username || 'User'
+            responseStyle: 'detailed',
+            technicalLevel: 'basic',
+            tone: 'friendly'
           },
-          userLevel: user?.publicMetadata?.level || 'beginner',
+          userLevel: getUserLevelFromMetadata(user?.publicMetadata),
           ...currentContext
         },
-        user,
         (chunk: StreamingChatboxResponse) => {
           // Check if generation was stopped
           if (controller.signal.aborted) {
@@ -298,21 +414,21 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
           </div>
                      <div>
              <div className="font-semibold text-sm">Chat Box</div>
-             <div className="text-xs text-blue-100">Active now</div>
+             <div className="text-xs text-blue-100">{language === 'vi' ? 'Đang hoạt động' : 'Active now'}</div>
            </div>
         </div>
         
         <div className="flex items-center gap-1">
           {/* Remove language selector - only show English */}
-          <span className="px-2 py-1 text-xs bg-white/20 text-white rounded-full text-xs">
-            🇺🇸 EN
+          <span className="px-2 py-1 text-xs bg-white/20 text-white rounded-full text-xs cursor-pointer select-none" onClick={() => setLanguage(prev => prev === 'en' ? 'vi' : 'en')} title={language === 'en' ? 'Chuyển sang tiếng Việt' : 'Switch to English'}>
+            {language === 'en' ? '🇺🇸 EN' : '🇻🇳 VI'}
           </span>
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={handleResetChat} 
             className="text-white hover:bg-white/20 rounded-full p-1 h-6 w-6" 
-            title="Reset Chat"
+            title={language === 'vi' ? 'Làm mới cuộc trò chuyện' : 'Reset Chat'}
           >
             <RefreshCw className="w-3 h-3" />
           </Button>
@@ -321,7 +437,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
             size="sm" 
             onClick={() => setIsExpanded(v => !v)} 
             className="text-white hover:bg-white/20 rounded-full p-1 h-6 w-6" 
-            title={isExpanded ? 'Minimize' : 'Expand'}
+            title={isExpanded ? (language === 'vi' ? 'Thu nhỏ' : 'Minimize') : (language === 'vi' ? 'Mở rộng' : 'Expand')}
           >
             {isExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
           </Button>
@@ -330,7 +446,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
             size="sm" 
             onClick={onToggle} 
             className="text-white hover:bg-white/20 rounded-full p-1 h-6 w-6" 
-            title="Close"
+            title={language === 'vi' ? 'Đóng' : 'Close'}
           >
             <X className="w-3 h-3" />
           </Button>
@@ -351,7 +467,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
           {/* Quick Help Prompts - Show only when no messages or first message is welcome */}
           {messages.length <= 1 && (
             <div className="mb-4">
-              <div className="text-xs font-medium text-gray-600 mb-2">Quick Help:</div>
+              <div className="text-xs font-medium text-gray-600 mb-2">{language === 'vi' ? 'Gợi ý nhanh:' : 'Quick Help:'}</div>
               <div className="flex flex-wrap gap-2">
                 {getQuickHelpPrompts().slice(0, 3).map((prompt, index) => (
                   <button
@@ -382,7 +498,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
                 {/* Suggestions */}
                 {message.suggestions && message.suggestions.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    <div className="text-xs font-medium text-gray-600">Suggestions:</div>
+                    <div className="text-xs font-medium text-gray-600">{language === 'vi' ? 'Gợi ý:' : 'Suggestions:'}</div>
                     <div className="flex flex-wrap gap-2">
                       {message.suggestions.map((suggestion, index) => (
                         <button
@@ -400,7 +516,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
                 {/* Actions */}
                 {message.actions && message.actions.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    <div className="text-xs font-medium text-gray-600">Quick Actions:</div>
+                    <div className="text-xs font-medium text-gray-600">{language === 'vi' ? 'Thao tác nhanh:' : 'Quick Actions:'}</div>
                     <div className="flex flex-wrap gap-2">
                       {message.actions.map((action, index) => (
                         <button
@@ -409,7 +525,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
                             if (action.type === 'navigate') {
                               window.location.href = action.action;
                             } else if (action.type === 'help') {
-                              setInputMessage(`Help with ${action.label}`);
+                              setInputMessage(language === 'vi' ? `Hỗ trợ về ${action.label}` : `Help with ${action.label}`);
                             }
                           }}
                           className="text-xs bg-green-50 text-green-600 px-2 py-1 rounded-full hover:bg-green-100 transition-colors"
@@ -439,7 +555,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
-                  <span className="text-xs text-gray-500">AI is typing...</span>
+                  <span className="text-xs text-gray-500">{language === 'vi' ? 'AI đang nhập...' : 'AI is typing...'}</span>
                 </div>
               </div>
             </div>
@@ -458,7 +574,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
                 transform: 'translateY(-50%)',
                 opacity: 0.9
               }}
-              title="Scroll to bottom"
+              title={language === 'vi' ? 'Cuộn xuống cuối' : 'Scroll to bottom'}
             >
               <ArrowDown className="w-4 h-4" />
             </Button>
@@ -475,7 +591,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Type a message..."
+                placeholder={language === 'vi' ? 'Nhập tin nhắn...' : 'Type a message...'}
                 className="w-full px-4 py-2 border border-gray-300 rounded-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={1}
                 style={{ minHeight: '40px', maxHeight: '120px' }}

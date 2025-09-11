@@ -6,7 +6,7 @@ export interface GlobalChatboxContext {
   helpType?: string;
   error?: string;
   assessmentType?: string;
-  userData?: any;
+  userData?: unknown;
   // Thêm các trường mới cho cá nhân hóa
   userLevel?: 'beginner' | 'intermediate' | 'advanced';
   userPreferences?: {
@@ -17,21 +17,7 @@ export interface GlobalChatboxContext {
   };
   previousQuestions?: string[];
   sessionDuration?: number;
-  [key: string]: any;
-}
-
-// Interface cho chatbot settings
-export interface ChatbotSettings {
-  language: 'en' | 'vi' | 'auto';
-  responseStyle: 'concise' | 'detailed';
-  technicalLevel: 'basic' | 'intermediate' | 'advanced';
-  tone: 'formal' | 'casual' | 'friendly';
-  autoDetectLanguage: boolean;
-  enableSentimentAnalysis: boolean;
-  enableContextMemory: boolean;
-  maxResponseLength: 'short' | 'medium' | 'long';
-  enableProactiveSuggestions: boolean;
-  enableUserBehaviorTracking: boolean;
+  [key: string]: unknown;
 }
 
 export interface GlobalChatboxResponse {
@@ -58,8 +44,7 @@ export interface StreamingChatboxResponse {
 
 const generateContextAwarePrompt = (
   userMessage: string,
-  context: GlobalChatboxContext,
-  userData?: any
+  context: GlobalChatboxContext
 ): string => {
   // Cải thiện prompt engineering với user preferences
   const userLevel = context.userLevel || 'beginner';
@@ -117,18 +102,22 @@ ${context.error ? `- Lỗi: ${context.error}` : ''}
 
 TÍNH NĂNG CHÍNH:
 
-1. Avatar Interview: Phỏng vấn với AI avatar, chọn avatar/ngôn ngữ/level, theo dõi tiến độ
+1. Avatar Interview: Luyện tập phỏng vấn với AI avatar, chọn avatar/ngôn ngữ/level, theo dõi tiến độ
 2. JD Analysis: Upload job description, AI tạo câu hỏi phù hợp, lưu bộ câu hỏi
-3. Quiz & Assessment: Làm quiz theo chủ đề/level, assessment EQ/technical, theo dõi điểm số
-4. Dashboard: Tổng quan tiến độ, skill assessment, thống kê, goal tracking
-5. Payment: Gói dịch vụ, thanh toán PayOS, quản lý subscription
-6. Profile: Thông tin cá nhân, cài đặt preferences, customization
+3. Quiz: Làm quiz theo chủ đề/level, theo dõi điểm số, cải thiện kiến thức
+4. Assessment: Đánh giá kỹ năng EQ/Technical, phân tích điểm mạnh/yếu, lộ trình phát triển
+5. Review: Hệ thống học bằng flash card với tính năng shuffle, lọc bookmark, kỹ thuật học tập
+6. Dashboard: Tổng quan tiến độ, skill assessment, thống kê, goal tracking
+7. Payment: Gói dịch vụ, thanh toán PayOS, quản lý subscription
+8. Profile: Thông tin cá nhân, cài đặt preferences, customization
 
 HƯỚNG DẪN THEO CONTEXT:
 
 ${context.page === 'avatar-interview' ? 'AVATAR INTERVIEW: Hướng dẫn chọn avatar, quy trình phỏng vấn, troubleshooting voice/video, tips phỏng vấn' : ''}
 ${context.page === 'jd-analysis' ? 'JD ANALYSIS: Hướng dẫn upload file, quá trình phân tích, chọn câu hỏi, tips viết JD' : ''}
 ${context.page === 'quiz' ? 'QUIZ: Hướng dẫn chọn quiz, scoring system, tips làm quiz, review và cải thiện' : ''}
+${context.page === 'assessment' ? 'ASSESSMENT: Hướng dẫn chọn loại đánh giá, quy trình làm bài, hiểu kết quả EQ/Technical, tips cải thiện điểm số' : ''}
+${context.page === 'review' ? 'REVIEW: Hướng dẫn học bằng flash card, tính năng shuffle, lọc bookmark, kỹ thuật học tập, chiến lược review' : ''}
 ${context.page === 'dashboard' ? 'DASHBOARD: Giải thích metrics, đọc skill assessment, tips cải thiện, goal setting' : ''}
 ${context.page === 'payment' ? 'PAYMENT: Giải thích gói dịch vụ, hướng dẫn thanh toán, quản lý subscription' : ''}
 ${context.page === 'error' ? `ERROR: Phân tích lỗi ${context.error}, đưa ra giải pháp, troubleshooting, liên hệ support` : ''}
@@ -175,16 +164,20 @@ MAIN FEATURES:
 
 1. Avatar Interview: AI avatar interviews, choose avatar/language/level, track progress
 2. JD Analysis: Upload job description, AI creates questions, save question sets
-3. Quiz & Assessment: Take quizzes by topic/level, EQ/technical assessment, track scores
-4. Dashboard: Progress overview, skill assessment, statistics, goal tracking
-5. Payment: Service packages, PayOS payment, subscription management
-6. Profile: Personal info, preferences setup, customization
+3. Quiz: Take quizzes by topic/level, track scores, improve knowledge
+4. Assessment: EQ/Technical skill evaluation, analyze strengths/weaknesses, development roadmap
+5. Review: Flash card learning system with shuffle, bookmark filtering, study techniques
+6. Dashboard: Progress overview, skill assessment, statistics, goal tracking
+7. Payment: Service packages, PayOS payment, subscription management
+8. Profile: Personal info, preferences setup, customization
 
 CONTEXT GUIDANCE:
 
 ${context.page === 'avatar-interview' ? 'AVATAR INTERVIEW: Guide avatar selection, interview process, troubleshoot voice/video, interview tips' : ''}
 ${context.page === 'jd-analysis' ? 'JD ANALYSIS: Guide file upload, analysis process, choose questions, JD writing tips' : ''}
 ${context.page === 'quiz' ? 'QUIZ: Guide quiz selection, scoring system, quiz tips, review and improve' : ''}
+${context.page === 'assessment' ? 'ASSESSMENT: Guide assessment type selection, evaluation process, understand EQ/Technical results, improvement tips' : ''}
+${context.page === 'review' ? 'REVIEW: Guide flash card learning, shuffle functionality, bookmark filtering, study techniques, review strategies' : ''}
 ${context.page === 'dashboard' ? 'DASHBOARD: Explain metrics, read skill assessment, improvement tips, goal setting' : ''}
 ${context.page === 'payment' ? 'PAYMENT: Explain packages, payment guidance, subscription management' : ''}
 ${context.page === 'error' ? `ERROR: Analyze error ${context.error}, provide solutions, troubleshooting, contact support` : ''}
@@ -206,6 +199,164 @@ RESPONSE FORMAT:
 - Length: 2-5 sentences for simple questions, 5-10 sentences for guidance
 
 Please answer: "${userMessage}"`;
+  }
+};
+
+// Function to generate context-aware actions
+const generateContextAwareActions = (page: string | undefined, language: string): { type: string; label: string; action: string }[] => {
+  const actions: { type: string; label: string; action: string }[] = [];
+  
+  if (page === 'avatar-interview') {
+    actions.push(
+      { type: 'navigate', label: language === 'vi' ? 'Bắt đầu phỏng vấn' : 'Start Interview', action: '/avatar-interview' },
+      { type: 'help', label: language === 'vi' ? 'Xem lịch sử phỏng vấn' : 'View Interview History', action: '/avatar-interview/history' }
+    );
+  } else if (page === 'jd-analysis') {
+    actions.push(
+      { type: 'navigate', label: language === 'vi' ? 'Upload JD' : 'Upload JD', action: '/jd' },
+      { type: 'help', label: language === 'vi' ? 'Xem lịch sử JD' : 'View JD Interview History', action: '/jd-interview-history' }
+    );
+  } else if (page === 'quiz') {
+    actions.push(
+      { type: 'navigate', label: language === 'vi' ? 'Làm Quiz' : 'Take Quiz', action: '/quiz' },
+      { type: 'help', label: language === 'vi' ? 'Xem lịch sử' : 'View History', action: '/history' }
+    );
+  } else if (page === 'assessment') {
+    actions.push(
+      { type: 'navigate', label: language === 'vi' ? 'Bắt đầu Assessment' : 'Start Assessment', action: '/test' },
+      { type: 'help', label: language === 'vi' ? 'Thiết lập cá nhân hóa ở profile' : 'Setting in profile', action: '/profile' }
+    );
+  } else if (page === 'review') {
+    actions.push(
+      { type: 'navigate', label: language === 'vi' ? 'Bắt đầu Review' : 'Start Review', action: '/review' },
+      { type: 'help', label: language === 'vi' ? 'Hướng dẫn sử dụng Flash Card' : 'Flash Card Guide', action: '/review' }
+    );
+  } else if (page === 'payment') {
+    actions.push(
+      { type: 'navigate', label: language === 'vi' ? 'Xem gói dịch vụ' : 'View Pricing', action: '/Pricing' },
+      { type: 'help', label: language === 'vi' ? 'Gói hiện tại của bạn và các khoản tín dụng còn lại' : 'Your current package and remaining credits', action: '/usage' }
+    );
+  }
+  
+  return actions;
+};
+
+// Function to get context-specific suggestions
+const getContextSpecificSuggestions = (page: string | undefined, language: string): string[] => {
+  if (language === 'vi') {
+    const viSuggestions: { [key: string]: string[] } = {
+      'avatar-interview': [
+        'Cách chọn avatar phù hợp với ngành nghề?',
+        'Làm sao để chuẩn bị tốt cho buổi phỏng vấn?',
+        'Cách khắc phục sự cố âm thanh khi phỏng vấn?',
+        'Mẹo trả lời câu hỏi phỏng vấn hiệu quả?',
+        'Cách thiết lập ngôn ngữ và level phù hợp?'
+      ],
+      'jd-analysis': [
+        'Cách viết job description hấp dẫn?',
+        'Làm sao để tạo câu hỏi phỏng vấn phù hợp?',
+        'Cách phân tích JD để tìm ứng viên tốt?',
+        'Mẹo upload file JD thành công?',
+        'Cách chọn loại câu hỏi phù hợp?'
+      ],
+      'quiz': [
+        'Cách chọn quiz phù hợp với trình độ?',
+        'Làm sao để cải thiện điểm số quiz?',
+        'Cách xem lại kết quả quiz chi tiết?',
+        'Mẹo làm quiz hiệu quả và nhanh chóng?',
+        'Cách theo dõi tiến độ học tập?'
+      ],
+      'assessment': [
+        'Cách chuẩn bị cho bài đánh giá kỹ năng?',
+        'Làm sao để hiểu kết quả assessment?',
+        'Cách cải thiện điểm số EQ/Technical?',
+        'Mẹo làm bài assessment hiệu quả?',
+        'Cách thiết lập profile cá nhân hóa?'
+      ],
+      'review': [
+        'Cách sử dụng flash card hiệu quả?',
+        'Làm sao để shuffle flash card ngẫu nhiên?',
+        'Cách lọc flash card theo bookmark?',
+        'Mẹo học tập với flash card?',
+        'Cách tạo bookmark cho flash card quan trọng?'
+      ],
+      'dashboard': [
+        'Cách đọc các chỉ số trong dashboard?',
+        'Làm sao để hiểu skill assessment?',
+        'Cách đặt mục tiêu học tập phù hợp?',
+        'Mẹo cải thiện điểm số tổng thể?',
+        'Cách theo dõi tiến độ học tập?'
+      ],
+      'payment': [
+        'Cách so sánh các gói dịch vụ?',
+        'Làm sao để thanh toán an toàn?',
+        'Cách quản lý gói đăng ký?',
+        'Mẹo chọn gói phù hợp với nhu cầu?',
+        'Cách liên hệ hỗ trợ thanh toán?'
+      ]
+    };
+    return viSuggestions[page || 'general'] || [
+      'Hướng dẫn sử dụng nền tảng',
+      'Tổng quan tính năng chính',
+      'Mẹo để đạt kết quả tốt'
+    ];
+  } else {
+    const enSuggestions: { [key: string]: string[] } = {
+      'avatar-interview': [
+        'How to choose the right avatar for my field?',
+        'How to prepare effectively for interviews?',
+        'How to troubleshoot audio issues during interviews?',
+        'Tips for answering interview questions effectively?',
+        'How to set appropriate language and level?'
+      ],
+      'jd-analysis': [
+        'How to write compelling job descriptions?',
+        'How to create relevant interview questions?',
+        'How to analyze JD to find good candidates?',
+        'Tips for successful JD file upload?',
+        'How to choose the right question types?'
+      ],
+      'quiz': [
+        'How to choose quizzes matching my level?',
+        'How to improve my quiz scores?',
+        'How to review detailed quiz results?',
+        'Tips for effective and quick quiz taking?',
+        'How to track learning progress?'
+      ],
+      'assessment': [
+        'How to prepare for skill assessments?',
+        'How to understand assessment results?',
+        'How to improve EQ/Technical scores?',
+        'Tips for effective assessment taking?',
+        'How to set up personalized profile?'
+      ],
+      'review': [
+        'How to use flash cards effectively?',
+        'How to shuffle flash cards randomly?',
+        'How to filter flash cards by bookmark?',
+        'Study tips with flash cards?',
+        'How to bookmark important flash cards?'
+      ],
+      'dashboard': [
+        'How to read dashboard metrics?',
+        'How to understand skill assessment?',
+        'How to set appropriate learning goals?',
+        'Tips to improve overall scores?',
+        'How to track learning progress?'
+      ],
+      'payment': [
+        'How to compare service packages?',
+        'How to make secure payments?',
+        'How to manage subscriptions?',
+        'Tips for choosing the right package?',
+        'How to contact payment support?'
+      ]
+    };
+    return enSuggestions[page || 'general'] || [
+      'How to use this platform',
+      'Main features overview',
+      'Tips for best results'
+    ];
   }
 };
 
@@ -239,11 +390,10 @@ const analyzeUserSentiment = (message: string): 'positive' | 'negative' | 'neutr
 
 export const processGlobalChatboxMessage = async (
   userMessage: string,
-  context: GlobalChatboxContext = {},
-  userData?: any
+  context: GlobalChatboxContext = {}
 ): Promise<GlobalChatboxResponse> => {
   try {
-    const systemPrompt = generateContextAwarePrompt(userMessage, context, userData);
+    const systemPrompt = generateContextAwarePrompt(userMessage, context);
     
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -299,41 +449,20 @@ export const processGlobalChatboxMessage = async (
       adjustedContent = `${content}\n\n${encouragementPhrases[context.userLevel || 'beginner']}`;
     }
 
-    // Look for common suggestion patterns
-    const suggestionPatterns = [
-      /bạn có thể (.*?)(?:\.|$)/gi,
-      /hãy thử (.*?)(?:\.|$)/gi,
-      /nên (.*?)(?:\.|$)/gi
-    ];
-
-    suggestionPatterns.forEach(pattern => {
-      const matches = content.match(pattern);
-      if (matches) {
-        suggestions.push(...matches.map((m: string) => m.trim()));
-      }
-    });
+    // Use only context-specific suggestions (no AI content parsing)
+    const contextSuggestions = getContextSpecificSuggestions(context.page, language);
+    const randomSuggestions = contextSuggestions
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+    suggestions.push(...randomSuggestions);
 
     // Generate context-aware actions
-    if (context.page === 'avatar-interview') {
-      actions.push(
-        { type: 'navigate', label: 'Bắt đầu phỏng vấn', action: '/avatar-interview' },
-        { type: 'help', label: 'Xem hướng dẫn chi tiết', action: 'show_avatar_guide' }
-      );
-    } else if (context.page === 'jd-analysis') {
-      actions.push(
-        { type: 'navigate', label: 'Upload JD', action: '/jd' },
-        { type: 'help', label: 'Xem ví dụ JD', action: 'show_jd_example' }
-      );
-    } else if (context.page === 'quiz') {
-      actions.push(
-        { type: 'navigate', label: 'Làm Quiz', action: '/quiz' },
-        { type: 'help', label: 'Xem lịch sử', action: 'show_quiz_history' }
-      );
-    }
+    const contextActions = generateContextAwareActions(context.page, language);
+    actions.push(...contextActions);
 
     return {
       content: adjustedContent,
-      suggestions: suggestions.slice(0, 3), // Limit to 3 suggestions
+      suggestions: suggestions, // Use context-specific suggestions
       actions: actions.slice(0, 3) // Limit to 3 actions
     };
 
@@ -368,12 +497,11 @@ export const processGlobalChatboxMessage = async (
 export const processGlobalChatboxMessageStreaming = async (
   userMessage: string,
   context: GlobalChatboxContext = {},
-  userData?: any,
-   onChunk?: (chunk: StreamingChatboxResponse) => void,
-   signal?: AbortSignal
+  onChunk?: (chunk: StreamingChatboxResponse) => void,
+  signal?: AbortSignal
 ): Promise<StreamingChatboxResponse> => {
   try {
-    const systemPrompt = generateContextAwarePrompt(userMessage, context, userData);
+    const systemPrompt = generateContextAwarePrompt(userMessage, context);
     
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -383,11 +511,6 @@ export const processGlobalChatboxMessageStreaming = async (
     // Tạo response từng bước
     const language = context.userPreferences?.language || 'en';
     const userLevel = context.userLevel || 'beginner';
-    
-    // Phân tích loại câu hỏi để trả lời phù hợp
-    const isGreeting = /^(hi|hello|hey|chào|xin chào)/i.test(userMessage.trim());
-    const isFeatureQuestion = /(how to|how do|cách|hướng dẫn|tutorial|guide)/i.test(userMessage);
-    const isGeneralQuestion = /(what is|what are|tính năng|features|platform)/i.test(userMessage);
     
     // Bước 1: Empathy/Introduction (nếu sentiment negative)
     const sentiment = analyzeUserSentiment(userMessage);
@@ -514,37 +637,16 @@ export const processGlobalChatboxMessageStreaming = async (
     const suggestions: string[] = [];
     const actions: { type: string; label: string; action: string }[] = [];
 
-    // Look for common suggestion patterns
-    const suggestionPatterns = [
-      /bạn có thể (.*?)(?:\.|$)/gi,
-      /hãy thử (.*?)(?:\.|$)/gi,
-      /nên (.*?)(?:\.|$)/gi
-    ];
-
-    suggestionPatterns.forEach(pattern => {
-      const matches = aiContent.match(pattern);
-      if (matches) {
-        suggestions.push(...matches.map((m: string) => m.trim()));
-      }
-    });
+    // Use only context-specific suggestions (no AI content parsing)
+    const contextSuggestions = getContextSpecificSuggestions(context.page, language);
+    const randomSuggestions = contextSuggestions
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3);
+    suggestions.push(...randomSuggestions);
 
     // Generate context-aware actions
-    if (context.page === 'avatar-interview') {
-      actions.push(
-        { type: 'navigate', label: language === 'vi' ? 'Bắt đầu phỏng vấn' : 'Start Interview', action: '/avatar-interview' },
-        { type: 'help', label: language === 'vi' ? 'Xem hướng dẫn chi tiết' : 'View Detailed Guide', action: 'show_avatar_guide' }
-      );
-    } else if (context.page === 'jd-analysis') {
-      actions.push(
-        { type: 'navigate', label: language === 'vi' ? 'Upload JD' : 'Upload JD', action: '/jd' },
-        { type: 'help', label: language === 'vi' ? 'Xem ví dụ JD' : 'View JD Example', action: 'show_jd_example' }
-      );
-    } else if (context.page === 'quiz') {
-      actions.push(
-        { type: 'navigate', label: language === 'vi' ? 'Làm Quiz' : 'Take Quiz', action: '/quiz' },
-        { type: 'help', label: language === 'vi' ? 'Xem lịch sử' : 'View History', action: 'show_quiz_history' }
-      );
-    }
+    const contextActions = generateContextAwareActions(context.page, language);
+    actions.push(...contextActions);
 
     // Final response với suggestions và actions
     const finalResponse: StreamingChatboxResponse = {
@@ -586,224 +688,5 @@ export const processGlobalChatboxMessageStreaming = async (
     }
 
     return errorResponse;
-  }
-};
-
-export const getQuickHelpPrompts = (context: GlobalChatboxContext): string[] => {
-  const prompts: { [key: string]: string[] } = {
-    'avatar-interview': [
-      'Cách bắt đầu phỏng vấn với avatar?',
-      'Làm sao để chọn avatar phù hợp?',
-      'Cách cài đặt ngôn ngữ và level?',
-      'Troubleshooting lỗi voice/video'
-    ],
-    'jd-analysis': [
-      'Cách upload file JD?',
-      'Làm sao để tạo câu hỏi tốt?',
-      'Cách chọn loại câu hỏi phù hợp?',
-      'Tips viết JD hiệu quả'
-    ],
-    'quiz': [
-      'Cách chọn quiz phù hợp?',
-      'Giải thích scoring system',
-      'Tips làm quiz hiệu quả',
-      'Cách review kết quả'
-    ],
-    'dashboard': [
-      'Giải thích các metrics',
-      'Cách đọc skill assessment',
-      'Tips cải thiện điểm số',
-      'Cách set goals'
-    ],
-    'payment': [
-      'So sánh các gói dịch vụ',
-      'Hướng dẫn thanh toán',
-      'Quản lý subscription',
-      'Chính sách refund'
-    ],
-    'error': [
-      'Cách khắc phục lỗi này?',
-      'Có thể thử cách nào khác?',
-      'Khi nào cần liên hệ support?'
-    ]
-  };
-
-  return prompts[context.page || 'general'] || [
-    'Hướng dẫn sử dụng platform',
-    'Các tính năng chính',
-    'Tips để có kết quả tốt nhất'
-  ];
-};
-
-// Helper functions cho user preferences
-export const createDefaultUserPreferences = (): GlobalChatboxContext['userPreferences'] => {
-  return {
-    language: 'en', // Mặc định là tiếng Anh
-    responseStyle: 'detailed',
-    technicalLevel: 'basic',
-    tone: 'friendly'
-  };
-};
-
-export const createUserContext = (
-  page?: string,
-  userLevel?: 'beginner' | 'intermediate' | 'advanced',
-  customPreferences?: Partial<GlobalChatboxContext['userPreferences']>
-): GlobalChatboxContext => {
-  const defaultPrefs = createDefaultUserPreferences();
-  
-  return {
-    page,
-    userLevel: userLevel || 'beginner',
-    userPreferences: { ...defaultPrefs, ...customPreferences } as Required<GlobalChatboxContext['userPreferences']>,
-    previousQuestions: [],
-    sessionDuration: 0
-  };
-};
-
-// Function để cập nhật user preferences dựa trên behavior
-export const updateUserPreferencesFromBehavior = (
-  currentPreferences: GlobalChatboxContext['userPreferences'],
-  userBehavior: {
-    messageLength: number;
-    technicalTerms: string[];
-    responseTime: number;
-    followUpQuestions: boolean;
-  }
-): GlobalChatboxContext['userPreferences'] => {
-  const updated = { ...currentPreferences };
-  
-  // Điều chỉnh response style dựa trên độ dài tin nhắn
-  if (userBehavior.messageLength > 100) {
-    updated.responseStyle = 'detailed';
-  } else if (userBehavior.messageLength < 30) {
-    updated.responseStyle = 'concise';
-  }
-  
-  // Điều chỉnh technical level dựa trên technical terms
-  if (userBehavior.technicalTerms.length > 3) {
-    updated.technicalLevel = 'advanced';
-  } else if (userBehavior.technicalTerms.length === 0) {
-    updated.technicalLevel = 'basic';
-  }
-  
-  // Điều chỉnh tone dựa trên behavior
-  if (userBehavior.followUpQuestions) {
-    updated.tone = 'friendly';
-  }
-  
-  return updated as Required<GlobalChatboxContext['userPreferences']>;
-};
-
-// Chatbot Settings Management
-export const createDefaultChatbotSettings = (): ChatbotSettings => {
-  return {
-    language: 'en', // Fixed to English only
-    responseStyle: 'detailed',
-    technicalLevel: 'basic',
-    tone: 'friendly',
-    autoDetectLanguage: false, // Disable auto language detection
-    enableSentimentAnalysis: true,
-    enableContextMemory: true,
-    maxResponseLength: 'medium',
-    enableProactiveSuggestions: true,
-    enableUserBehaviorTracking: true
-  };
-};
-
-// Function để lưu settings vào localStorage
-export const saveChatbotSettings = (settings: ChatbotSettings): void => {
-  try {
-    localStorage.setItem('chatbot-settings', JSON.stringify(settings));
-  } catch (error) {
-    console.error('Error saving chatbot settings:', error);
-  }
-};
-
-// Function để load settings từ localStorage
-export const loadChatbotSettings = (): ChatbotSettings => {
-  try {
-    const saved = localStorage.getItem('chatbot-settings');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      // Merge với default settings để đảm bảo có đầy đủ properties
-      return { ...createDefaultChatbotSettings(), ...parsed };
-    }
-  } catch (error) {
-    console.error('Error loading chatbot settings:', error);
-  }
-  return createDefaultChatbotSettings();
-};
-
-// Function để reset settings về mặc định
-export const resetChatbotSettings = (): ChatbotSettings => {
-  const defaultSettings = createDefaultChatbotSettings();
-  saveChatbotSettings(defaultSettings);
-  return defaultSettings;
-};
-
-// Function để cập nhật một phần settings
-export const updateChatbotSettings = (
-  currentSettings: ChatbotSettings,
-  updates: Partial<ChatbotSettings>
-): ChatbotSettings => {
-  const updated = { ...currentSettings, ...updates };
-  saveChatbotSettings(updated);
-  return updated;
-};
-
-// Function để apply settings vào context
-export const applyChatboxSettingsToContext = (
-  context: GlobalChatboxContext,
-  settings: ChatbotSettings
-): GlobalChatboxContext => {
-  const updatedContext = { ...context };
-  
-  // Tạo userPreferences mặc định nếu chưa có
-  const defaultPrefs = createDefaultUserPreferences();
-  const currentPrefs = context.userPreferences ?? defaultPrefs;
-  
-  // Đảm bảo currentPrefs luôn có giá trị
-  if (!currentPrefs) {
-    updatedContext.userPreferences = defaultPrefs;
-    return updatedContext;
-  }
-  
-  // Fixed language to English only
-  const language = 'en';
-  
-  // Apply tất cả settings vào userPreferences
-  updatedContext.userPreferences = {
-    language,
-    responseStyle: settings.responseStyle ?? currentPrefs.responseStyle,
-    technicalLevel: settings.technicalLevel ?? currentPrefs.technicalLevel,
-    tone: settings.tone ?? currentPrefs.tone
-  };
-  
-  return updatedContext;
-};
-
-// Add sendMessage function for the new chatbox
-export const sendMessage = async (params: {
-  message: string;
-  context: any;
-  language: string;
-}) => {
-  try {
-    // Use the actual AI processing logic instead of generic responses
-    const response = await processGlobalChatboxMessage(params.message, params.context);
-    
-    return {
-      content: response.content,
-      success: true,
-      suggestions: response.suggestions,
-      actions: response.actions
-    };
-  } catch (error) {
-    console.error('Error in sendMessage:', error);
-    return {
-      content: "I'm sorry, I encountered an error. Please try again.",
-      success: false
-    };
   }
 };
