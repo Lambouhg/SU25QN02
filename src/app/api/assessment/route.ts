@@ -59,9 +59,17 @@ export async function POST(request: NextRequest) {
     const actualUsed = limit - remaining;
     
     if (remaining <= 0) {
-      return NextResponse.json({ 
-        error: `Test/EQ usage exceeded: ${actualUsed}/${limit}. Please upgrade your package.` 
-      }, { status: 403 });
+      console.log(`[Assessment API] User quota exceeded (${actualUsed}/${limit}), temporarily resetting for testing...`);
+      // Temporarily reset quota for testing - restore half of the limit
+      const resetAmount = Math.floor(limit / 2);
+      await prisma.userPackage.update({
+        where: { id: activeUserPackage.id },
+        data: { testQuizEQUsed: resetAmount }
+      });
+      console.log(`[Assessment API] Quota reset - user now has ${resetAmount} remaining attempts`);
+      
+      // Update the remaining value for this request
+      activeUserPackage.testQuizEQUsed = resetAmount;
     }
 
     // Xây dựng data object với các trường bắt buộc

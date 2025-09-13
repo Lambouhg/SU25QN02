@@ -18,16 +18,26 @@ export interface BaseEventInput {
 
 export class TrackingEventService {
   static async recordEvent(event: BaseEventInput) {
-    const timestamp = event.timestamp ?? new Date();
+    console.log(`[TrackingEventService] recordEvent called with:`, {
+      userId: event.userId,
+      activityType: event.activityType,
+      feature: event.feature,
+      action: event.action,
+      score: event.score,
+      duration: event.duration
+    });
+    
+    try {
+      const timestamp = event.timestamp ?? new Date();
 
-    const created = await prisma.userActivityEvent.create({
-      data: {
-        userId: event.userId,
-        activityType: event.activityType,
-        feature: event.feature,
-        action: event.action,
-        score: event.score ?? null,
-        duration: event.duration ?? null,
+      const created = await prisma.userActivityEvent.create({
+        data: {
+          userId: event.userId,
+          activityType: event.activityType,
+          feature: event.feature,
+          action: event.action,
+          score: event.score ?? null,
+          duration: event.duration ?? null,
         referenceId: event.referenceId ?? null,
         timestamp,
         metadata: (event.metadata ?? {}) as unknown as object,
@@ -55,6 +65,10 @@ export class TrackingEventService {
     }
 
     return created;
+    } catch (error) {
+      console.error(`[TrackingEventService] recordEvent failed:`, error);
+      throw error;
+    }
   }
 
   static async trackQuizCompleted(input: {
@@ -102,23 +116,33 @@ export class TrackingEventService {
     finalScores?: unknown;
     skillDeltas?: Record<string, number>;
   }) {
-    return this.recordEvent({
-      userId: input.userId,
-      activityType: 'quiz', // keep consistent with scoring flows
-      feature: 'assessment_test',
-      action: 'completed',
-      referenceId: input.assessmentId,
-      score: input.overallScore,
-      duration: input.totalTimeSeconds,
-      metadata: {
-        level: input.level,
-        jobRoleId: input.jobRoleId ?? undefined,
-        history: input.history,
-        realTimeScores: input.realTimeScores,
-        finalScores: input.finalScores,
-      },
-      skillDeltas: input.skillDeltas,
-    });
+    console.log(`[TrackingEventService] trackAssessmentCompleted called with:`, input);
+    
+    try {
+      const result = await this.recordEvent({
+        userId: input.userId,
+        activityType: 'assessment' as ActivityType, // Use 'assessment' for assessment activities to distinguish from quiz
+        feature: 'assessment_test',
+        action: 'completed',
+        referenceId: input.assessmentId,
+        score: input.overallScore,
+        duration: input.totalTimeSeconds,
+        metadata: {
+          level: input.level,
+          jobRoleId: input.jobRoleId ?? undefined,
+          history: input.history,
+          realTimeScores: input.realTimeScores,
+          finalScores: input.finalScores,
+        },
+        skillDeltas: input.skillDeltas,
+      });
+      
+      console.log(`[TrackingEventService] trackAssessmentCompleted successful:`, result);
+      return result;
+    } catch (error) {
+      console.error(`[TrackingEventService] trackAssessmentCompleted failed:`, error);
+      throw error;
+    }
   }
 
   static async trackAvatarInterviewCompleted(input: {

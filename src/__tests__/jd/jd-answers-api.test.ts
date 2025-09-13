@@ -66,7 +66,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.getAnswer as any).mockResolvedValue(null);
       (JdAnswerService.saveAnswer as any).mockResolvedValue({ id: 'answer-123' });
 
@@ -112,7 +112,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.getAnswer as any).mockResolvedValue({ id: 'existing-answer-123' });
       (JdAnswerService.updateAnswerWithAnalysis as any).mockResolvedValue({ id: 'existing-answer-123' });
 
@@ -192,7 +192,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.getAnswer as any).mockResolvedValue(null);
       (JdAnswerService.saveAnswer as any).mockResolvedValue({ id: 'answer-123' });
 
@@ -233,7 +233,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.getAnswer as any).mockResolvedValue(null);
       (JdAnswerService.saveAnswer as any).mockResolvedValue({ id: 'answer-123' });
 
@@ -268,7 +268,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.getAnswer as any).mockResolvedValue(null);
       (JdAnswerService.saveAnswer as any).mockResolvedValue({ id: 'answer-123' });
 
@@ -315,7 +315,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.getAnswer as any).mockResolvedValue({ id: 'answer-1' });
 
       const request = new NextRequest('http://localhost:3000/api/jd-answers?type=check&questionSetId=set-123&questionIndex=0');
@@ -333,7 +333,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       const mockAnswer = { id: 'answer-1', questionText: 'Question 1', userAnswer: 'Answer 1' };
       (JdAnswerService.getAnswer as any).mockResolvedValue(mockAnswer);
 
@@ -352,7 +352,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       const mockAnswers = [
         { id: 'answer-1', questionText: 'Question 1', userAnswer: 'Answer 1' },
         { id: 'answer-2', questionText: 'Question 2', userAnswer: 'Answer 2' }
@@ -417,7 +417,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.deleteAnswer as any).mockResolvedValue(undefined);
 
       const request = new NextRequest('http://localhost:3000/api/jd-answers?answerId=answer-123', {
@@ -451,7 +451,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.deleteAnswer as any).mockRejectedValue(new Error('Delete failed'));
 
       const request = new NextRequest('http://localhost:3000/api/jd-answers?answerId=answer-123', {
@@ -577,7 +577,7 @@ describe('JD Answers API', () => {
       const { auth } = await import('@clerk/nextjs/server');
       (auth as any).mockResolvedValue({ userId: mockUserId });
 
-      const { JdAnswerService } = await import('@/services/jdAnswerService');
+      const { JdAnswerService } = await import('@/services/jdService/jdAnswerService');
       (JdAnswerService.getAnswer as any).mockRejectedValue(new Error('Unexpected error'));
 
       const requestBody = {

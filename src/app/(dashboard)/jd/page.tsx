@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { getAIResponse } from '../../../services/azureAiservicesforJD';
+import { getAIResponse } from '../../../services/jdService/azureAiservicesforJD';
 import { questionSetService } from '@/services/questionSetService';
 
 import UploadSection from '@/components/JobDescription/UploadSection';
@@ -107,7 +107,7 @@ const UploadJDPageContent = () => {
         return false;
       }
       return true;
-    } catch (e) {
+    } catch {
       showToastMessage('Failed to verify usage. Please try again.', 'error');
       return false;
     }

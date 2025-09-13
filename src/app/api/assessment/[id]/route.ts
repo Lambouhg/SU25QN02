@@ -163,6 +163,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
     // Track khi assessment hoàn thành (có status: 'completed' và finalScores)
     if (status === 'completed' && (calculatedFinalScores || finalScores)) {
+      console.log(`[Assessment API] Starting tracking for completed assessment ${id}`);
+      console.log(`[Assessment API] Tracking conditions - status: ${status}, calculatedFinalScores:`, calculatedFinalScores, 'finalScores:', finalScores);
+      
       try {
         // Tìm database user ID từ Clerk user ID
         const dbUser = await prisma.user.findUnique({
@@ -170,8 +173,10 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
           select: { id: true }
         });
 
+        console.log(`[Assessment API] Found dbUser:`, dbUser);
+
         if (dbUser) {
-          await TrackingEventService.trackAssessmentCompleted({
+          const trackingData = {
             userId: dbUser.id,
             assessmentId: updatedAssessment.id,
             level: updatedAssessment.level,
@@ -181,13 +186,21 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
             history: updatedAssessment.history,
             realTimeScores: updatedAssessment.realTimeScores,
             finalScores: updatedAssessment.finalScores,
-          });
+          };
+          
+          console.log(`[Assessment API] Tracking data:`, trackingData);
+          
+          await TrackingEventService.trackAssessmentCompleted(trackingData);
           console.log(`[Assessment API] Successfully tracked assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
+        } else {
+          console.log(`[Assessment API] No database user found for Clerk ID: ${userId}`);
         }
       } catch (trackingError) {
         console.error(`[Assessment API] Error tracking assessment completion:`, trackingError);
         // Continue despite error
       }
+    } else {
+      console.log(`[Assessment API] Skipping tracking - status: ${status}, calculatedFinalScores:`, calculatedFinalScores, 'finalScores:', finalScores);
     }
 
     return NextResponse.json({

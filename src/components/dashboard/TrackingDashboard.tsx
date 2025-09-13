@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Target } from 'lucide-react';
+import { Target, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -92,11 +92,11 @@ export default function TrackingDashboard() {
     studyTime: 200,
     completionRate: 90,
     learningFrequency: 15,
-    numberOfTests: 20,
+    numberOfAssessments: 20,
     logicScore: 85,
     languageScore: 85,
     fundamentalScore: 85,
-    testAverageTime: 25,
+    assessmentAverageTime: 25,
     numberOfInterviews: 10,
     technicalScore: 85,
     communicationScore: 85,
@@ -110,7 +110,14 @@ export default function TrackingDashboard() {
   });
   const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day');
   const [lineMode, setLineMode] = useState<'score' | 'total'>('score');
-  const [lineChartData, setLineChartData] = useState<Array<{ period: string; quiz: number; test: number; interview: number }>>([]);
+  const [showDetailedView, setShowDetailedView] = useState(false);
+  const [overallProgressData, setOverallProgressData] = useState<Array<{ period: string; overall: number }>>([]);
+  const [lineChartData, setLineChartData] = useState<Array<{ period: string; quiz: number; assessment: number; interview: number }>>([]);
+  const [progressMetrics, setProgressMetrics] = useState({
+    dailyImprovement: 0,
+    weeklyImprovement: 0,
+    trend: 'stable' as 'improving' | 'declining' | 'stable'
+  });
   const [targetUpdateTrigger, setTargetUpdateTrigger] = useState(0);
 
   // Load personal targets from localStorage on mount
@@ -239,36 +246,69 @@ export default function TrackingDashboard() {
             if (viewMode === 'year') return String(date.getFullYear());
             return '';
           };
-          const grouped: Record<string, { quiz: number[]; test: number[]; interview: number[] }> = {};
+          const grouped: Record<string, { quiz: number[]; assessment: number[]; interview: number[] }> = {};
           activities.forEach(a => {
             if (!a.timestamp) return;
             const date = new Date(a.timestamp);
             const key = groupKey(date);
             if (!key) return;
-            if (!grouped[key]) grouped[key] = { quiz: [], test: [], interview: [] };
+            if (!grouped[key]) grouped[key] = { quiz: [], assessment: [], interview: [] };
             if (a.type === 'quiz') grouped[key].quiz.push(a.score || 0);
-            if (a.type === 'test' || a.type === 'eq') grouped[key].test.push(a.score || 0);
+            if (a.type === 'test' || a.type === 'eq' || a.type === 'assessment') grouped[key].assessment.push(a.score || 0);
             if (a.type === 'interview') grouped[key].interview.push(a.score || 0);
           });
-          // Convert to array for chart
+          
+          // Convert to array for detailed chart
           const chartData = Object.entries(grouped).map(([period, vals]) => {
             if (lineMode === 'score') {
               return {
                 period,
                 quiz: vals.quiz.length ? (vals.quiz.reduce((a, b) => a + b, 0) / vals.quiz.length) : 0,
-                test: vals.test.length ? (vals.test.reduce((a, b) => a + b, 0) / vals.test.length) : 0,
+                assessment: vals.assessment.length ? (vals.assessment.reduce((a, b) => a + b, 0) / vals.assessment.length) : 0,
                 interview: vals.interview.length ? (vals.interview.reduce((a, b) => a + b, 0) / vals.interview.length) : 0,
               };
             } else {
               return {
                 period,
                 quiz: vals.quiz.length,
-                test: vals.test.length,
+                assessment: vals.assessment.length,
                 interview: vals.interview.length,
               };
             }
           }).sort((a, b) => a.period.localeCompare(b.period));
           setLineChartData(chartData);
+
+          // Calculate overall progress (combined average)
+          const overallData = Object.entries(grouped).map(([period, vals]) => {
+            const allScores = [...vals.quiz, ...vals.assessment, ...vals.interview];
+            const overall = allScores.length ? (allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
+            return { period, overall };
+          }).sort((a, b) => a.period.localeCompare(b.period));
+          setOverallProgressData(overallData);
+
+          // Calculate improvement metrics
+          if (overallData.length >= 2) {
+            const latest = overallData[overallData.length - 1];
+            const previous = overallData[overallData.length - 2];
+            const dailyImprovement = latest && previous ? 
+              ((latest.overall - previous.overall) / previous.overall * 100) : 0;
+
+            let weeklyImprovement = 0;
+            if (overallData.length >= 7) {
+              const weekAgo = overallData[overallData.length - 7];
+              weeklyImprovement = weekAgo ? 
+                ((latest.overall - weekAgo.overall) / weekAgo.overall * 100) : 0;
+            }
+
+            const trend = dailyImprovement > 2 ? 'improving' : 
+                         dailyImprovement < -2 ? 'declining' : 'stable';
+
+            setProgressMetrics({
+              dailyImprovement: Math.round(dailyImprovement * 10) / 10,
+              weeklyImprovement: Math.round(weeklyImprovement * 10) / 10,
+              trend
+            });
+          }
         }
       } catch (error) {
         console.error('Error fetching progress:', error);
@@ -451,8 +491,166 @@ export default function TrackingDashboard() {
           </ResponsiveContainer>
         </div>
       </Card>
-      {/* Multi-Line Chart */}
+      {/* Overall Progress Chart */}
       <Card className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold">Overall Progress Trend</h2>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-2">
+                {progressMetrics && progressMetrics.trend === 'improving' && (
+                  <div className="flex items-center text-green-600">
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                    Improving
+                  </div>
+                )}
+                {progressMetrics && progressMetrics.trend === 'declining' && (
+                  <div className="flex items-center text-red-600">
+                    <TrendingDown className="w-4 h-4 mr-1" />
+                    Declining
+                  </div>
+                )}
+                {progressMetrics && progressMetrics.trend === 'stable' && (
+                  <div className="flex items-center text-gray-600">
+                    <Minus className="w-4 h-4 mr-1" />
+                    Stable
+                  </div>
+                )}
+              </div>
+              {progressMetrics && progressMetrics.dailyImprovement !== 0 && (
+                <div className={`text-sm px-2 py-1 rounded ${
+                  progressMetrics.dailyImprovement > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                }`}>
+                  {progressMetrics.dailyImprovement > 0 ? '+' : ''}{progressMetrics.dailyImprovement}% vs yesterday
+                </div>
+              )}
+              {progressMetrics && progressMetrics.weeklyImprovement !== 0 && (
+                <div className={`text-sm px-2 py-1 rounded ${
+                  progressMetrics.weeklyImprovement > 0 ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                }`}>
+                  {progressMetrics.weeklyImprovement > 0 ? '+' : ''}{progressMetrics.weeklyImprovement}% vs last week
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowDetailedView(!showDetailedView)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            >
+              {showDetailedView ? 'Hide Details' : 'Show Mode Details'}
+            </button>
+            <span className="font-medium">View by:</span>
+            <select
+              className="border rounded px-2 py-1"
+              value={viewMode}
+              onChange={e => setViewMode(e.target.value as 'day' | 'month' | 'year')}
+            >
+              <option value="day">Day</option>
+              <option value="month">Month</option>
+              <option value="year">Year</option>
+            </select>
+          </div>
+        </div>
+        
+        <div className="h-96">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={overallProgressData || []}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="period" 
+                tick={{ fontSize: 12 }}
+                tickFormatter={(value) => {
+                  if (viewMode === 'day') {
+                    return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  }
+                  return value;
+                }}
+              />
+              <YAxis 
+                domain={[0, 10]}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip 
+                labelFormatter={(value) => {
+                  if (viewMode === 'day') {
+                    return new Date(value).toLocaleDateString();
+                  }
+                  return value;
+                }}
+                formatter={(value: number) => [
+                  `${value.toFixed(1)} points`,
+                  'Overall Score'
+                ]}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="overall" 
+                name="Overall Progress" 
+                stroke="#2563eb" 
+                strokeWidth={3} 
+                dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2, fill: '#fff' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Card>
+
+      {/* Detailed Mode Breakdown - Toggleable */}
+      {showDetailedView && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold">Mode Details ({lineMode === 'score' ? 'Average Score' : 'Total Count'})</h2>
+            <div className="flex items-center gap-4">
+              <span className="font-medium">Mode:</span>
+              <select
+                className="border rounded px-2 py-1"
+                value={lineMode}
+                onChange={e => setLineMode(e.target.value as 'score' | 'total')}
+              >
+                <option value="score">Score</option>
+                <option value="total">Total</option>
+              </select>
+            </div>
+          </div>
+          <div className="h-96">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={lineChartData || []}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="period" 
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => {
+                    if (viewMode === 'day') {
+                      return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
+                    return value;
+                  }}
+                />
+                <YAxis 
+                  domain={lineMode === 'score' ? [0, 10] : [0, 'dataMax']}
+                  tick={{ fontSize: 12 }}
+                />
+                <Tooltip 
+                  labelFormatter={(value) => {
+                    if (viewMode === 'day') {
+                      return new Date(value).toLocaleDateString();
+                    }
+                    return value;
+                  }}
+                />
+                <Line type="monotone" dataKey="quiz" name="Quiz" stroke="#10b981" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="assessment" name="Assessment" stroke="#dc2626" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="interview" name="Interview" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+      )}
+      
+      {/* Original Multi-Line Chart - Hidden */}
+      <Card className="p-6 hidden">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold">Progress by {viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} ({lineMode === 'score' ? 'Average Score' : 'Total Count'})</h2>
           <div className="flex items-center gap-4">
@@ -486,7 +684,7 @@ export default function TrackingDashboard() {
               <Tooltip formatter={(value: number) => lineMode === 'score' ? value.toFixed(1) + '%' : value} />
               <Legend />
               <Line type="monotone" dataKey="quiz" name="Quiz" stroke="#7c3aed" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="test" name="Test" stroke="#dc2626" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="assessment" name="Assessment" stroke="#dc2626" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="interview" name="Interview" stroke="#059669" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -504,20 +702,20 @@ export default function TrackingDashboard() {
         <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Average Score</h3>
           <p className="mt-2 text-3xl font-semibold">
-            {progress.stats.averageScore.toFixed(1)}%
+            {progress?.stats?.averageScore?.toFixed(1) || '0.0'}%
           </p>
         </Card>
         <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Study Streak</h3>
           <p className="mt-2 text-3xl font-semibold">
-            {progress.stats.studyStreak} days
+            {progress?.stats?.studyStreak || 0} days
           </p>
         </Card>
         <Card className="p-6">
           <h3 className="text-sm font-medium text-gray-500">Study Time</h3>
           <p className="mt-2 text-3xl font-semibold">
             {(() => {
-              const total = progress.stats.totalStudyTime;
+              const total = progress?.stats?.totalStudyTime || 0;
               if (total < 60) return `${total} min`;
               const hours = Math.floor(total / 60);
               const minutes = total % 60;
@@ -528,10 +726,11 @@ export default function TrackingDashboard() {
       </div>
 
       {/* Skills Progress */}
-      <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-6">Skills Progress</h2>
-        <div className="space-y-6">
-          {progress.skillProgress.map((skill) => (
+      {progress?.skillProgress && progress.skillProgress.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-6">Skills Progress</h2>
+          <div className="space-y-6">
+            {progress.skillProgress.map((skill) => (
             <div key={skill.name}>
               <div className="flex justify-between mb-2">
                 <span className="font-medium">{skill.name}</span>
@@ -574,13 +773,14 @@ export default function TrackingDashboard() {
           ))}
         </div>
       </Card>
+      )}
 
       {/* Current Focus & Recommendations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Current Focus</h2>
           <ul className="space-y-2">
-            {(progress.currentFocus ?? []).map((focus: string, index: number) => (
+            {(progress?.currentFocus ?? []).map((focus: string, index: number) => (
               <li
                 key={index}
                 className="flex items-center text-gray-700"
@@ -595,7 +795,7 @@ export default function TrackingDashboard() {
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">Recommendations</h2>
           <ul className="space-y-2">
-            {(progress.recommendations ?? []).map((recommendation: string, index: number) => (
+            {(progress?.recommendations ?? []).map((recommendation: string, index: number) => (
               <li
                 key={index}
                 className="flex items-center text-gray-700"
@@ -612,7 +812,7 @@ export default function TrackingDashboard() {
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">Upcoming Milestones</h2>
         <div className="space-y-4">
-          {(progress.nextMilestones ?? []).map((milestone: { goal: string; targetDate: Date }, index: number) => (
+          {(progress?.nextMilestones ?? []).map((milestone: { goal: string; targetDate: Date }, index: number) => (
             <div
               key={index}
               className="flex justify-between items-center border-b border-gray-100 pb-4 last:border-0 last:pb-0"

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { JdAnswerService, AnalysisResult } from '@/services/jdAnswerService';
+import { JdAnswerService, AnalysisResult } from '@/services/jdService/jdAnswerService';
 
 export async function PUT(
   request: NextRequest,

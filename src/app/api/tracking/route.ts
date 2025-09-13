@@ -250,7 +250,7 @@ export async function GET() {
       recentActivities: recentEvents.map(e => ({
         timestamp: e.timestamp.toISOString(),
         activityType: e.activityType,
-        type: e.activityType,
+        type: (e.activityType as string) === 'assessment' ? 'assessment' : e.activityType,
         feature: e.feature || undefined,
         score: e.score,
         duration: e.duration,
@@ -258,7 +258,7 @@ export async function GET() {
       })),
       allActivities: last60Events.map(e => ({
         timestamp: e.timestamp.toISOString(),
-        type: e.activityType || 'other',
+        type: (e.activityType as string) === 'assessment' ? 'assessment' : e.activityType || 'other',
         score: e.score,
       })),
       skillTrends,

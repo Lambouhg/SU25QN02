@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { JdAnswerService, JdAnswerData, AnalysisResult } from '@/services/jdAnswerService';
+import { JdAnswerService, JdAnswerData, AnalysisResult } from '@/services/jdService/jdAnswerService';
 import TrackingEventService from '@/services/trackingEventService';
 
 export async function POST(request: NextRequest) {

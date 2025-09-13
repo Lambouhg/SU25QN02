@@ -1,4 +1,4 @@
-import { getAIResponse } from './azureAiservicesforJD';
+import { getAIResponse } from './jdService/azureAiservicesforJD';
 
 export interface GeneratedQuizQuestion {
   question: string;

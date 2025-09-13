@@ -349,7 +349,18 @@ export default function TestPanel() {
         console.log('🔵 [DEBUG] Current assessment ID set to:', assessmentData.id);
         console.log('🔵 [DEBUG] Assessment data:', assessmentData);
       } else {
-        console.error('Failed to create draft assessment:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to create draft assessment:', response.status, errorData);
+        
+        // Show user-friendly error message
+        if (response.status === 403) {
+          alert('Assessment quota exceeded. Please upgrade your package or contact support.');
+        } else {
+          alert('Failed to start assessment. Please try again.');
+        }
+        
+        // Don't continue with interview if assessment creation failed
+        return;
       }
     } catch (error) {
       console.error('Error creating draft assessment:', error);

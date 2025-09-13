@@ -5,7 +5,7 @@ vi.mock('../../services/azureAiservicesforJD', () => ({
 }));
 
 describe('aiQuizGenerator.generateQuizQuestionsByAI', () => {
-  const getAI = async () => (await import('../../services/azureAiservicesforJD')).getAIResponse as unknown as ReturnType<typeof vi.fn>;
+  const getAI = async () => (await import('../../services/jdService/azureAiservicesforJD')).getAIResponse as unknown as ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.resetAllMocks();

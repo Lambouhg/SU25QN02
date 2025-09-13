@@ -214,12 +214,38 @@ INTERVIEWER PERSONA:
 - Provide constructive feedback
 - Adapt questions based on candidate's responses while staying within ${field} domain`;
 
-    // Nếu có danh sách câu hỏi, ép hỏi đúng theo thứ tự
+    // Nếu có danh sách câu hỏi, ép hỏi đúng theo thứ tự và dịch sang ngôn ngữ phỏng vấn
     if (questionBankContext?.questions?.length) {
-      const questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
+      let questionsList: string;
+      let nextQuestionText: string;
       const nextQuestionIndex = Math.min(questionsAsked, questionBankContext.questions.length - 1);
-      const nextQuestionText = questionBankContext.questions[nextQuestionIndex]?.question || '';
-      systemContent += `
+      
+      // Nếu ngôn ngữ phỏng vấn không phải tiếng Anh, hướng dẫn AI dịch câu hỏi
+      if (language !== 'en-US') {
+        const languageName = language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chinese' : language === 'ja-JP' ? 'Japanese' : language === 'ko-KR' ? 'Korean' : 'English';
+        
+        questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
+        nextQuestionText = questionBankContext.questions[nextQuestionIndex]?.question || '';
+        
+        systemContent += `
+
+IMPORTANT LANGUAGE REQUIREMENT:
+- The question bank is in English, but you MUST translate ALL questions to ${languageName} before asking
+- DO NOT ask questions in English, always translate them first
+- Maintain the technical accuracy while translating
+
+FIXED QUESTION LIST (TRANSLATE TO ${languageName.toUpperCase()} BEFORE ASKING):
+${questionsList}
+
+NEXT QUESTION INDEX: ${nextQuestionIndex + 1}
+YOU MUST TRANSLATE AND ASK THIS QUESTION IN ${languageName.toUpperCase()}:
+${nextQuestionText}
+`;
+      } else {
+        questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
+        nextQuestionText = questionBankContext.questions[nextQuestionIndex]?.question || '';
+        
+        systemContent += `
 
 FIXED QUESTION LIST (ASK EXACTLY THESE IN ORDER, ONE PER TURN):
 ${questionsList}
@@ -228,6 +254,7 @@ NEXT QUESTION INDEX: ${nextQuestionIndex + 1}
 YOU MUST ASK EXACTLY THIS QUESTION NOW (DO NOT REPHRASE, DO NOT ADD NEW QUESTIONS):
 ${nextQuestionText}
 `;
+      }
     }
 
     const messages: ChatMessage[] = [
