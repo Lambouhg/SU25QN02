@@ -27,7 +27,13 @@ export async function POST(req: NextRequest) {
       orderBy: { order: "asc" },
       include: { question: { include: { options: true } } },
     });
-    items = rows.map((r) => ({
+    
+    // Filter to only include single_choice and multiple_choice questions
+    const filteredRows = rows.filter(r => 
+      r.question.type === 'single_choice' || r.question.type === 'multiple_choice'
+    );
+    
+    items = filteredRows.map((r) => ({
       questionId: r.questionId,
       stem: r.question.stem,
       type: r.question.type,
@@ -35,10 +41,14 @@ export async function POST(req: NextRequest) {
     }));
   } else {
     const where: any = {};
+    // Only include single_choice and multiple_choice questions
+    where.type = { in: ['single_choice', 'multiple_choice'] };
+    
     if (category) where.category = category;
     if (topic) where.topics = { has: topic };
     if (level) where.level = level;
     if (tags) where.tags = { hasSome: String(tags).split(",").map((s) => s.trim()).filter(Boolean) };
+    
     const pool = await prisma.questionItem.findMany({ where, include: { options: true } });
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));

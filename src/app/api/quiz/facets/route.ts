@@ -2,16 +2,22 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 export async function GET() {
-  // Distinct categories
+  // Distinct categories from single_choice and multiple_choice questions only
   const cats = await prisma.questionItem.findMany({
-    where: { isArchived: false },
+    where: { 
+      isArchived: false,
+      type: { in: ['single_choice', 'multiple_choice'] }
+    },
     select: { category: true },
     distinct: ["category"],
   });
 
-  // Collect topics and tags from arrays
+  // Collect topics and tags from arrays (single_choice and multiple_choice only)
   const arrs = await prisma.questionItem.findMany({
-    where: { isArchived: false },
+    where: { 
+      isArchived: false,
+      type: { in: ['single_choice', 'multiple_choice'] }
+    },
     select: { topics: true, tags: true },
   });
   const topicSet = new Set<string>();

@@ -1,10 +1,10 @@
 "use client";
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import QuizSetup from "@/components/QuizPractice/QuizSetup";
 import QuizCard from "@/components/QuizPractice/QuizCard";
 import QuizResults from "@/components/QuizPractice/QuizResults";
-import QuizReview from "@/components/QuizPractice/QuizReview";
 import KeyboardShortcuts from "@/components/QuizPractice/KeyboardShortcuts";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
@@ -19,7 +19,7 @@ type SnapshotItem = {
 type SetRow = { id: string; name: string };
 
 export default function QuizPage() {
-  const { userId, isLoaded } = useAuth();
+  const { userId } = useAuth();
   const [sets, setSets] = useState<SetRow[]>([]);
   const [mode, setMode] = useState<'quick'|'topic'|'company'>('company');
   const [category, setCategory] = useState<string>("");
@@ -34,7 +34,15 @@ export default function QuizPage() {
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [items, setItems] = useState<SnapshotItem[]>([]);
   const [answers, setAnswers] = useState<Record<string, number[]>>({});
-  const [score, setScore] = useState<{ score: number; total: number; details?: any[] } | null>(null);
+  const [score, setScore] = useState<{ 
+    score: number; 
+    total: number; 
+    details?: Array<{
+      isRight: boolean;
+      correctIdx: number[];
+      givenIdx: number[];
+    }>;
+  } | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +50,8 @@ export default function QuizPage() {
   // New state for enhanced UX
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [bookmarkedQuestions, setBookmarkedQuestions] = useState<Set<string>>(new Set());
-  const [showHint, setShowHint] = useState(false);
   const [timeUsed, setTimeUsed] = useState<number>(0);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [showReview, setShowReview] = useState(false);
 
   // Load public question sets
   useEffect(() => {
@@ -54,7 +60,7 @@ export default function QuizPage() {
         const sRes = await fetch("/api/quiz/sets?status=published", { cache: "no-store" });
         const sJson = await sRes.json();
         if (sRes.ok) {
-          const list = sJson.data?.map((x: any) => ({ id: x.id, name: x.name })) || [];
+          const list = sJson.data?.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })) || [];
           setSets(list);
           if (list.length && !questionSetId) setQuestionSetId(list[0].id);
         }
@@ -67,7 +73,7 @@ export default function QuizPage() {
         }
       } catch {}
     })();
-  }, []);
+  }, [questionSetId]);
 
   const start = useCallback(async () => {
     if (!userId) { setError("Bạn cần đăng nhập."); return; }
@@ -76,12 +82,11 @@ export default function QuizPage() {
     setScore(null);
     setCurrentQuestionIndex(0);
     setBookmarkedQuestions(new Set());
-    setShowHint(false);
     setTimeUsed(0);
     setStartTime(Date.now());
     
     try {
-      const payload: any = {};
+      const payload: Record<string, unknown> = {};
       if (mode === 'company') {
         if (questionSetId) payload.questionSetId = questionSetId;
       } else {
@@ -96,25 +101,44 @@ export default function QuizPage() {
       if (!res.ok) throw new Error(j?.error || "Start failed");
       setAttemptId(j.data.attemptId);
       setItems(j.data.items || []);
-      if (j.data.timeLimit) setTimeLeft(j.data.timeLimit);
+      // Set timer: use API timeLimit or default to 30 minutes for the entire quiz
+      const defaultTimeLimit = (j.data.items?.length || 10) * 120; // 2 minutes per question
+      setTimeLeft(j.data.timeLimit || defaultTimeLimit);
       setAnswers({});
-    } catch (e: any) {
-      setError(e.message || String(e));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }, [userId, mode, questionSetId, category, topic, tags, count, level]);
 
+  const submit = useCallback(async () => {
+    if (!attemptId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const responses = Object.entries(answers).map(([qid, arr]) => ({ questionId: qid, answer: arr }));
+      const res = await fetch("/api/quiz/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attemptId, responses }) });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.error || "Submit failed");
+      setScore({ score: j.data.score, total: j.data.total, details: j.data.details });
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [attemptId, answers]);
+
   // timer countdown and time tracking
   useEffect(() => {
-    if (!attemptId) return;
+    if (!attemptId || score) return; // Stop timer if quiz is completed
     
     const id = setInterval(() => {
-      if (startTime) {
+      if (startTime && !score) { // Only update if quiz is not completed
         setTimeUsed(Math.floor((Date.now() - startTime) / 1000));
       }
       
-      if (timeLeft !== null) {
+      if (timeLeft !== null && !score) { // Only countdown if quiz is not completed
       setTimeLeft((t) => {
         if (t === null) return t;
         if (t <= 1) {
@@ -128,7 +152,7 @@ export default function QuizPage() {
     }, 1000);
     
     return () => clearInterval(id);
-  }, [timeLeft, attemptId, startTime]);
+  }, [timeLeft, attemptId, startTime, score, submit]);
 
   const setAnswer = useCallback((questionId: string, choiceIdx: number, multi: boolean) => {
     setAnswers((prev) => {
@@ -146,16 +170,29 @@ export default function QuizPage() {
   const goToPrevious = useCallback(() => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
-      setShowHint(false);
     }
   }, [currentQuestionIndex]);
 
   const goToNext = useCallback(() => {
     if (currentQuestionIndex < items.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setShowHint(false);
     }
   }, [currentQuestionIndex, items.length]);
+
+  const goToQuestion = useCallback((questionIndex: number) => {
+    if (questionIndex >= 0 && questionIndex < items.length) {
+      setCurrentQuestionIndex(questionIndex);
+    }
+  }, [items.length]);
+
+  // Generate question statuses for navigator
+  const questionStatuses = useMemo(() => {
+    return items.map((item, index) => ({
+      questionIndex: index,
+      isAnswered: Boolean(answers[item.questionId] && answers[item.questionId].length > 0),
+      isBookmarked: bookmarkedQuestions.has(item.questionId)
+    }));
+  }, [items, answers, bookmarkedQuestions]);
 
   const toggleBookmark = useCallback(() => {
     const currentQuestion = items[currentQuestionIndex];
@@ -172,27 +209,6 @@ export default function QuizPage() {
     }
   }, [currentQuestionIndex, items]);
 
-  const toggleHint = useCallback(() => {
-    setShowHint(prev => !prev);
-  }, []);
-
-  const submit = useCallback(async () => {
-    if (!attemptId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const responses = Object.entries(answers).map(([qid, arr]) => ({ questionId: qid, answer: arr }));
-      const res = await fetch("/api/quiz/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attemptId, responses }) });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j?.error || "Submit failed");
-      setScore({ score: j.data.score, total: j.data.total, details: j.data.details });
-    } catch (e: any) {
-      setError(e.message || String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [attemptId, answers]);
-
   const restart = useCallback(() => {
     setAttemptId(null);
     setItems([]);
@@ -200,24 +216,9 @@ export default function QuizPage() {
     setScore(null);
     setCurrentQuestionIndex(0);
     setBookmarkedQuestions(new Set());
-    setShowHint(false);
     setTimeUsed(0);
     setStartTime(null);
     setTimeLeft(null);
-    setShowReview(false);
-  }, []);
-
-  const review = useCallback(() => {
-    setShowReview(true);
-  }, []);
-
-  const backFromReview = useCallback(() => {
-    setShowReview(false);
-  }, []);
-
-  const viewInHistory = useCallback(() => {
-    // Navigate to quiz history page
-    window.location.href = '/quiz/history';
   }, []);
 
   // Keyboard shortcuts
@@ -229,7 +230,7 @@ export default function QuizPage() {
       }
 
       // Quiz mode shortcuts
-      if (attemptId && !score && !showReview) {
+      if (attemptId && !score) {
         switch (e.key) {
           case 'ArrowLeft':
             e.preventDefault();
@@ -251,50 +252,25 @@ export default function QuizPage() {
             e.preventDefault();
             toggleBookmark();
             break;
-          case 'h':
-            e.preventDefault();
-            toggleHint();
-            break;
-          case 'Escape':
-            e.preventDefault();
-            setShowHint(false);
-            break;
-        }
-      }
-
-      // Review mode shortcuts
-      if (showReview && score) {
-        switch (e.key) {
-          case 'ArrowLeft':
-            e.preventDefault();
-            // Will be handled by QuizReview component
-            break;
-          case 'ArrowRight':
-            e.preventDefault();
-            // Will be handled by QuizReview component
-            break;
-          case 'Escape':
-            e.preventDefault();
-            backFromReview();
-            break;
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [attemptId, score, showReview, goToPrevious, goToNext, currentQuestionIndex, items.length, submit, toggleBookmark, toggleHint, backFromReview]);
+  }, [attemptId, score, goToPrevious, goToNext, currentQuestionIndex, items.length, submit, toggleBookmark]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      <div className="container mx-auto px-4 py-8">
+    <DashboardLayout>
+      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-lg">
+        <div className="px-4 py-4">
         {/* Error Display */}
         {error && (
-          <Card className="mb-6 border-red-200 bg-red-50">
-            <CardContent className="p-4">
+          <Card className="mb-4 border-red-200 bg-red-50">
+            <CardContent className="p-3">
               <div className="flex items-center gap-2 text-red-700">
-                <AlertCircle className="w-5 h-5" />
-                <span className="font-medium">{error}</span>
+                <AlertCircle className="w-4 h-4" />
+                <span className="font-medium text-sm">{error}</span>
               </div>
             </CardContent>
           </Card>
@@ -333,48 +309,36 @@ export default function QuizPage() {
             questionIndex={currentQuestionIndex}
             totalQuestions={items.length}
             selectedAnswers={answers[items[currentQuestionIndex]?.questionId] || []}
+            questionStatuses={questionStatuses}
             onAnswerChange={setAnswer}
             onPrevious={goToPrevious}
             onNext={goToNext}
             onSubmit={submit}
-            timeLeft={timeLeft}
+            onQuestionSelect={goToQuestion}
+            timeLeft={timeLeft ?? undefined}
             isBookmarked={bookmarkedQuestions.has(items[currentQuestionIndex]?.questionId)}
             onToggleBookmark={toggleBookmark}
-            showHint={showHint}
-            onToggleHint={toggleHint}
-            hint="This is a sample hint. In a real implementation, hints would come from the question data."
-          />
-        )}
-
-        {/* Review Phase */}
-        {showReview && score && (
-          <QuizReview
-            items={items}
-            answers={answers}
-            score={score}
-            timeUsed={timeUsed}
-            onBack={backFromReview}
-            onRestart={restart}
+            showNavigator={true} // Show navigator during quiz
           />
         )}
 
         {/* Results Phase */}
-        {score && !showReview && (
+        {score && (
           <QuizResults
+            items={items}
+            answers={answers}
             score={score}
             timeUsed={timeUsed}
+            onBack={restart}
             onRestart={restart}
-            onReview={review}
-            onViewDetails={viewInHistory}
-            items={items}
-            attemptId={attemptId || undefined}
           />
         )}
 
         {/* Keyboard Shortcuts */}
         <KeyboardShortcuts />
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

@@ -24,8 +24,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     },
   });
 
+  // Filter to only include single_choice and multiple_choice questions
+  const filteredItems = items.filter((row: any) => 
+    row.question.type === 'single_choice' || row.question.type === 'multiple_choice'
+  );
+
   // public response: return needed fields only
-  const data = items.map((row: any) => ({
+  const data = filteredItems.map((row: any) => ({
     questionId: row.questionId,
     order: row.order,
     section: row.section,

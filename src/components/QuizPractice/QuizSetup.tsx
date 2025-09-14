@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +61,58 @@ export default function QuizSetup({
   onStart,
   loading
 }: QuizSetupProps) {
+  // State for filtered topics and tags based on selected category
+  const [filteredTopics, setFilteredTopics] = useState<string[]>(facetTopics);
+  const [filteredTags, setFilteredTags] = useState<string[]>(facetTags);
+  const [loadingFilters, setLoadingFilters] = useState(false);
+
+  // Effect to update filtered topics and tags when category changes
+  useEffect(() => {
+    const fetchFilteredFacets = async () => {
+      if (!category) {
+        // No category selected, use all topics and tags
+        setFilteredTopics(facetTopics);
+        setFilteredTags(facetTags);
+        return;
+      }
+
+      setLoadingFilters(true);
+      try {
+        const response = await fetch(`/api/quiz/facets/filtered?category=${encodeURIComponent(category)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setFilteredTopics(data.data?.topics || []);
+          setFilteredTags(data.data?.tags || []);
+          
+          // Reset topic and tags if they're not in the filtered list
+          if (topic && !data.data?.topics?.includes(topic)) {
+            setTopic('');
+          }
+          if (tags && !data.data?.tags?.includes(tags)) {
+            setTags('');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching filtered facets:', error);
+        // Fallback to original lists on error
+        setFilteredTopics(facetTopics);
+        setFilteredTags(facetTags);
+      } finally {
+        setLoadingFilters(false);
+      }
+    };
+
+    fetchFilteredFacets();
+  }, [category, facetTopics, facetTags, topic, tags, setTopic, setTags]);
+
+  // Update filtered lists when base facets change
+  useEffect(() => {
+    if (!category) {
+      setFilteredTopics(facetTopics);
+      setFilteredTags(facetTags);
+    }
+  }, [facetTopics, facetTags, category]);
+
   const quickPresets = [
     {
       name: "Frontend Basics",
@@ -112,7 +164,13 @@ export default function QuizSetup({
     }
   ];
 
-  const modeCards = [
+  const modeCards: Array<{
+    id: 'quick' | 'topic' | 'company';
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    color: string;
+  }> = [
     {
       id: 'company',
       title: 'Company Sets',
@@ -137,7 +195,7 @@ export default function QuizSetup({
   ];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="w-full max-w-full mx-auto space-y-8 overflow-x-hidden">
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-3">
@@ -159,7 +217,7 @@ export default function QuizSetup({
             {modeCards.map((modeCard) => (
               <button
                 key={modeCard.id}
-                onClick={() => setMode(modeCard.id as any)}
+                onClick={() => setMode(modeCard.id)}
                 className={`p-6 rounded-xl border-2 transition-all duration-200 ${
                   mode === modeCard.id
                     ? `border-transparent bg-gradient-to-r ${modeCard.color} text-white shadow-lg`
@@ -227,6 +285,11 @@ export default function QuizSetup({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <Tag className="w-4 h-4 inline mr-1" />
                     Category
+                    {category && (
+                      <Badge variant="secondary" className="ml-2 text-xs">
+                        {filteredTopics.length} topics, {filteredTags.length} tags
+                      </Badge>
+                    )}
                   </label>
                   <select
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -251,14 +314,18 @@ export default function QuizSetup({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
+                    disabled={loadingFilters}
                   >
                     <option value="">Any Topic</option>
-                    {facetTopics.map((top) => (
+                    {filteredTopics.map((top) => (
                       <option key={top} value={top}>
                         {top}
                       </option>
                     ))}
                   </select>
+                  {loadingFilters && (
+                    <p className="text-xs text-gray-500 mt-1">Loading topics...</p>
+                  )}
                 </div>
 
                 <div>
@@ -287,14 +354,18 @@ export default function QuizSetup({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
+                    disabled={loadingFilters}
                   >
                     <option value="">Any Tags</option>
-                    {facetTags.map((tag) => (
+                    {filteredTags.map((tag) => (
                       <option key={tag} value={tag}>
                         {tag}
                       </option>
                     ))}
                   </select>
+                  {loadingFilters && (
+                    <p className="text-xs text-gray-500 mt-1">Loading tags...</p>
+                  )}
                 </div>
 
                 <div>

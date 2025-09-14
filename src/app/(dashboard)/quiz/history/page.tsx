@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,18 @@ import {
   XCircle
 } from "lucide-react";
 
+type QuestionSnapshot = {
+  questionId: string;
+  stem: string;
+  type: string;
+  options?: { text: string; isCorrect?: boolean }[];
+};
+
+type UserResponse = {
+  questionId: string;
+  answer: number[];
+};
+
 type AttemptRow = { 
   id: string; 
   status: string; 
@@ -31,6 +43,7 @@ type AttemptRow = {
   questionSet?: { name?: string | null } | null;
   timeUsed?: number;
   totalQuestions?: number;
+  itemsSnapshot?: QuestionSnapshot[];
 };
 
 type QuizDetail = {
@@ -39,10 +52,10 @@ type QuizDetail = {
   score: number | null;
   startedAt: string;
   completedAt: string | null;
-  itemsSnapshot: any[];
-  responses: any[];
+  itemsSnapshot: QuestionSnapshot[];
+  responses: UserResponse[];
   questionSet: { name: string | null };
-  sectionScores?: any;
+  sectionScores?: Record<string, number>;
 };
 
 export default function QuizHistoryPage() {
@@ -65,8 +78,8 @@ export default function QuizHistoryPage() {
       if (!res.ok) throw new Error(j?.error || "Load failed");
       setRows(j.data || []);
       setTotal(j.total || 0);
-    } catch (e: any) {
-      setError(e.message || String(e));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -82,8 +95,8 @@ export default function QuizHistoryPage() {
       const res = await fetch(`/api/quiz/attempts/${id}`);
       const j = await res.json();
       if (res.ok) setDetail(j.data);
-    } catch (e: any) {
-      setError(e.message || String(e));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoadingDetail(false);
     }
@@ -279,11 +292,11 @@ export default function QuizHistoryPage() {
                             <div className="flex items-center gap-2">
                               <Trophy className="w-4 h-4 text-gray-500" />
                               <span className={`font-medium ${
-                                attempt.score !== null 
-                                  ? getScoreColor(attempt.score, totalQuestions)
+                                attempt.score !== null && attempt.score !== undefined
+                                  ? getScoreColor(attempt.score, totalQuestions || 0)
                                   : 'text-gray-500'
                               }`}>
-                                {attempt.score !== null 
+                                {attempt.score !== null && attempt.score !== undefined
                                   ? `${attempt.score}/${totalQuestions}` 
                                   : '-'
                                 }
@@ -502,8 +515,8 @@ function QuizDetailContent({ detail }: { detail: QuizDetail }) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {detail.itemsSnapshot?.map((question: any, index: number) => {
-              const userResponse = detail.responses?.find((r: any) => r.questionId === question.questionId);
+            {detail.itemsSnapshot?.map((question: QuestionSnapshot, index: number) => {
+              const userResponse = detail.responses?.find((r: UserResponse) => r.questionId === question.questionId);
               const userAnswers = userResponse?.answer || [];
               const userAnswerIndices = Array.isArray(userAnswers) ? userAnswers : [userAnswers];
               
@@ -529,7 +542,7 @@ function QuizDetailContent({ detail }: { detail: QuizDetail }) {
                       <h4 className="font-medium text-gray-800 mb-3">{question.stem}</h4>
                       
                       <div className="space-y-2">
-                        {question.options?.map((option: any, optionIndex: number) => {
+                        {question.options?.map((option: { text: string; isCorrect?: boolean }, optionIndex: number) => {
                           const isUserAnswer = userAnswerIndices.includes(optionIndex);
                           const isCorrect = option.isCorrect;
                           

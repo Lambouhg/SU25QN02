@@ -5,17 +5,24 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import QuestionNavigator from './QuestionNavigator';
 import { 
   Clock, 
   Bookmark, 
   BookmarkCheck, 
   CheckCircle2, 
-  Circle,
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  Lightbulb
+  Menu,
+  X
 } from 'lucide-react';
+
+interface QuestionStatus {
+  questionIndex: number;
+  isAnswered: boolean;
+  isBookmarked?: boolean;
+}
 
 interface QuizCardProps {
   question: {
@@ -27,16 +34,16 @@ interface QuizCardProps {
   questionIndex: number;
   totalQuestions: number;
   selectedAnswers: number[];
+  questionStatuses?: QuestionStatus[];
   onAnswerChange: (questionId: string, choiceIdx: number, multi: boolean) => void;
   onPrevious: () => void;
   onNext: () => void;
   onSubmit: () => void;
+  onQuestionSelect?: (questionIndex: number) => void;
   timeLeft?: number;
   isBookmarked?: boolean;
   onToggleBookmark?: () => void;
-  showHint?: boolean;
-  onToggleHint?: () => void;
-  hint?: string;
+  showNavigator?: boolean; // Control navigator visibility
 }
 
 export default function QuizCard({
@@ -44,18 +51,36 @@ export default function QuizCard({
   questionIndex,
   totalQuestions,
   selectedAnswers,
+  questionStatuses = [],
   onAnswerChange,
   onPrevious,
   onNext,
   onSubmit,
+  onQuestionSelect = () => {}, // Default empty function
   timeLeft,
   isBookmarked = false,
   onToggleBookmark,
-  showHint = false,
-  onToggleHint,
-  hint
+  showNavigator = true // Default to true for backward compatibility
 }: QuizCardProps) {
-  const progress = ((questionIndex + 1) / totalQuestions) * 100;
+  const [showMobileNavigator, setShowMobileNavigator] = React.useState(false);
+  
+  // Generate questionStatuses if not provided
+  const generateQuestionStatuses = (): QuestionStatus[] => {
+    if (questionStatuses && questionStatuses.length > 0) {
+      return questionStatuses;
+    }
+    
+    // Create basic status array - you might need to modify this based on your data structure
+    return Array.from({ length: totalQuestions }, (_, index) => ({
+      questionIndex: index,
+      isAnswered: index === questionIndex ? selectedAnswers.length > 0 : false,
+      isBookmarked: index === questionIndex ? isBookmarked : false
+    }));
+  };
+  
+  const currentQuestionStatuses = generateQuestionStatuses();
+  const answeredCount = currentQuestionStatuses.filter(q => q.isAnswered).length;
+  const progress = (answeredCount / totalQuestions) * 100;
   const isLastQuestion = questionIndex === totalQuestions - 1;
   const isFirstQuestion = questionIndex === 0;
 
@@ -65,12 +90,18 @@ export default function QuizCard({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Add warning effects for low time
+  const isCriticalTime = timeLeft !== undefined && timeLeft !== null && timeLeft <= 30;
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header with Progress */}
-      <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between mb-4">
+    <div className="w-full max-w-full mx-auto space-y-4 sm:space-y-6 px-4 sm:px-6 lg:px-8 overflow-x-hidden">
+      <div className="flex flex-col xl:flex-row gap-6">
+        {/* Main Quiz Content */}
+        <div className="flex-1 space-y-4 sm:space-y-6">
+          {/* Header with Progress */}
+          <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 w-full">
+        <CardHeader className="pb-4 px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
                 <Bookmark className="w-5 h-5 text-white" />
@@ -81,13 +112,34 @@ export default function QuizCard({
               </div>
             </div>
             
-            <div className="flex items-center gap-3">
-              {timeLeft !== null && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg shadow-sm">
-                  <Clock className="w-4 h-4 text-red-500" />
-                  <span className="font-mono text-lg font-semibold text-red-600">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {timeLeft !== undefined && timeLeft !== null && timeLeft >= 0 && (
+                <div className={`flex items-center gap-2 px-2 sm:px-3 py-2 rounded-lg shadow-sm transition-all duration-300 text-sm sm:text-base ${
+                  isCriticalTime 
+                    ? 'bg-red-100 border-2 border-red-300 animate-pulse' 
+                    : timeLeft <= 60 
+                      ? 'bg-red-50 border border-red-200' 
+                      : 'bg-white border border-gray-200'
+                }`}>
+                  <Clock className={`w-4 h-4 ${
+                    isCriticalTime 
+                      ? 'text-red-700' 
+                      : timeLeft <= 60 
+                        ? 'text-red-600' 
+                        : 'text-blue-500'
+                  }`} />
+                  <span className={`font-mono text-sm sm:text-lg font-semibold ${
+                    isCriticalTime 
+                      ? 'text-red-800' 
+                      : timeLeft <= 60 
+                        ? 'text-red-700' 
+                        : 'text-blue-600'
+                  }`}>
                     {formatTime(timeLeft)}
                   </span>
+                  {isCriticalTime && (
+                    <span className="text-xs text-red-600 font-medium">⚠️ Time Critical!</span>
+                  )}
                 </div>
               )}
               
@@ -101,25 +153,37 @@ export default function QuizCard({
                   {isBookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
                 </Button>
               )}
+              
+              {/* Navigator Toggle for Mobile */}
+              {showNavigator && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMobileNavigator(!showMobileNavigator)}
+                  className="xl:hidden"
+                >
+                  {showMobileNavigator ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+                </Button>
+              )}
             </div>
           </div>
           
           <Progress value={progress} className="h-2" />
           <div className="flex justify-between text-sm text-gray-600 mt-2">
-            <span>Progress: {Math.round(progress)}%</span>
-            <span>{questionIndex + 1} / {totalQuestions}</span>
+            <span>Answered: {answeredCount} / {totalQuestions}</span>
+            <span>Question {questionIndex + 1} / {totalQuestions}</span>
           </div>
         </CardHeader>
       </Card>
 
       {/* Question Card */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-8">
+      <Card className="border-0 shadow-lg w-full">
+        <CardContent className="p-4 sm:p-6 lg:p-8">
           <div className="space-y-6">
             {/* Question Header */}
             <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                     Question {questionIndex + 1}
                   </Badge>
@@ -127,36 +191,12 @@ export default function QuizCard({
                     {question.type.replace('_', ' ')}
                   </Badge>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800 leading-relaxed">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 leading-relaxed break-words">
                   {question.stem}
                 </h3>
               </div>
               
-              {onToggleHint && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onToggleHint}
-                  className="ml-4"
-                >
-                  <Lightbulb className="w-4 h-4 mr-2" />
-                  Hint
-                </Button>
-              )}
             </div>
-
-            {/* Hint */}
-            {showHint && hint && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-yellow-800 mb-1">Hint</h4>
-                    <p className="text-yellow-700 text-sm">{hint}</p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Options */}
             <div className="space-y-3">
@@ -167,7 +207,7 @@ export default function QuizCard({
                 return (
                   <label
                     key={index}
-                    className={`flex items-start gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                    className={`flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 w-full ${
                       isSelected
                         ? 'border-blue-500 bg-blue-50 shadow-md'
                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -191,8 +231,8 @@ export default function QuizCard({
                         />
                       )}
                     </div>
-                    <div className="flex-1">
-                      <span className="text-gray-800 leading-relaxed">{option.text}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-gray-800 leading-relaxed break-words">{option.text}</span>
                     </div>
                     {isSelected && (
                       <CheckCircle2 className="w-5 h-5 text-blue-600 flex-shrink-0 mt-1" />
@@ -206,9 +246,9 @@ export default function QuizCard({
       </Card>
 
       {/* Navigation */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+      <Card className="border-0 shadow-lg w-full">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <Button
               variant="outline"
               onClick={onPrevious}
@@ -219,30 +259,33 @@ export default function QuizCard({
               Previous
             </Button>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 justify-center sm:justify-end">
               <Button
                 variant="outline"
                 onClick={() => window.location.reload()}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 text-sm sm:text-base"
               >
                 <RotateCcw className="w-4 h-4" />
-                Restart
+                <span className="hidden sm:inline">Restart</span>
+                <span className="sm:hidden">Reset</span>
               </Button>
               
               {isLastQuestion ? (
                 <Button
                   onClick={onSubmit}
-                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-2 flex items-center gap-2"
+                  className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 sm:px-8 py-2 flex items-center gap-2 text-sm sm:text-base"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  Submit Quiz
+                  <span className="hidden sm:inline">Submit Quiz</span>
+                  <span className="sm:hidden">Submit</span>
                 </Button>
               ) : (
                 <Button
                   onClick={onNext}
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-8 py-2 flex items-center gap-2"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 sm:px-8 py-2 flex items-center gap-2 text-sm sm:text-base"
                 >
-                  Next
+                  <span className="hidden sm:inline">Next</span>
+                  <span className="sm:hidden">Next</span>
                   <ChevronRight className="w-4 h-4" />
                 </Button>
               )}
@@ -250,6 +293,43 @@ export default function QuizCard({
           </div>
         </CardContent>
       </Card>
+        </div>
+        
+        {/* Mobile Navigator - Collapsible */}
+        {showNavigator && showMobileNavigator && (
+          <div className="xl:hidden">
+            <QuestionNavigator
+              totalQuestions={totalQuestions}
+              currentQuestionIndex={questionIndex}
+              questionStatuses={currentQuestionStatuses}
+              onQuestionSelect={(index) => {
+                if (onQuestionSelect) {
+                  onQuestionSelect(index);
+                }
+                setShowMobileNavigator(false); // Auto close after selection
+              }}
+              onPrevious={onPrevious}
+              onNext={onNext}
+              onSubmit={onSubmit}
+              timeLeft={timeLeft}
+            />
+          </div>
+        )}
+        
+        {/* Question Navigator - Hidden on mobile, shown on xl screens */}
+        <div className={`hidden xl:block xl:w-80 ${!showNavigator ? 'xl:hidden' : ''}`}>
+          <QuestionNavigator
+            totalQuestions={totalQuestions}
+            currentQuestionIndex={questionIndex}
+            questionStatuses={currentQuestionStatuses}
+            onQuestionSelect={onQuestionSelect}
+            onPrevious={onPrevious}
+            onNext={onNext}
+            onSubmit={onSubmit}
+            timeLeft={timeLeft}
+          />
+        </div>
+      </div>
     </div>
   );
 }
