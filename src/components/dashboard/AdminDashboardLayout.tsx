@@ -108,7 +108,6 @@ export default function AdminDashboardLayout({
         { label: 'Question Sets', href: '/admin/question-bank/sets' },
         { label: 'Bulk Import', href: '/admin/question-bank/import' },
         { label: 'AI Generator', href: '/admin/question-bank/generate' },
-        { label: 'Templates', href: '/admin/question-bank/templates' },
       ]
     },
     {

@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { Plus, Search, Filter, Users, Settings, Trash2, AlertCircle } from "lucide-react";
 
 type QuestionItem = { id: string; stem: string; type?: string; level?: string | null };
 type SetItem = { questionId: string; order?: number; section?: string; weight?: number; isRequired?: boolean; timeSuggestion?: number | null; question?: QuestionItem };
@@ -64,16 +65,6 @@ export default function AdminQuestionSetsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  function openCreate() {
-    setFormOpen(true);
-    setName("");
-    setLevel("");
-    setSetSkills("");
-    setDescription("");
-    setStatus("draft");
-    setFormError(null);
-  }
-
   async function submitCreate() {
     // simple validation
     const normalizedLevel = level.trim().toLowerCase();
@@ -97,14 +88,35 @@ export default function AdminQuestionSetsPage() {
   }
 
   async function remove(id: string) {
-    if (!confirm("Xóa bộ câu hỏi này?")) return;
-    const res = await fetch(`/api/admin/qb2/question-sets/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const j = await res.json();
-      alert((j as { error?: string })?.error || "Delete failed");
-      return;
+    const confirmMessage = "Are you sure you want to delete this question set?\n\nThis will also delete:\n• All quiz attempts using this set\n• All question associations in this set\n\nThis action cannot be undone.";
+    
+    if (!confirm(confirmMessage)) return;
+    
+    try {
+      const res = await fetch(`/api/admin/qb2/question-sets/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json();
+        alert((j as { error?: string })?.error || "Delete failed");
+        return;
+      }
+      
+      const result = await res.json();
+      if (result.deleted) {
+        const { quizAttempts, questionLinks } = result.deleted;
+        let message = "Question set deleted successfully!";
+        if (quizAttempts > 0 || questionLinks > 0) {
+          message += `\n\nAlso deleted:\n`;
+          if (quizAttempts > 0) message += `• ${quizAttempts} quiz attempt(s)\n`;
+          if (questionLinks > 0) message += `• ${questionLinks} question link(s)\n`;
+        }
+        alert(message);
+      }
+      
+      await load();
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("An unexpected error occurred while deleting the question set. Please try again.");
     }
-    await load();
   }
 
   async function openItems(set: QuestionSet) {
@@ -188,110 +200,305 @@ export default function AdminQuestionSetsPage() {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <h1 className="text-xl font-semibold">Question Bank - Question Sets</h1>
-        <button className="ml-auto px-3 py-2 rounded bg-blue-600 text-white" onClick={openCreate}>Tạo bộ câu hỏi</button>
-      </div>
-
-      <div className="flex gap-2 items-end">
-        <div>
-          <label className="block text-sm">Tìm kiếm</label>
-          <input className="border px-2 py-1 rounded min-w-64" value={search} onChange={(e) => setSearch(e.target.value)} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Enhanced Header */}
+        <div className="bg-white rounded-xl border shadow-sm p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Users className="w-8 h-8 text-green-600" />
+                </div>
+                Question Sets Management
+              </h1>
+              <p className="text-gray-600 mt-2">Create and manage curated question collections for specific roles and scenarios</p>
+            </div>
+            <button 
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105" 
+              onClick={() => {
+                setFormOpen(true);
+                setName("");
+                setLevel("");
+                setSetSkills("");
+                setDescription("");
+                setStatus("draft");
+                setFormError(null);
+              }}
+            >
+              <Plus className="w-5 h-5" />
+              Create Question Set
+            </button>
+          </div>
         </div>
-        <button className="px-3 py-2 rounded border" onClick={load} disabled={loading}>Lọc</button>
-      </div>
 
-      {error && <div className="text-red-600">{error}</div>}
+        {/* Search and Filters */}
+        <div className="bg-white rounded-xl border shadow-sm p-6">
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Search Question Sets</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input 
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors" 
+                  placeholder="Search by name, skills, or description..."
+                  value={search} 
+                  onChange={(e) => setSearch(e.target.value)} 
+                />
+              </div>
+            </div>
+            <button 
+              className="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100 transition-colors" 
+              onClick={load} 
+              disabled={loading}
+            >
+              <Filter className="w-4 h-4" />
+              {loading ? 'Loading...' : 'Search'}
+            </button>
+          </div>
+        </div>
 
-      <div className="overflow-auto">
-        <table className="min-w-full border">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="text-left p-2 border">Name</th>
-              <th className="text-left p-2 border">Status</th>
-              <th className="text-left p-2 border">Level</th>
-              <th className="text-left p-2 border">Skills</th>
-              <th className="text-left p-2 border">Version</th>
-              <th className="text-left p-2 border">Items</th>
-              <th className="text-left p-2 border">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sets.map((s) => (
-              <tr key={s.id} className="border-b">
-                <td className="p-2 border align-top">{s.name}</td>
-                <td className="p-2 border align-top">{s.status}</td>
-                <td className="p-2 border align-top">{s.level || '-'}</td>
-                <td className="p-2 border align-top">{(s.skills||[]).slice(0,3).join(", ")}{(s.skills||[]).length>3?"…":""}</td>
-                <td className="p-2 border align-top">{s.version}</td>
-                <td className="p-2 border align-top">{s.items?.length ?? 0}</td>
-                <td className="p-2 border align-top">
-                  <div className="flex gap-2">
-                    <button className="px-2 py-1 rounded border" onClick={() => openItems(s)}>Quản lý items</button>
-                    <button className="px-2 py-1 rounded border text-red-600" onClick={() => remove(s.id)}>Xóa</button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <span className="text-red-800 font-medium">Error</span>
+            </div>
+            <p className="text-red-700 mt-1">{error}</p>
+          </div>
+        )}
+
+        {/* Question Sets Table */}
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 className="text-lg font-semibold text-gray-900">Question Sets ({sets.length})</h2>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name & ID</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Skills</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Questions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sets.map((s) => (
+                  <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{s.name}</div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        s.status === 'published' ? 'bg-green-100 text-green-800' :
+                        s.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {s.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {s.level ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {s.level}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {(s.skills||[]).slice(0,2).map((skill, idx) => (
+                          <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                            {skill}
+                          </span>
+                        ))}
+                        {(s.skills||[]).length > 2 && (
+                          <span className="text-xs text-gray-500">+{(s.skills||[]).length - 2} more</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900">{s.items?.length ?? 0}</span>
+                        <span className="text-xs text-gray-500">questions</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-gray-900">v{s.version}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button 
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors" 
+                          onClick={() => openItems(s)}
+                        >
+                          <Settings className="w-4 h-4" />
+                          Manage Items
+                        </button>
+                        <button 
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors" 
+                          onClick={() => remove(s.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {sets.length === 0 && (
+            <div className="text-center py-12">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                <Users className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No question sets found</h3>
+              <p className="text-gray-600 mb-6">Create your first question set to organize questions by role and skill level</p>
+              <button
+                onClick={() => {
+                  setFormOpen(true);
+                  setName("");
+                  setLevel("");
+                  setSetSkills("");
+                  setDescription("");
+                  setStatus("draft");
+                  setFormError(null);
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Create Question Set
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded shadow max-w-xl w-full p-4 space-y-3">
-            <div className="flex items-center">
-              <h2 className="text-lg font-semibold">Tạo bộ câu hỏi</h2>
-              <button className="ml-auto px-3 py-1" onClick={() => setFormOpen(false)}>Đóng</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Create Question Set</h2>
+              <button 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => setFormOpen(false)}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div className="space-y-2">
+            <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm">Name</label>
-                <input className="w-full border p-2 rounded" value={name} onChange={(e) => setName(e.target.value)} />
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                <input 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter question set name"
+                />
               </div>
               <div>
-                <label className="block text-sm">Level (junior/middle/senior)</label>
-                <input className="w-full border p-2 rounded" value={level} onChange={(e) => setLevel(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm">Skills (comma)</label>
-                <input className="w-full border p-2 rounded" value={setSkills} onChange={(e) => setSetSkills(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm">Description (tùy chọn)</label>
-                <textarea className="w-full border p-2 rounded min-h-20" value={description} onChange={(e)=>setDescription(e.target.value)} />
-              </div>
-              <div>
-                <label className="block text-sm">Status</label>
-                <select className="w-full border p-2 rounded" value={status} onChange={(e)=>setStatus(e.target.value)}>
-                  <option value="draft">draft</option>
-                  <option value="published">published</option>
-                  <option value="archived">archived</option>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Level</label>
+                <select 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                  value={level} 
+                  onChange={(e) => setLevel(e.target.value)}
+                >
+                  <option value="">Select level</option>
+                  <option value="junior">Junior</option>
+                  <option value="middle">Middle</option>
+                  <option value="senior">Senior</option>
                 </select>
               </div>
-              {formError && <div className="text-red-600 text-sm">{formError}</div>}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Skills</label>
+                <input 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors" 
+                  value={setSkills} 
+                  onChange={(e) => setSetSkills(e.target.value)}
+                  placeholder="React, JavaScript, TypeScript (comma separated)"
+                />
+                <p className="text-sm text-gray-500 mt-1">Enter skills separated by commas</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                <textarea 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors min-h-[80px]" 
+                  value={description} 
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe the purpose and content of this question set"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors" 
+                  value={status} 
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+              {formError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600" />
+                    <span className="text-red-800 text-sm font-medium">{formError}</span>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex justify-end gap-2">
-              <button className="px-3 py-2 rounded border" onClick={() => setFormOpen(false)}>Hủy</button>
-              <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={submitCreate}>Lưu</button>
+            <div className="flex justify-end gap-3 p-6 bg-gray-50 border-t border-gray-200">
+              <button 
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors" 
+                onClick={() => setFormOpen(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors" 
+                onClick={submitCreate}
+              >
+                Create Question Set
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {itemsOpen && editing && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded shadow max-w-4xl w-full p-4 space-y-3 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center">
-              <h2 className="text-lg font-semibold">Items - {editing.name}</h2>
-              <button className="ml-auto px-3 py-1" onClick={() => setItemsOpen(false)}>Đóng</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">Manage Items - {editing.name}</h2>
+              <button 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => setItemsOpen(false)}
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div className="space-y-2">
+            <div className="p-6 space-y-4">
               {items.map((it, idx) => (
                 <div key={idx} className="grid grid-cols-12 gap-2 items-center border-b pb-2 mb-2">
                   <div className="col-span-7">
-                    <label className="block text-xs font-medium">Câu hỏi</label>
+                    <label className="block text-xs font-medium">Question</label>
                     <div className="p-2 bg-gray-50 rounded text-sm">
                       {it.question?.stem ? (
                         <div className="line-clamp-2">{it.question.stem}</div>
@@ -304,7 +511,7 @@ export default function AdminQuestionSetsPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium">Thứ tự</label>
+                    <label className="block text-xs font-medium">Order</label>
                     <input type="number" className="w-full border p-2 rounded" value={it.order ?? idx} onChange={(e) => updateItem(idx, { order: Number(e.target.value) })} />
                   </div>
                   <div>
@@ -324,18 +531,18 @@ export default function AdminQuestionSetsPage() {
                     <input type="number" className="w-full border p-2 rounded" value={it.timeSuggestion ?? ''} onChange={(e) => updateItem(idx, { timeSuggestion: e.target.value ? Number(e.target.value) : null })} />
                   </div>
                   <div className="col-span-2 flex justify-end">
-                    <button className="px-2 py-1 rounded border text-red-600 hover:bg-red-50" onClick={() => removeItem(idx)}>Xóa</button>
+                    <button className="px-2 py-1 rounded border text-red-600 hover:bg-red-50" onClick={() => removeItem(idx)}>Delete</button>
                   </div>
                 </div>
               ))}
               <div className="flex gap-2">
-                <button className="px-3 py-2 rounded border" onClick={addItem}>Thêm Item</button>
-                <button className="px-3 py-2 rounded border" onClick={() => setPickerOpen(true)}>Chọn từ ngân hàng câu hỏi</button>
+                <button className="px-3 py-2 rounded border" onClick={addItem}>Add Item</button>
+                <button className="px-3 py-2 rounded border" onClick={() => setPickerOpen(true)}>Choose from Question Bank</button>
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <button className="px-3 py-2 rounded border" onClick={() => setItemsOpen(false)}>Hủy</button>
-              <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={saveItems}>Lưu</button>
+              <button className="px-3 py-2 rounded border" onClick={() => setItemsOpen(false)}>Cancel</button>
+              <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={saveItems}>Save</button>
             </div>
           </div>
         </div>
@@ -345,12 +552,12 @@ export default function AdminQuestionSetsPage() {
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
           <div className="bg-white rounded shadow max-w-4xl w-full p-4 space-y-3">
             <div className="flex items-center">
-              <h2 className="text-lg font-semibold">Chọn câu hỏi</h2>
-              <button className="ml-auto px-3 py-1" onClick={() => setPickerOpen(false)}>Đóng</button>
+              <h2 className="text-lg font-semibold">Select Questions</h2>
+              <button className="ml-auto px-3 py-1" onClick={() => setPickerOpen(false)}>Close</button>
             </div>
             <div className="flex gap-2 items-end">
               <div>
-                <label className="block text-sm">Tìm kiếm</label>
+                <label className="block text-sm">Search</label>
                 <input className="border p-2 rounded" value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)} />
               </div>
               <div>
@@ -371,17 +578,17 @@ export default function AdminQuestionSetsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm">Skills (comma)</label>
+                <label className="block text-sm">Skills (comma separated)</label>
                 <input className="border p-2 rounded" value={pickerSkills} onChange={(e)=>setPickerSkills(e.target.value)} />
               </div>
-              <button className="px-3 py-2 rounded border" onClick={() => { setPickerPage(1); loadPicker(); }}>Lọc</button>
+              <button className="px-3 py-2 rounded border" onClick={() => { setPickerPage(1); loadPicker(); }}>Filter</button>
             </div>
             <div className="max-h-[50vh] overflow-auto border rounded">
               <table className="min-w-full">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="p-2 text-left">Chọn</th>
-                    <th className="p-2 text-left">Stem</th>
+                    <th className="p-2 text-left">Select</th>
+                    <th className="p-2 text-left">Question</th>
                     <th className="p-2 text-left">Type</th>
                     <th className="p-2 text-left">Level</th>
                   </tr>
@@ -401,11 +608,11 @@ export default function AdminQuestionSetsPage() {
               </table>
             </div>
             <div className="flex justify-between items-center">
-              <div className="text-sm text-gray-600">Tổng: {pickerTotal}</div>
+              <div className="text-sm text-gray-600">Total: {pickerTotal}</div>
               <div className="flex gap-2">
-                <button className="px-3 py-2 rounded border" disabled={pickerPage<=1} onClick={() => setPickerPage((p)=>Math.max(1,p-1))}>Trước</button>
-                <button className="px-3 py-2 rounded border" onClick={() => setPickerPage((p)=>p+1)}>Sau</button>
-                <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={applyPicked}>Thêm vào bộ</button>
+                <button className="px-3 py-2 rounded border" disabled={pickerPage<=1} onClick={() => setPickerPage((p)=>Math.max(1,p-1))}>Previous</button>
+                <button className="px-3 py-2 rounded border" onClick={() => setPickerPage((p)=>p+1)}>Next</button>
+                <button className="px-3 py-2 rounded bg-blue-600 text-white" onClick={applyPicked}>Add to Set</button>
               </div>
             </div>
           </div>
