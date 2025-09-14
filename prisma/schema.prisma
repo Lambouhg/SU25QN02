@@ -117,29 +117,28 @@ model Interview {
 }
 
 model QuestionItem {
-  id          String                @id @default(uuid())
-  type        QuestionItemType
-  stem        String
-  explanation String?
-  level       QuizLevel?
-  topics      String[]
-  fields      String[]
-  skills      String[]
-  // Metadata extensions
-  category     String?
-  tags         String[]
+  id            String                @id @default(uuid())
+  type          QuestionItemType
+  stem          String
+  explanation   String?
+  level         QuizLevel?
+  topics        String[]
+  fields        String[]
+  skills        String[]
+  createdById   String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  category      String?
   estimatedTime Int?
-  sourceAuthor  String?
-  version       Int                   @default(1)
   isArchived    Boolean               @default(false)
+  sourceAuthor  String?
+  tags          String[]
+  version       Int                   @default(1)
   difficulty    Difficulty?
-  createdById String?
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  createdBy   User?                 @relation("QuestionItemsCreated", fields: [createdById], references: [id])
-  options     QuestionOption[]
-  setLinks    QuestionSetQuestion[]
-  usersSaved  User[]                @relation("SavedQuestionItems")
+  createdBy     User?                 @relation("QuestionItemsCreated", fields: [createdById], references: [id])
+  options       QuestionOption[]
+  setLinks      QuestionSetQuestion[]
+  usersSaved    User[]                @relation("SavedQuestionItems")
 
   @@index([category])
 }
@@ -177,17 +176,16 @@ model QuestionSet {
 }
 
 model QuestionSetQuestion {
-  id            String       @id @default(uuid())
-  questionSetId String
-  questionId    String
-  order         Int          @default(0)
-  // Set item attributes
-  section       String?
-  weight        Float?
-  isRequired    Boolean      @default(false)
+  id             String       @id @default(uuid())
+  questionSetId  String
+  questionId     String
+  order          Int          @default(0)
+  isRequired     Boolean      @default(false)
+  section        String?
   timeSuggestion Int?
-  question      QuestionItem @relation(fields: [questionId], references: [id])
-  questionSet   QuestionSet  @relation(fields: [questionSetId], references: [id])
+  weight         Float?
+  question       QuestionItem @relation(fields: [questionId], references: [id])
+  questionSet    QuestionSet  @relation(fields: [questionSetId], references: [id])
 
   @@unique([questionSetId, questionId])
   @@index([questionSetId])

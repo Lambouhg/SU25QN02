@@ -199,18 +199,38 @@ export async function DELETE(
 
     // Xóa tất cả dữ liệu liên quan từ database
     await prisma.$transaction(async (tx) => {
-      // Xóa UserActivity trước (nếu có)
-      await tx.userActivity.deleteMany({
+      // Xóa UserActivityEvent records (thay vì userActivity)
+      await tx.userActivityEvent.deleteMany({
         where: { userId: user.id }
       });
 
-      // Xóa Quiz records liên quan đến user
-      await tx.quiz.deleteMany({
+      // Xóa UserDailyStats
+      await tx.userDailyStats.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa UserSkillSnapshot
+      await tx.userSkillSnapshot.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa QuizAttempt records (thay vì quiz)
+      await tx.quizAttempt.deleteMany({
         where: { userId: user.id }
       });
 
       // Xóa JdQuestions
       await tx.jdQuestions.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa JdAnswers records
+      await tx.jdAnswers.deleteMany({
+        where: { userId: user.id }
+      });
+
+      // Xóa Assessment records
+      await tx.assessment.deleteMany({
         where: { userId: user.id }
       });
 

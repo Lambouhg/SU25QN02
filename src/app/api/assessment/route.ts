@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
           assessmentId: assessment.id,
           level: assessment.level,
           totalTimeSeconds: assessment.totalTime || 0,
-          overallScore: Number((assessment.finalScores as any)?.overall ?? data.finalScores.overall ?? 0),
+          overallScore: Number((assessment.finalScores as { overall?: number } | null)?.overall ?? data.finalScores?.overall ?? 0),
           jobRoleId: assessment.jobRoleId,
           history: assessment.history,
           realTimeScores: assessment.realTimeScores,

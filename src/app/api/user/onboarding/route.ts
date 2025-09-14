@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let updateData: any = {};
+    let updateData: Record<string, any> = {};
 
     // Xử lý từng step
     switch (step) {
@@ -53,6 +53,16 @@ export async function POST(request: NextRequest) {
       
       case 'skills':
         updateData.skills = data.skills || [];
+        // Also save to interviewPreferences.selectedSkills for AI Interview compatibility
+        const existingPrefs = user.interviewPreferences || {};
+        const currentCustomSkills = typeof existingPrefs === 'object' && existingPrefs !== null 
+          ? (existingPrefs as { customSkills?: string[] }).customSkills || []
+          : [];
+        
+        updateData.interviewPreferences = {
+          selectedSkills: data.skills || [],
+          customSkills: currentCustomSkills
+        };
         break;
       
       case 'profile':
@@ -150,7 +160,7 @@ export async function PUT(request: NextRequest) {
       joinDate
     } = body;
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
 
     if (jobRoleId) updateData.preferredJobRoleId = jobRoleId;
     if (experienceLevel) updateData.experienceLevel = experienceLevel;

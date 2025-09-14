@@ -10,6 +10,8 @@ export interface InterviewConfig {
   maxExperience?: number;
   jobRoleTitle?: string; // Thêm jobRoleTitle để mapping với question bank
   jobRoleLevel?: string; // Thêm jobRoleLevel để mapping với question bank
+  selectedSkills?: string[]; // User selected skills từ preferences
+  customSkills?: string[]; // User custom skills từ preferences
 }
 
 const FIXED_QUESTIONS = 10 ;
@@ -283,11 +285,29 @@ ${level === 'junior' ? `
 FIELD-SPECIFIC FOCUS FOR ${field.toUpperCase()}:
 You must intelligently determine and ask questions about the most relevant topics for a ${level} ${field} position. 
 
+${config?.selectedSkills && config.selectedSkills.length > 0 ? `
+**IMPORTANT - USER SELECTED SKILLS FOCUS:**
+The candidate has specifically chosen these skills as their areas of expertise: ${config.selectedSkills.join(', ')}${config?.customSkills && config.customSkills.length > 0 ? ` and ${config.customSkills.join(', ')}` : ''}
+
+PRIORITIZE questions related to these specific skills. Your interview should focus on:
+- Deep dive into their selected skills: ${config.selectedSkills.join(', ')}
+${config?.customSkills && config.customSkills.length > 0 ? `- Explore their custom skills: ${config.customSkills.join(', ')}` : ''}
+- Practical applications of these technologies
+- Problem-solving using these specific tools/frameworks
+- Best practices within these areas
+- Integration between these selected technologies
+
+While you may ask general ${field} questions, ensure at least 70% of your questions relate to their selected skills.
+` : `
+No specific skill selection - cover general ${field} topics appropriate for ${level} level.
+`}
+
 CRITICAL REQUIREMENTS FOR QUESTION SELECTION:
 1. **Position Alignment**: Every question MUST be directly relevant to ${field} work
 2. **Level Appropriateness**: Questions MUST match ${level} expectations
 3. **Industry Relevance**: Focus on current market demands and real-world applications
 4. **Progressive Difficulty**: Start easier and increase complexity appropriately
+${config?.selectedSkills && config.selectedSkills.length > 0 ? `5. **Skill Focus**: Prioritize questions about user's selected skills: ${config.selectedSkills.join(', ')}` : ''}
 
 LEVEL-SPECIFIC QUESTION GUIDELINES:
 ${level === 'junior' ? `

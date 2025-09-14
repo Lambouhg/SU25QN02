@@ -29,6 +29,12 @@ interface Question {
   fields?: string[]
   topics?: string[]
   levels?: string[]
+  difficulty?: string
+  options?: Array<{
+    id: string
+    text: string
+    isCorrect: boolean
+  }>
 }
 
 interface UserPreferences {
@@ -112,31 +118,51 @@ export default function ReviewQuestionPage() {
     loadUserPreferences()
   }, [userId])
 
-  // Fetch questions từ question bank, filter trực tiếp từ API
+  // Fetch questions từ question bank, with user preferences support
   const fetchQuestions = useCallback(async () => {
     try {
       setIsLoading(true)
       const params = new URLSearchParams()
+      
+      // Map filter fields to API format
       if (filterField !== "all") params.append("field", filterField)
       
       // Use selectedTopics for multiple topic filtering
       if (selectedTopics.length > 0) {
-        selectedTopics.forEach(topic => params.append("topic", topic))
+        // If specific topics selected, use them
+        params.append("topic", selectedTopics.join(","))
       } else if (filterTopic !== "all") {
         params.append("topic", filterTopic)
+      } else if (isPreferencesApplied && userPreferences?.preferredJobRole) {
+        // If no specific topic filter but preferences applied, use user preferences
+        params.append("useUserPreferences", "true")
       }
       
-      params.append("limit", "100")
+      // Set limit for review mode
+      params.append("limit", "1000")
+      
+      // Always use new questions API with user preferences support
       const response = await fetch(`/api/questions?${params.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch questions")
-      const result = await response.json()
-      setQuestions(result.data || [])
-    } catch {
+      
+      const data = await response.json()
+      const questionItems = data.data || []
+      
+      console.log(`[Review] Fetched ${questionItems.length} questions with filters:`, {
+        field: filterField,
+        selectedTopics,
+        useUserPreferences: isPreferencesApplied && userPreferences?.preferredJobRole && selectedTopics.length === 0,
+        userSkills: userPreferences?.preferredJobRole?.category?.skills
+      })
+
+      setQuestions(questionItems)
+    } catch (error) {
+      console.error("Error fetching questions:", error)
       toast.error("Failed to load questions")
     } finally {
       setIsLoading(false)
     }
-  }, [filterField, filterTopic, selectedTopics])
+  }, [filterField, filterTopic, selectedTopics, isPreferencesApplied, userPreferences])
 
   useEffect(() => {
     fetchQuestions()

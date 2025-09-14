@@ -48,6 +48,10 @@ interface UserPreferences {
   preferredLanguage?: string
   autoStartWithPreferences?: boolean
   preferredJobRole?: JobRole
+  interviewPreferences?: {
+    selectedSkills?: string[]
+    customSkills?: string[]
+  }
 }
 
 const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
@@ -68,7 +72,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   const [selectedJobRole, setSelectedJobRole] = useState<JobRole | null>(null)
 
   // User preferences state
-  const [, setUserPreferences] = useState<UserPreferences | null>(null)
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null)
 
   // Error state management
   const [errors, setErrors] = useState<{
@@ -105,6 +109,9 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
         const response = await fetch("/api/profile/interview-preferences")
         if (response.ok) {
           const preferences = await response.json()
+          console.log('🎯 PreInterviewSetup loaded preferences:', preferences)
+          console.log('🎯 Selected skills:', preferences?.interviewPreferences?.selectedSkills)
+          console.log('🎯 Custom skills:', preferences?.interviewPreferences?.customSkills)
           setUserPreferences(preferences)
 
           // Auto-fill if user has preferences and autoStartWithPreferences is enabled
@@ -473,23 +480,60 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
 
                         {selectedJobRole.category?.skills && selectedJobRole.category.skills.length > 0 && (
                           <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-white/50">
-                            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-3">
-                              Key Skills
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedJobRole.category.skills.slice(0, 8).map((skill, index) => (
-                                <span
-                                  key={index}
-                                  className="px-3 py-1.5 bg-blue-100 text-blue-800 text-sm font-medium rounded-full border border-blue-200 shadow-sm"
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                                {/* Show user selected skills if available, otherwise show all category skills */}
+                                {userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0 
+                                  ? "Your Selected Skills" 
+                                  : "Key Skills"}
+                              </p>
+                              {(!userPreferences?.interviewPreferences?.selectedSkills || userPreferences.interviewPreferences.selectedSkills.length === 0) && (
+                                <a 
+                                  href="/dashboard/profile" 
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                 >
-                                  {skill}
-                                </span>
-                              ))}
-                              {selectedJobRole.category.skills.length > 8 && (
-                                <span className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-full border border-slate-200">
-                                  +{selectedJobRole.category.skills.length - 8} more
-                                </span>
+                                  Customize Skills
+                                </a>
                               )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {(() => {
+                                // Use user selected skills if available, otherwise use all category skills
+                                const skillsToShow = userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0
+                                  ? [...userPreferences.interviewPreferences.selectedSkills, ...(userPreferences.interviewPreferences?.customSkills || [])]
+                                  : selectedJobRole.category.skills;
+                                
+                                console.log('🎯 PreInterviewSetup Skills Display Debug:');
+                                console.log('  - userPreferences:', userPreferences);
+                                console.log('  - selectedSkills:', userPreferences?.interviewPreferences?.selectedSkills);
+                                console.log('  - customSkills:', userPreferences?.interviewPreferences?.customSkills);
+                                console.log('  - skillsToShow:', skillsToShow);
+                                console.log('  - selectedJobRole.category.skills:', selectedJobRole.category.skills);
+                                
+                                return (
+                                  <>
+                                    {skillsToShow.slice(0, 8).map((skill, index) => (
+                                      <span
+                                        key={index}
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-full border shadow-sm ${
+                                          userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0
+                                            ? "bg-green-100 text-green-800 border-green-200"  // User selected skills
+                                            : "bg-blue-100 text-blue-800 border-blue-200"    // Default category skills
+                                        }`}
+                                      >
+                                        {skill}
+                                      </span>
+                                    ))}
+                                    {skillsToShow.length > 8 && (
+                                      <span className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-full border border-slate-200">
+                                        +{skillsToShow.length - 8} more
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         )}

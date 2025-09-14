@@ -27,27 +27,45 @@ const StartScreen: React.FC<StartScreenProps> = ({
   const [prefLoading, setPrefLoading] = React.useState(false);
   const [preferredJobRole, setPreferredJobRole] = React.useState<any | null>(null);
 
-  // Load user interview preferences (same API used by avatar interview)
+  // Load user interview preferences and user preferences (same API used by avatar interview)
+  const [userPreferences, setUserPreferences] = React.useState<{ 
+    interviewPreferences?: { 
+      selectedSkills?: string[];
+      customSkills?: string[];
+    };
+  } | null>(null);
+
   React.useEffect(() => {
     const fetchPrefs = async () => {
       try {
         setPrefLoading(true);
-        const res = await fetch('/api/profile/interview-preferences');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data?.preferredJobRole) {
-          setPreferredJobRole(data.preferredJobRole);
-          // Map preferred job role to test-mode selectors
-          const roleTitle = data.preferredJobRole.title || '';
-          const roleLevel = data.preferredJobRole.level || '';
-          const categoryName = data.preferredJobRole.category?.name || '';
+        // Load both interview preferences and user preferences
+        const [prefsRes, userRes] = await Promise.all([
+          fetch('/api/profile/interview-preferences'),
+          fetch('/api/profile')
+        ]);
+        
+        if (prefsRes.ok) {
+          const data = await prefsRes.json();
+          if (data?.preferredJobRole) {
+            setPreferredJobRole(data.preferredJobRole);
+            // Map preferred job role to test-mode selectors
+            const roleTitle = data.preferredJobRole.title || '';
+            const roleLevel = data.preferredJobRole.level || '';
+            const categoryName = data.preferredJobRole.category?.name || '';
 
-          // Directly set from preferences (no local constants needed)
-          if (categoryName) setCategory(categoryName);
-          if (roleTitle) setPosition(roleTitle);
-          if (roleLevel) setLevel(roleLevel);
+            // Directly set from preferences (no local constants needed)
+            if (categoryName) setCategory(categoryName);
+            if (roleTitle) setPosition(roleTitle);
+            if (roleLevel) setLevel(roleLevel);
+          }
         }
-      } catch (e) {
+
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setUserPreferences(userData);
+        }
+      } catch {
         // silent fail
       } finally {
         setPrefLoading(false);
@@ -91,13 +109,62 @@ const StartScreen: React.FC<StartScreenProps> = ({
                 <p className="text-sm text-blue-900">{preferredJobRole.description}</p>
               </div>
             )}
-            {preferredJobRole.category?.skills && preferredJobRole.category.skills.length > 0 && (
+            {((userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0) || preferredJobRole.category?.skills) && (
               <div>
-                <p className="text-xs text-blue-700 font-medium mb-2">Required Skills</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-blue-700 font-medium">
+                    {/* Show user selected skills if available, otherwise show all category skills */}
+                    {userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0 
+                      ? "Your Selected Skills" 
+                      : "Required Skills"}
+                  </p>
+                  {(!userPreferences?.interviewPreferences?.selectedSkills || userPreferences.interviewPreferences.selectedSkills.length === 0) && (
+                    <a 
+                      href="/dashboard/profile" 
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Customize Skills
+                    </a>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
-                  {preferredJobRole.category.skills.slice(0, 12).map((skill: string, idx: number) => (
-                    <span key={idx} className="px-3 py-1 bg-white border border-blue-200 text-blue-800 text-xs font-medium rounded-full">{skill}</span>
-                  ))}
+                  {(() => {
+                    // Use user selected skills if available, otherwise use all category skills
+                    const skillsToShow = userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0
+                      ? [...userPreferences.interviewPreferences.selectedSkills, ...(userPreferences.interviewPreferences?.customSkills || [])]
+                      : preferredJobRole.category?.skills || [];
+                    
+                    console.log('🎯 Assessment Mode Skills Display Debug:');
+                    console.log('  - userPreferences:', userPreferences);
+                    console.log('  - selectedSkills:', userPreferences?.interviewPreferences?.selectedSkills);
+                    console.log('  - customSkills:', userPreferences?.interviewPreferences?.customSkills);
+                    console.log('  - skillsToShow:', skillsToShow);
+                    console.log('  - preferredJobRole.category.skills:', preferredJobRole.category?.skills);
+                    
+                    return (
+                      <>
+                        {skillsToShow.slice(0, 12).map((skill: string, idx: number) => (
+                          <span 
+                            key={idx} 
+                            className={`px-3 py-1 text-xs font-medium rounded-full border ${
+                              userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0
+                                ? "bg-green-50 text-green-800 border-green-200"  // User selected skills
+                                : "bg-white text-blue-800 border-blue-200"      // Default category skills
+                            }`}
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                        {skillsToShow.length > 12 && (
+                          <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-full border border-slate-200">
+                            +{skillsToShow.length - 12} more
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}

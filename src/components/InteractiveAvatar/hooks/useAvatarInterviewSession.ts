@@ -106,6 +106,12 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
   const [pendingInterviewEnd, setPendingInterviewEnd] = useState<null | { progress: number; reason?: string }>(null);
   const [isSavingInterview, setIsSavingInterview] = useState(false);
   const [isInitializingInterview, setIsInitializingInterview] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<{
+    interviewPreferences?: {
+      selectedSkills?: string[];
+      customSkills?: string[];
+    };
+  } | null>(null);
   const isPositionsFetching = useRef(false);
 
   const { fetchJobRoles, saveInterview } = useInterviewApi();
@@ -120,6 +126,25 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
     setElapsedTime,
     formatElapsedTime,
   } = useInterviewSession();
+
+  // Load user preferences for interview skills
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      if (!userId) return;
+
+      try {
+        const response = await fetch("/api/profile/interview-preferences");
+        if (response.ok) {
+          const preferences = await response.json();
+          setUserPreferences(preferences);
+        }
+      } catch (error) {
+        console.error("Error loading user preferences:", error);
+      }
+    };
+
+    loadUserPreferences();
+  }, [userId]);
 
   useEffect(() => {
       const fetchJobRolesOnce = async () => {
@@ -179,7 +204,9 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
     level: jobRoles.find(role => role.id === jobRoleId)?.level || 'mid',
     language: mapUILanguageToAI(config.language || 'en'),
     jobRoleTitle: jobRoles.find(role => role.id === jobRoleId)?.title,
-    jobRoleLevel: jobRoles.find(role => role.id === jobRoleId)?.level
+    jobRoleLevel: jobRoles.find(role => role.id === jobRoleId)?.level,
+    selectedSkills: userPreferences?.interviewPreferences?.selectedSkills || [],
+    customSkills: userPreferences?.interviewPreferences?.customSkills || []
   };
 
   // Log config để debug
