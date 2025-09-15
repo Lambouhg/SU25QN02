@@ -44,6 +44,7 @@ interface QuizCardProps {
   isBookmarked?: boolean;
   onToggleBookmark?: () => void;
   showNavigator?: boolean; // Control navigator visibility
+  shuffleKey?: string; // Key to trigger re-shuffle of options
 }
 
 export default function QuizCard({
@@ -60,9 +61,51 @@ export default function QuizCard({
   timeLeft,
   isBookmarked = false,
   onToggleBookmark,
-  showNavigator = true // Default to true for backward compatibility
+  showNavigator = true, // Default to true for backward compatibility
+  shuffleKey // Add shuffleKey prop
 }: QuizCardProps) {
   const [showMobileNavigator, setShowMobileNavigator] = React.useState(false);
+  
+  // Shuffle options while preserving correct mapping
+  const [shuffledOptions, setShuffledOptions] = React.useState<Array<{
+    text: string;
+    originalIndex: number;
+  }>>([]);
+  
+  // Initialize shuffled options when question changes
+  React.useEffect(() => {
+    if (question.options && question.options.length > 0) {
+      const optionsWithIndex = question.options.map((option, index) => ({
+        text: option.text,
+        originalIndex: index
+      }));
+      
+      // Fisher-Yates shuffle algorithm
+      const shuffled = [...optionsWithIndex];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      
+      setShuffledOptions(shuffled);
+    }
+  }, [question.questionId, question.options, shuffleKey]); // Re-shuffle when question or shuffleKey changes
+  
+  // Convert shuffled index back to original index for answer submission
+  const handleAnswerSelect = (shuffledIndex: number, isMultiple: boolean) => {
+    const originalIndex = shuffledOptions[shuffledIndex]?.originalIndex;
+    if (originalIndex !== undefined) {
+      onAnswerChange(question.questionId, originalIndex, isMultiple);
+    }
+  };
+  
+  // Convert original selected answers to shuffled positions for display
+  const getShuffledSelectedAnswers = () => {
+    return selectedAnswers.map(originalIndex => {
+      const shuffledIndex = shuffledOptions.findIndex(option => option.originalIndex === originalIndex);
+      return shuffledIndex !== -1 ? shuffledIndex : -1;
+    }).filter(index => index !== -1);
+  };
   
   // Generate questionStatuses if not provided
   const generateQuestionStatuses = (): QuestionStatus[] => {
@@ -190,6 +233,11 @@ export default function QuizCard({
                   <Badge variant="outline" className="capitalize">
                     {question.type.replace('_', ' ')}
                   </Badge>
+                  {shuffledOptions.length > 0 && (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      🔀 Shuffled
+                    </Badge>
+                  )}
                 </div>
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800 leading-relaxed break-words">
                   {question.stem}
@@ -200,13 +248,14 @@ export default function QuizCard({
 
             {/* Options */}
             <div className="space-y-3">
-              {question.options?.map((option, index) => {
-                const isSelected = selectedAnswers.includes(index);
+              {shuffledOptions.map((option, shuffledIndex) => {
+                const shuffledSelectedAnswers = getShuffledSelectedAnswers();
+                const isSelected = shuffledSelectedAnswers.includes(shuffledIndex);
                 const isMultiple = question.type === "multiple_choice";
                 
                 return (
                   <label
-                    key={index}
+                    key={shuffledIndex}
                     className={`flex items-start gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 w-full ${
                       isSelected
                         ? 'border-blue-500 bg-blue-50 shadow-md'
@@ -218,7 +267,7 @@ export default function QuizCard({
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => onAnswerChange(question.questionId, index, true)}
+                          onChange={() => handleAnswerSelect(shuffledIndex, true)}
                           className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                         />
                       ) : (
@@ -226,7 +275,7 @@ export default function QuizCard({
                           type="radio"
                           name={question.questionId}
                           checked={isSelected}
-                          onChange={() => onAnswerChange(question.questionId, index, false)}
+                          onChange={() => handleAnswerSelect(shuffledIndex, false)}
                           className="w-5 h-5 text-blue-600 border-gray-300 focus:ring-blue-500"
                         />
                       )}

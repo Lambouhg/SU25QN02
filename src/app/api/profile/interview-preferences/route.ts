@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
       preferredLanguage: user.preferredLanguage || 'vi',
       autoStartWithPreferences: user.autoStartWithPreferences ?? true,
       interviewPreferences: user.interviewPreferences || {},
+      skills: user.skills || [], // Include user's skills
       preferredJobRole: user.preferredJobRole,
     };
 
@@ -58,6 +59,7 @@ export async function PUT(request: NextRequest) {
       preferredLanguage,
       autoStartWithPreferences,
       interviewPreferences,
+      skills, // Add skills field
     } = body;
 
     // Validate job role if provided
@@ -80,6 +82,7 @@ export async function PUT(request: NextRequest) {
         preferredLanguage: preferredLanguage || 'vi',
         autoStartWithPreferences: autoStartWithPreferences ?? true,
         interviewPreferences: interviewPreferences || {},
+        skills: skills || [], // Update user skills
       },
       include: {
         preferredJobRole: {
@@ -96,6 +99,7 @@ export async function PUT(request: NextRequest) {
       preferredLanguage: updatedUser.preferredLanguage,
       autoStartWithPreferences: updatedUser.autoStartWithPreferences,
       interviewPreferences: updatedUser.interviewPreferences,
+      skills: updatedUser.skills || [], // Include skills in response
       preferredJobRole: updatedUser.preferredJobRole,
     };
 

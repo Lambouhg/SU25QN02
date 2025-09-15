@@ -11,6 +11,7 @@ interface InterviewPreferences {
   preferredJobRoleId?: string;
   preferredLanguage: string;
   autoStartWithPreferences: boolean;
+  skills?: string[]; // Add user skills
   interviewPreferences: {
     showJobRoleSelector?: boolean;
     defaultAvatarId?: string;
@@ -33,6 +34,7 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
   const [preferences, setPreferences] = useState<InterviewPreferences>({
     preferredLanguage: 'vi',
     autoStartWithPreferences: true,
+    skills: [], // Initialize user skills
     interviewPreferences: {
       showJobRoleSelector: true,
       defaultAvatarId: '',
@@ -69,6 +71,7 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
             preferredJobRoleId: data.preferredJobRoleId,
             preferredLanguage: data.preferredLanguage || 'vi',
             autoStartWithPreferences: data.autoStartWithPreferences ?? true,
+            skills: data.skills || [], // Load user skills
             interviewPreferences: data.interviewPreferences || {
               showJobRoleSelector: true,
               defaultAvatarId: '',
@@ -985,153 +988,118 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
          </div>
        )}
 
-      {/* Personal Skills Selection */}
+   
+
+      {/* Personal Skills */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center gap-2 mb-4">
-          <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
           </svg>
-          <h4 className="text-lg font-medium text-gray-900">Personal Skills & Expertise</h4>
+          <h4 className="text-lg font-medium text-gray-900">Your Skills</h4>
         </div>
         
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Your Core Skills
-            </label>
-            <p className="text-xs text-gray-500 mb-3">
-              Choose the skills that best represent your expertise and experience
-            </p>
-            
-            <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto p-3 border border-gray-200 rounded-lg">
-              {categorySkills.map((skill: string, index: number) => (
-                <label key={index} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setPreferences(prev => ({
-                          ...prev,
-                          interviewPreferences: {
-                            ...prev.interviewPreferences,
-                            selectedSkills: [...(prev.interviewPreferences.selectedSkills || []), skill]
-                          }
-                        }));
-                      } else {
-                        setPreferences(prev => ({
-                          ...prev,
-                          interviewPreferences: {
-                            ...prev.interviewPreferences,
-                            selectedSkills: (prev.interviewPreferences.selectedSkills || []).filter(s => s !== skill)
-                          }
-                        }));
-                      }
-                    }}
-                    checked={(preferences.interviewPreferences.selectedSkills || []).includes(skill)}
-                  />
-                  <span className="text-sm text-gray-700">{skill}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <p className="text-sm text-gray-600">
+            Add your skills to enable personalized question filtering in the review section.
+          </p>
 
+          {/* Current Skills */}
+          {preferences.skills && preferences.skills.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Current Skills ({preferences.skills.length})
+              </label>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {preferences.skills.map((skill, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
+                  >
+                    {skill}
+                    <button
+                      onClick={() => {
+                        setPreferences(prev => ({
+                          ...prev,
+                          skills: prev.skills?.filter((_, i) => i !== index) || []
+                        }))
+                      }}
+                      className="ml-1 text-blue-600 hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Add New Skill */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Add Custom Skills
+              Add New Skill
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Enter custom skill (e.g., AWS, Docker, etc.)"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-sm"
+                placeholder="Enter a skill (e.g., React, Python, UI/UX Design)"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onKeyPress={(e) => {
-                  if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                    const newSkill = e.currentTarget.value.trim();
-                    setPreferences(prev => ({
-                      ...prev,
-                      interviewPreferences: {
-                        ...prev.interviewPreferences,
-                        customSkills: [...(prev.interviewPreferences.customSkills || []), newSkill]
-                      }
-                    }));
-                    e.currentTarget.value = '';
+                  if (e.key === 'Enter') {
+                    const input = e.target as HTMLInputElement
+                    const skill = input.value.trim()
+                    if (skill && !preferences.skills?.includes(skill)) {
+                      setPreferences(prev => ({
+                        ...prev,
+                        skills: [...(prev.skills || []), skill]
+                      }))
+                      input.value = ''
+                    }
                   }
                 }}
               />
               <button
-                type="button"
                 onClick={(e) => {
-                  const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                  if (input.value.trim()) {
-                    const newSkill = input.value.trim();
+                  const input = (e.target as HTMLButtonElement).previousElementSibling as HTMLInputElement
+                  const skill = input.value.trim()
+                  if (skill && !preferences.skills?.includes(skill)) {
                     setPreferences(prev => ({
                       ...prev,
-                      interviewPreferences: {
-                        ...prev.interviewPreferences,
-                        customSkills: [...(prev.interviewPreferences.customSkills || []), newSkill]
-                      }
-                    }));
-                    input.value = '';
+                      skills: [...(prev.skills || []), skill]
+                    }))
+                    input.value = ''
                   }
                 }}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 text-sm"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Add
               </button>
             </div>
           </div>
 
-          {/* Display selected skills */}
-          {((preferences.interviewPreferences.selectedSkills && preferences.interviewPreferences.selectedSkills.length > 0) || 
-            (preferences.interviewPreferences.customSkills && preferences.interviewPreferences.customSkills.length > 0)) && (
-            <div className="mt-4">
-              <h5 className="text-sm font-medium text-gray-700 mb-2">Your Selected Skills:</h5>
+          {/* Quick Add from Category Skills */}
+          {selectedJobRole?.category?.skills && selectedJobRole.category.skills.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Quick Add from {selectedJobRole.category.name} Category
+              </label>
               <div className="flex flex-wrap gap-2">
-                {preferences.interviewPreferences.selectedSkills?.map((skill: string, index: number) => (
-                  <span
-                    key={`selected-${index}`}
-                    className="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full border border-yellow-200 flex items-center gap-1"
-                  >
-                    {skill}
+                {selectedJobRole.category.skills
+                  .filter(skill => !preferences.skills?.includes(skill))
+                  .map((skill, index) => (
                     <button
+                      key={index}
                       onClick={() => {
                         setPreferences(prev => ({
                           ...prev,
-                          interviewPreferences: {
-                            ...prev.interviewPreferences,
-                            selectedSkills: (prev.interviewPreferences.selectedSkills || []).filter(s => s !== skill)
-                          }
-                        }));
+                          skills: [...(prev.skills || []), skill]
+                        }))
                       }}
-                      className="text-yellow-600 hover:text-yellow-800 ml-1"
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs hover:bg-gray-200 border border-gray-300"
                     >
-                      ×
+                      + {skill}
                     </button>
-                  </span>
-                ))}
-                {preferences.interviewPreferences.customSkills?.map((skill: string, index: number) => (
-                  <span
-                    key={`custom-${index}`}
-                    className="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-full border border-orange-200 flex items-center gap-1"
-                  >
-                    {skill}
-                    <button
-                      onClick={() => {
-                        setPreferences(prev => ({
-                          ...prev,
-                          interviewPreferences: {
-                            ...prev.interviewPreferences,
-                            customSkills: (prev.interviewPreferences.customSkills || []).filter(s => s !== skill)
-                          }
-                        }));
-                      }}
-                      className="text-orange-600 hover:text-orange-800 ml-1"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+                  ))}
               </div>
             </div>
           )}

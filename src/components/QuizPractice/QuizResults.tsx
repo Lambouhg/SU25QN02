@@ -37,6 +37,13 @@ interface QuizResultsProps {
     }>;
   };
   timeUsed?: number;
+  attemptHistory?: Array<{
+    attemptId: string;
+    score: number;
+    total: number;
+    timeUsed: number;
+    timestamp: Date;
+  }>;
   onBack: () => void;
   onRestart: () => void;
 }
@@ -46,6 +53,7 @@ export default function QuizResults({
   answers,
   score,
   timeUsed,
+  attemptHistory,
   onBack,
   onRestart
 }: QuizResultsProps) {
@@ -56,6 +64,10 @@ export default function QuizResults({
   const currentQuestion = items[currentQuestionIndex];
   const userAnswers = answers[currentQuestion?.questionId] || [];
   const questionDetail = score.details?.[currentQuestionIndex];
+  
+  // Calculate percentage and determine if score is low
+  const scorePercentage = (score.score / score.total) * 100;
+  const isLowScore = scorePercentage < 60; // Consider below 60% as low score
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -150,6 +162,46 @@ export default function QuizResults({
               <div className="text-sm text-gray-600">Time Used</div>
             </div>
           </div>
+          
+          {/* Low Score Encouragement */}
+          {isLowScore && (
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center gap-2 text-yellow-800 mb-2">
+                <Lightbulb className="w-5 h-5" />
+                <span className="font-semibold">Keep trying! You can do better!</span>
+              </div>
+              <p className="text-sm text-yellow-700">
+                Practice makes perfect. Review the explanations below and try again to improve your score.
+              </p>
+            </div>
+          )}
+
+          {/* Attempt History */}
+          {attemptHistory && attemptHistory.length > 1 && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <Trophy className="w-4 h-4" />
+                Previous Attempts ({attemptHistory.length - 1})
+              </h3>
+              <div className="space-y-2">
+                {attemptHistory.slice(0, -1).reverse().slice(0, 3).map((attempt, index) => (
+                  <div key={attempt.attemptId} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">
+                      Attempt {attemptHistory.length - index - 1}
+                    </span>
+                    <div className="flex items-center gap-4">
+                      <span className="font-medium">
+                        {attempt.score}/{attempt.total} ({Math.round((attempt.score / attempt.total) * 100)}%)
+                      </span>
+                      <span className="text-gray-500">
+                        {formatTime(attempt.timeUsed)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -348,10 +400,14 @@ export default function QuizResults({
 
             <Button
               onClick={onRestart}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white flex items-center gap-2"
+              className={`flex items-center gap-2 ${
+                isLowScore 
+                  ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white animate-pulse' 
+                  : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
+              }`}
             >
               <RotateCcw className="w-4 h-4" />
-              Try Again
+              {isLowScore ? 'Try Again to Improve!' : 'Try Again'}
             </Button>
           </div>
         </CardContent>

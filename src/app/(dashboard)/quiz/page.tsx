@@ -53,6 +53,16 @@ export default function QuizPage() {
   const [timeUsed, setTimeUsed] = useState<number>(0);
   const [startTime, setStartTime] = useState<number | null>(null);
 
+  // State for quiz retry functionality
+  const [originalItems, setOriginalItems] = useState<SnapshotItem[]>([]); // Store original questions for retry
+  const [attemptHistory, setAttemptHistory] = useState<Array<{
+    attemptId: string;
+    score: number;
+    total: number;
+    timeUsed: number;
+    timestamp: Date;
+  }>>([]);
+
   // Load public question sets
   useEffect(() => {
     (async () => {
@@ -96,13 +106,16 @@ export default function QuizPage() {
         if (count) payload.count = Number(count);
         if (level) payload.level = level;
       }
+      
       const res = await fetch("/api/quiz/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.error || "Start failed");
       setAttemptId(j.data.attemptId);
-      setItems(j.data.items || []);
+      const quizItems = j.data.items || [];
+      setItems(quizItems);
+      setOriginalItems(quizItems); // Save original items for retry
       // Set timer: use API timeLimit or default to 30 minutes for the entire quiz
-      const defaultTimeLimit = (j.data.items?.length || 10) * 120; // 2 minutes per question
+      const defaultTimeLimit = (quizItems.length || 10) * 120; // 2 minutes per question
       setTimeLeft(j.data.timeLimit || defaultTimeLimit);
       setAnswers({});
     } catch (e: unknown) {
@@ -121,13 +134,25 @@ export default function QuizPage() {
       const res = await fetch("/api/quiz/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attemptId, responses }) });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.error || "Submit failed");
-      setScore({ score: j.data.score, total: j.data.total, details: j.data.details });
+      const scoreResult = { score: j.data.score, total: j.data.total, details: j.data.details };
+      setScore(scoreResult);
+      
+      // Add to attempt history
+      if (attemptId) {
+        setAttemptHistory(prev => [...prev, {
+          attemptId,
+          score: j.data.score,
+          total: j.data.total,
+          timeUsed,
+          timestamp: new Date()
+        }]);
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [attemptId, answers]);
+  }, [attemptId, answers, timeUsed]);
 
   // timer countdown and time tracking
   useEffect(() => {
@@ -212,6 +237,7 @@ export default function QuizPage() {
   const restart = useCallback(() => {
     setAttemptId(null);
     setItems([]);
+    setOriginalItems([]); // Clear original items when starting fresh
     setAnswers({});
     setScore(null);
     setCurrentQuestionIndex(0);
@@ -220,6 +246,54 @@ export default function QuizPage() {
     setStartTime(null);
     setTimeLeft(null);
   }, []);
+
+  // New function: Retry the same quiz with same questions
+  const retryQuiz = useCallback(async () => {
+    if (!originalItems.length || !userId) return;
+    
+    setLoading(true);
+    setError(null);
+    setScore(null);
+    setCurrentQuestionIndex(0);
+    setBookmarkedQuestions(new Set());
+    setTimeUsed(0);
+    setStartTime(Date.now());
+    
+    try {
+      // Call retry API with the original questions
+      const res = await fetch("/api/quiz/retry", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ items: originalItems }) 
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.error || "Retry failed");
+      
+      setAttemptId(j.data.attemptId);
+      
+      // Shuffle the questions order for retry (optional - you can enable/disable this)
+      const questionsToSet = j.data.items || [];
+      
+      // Uncomment below to shuffle question order on retry:
+      // const shuffledQuestions = [...questionsToSet];
+      // for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+      //   const j = Math.floor(Math.random() * (i + 1));
+      //   [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
+      // }
+      // setItems(shuffledQuestions);
+      
+      setItems(questionsToSet); // Keep original question order
+      
+      // Set timer: use default timing
+      const defaultTimeLimit = (questionsToSet.length || 10) * 120; // 2 minutes per question
+      setTimeLeft(defaultTimeLimit);
+      setAnswers({});
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [originalItems, userId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -319,6 +393,7 @@ export default function QuizPage() {
             isBookmarked={bookmarkedQuestions.has(items[currentQuestionIndex]?.questionId)}
             onToggleBookmark={toggleBookmark}
             showNavigator={true} // Show navigator during quiz
+            shuffleKey={attemptId} // Use attemptId as shuffle key to trigger re-shuffle on retry
           />
         )}
 
@@ -329,8 +404,9 @@ export default function QuizPage() {
             answers={answers}
             score={score}
             timeUsed={timeUsed}
+            attemptHistory={attemptHistory}
             onBack={restart}
-            onRestart={restart}
+            onRestart={retryQuiz} // Use retryQuiz instead of restart
           />
         )}
 

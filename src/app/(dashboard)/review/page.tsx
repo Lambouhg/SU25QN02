@@ -24,16 +24,20 @@ import { useAuth } from "@clerk/nextjs"
 
 interface Question {
   id: string
-  question: string
+  stem: string  // Updated from 'question' to 'stem' to match new API
   explanation?: string
   fields?: string[]
   topics?: string[]
-  levels?: string[]
+  skills?: string[]
+  level?: string
   difficulty?: string
+  category?: string
+  tags?: string[]
   options?: Array<{
     id: string
     text: string
     isCorrect: boolean
+    order: number
   }>
 }
 
@@ -41,6 +45,7 @@ interface UserPreferences {
   preferredJobRoleId?: string
   preferredLanguage?: string
   autoStartWithPreferences?: boolean
+  skills?: string[]  // User's own skills
   preferredJobRole?: {
     id: string
     title: string
@@ -89,6 +94,8 @@ export default function ReviewQuestionPage() {
           setUserPreferences(preferences)
           
           // Auto-apply preferences if user has them and autoStartWithPreferences is enabled
+          // DISABLED: Let user manually choose filters
+          /*
           if (preferences.autoStartWithPreferences && preferences.preferredJobRole) {
             const { preferredJobRole } = preferences
             
@@ -109,6 +116,7 @@ export default function ReviewQuestionPage() {
               icon: '⚡'
             })
           }
+          */
         }
       } catch (error) {
         console.error('Error loading user preferences:', error)
@@ -118,51 +126,49 @@ export default function ReviewQuestionPage() {
     loadUserPreferences()
   }, [userId])
 
-  // Fetch questions từ question bank, with user preferences support
+  // Fetch questions từ question bank mới
   const fetchQuestions = useCallback(async () => {
     try {
       setIsLoading(true)
       const params = new URLSearchParams()
       
-      // Map filter fields to API format
-      if (filterField !== "all") params.append("field", filterField)
+      // Update API parameters to match new API
+      if (filterField !== "all") {
+        params.append("fields", filterField)
+      }
       
       // Use selectedTopics for multiple topic filtering
       if (selectedTopics.length > 0) {
-        // If specific topics selected, use them
-        params.append("topic", selectedTopics.join(","))
+        params.append("topics", selectedTopics.join(","))
       } else if (filterTopic !== "all") {
-        params.append("topic", filterTopic)
-      } else if (isPreferencesApplied && userPreferences?.preferredJobRole) {
-        // If no specific topic filter but preferences applied, use user preferences
-        params.append("useUserPreferences", "true")
+        params.append("topics", filterTopic)
       }
       
-      // Set limit for review mode
-      params.append("limit", "1000")
+      if (searchQuery) {
+        params.append("search", searchQuery)
+      }
       
-      // Always use new questions API with user preferences support
+      // Set high page size for review mode
+      params.append("pageSize", "100")
+      
+      // Use public API endpoint for review
       const response = await fetch(`/api/questions?${params.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch questions")
-      
-      const data = await response.json()
-      const questionItems = data.data || []
-      
-      console.log(`[Review] Fetched ${questionItems.length} questions with filters:`, {
-        field: filterField,
-        selectedTopics,
-        useUserPreferences: isPreferencesApplied && userPreferences?.preferredJobRole && selectedTopics.length === 0,
-        userSkills: userPreferences?.preferredJobRole?.category?.skills
-      })
-
-      setQuestions(questionItems)
-    } catch (error) {
-      console.error("Error fetching questions:", error)
+      const result = await response.json()
+      console.log('🔍 Questions loaded:', result.data?.length || 0)
+      if (result.data && result.data.length > 0) {
+        console.log('🔍 Sample question topics:', result.data.slice(0, 3).map((q: Question) => ({ 
+          stem: q.stem.substring(0, 50) + '...', 
+          topics: q.topics 
+        })))
+      }
+      setQuestions(result.data || [])
+    } catch {
       toast.error("Failed to load questions")
     } finally {
       setIsLoading(false)
     }
-  }, [filterField, filterTopic, selectedTopics, isPreferencesApplied, userPreferences])
+  }, [filterField, filterTopic, selectedTopics, searchQuery])
 
   useEffect(() => {
     fetchQuestions()
@@ -170,24 +176,37 @@ export default function ReviewQuestionPage() {
 
   // Filter questions theo field/topic và search query
   let filteredQuestions = questions
+  console.log('🔍 Filter state:', { filterField, filterTopic, selectedTopics, questionsTotal: questions.length })
+  
   if (filterField !== "all") {
-    filteredQuestions = filteredQuestions.filter((q) => q.fields?.includes(filterField))
+    // Case insensitive field filtering
+    const beforeFilter = filteredQuestions.length
+    filteredQuestions = filteredQuestions.filter((q) => 
+      q.fields?.some(field => field.toLowerCase() === filterField.toLowerCase())
+    )
+    console.log('🔍 After field filter:', { filterField, before: beforeFilter, after: filteredQuestions.length })
   }
   
-  // Filter by selected topics (multiple selection)
+  // Filter by selected topics (multiple selection) - Case insensitive
   if (selectedTopics.length > 0) {
     filteredQuestions = filteredQuestions.filter((q) => 
-      q.topics?.some(topic => selectedTopics.includes(topic))
+      q.topics?.some(topic => 
+        selectedTopics.some(selectedTopic => 
+          topic.toLowerCase() === selectedTopic.toLowerCase()
+        )
+      )
     )
   } else if (filterTopic !== "all") {
-    // Fallback to single topic filter if no selected topics
-    filteredQuestions = filteredQuestions.filter((q) => q.topics?.includes(filterTopic))
+    // Fallback to single topic filter if no selected topics - Case insensitive
+    filteredQuestions = filteredQuestions.filter((q) => 
+      q.topics?.some(topic => topic.toLowerCase() === filterTopic.toLowerCase())
+    )
   }
   
   if (searchQuery) {
     filteredQuestions = filteredQuestions.filter(
       (q) =>
-        q.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.stem.toLowerCase().includes(searchQuery.toLowerCase()) ||
         q.explanation?.toLowerCase().includes(searchQuery.toLowerCase()),
     )
   }
@@ -247,6 +266,50 @@ export default function ReviewQuestionPage() {
       toast.success("Added to bookmarks ⭐")
     }
     setBookmarkedQuestions(newBookmarks)
+  }
+
+  const applyUserPreferences = () => {
+    if (userPreferences?.preferredJobRole) {
+      const { preferredJobRole } = userPreferences
+      
+      // Map JobCategory.name to field
+      if (preferredJobRole.category?.name) {
+        setFilterField(preferredJobRole.category.name)
+      }
+      
+      // Set filterTopic to "all" but don't auto-select skills
+      setFilterTopic("all")
+      setSelectedTopics([]) // Start with no skills selected
+      
+      setIsPreferencesApplied(true)
+      console.log('🔍 Applied preferences:', {
+        filterField: preferredJobRole.category?.name,
+        filterTopic: "all",
+        selectedTopics: []
+      })
+      toast.success(`Applied preferences for ${preferredJobRole.title}. Click skills below to filter.`, {
+        duration: 4000,
+        icon: '⚡'
+      })
+    }
+  }
+
+  const toggleSkillFilter = (skill: string) => {
+    setSelectedTopics(prev => {
+      // Case insensitive comparison
+      const isSelected = prev.some(s => s.toLowerCase() === skill.toLowerCase())
+      if (isSelected) {
+        // Remove skill (case insensitive)
+        const newSelected = prev.filter(s => s.toLowerCase() !== skill.toLowerCase())
+        toast.success(`Removed ${skill} filter`, { duration: 2000 })
+        return newSelected
+      } else {
+        // Add skill
+        const newSelected = [...prev, skill]
+        toast.success(`Added ${skill} filter`, { duration: 2000 })
+        return newSelected
+      }
+    })
   }
 
   const clearAllFilters = () => {
@@ -324,11 +387,11 @@ export default function ReviewQuestionPage() {
                           Applied Your Preferences
                         </h4>
                         <p className="text-xs text-blue-700">
-                          Questions for: {userPreferences.preferredJobRole.category?.name}
-                          {userPreferences.preferredJobRole.category?.skills && userPreferences.preferredJobRole.category.skills.length > 0 && (
+                          Category: {userPreferences.preferredJobRole.category?.name}
+                          {userPreferences.skills && userPreferences.skills.length > 0 && (
                             <>
                               <br />
-                              <span>Skills:</span>
+                              <span>Your Skills: {userPreferences.skills.length} available</span>
                             </>
                           )}
                         </p>
@@ -343,33 +406,75 @@ export default function ReviewQuestionPage() {
                     </button>
                   </div>
                   
-                  {/* Skills Tags Display */}
-                  {userPreferences.preferredJobRole.category?.skills && userPreferences.preferredJobRole.category.skills.length > 0 && (
+                  {/* User Skills Display - Use user's actual skills instead of category skills */}
+                  {isPreferencesApplied && (
                     <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {userPreferences.preferredJobRole.category.skills.map((skill, index) => {
-                          const isSelected = selectedTopics.includes(skill)
-                          return (
-                            <button
-                              key={index}
-                              className={`px-2 py-1 text-xs font-medium rounded-full border transition-all hover:shadow-md ${
-                                isSelected
-                                  ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
-                                  : 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
-                              }`}
+                      {userPreferences?.skills && userPreferences.skills.length > 0 ? (
+                        <>
+                          <div className="text-xs font-medium text-blue-800 mb-2">
+                            Your Skills - Click to filter: ({selectedTopics.length} selected)
+                          </div>
+                          {/* Debug info */}
+                          <div className="text-xs text-gray-500 mb-2 p-2 bg-gray-50 rounded">
+                            Debug: Your skills: {JSON.stringify(userPreferences.skills)} | 
+                            Selected: {JSON.stringify(selectedTopics)}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {userPreferences.skills.map((skill, index) => {
+                              // Case insensitive selection check
+                              const isSelected = selectedTopics.some(s => s.toLowerCase() === skill.toLowerCase())
+                              return (
+                                <button
+                                  key={index}
+                                  onClick={() => toggleSkillFilter(skill)}
+                                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-all hover:shadow-md ${
+                                    isSelected
+                                      ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
+                                      : 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
+                                  }`}
+                                >
+                                  {skill}
+                                  {isSelected && ' ✓'}
+                                </button>
+                              )
+                            })}
+                          </div>
+                          {selectedTopics.length > 0 && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-blue-700">
+                                Filtering by {selectedTopics.length} skill(s)
+                              </span>
+                              <button
+                                onClick={() => setSelectedTopics([])}
+                                className="text-xs text-blue-600 hover:text-blue-800 underline"
+                              >
+                                Clear skill filters
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="text-xs font-medium text-yellow-800 mb-1">
+                            No Skills Found
+                          </div>
+                          <div className="text-xs text-yellow-700">
+                            Add skills to your profile to enable skill-based filtering.
+                            <br />
+                            <button 
+                              onClick={() => window.location.href = '/profile'}
+                              className="text-yellow-800 hover:text-yellow-900 underline mt-1 inline-block"
                             >
-                              {skill}
-                              {isSelected && ' ✓'}
+                              Go to Profile →
                             </button>
-                          )
-                        })}
-                      </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Filter Toggle */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <button
@@ -379,6 +484,18 @@ export default function ReviewQuestionPage() {
                     <Filter className="w-4 h-4" />
                     Filters {showFilters ? "▲" : "▼"}
                   </button>
+                  
+                  {/* Apply Preferences Button */}
+                  {userPreferences?.preferredJobRole && !isPreferencesApplied && (
+                    <button
+                      onClick={applyUserPreferences}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all"
+                    >
+                      <Star className="w-4 h-4" />
+                      Apply My Preferences
+                    </button>
+                  )}
+                  
                   <button
                     onClick={() => setShowBookmarkedOnly((v) => !v)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${showBookmarkedOnly ? "bg-yellow-100 text-yellow-700 border border-yellow-400" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
@@ -471,6 +588,13 @@ export default function ReviewQuestionPage() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-3 mb-6">
+            {/* Debug: Questions info */}
+            {questions.length > 0 && (
+              <div className="w-full text-xs text-gray-500 p-2 bg-yellow-50 rounded mb-2">
+                Debug: Total {questions.length} questions, Filtered {filteredQuestions.length} | 
+                Sample topics: {JSON.stringify(questions.slice(0, 2).map(q => q.topics).flat())}
+              </div>
+            )}
             <button
               onClick={() => {
                 if (filteredQuestions.length === 0) {
@@ -566,17 +690,38 @@ export default function ReviewQuestionPage() {
                                 {topic}
                               </span>
                             ))}
-                            {question.levels?.map((level) => (
+                            {question.skills?.map((skill) => (
                               <span
-                                key={level}
-                                className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full border border-orange-200"
+                                key={skill}
+                                className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full border border-green-200"
                               >
-                                {level}
+                                {skill}
                               </span>
                             ))}
+                            {question.level && (
+                              <span
+                                className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full border border-orange-200"
+                              >
+                                {question.level}
+                              </span>
+                            )}
+                            {question.difficulty && (
+                              <span
+                                className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full border border-red-200"
+                              >
+                                {question.difficulty}
+                              </span>
+                            )}
+                            {question.category && (
+                              <span
+                                className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full border border-gray-200"
+                              >
+                                {question.category}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <h3 className="font-semibold text-gray-800 mb-3 leading-relaxed">{question.question}</h3>
+                        <h3 className="font-semibold text-gray-800 mb-3 leading-relaxed">{question.stem}</h3>
                       </div>
                       <button
                         onClick={() => toggleBookmark(question.id)}
@@ -675,14 +820,28 @@ export default function ReviewQuestionPage() {
                         🎯 {topic}
                       </span>
                     ))}
-                    {currentCard.levels?.map((level) => (
+                    {currentCard.skills?.map((skill) => (
                       <span
-                        key={level}
-                        className="px-3 py-1 bg-orange-100 text-orange-800 text-sm font-medium rounded-full border border-orange-200"
+                        key={skill}
+                        className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full border border-green-200"
                       >
-                        📊 {level}
+                        🔧 {skill}
                       </span>
                     ))}
+                    {currentCard.level && (
+                      <span
+                        className="px-3 py-1 bg-orange-100 text-orange-800 text-sm font-medium rounded-full border border-orange-200"
+                      >
+                        📊 {currentCard.level}
+                      </span>
+                    )}
+                    {currentCard.difficulty && (
+                      <span
+                        className="px-3 py-1 bg-red-100 text-red-800 text-sm font-medium rounded-full border border-red-200"
+                      >
+                        🎚️ {currentCard.difficulty}
+                      </span>
+                    )}
                   </div>
 
                   <div
@@ -700,7 +859,7 @@ export default function ReviewQuestionPage() {
                           <BookOpen className="w-6 h-6 text-white" />
                         </div>
                         <h3 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
-                          {currentCard.question}
+                          {currentCard.stem}
                         </h3>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600 bg-white/50 px-4 py-2 rounded-full">
