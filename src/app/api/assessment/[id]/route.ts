@@ -9,7 +9,6 @@ export async function OPTIONS() {
   return new Response(null, { status: 200 });
 }
 
-// PATCH - Update assessment with new question/answer real-time
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
@@ -17,6 +16,17 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Get database user ID
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
+    }
+
     const body = await request.json();
     const {
       question,
@@ -31,7 +41,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
     // Tìm assessment
     const assessment = await prisma.assessment.findFirst({
-      where: { id, userId }
+      where: { id, userId: dbUser.id } // ✅ Use database user ID
     });
     if (!assessment) {
       return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });

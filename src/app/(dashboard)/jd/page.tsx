@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { getAIResponse } from '../../../services/jdService/azureAiservicesforJD';
-import { questionSetService } from '@/services/questionSetService';
+import { questionSetService } from '@/services/jdService/questionSetService';
 
 import UploadSection from '@/components/JobDescription/UploadSection';
 import QuestionsDisplay from '@/components/JobDescription/QuestionsDisplay';
@@ -14,7 +14,7 @@ import FeatureHighlights from '@/components/JobDescription/FeatureHighlights';
 import SavedQuestionSets from '@/components/JobDescription/SavedQuestionSets';
 import ValidationInfoDisplay from '@/components/JobDescription/ValidationInfoDisplay';
 import Toast from '@/components/ui/Toast';
-import type { QuestionSetData } from '@/services/questionSetService';
+import type { QuestionSetData } from '@/services/jdService/questionSetService';
 import { AlertTriangle, Eye, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

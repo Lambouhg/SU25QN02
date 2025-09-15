@@ -18,14 +18,23 @@ interface StartScreenProps {
 }
 
 const StartScreen: React.FC<StartScreenProps> = ({
-  category, position, level, duration,
+  position, duration,
   setCategory, setPosition, setLevel, setDuration,
   startInterview,
   isLoading = false
 }) => {
   // Position is now sourced from user preferences; selector removed from UI
-  const [prefLoading, setPrefLoading] = React.useState(false);
-  const [preferredJobRole, setPreferredJobRole] = React.useState<any | null>(null);
+  const [preferredJobRole, setPreferredJobRole] = React.useState<{
+    title?: string;
+    level?: string;
+    description?: string;
+    minExperience?: number;
+    maxExperience?: number;
+    category?: { 
+      name?: string;
+      skills?: string[];
+    };
+  } | null>(null);
 
   // Load user interview preferences and user preferences (same API used by avatar interview)
   const [userPreferences, setUserPreferences] = React.useState<{ 
@@ -38,7 +47,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
   React.useEffect(() => {
     const fetchPrefs = async () => {
       try {
-        setPrefLoading(true);
         // Load both interview preferences and user preferences
         const [prefsRes, userRes] = await Promise.all([
           fetch('/api/profile/interview-preferences'),
@@ -67,8 +75,6 @@ const StartScreen: React.FC<StartScreenProps> = ({
         }
       } catch {
         // silent fail
-      } finally {
-        setPrefLoading(false);
       }
     };
     fetchPrefs();

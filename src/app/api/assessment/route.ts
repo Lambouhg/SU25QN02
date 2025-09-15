@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Xây dựng data object với các trường bắt buộc
     const data = {
-      userId,
+      userId: dbUser.id, // ✅ Use database user ID, not Clerk ID
       type: type as AssessmentType,
       level: rest.level || 'Junior', // Default level if not provided
       duration: rest.duration || 15, // Default duration if not provided
@@ -199,6 +199,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Get database user ID
+  const dbUser = await prisma.user.findUnique({
+    where: { clerkId: userId },
+    select: { id: true }
+  });
+
+  if (!dbUser) {
+    return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const typeParam = searchParams.get('type'); // 'test'
@@ -206,7 +216,7 @@ export async function GET(request: NextRequest) {
 
     // Nếu có type, filter theo type. Nếu không, lấy tất cả
     const where = {
-      userId,
+      userId: dbUser.id, // ✅ Use database user ID, not Clerk ID
       ...(typeParam === 'test' ? { type: typeParam as AssessmentType } : {})
     };
 

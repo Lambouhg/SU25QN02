@@ -14,6 +14,15 @@ export interface InterviewConfig {
   customSkills?: string[]; // User custom skills từ preferences
 }
 
+// Enhanced Question interface with difficulty and skill mapping
+interface QuestionWithDifficulty {
+  id: string;
+  question: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  topic?: string;
+  skills?: string[];
+}
+
 const FIXED_QUESTIONS = 10 ;
 
 const INTERVIEW_STRUCTURE = {
@@ -34,9 +43,9 @@ const INTERVIEW_STRUCTURE = {
   }
 };
 
-// Fetch fixed question list for the interview (simplified API shape)
+// Enhanced Question Bank Context with difficulty levels
 async function getQuestionBankContext(config: InterviewConfig): Promise<{
-  questions: Array<{ id: string; question: string }>
+  questions: QuestionWithDifficulty[]
 } | null> {
   try {
     console.log('🔗 Fetching question bank context for:', {
@@ -44,6 +53,7 @@ async function getQuestionBankContext(config: InterviewConfig): Promise<{
       level: config.level,
       jobRoleTitle: config.jobRoleTitle,
       jobRoleLevel: config.jobRoleLevel,
+      selectedSkills: config.selectedSkills,
       questionCount: FIXED_QUESTIONS
     });
 
@@ -55,7 +65,9 @@ async function getQuestionBankContext(config: InterviewConfig): Promise<{
       body: JSON.stringify({
         field: config.field,
         level: config.level,
-        questionCount: FIXED_QUESTIONS
+        selectedSkills: config.selectedSkills, // Include selected skills for filtering
+        questionCount: FIXED_QUESTIONS,
+        includeDifficulty: true // Request difficulty levels
       })
     });
 
@@ -68,7 +80,11 @@ async function getQuestionBankContext(config: InterviewConfig): Promise<{
 
     const data = await response.json();
     console.log('🔗 Question bank API response data:', {
-      questionsCount: data.questions?.length || 0
+      questionsCount: data.questions?.length || 0,
+      difficultyBreakdown: data.questions?.reduce((acc: Record<string, number>, q: QuestionWithDifficulty) => {
+        acc[q.difficulty || 'unknown'] = (acc[q.difficulty || 'unknown'] || 0) + 1;
+        return acc;
+      }, {}) || {}
     });
 
     return {
@@ -90,6 +106,10 @@ export interface InterviewResponse {
   isInterviewComplete: boolean;
   currentScore: number;
   questionCount: number; // Actual number of technical questions asked by AI
+  // Enhanced difficulty tracking
+  currentDifficulty?: 'easy' | 'medium' | 'hard';
+  difficultyProgression?: string[];
+  performanceTrend?: 'improving' | 'stable' | 'declining';
   completionDetails?: {
     coveredTopics: string[];
     skillAssessment: {
@@ -178,7 +198,7 @@ export async function processInterviewResponse(
     }
 
     // Lấy question list nếu có config
-    let questionBankContext: { questions: Array<{ id: string; question: string }> } | null = null;
+    let questionBankContext: { questions: QuestionWithDifficulty[] } | null = null;
     if (config) {
       console.log('🔗 Getting question bank context for config:', config);
       questionBankContext = await getQuestionBankContext(config);
@@ -214,20 +234,106 @@ INTERVIEWER PERSONA:
 - Ask questions that are relevant to real-world ${field} scenarios
 - Probe deeper when answers are superficial
 - Provide constructive feedback
-- Adapt questions based on candidate's responses while staying within ${field} domain`;
+- Adapt questions based on candidate's responses while staying within ${field} domain
 
-    // Nếu có danh sách câu hỏi, ép hỏi đúng theo thứ tự và dịch sang ngôn ngữ phỏng vấn
+🎯 SMART FOLLOW-UP QUESTION SYSTEM:
+You have TWO modes of questioning:
+1. **PRIMARY QUESTIONS**: From the question bank or planned topics
+2. **FOLLOW-UP QUESTIONS**: Contextual questions based on user's previous answer
+
+🎚️ DIFFICULTY PROGRESSION SYSTEM:
+Use the question bank's built-in difficulty levels (easy/medium/hard) intelligently:
+- **Questions 1-2**: Start with EASY questions to build confidence
+- **Performance-based progression**:
+  * High performance (8-10/10) → Move to HARD questions
+  * Good performance (6-7/10) → Use MEDIUM questions  
+  * Average performance (4-5/10) → Stay with EASY questions
+  * Low performance (0-3/10) → Recovery mode with EASY questions
+
+**SKILL-FOCUSED SELECTION**:
+- Prioritize questions related to user's selectedSkills: ${config?.selectedSkills?.join(', ') || 'general skills'}
+- Match question topics with their expertise areas
+- Balance between comfort zone and challenge zone
+
+**PROGRESSION EXAMPLES**:
+- User answers React question well (8/10) → Next: Hard React architecture question
+- User struggles with database (3/10) → Next: Easy SQL basics question
+- User shows mixed performance (6/10) → Next: Medium difficulty in their strong area
+
+FOLLOW-UP QUESTION LOGIC (IF/ELSE CONDITIONS):
+After each user response, analyze their answer and decide:
+
+**IF user mentions specific technologies/frameworks:**
+- Ask deeper questions about those technologies
+- Example: User mentions "React" → Follow up with "How do you handle state management in React applications?"
+- Example: User mentions "Docker" → Follow up with "What challenges have you faced with container orchestration?"
+
+**IF user gives incomplete or surface-level answers:**
+- Ask clarifying follow-up questions
+- Example: User says "I use databases" → Follow up with "Which database systems have you worked with and in what scenarios?"
+- Example: User says "I know JavaScript" → Follow up with "Can you explain how closures work in JavaScript?"
+
+**IF user demonstrates strong knowledge:**
+- Challenge them with advanced scenarios
+- Example: User explains SQL joins well → Follow up with "How would you optimize a query with multiple joins on large datasets?"
+- Example: User shows good API knowledge → Follow up with "How would you design an API for high concurrency?"
+
+**IF user mentions specific projects/experience:**
+- Dive deeper into their project experience
+- Example: User mentions e-commerce project → Follow up with "How did you handle payment processing security?"
+- Example: User mentions microservices → Follow up with "What were the main challenges in service-to-service communication?"
+
+**IF user shows knowledge gaps:**
+- Gently explore related areas or provide learning opportunities
+- Example: User doesn't know about testing → Follow up with "How do you ensure code quality in your projects?"
+- Example: User unfamiliar with CI/CD → Follow up with "How do you typically deploy your applications?"
+
+**DECISION TREE FOR NEXT QUESTION:**
+1. Analyze user's response for: technical terms, depth of knowledge, gaps, confidence level
+2. Decide: Should I ask follow-up (80% of the time) OR move to next planned question (20%)?
+3. If follow-up: Generate contextual question based on their specific answer
+4. If next planned: Use question bank or move to new topic
+
+**FOLLOW-UP QUESTION TYPES:**
+- **Depth Questions**: "Can you explain how [mentioned technology] works internally?"
+- **Scenario Questions**: "How would you handle [specific situation] in [mentioned context]?"
+- **Experience Questions**: "Tell me about a challenging situation you faced with [mentioned tool/concept]"
+- **Comparison Questions**: "How does [mentioned approach] compare to [alternative approach]?"
+- **Problem-Solving**: "If you encountered [specific issue] with [mentioned technology], how would you debug it?"`;
+
+    // Nếu có danh sách câu hỏi với difficulty levels, cung cấp thông tin để AI chọn thông minh
     if (questionBankContext?.questions?.length) {
-      let questionsList: string;
-      let nextQuestionText: string;
-      const nextQuestionIndex = Math.min(questionsAsked, questionBankContext.questions.length - 1);
+      
+      // Group questions by difficulty for smart selection
+      const questionsByDifficulty = {
+        easy: questionBankContext.questions.filter(q => q.difficulty === 'easy'),
+        medium: questionBankContext.questions.filter(q => q.difficulty === 'medium'),
+        hard: questionBankContext.questions.filter(q => q.difficulty === 'hard')
+      };
+      
+      let questionsInfo: string;
       
       // Nếu ngôn ngữ phỏng vấn không phải tiếng Anh, hướng dẫn AI dịch câu hỏi
       if (language !== 'en-US') {
         const languageName = language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chinese' : language === 'ja-JP' ? 'Japanese' : language === 'ko-KR' ? 'Korean' : 'English';
         
-        questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
-        nextQuestionText = questionBankContext.questions[nextQuestionIndex]?.question || '';
+        questionsInfo = `
+QUESTION BANK STRUCTURE (TRANSLATE TO ${languageName.toUpperCase()} BEFORE ASKING):
+📗 EASY QUESTIONS (${questionsByDifficulty.easy.length} available):
+${questionsByDifficulty.easy.map((q, i) => `  ${i + 1}. ${q.question} [${q.topic || 'General'}]`).join('\n')}
+
+📘 MEDIUM QUESTIONS (${questionsByDifficulty.medium.length} available):  
+${questionsByDifficulty.medium.map((q, i) => `  ${i + 1}. ${q.question} [${q.topic || 'General'}]`).join('\n')}
+
+📕 HARD QUESTIONS (${questionsByDifficulty.hard.length} available):
+${questionsByDifficulty.hard.map((q, i) => `  ${i + 1}. ${q.question} [${q.topic || 'General'}]`).join('\n')}
+
+DIFFICULTY SELECTION RULES:
+- Question 1-2: Choose from EASY questions
+- High performance (8-10): Choose from HARD questions  
+- Good performance (6-7): Choose from MEDIUM questions
+- Average/Low performance (0-5): Choose from EASY questions
+- Prioritize questions matching selected skills: ${config?.selectedSkills?.join(', ') || 'any'}`;
         
         systemContent += `
 
@@ -236,26 +342,29 @@ IMPORTANT LANGUAGE REQUIREMENT:
 - DO NOT ask questions in English, always translate them first
 - Maintain the technical accuracy while translating
 
-FIXED QUESTION LIST (TRANSLATE TO ${languageName.toUpperCase()} BEFORE ASKING):
-${questionsList}
-
-NEXT QUESTION INDEX: ${nextQuestionIndex + 1}
-YOU MUST TRANSLATE AND ASK THIS QUESTION IN ${languageName.toUpperCase()}:
-${nextQuestionText}
-`;
+${questionsInfo}`;
       } else {
-        questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
-        nextQuestionText = questionBankContext.questions[nextQuestionIndex]?.question || '';
+        questionsInfo = `
+QUESTION BANK STRUCTURE WITH DIFFICULTY LEVELS:
+📗 EASY QUESTIONS (${questionsByDifficulty.easy.length} available):
+${questionsByDifficulty.easy.map((q, i) => `  ${i + 1}. ${q.question} [${q.topic || 'General'}]`).join('\n')}
+
+📘 MEDIUM QUESTIONS (${questionsByDifficulty.medium.length} available):
+${questionsByDifficulty.medium.map((q, i) => `  ${i + 1}. ${q.question} [${q.topic || 'General'}]`).join('\n')}
+
+📕 HARD QUESTIONS (${questionsByDifficulty.hard.length} available):
+${questionsByDifficulty.hard.map((q, i) => `  ${i + 1}. ${q.question} [${q.topic || 'General'}]`).join('\n')}
+
+SMART QUESTION SELECTION:
+- Question 1-2: Start with EASY questions
+- High performance (8-10): Move to HARD questions
+- Good performance (6-7): Use MEDIUM questions  
+- Average/Low performance (0-5): Stay with EASY questions
+- Focus on selected skills: ${config?.selectedSkills?.join(', ') || 'general topics'}`;
         
         systemContent += `
 
-FIXED QUESTION LIST (ASK EXACTLY THESE IN ORDER, ONE PER TURN):
-${questionsList}
-
-NEXT QUESTION INDEX: ${nextQuestionIndex + 1}
-YOU MUST ASK EXACTLY THIS QUESTION NOW (DO NOT REPHRASE, DO NOT ADD NEW QUESTIONS):
-${nextQuestionText}
-`;
+${questionsInfo}`;
       }
     }
 
@@ -370,6 +479,18 @@ INTERVIEW GUIDELINES:
 5. Question Guidelines:
    - Ask ONLY ONE question per response (CRITICAL)
    - Keep questions CONCISE but NATURAL (2 sentences for context + question)
+   
+   **🚨 QUESTION SELECTION PRIORITY ORDER:**
+   1. **FIRST PRIORITY (80%)**: Generate contextual follow-up based on user's previous specific answer
+   2. **SECOND PRIORITY (20%)**: Use pre-planned question bank questions only if no good follow-up exists
+   
+   **⚡ DYNAMIC QUESTIONING RULES:**
+   - After user answers, ALWAYS look for specific details they mentioned to follow up on
+   - If user mentions ANY technology/concept/experience → Create follow-up about that specific thing
+   - If user gives generic answer → Ask for specific examples or deeper explanation
+   - If user shows knowledge → Challenge with scenario or advanced concept
+   - If user shows gaps → Ask supportive clarifying questions
+   
    - Ensure questions cover all required topics within ${field} scope
    - Distribute questions evenly across topics
    - Keep questions focused and relevant to the level
@@ -384,6 +505,31 @@ INTERVIEW GUIDELINES:
    b) Level Check: "Is this question appropriate for ${level} level?"
    c) Practical Check: "Does this reflect real-world ${field} scenarios?"
    d) Progressive Check: "Does this build appropriately on previous questions?"
+   
+   **🎯 CRITICAL: FOLLOW-UP QUESTION PRIORITY SYSTEM:**
+   
+   **STEP 1: ALWAYS ANALYZE USER'S PREVIOUS ANSWER FIRST**
+   e) Content Analysis: "What specific technologies, tools, concepts, or experiences did the user mention?"
+   f) Depth Assessment: "Was their answer basic/surface-level, detailed, or expert-level?"
+   g) Learning Opportunities: "What aspects of their answer can I dig deeper into?"
+   
+   **STEP 2: MANDATORY FOLLOW-UP DECISION (80% of the time)**
+   - DEFAULT ACTION: Generate a contextual follow-up question based on their specific answer
+   - ONLY use pre-planned questions if their answer was too vague or off-topic
+   - PRIORITY: Dynamic follow-up > Question bank questions
+   
+   **STEP 3: FOLLOW-UP QUESTION TYPES (Choose based on their answer):**
+   📊 DEPTH: "Can you explain more about [specific thing they mentioned]?"
+   🎯 SCENARIO: "How would you handle [real scenario] using [their mentioned technology]?"
+   💼 EXPERIENCE: "Can you share a specific example when you used [their mentioned concept]?"
+   🧩 PROBLEM-SOLVING: "What challenges did you face with [their mentioned approach]?"
+   
+   **MANDATORY FOLLOW-UP EXAMPLES:**
+   - User says "React là thư viện JavaScript" → FOLLOW-UP: "Bạn có thể so sánh React với Vue hay Angular trong project thực tế không?"
+   - User mentions "useState hook" → FOLLOW-UP: "Khi nào bạn sẽ chọn useReducer thay vì useState?"
+   - User explains "props truyền data" → FOLLOW-UP: "Bạn đã từng gặp vấn đề prop drilling chưa? Xử lý như thế nào?"
+   - User says "key prop cho map()" → FOLLOW-UP: "Tại sao không nên dùng array index làm key? Bạn có ví dụ nào không?"
+   - User knows "functional component" → FOLLOW-UP: "Khi nào bạn vẫn sẽ chọn class component thay vì functional component?"
    
  
 6. Auto-Prompt Handling:
@@ -426,6 +572,30 @@ INTERVIEW GUIDELINES:
 
 RESPONSE GUIDELINES:
 - Ask ONLY ONE question per response
+- ALWAYS respond in ${language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chinese' : language === 'ja-JP' ? 'Japanese' : language === 'ko-KR' ? 'Korean' : 'English'}
+
+**🔍 MANDATORY PRE-QUESTION ANALYSIS:**
+Before generating your next question, you MUST analyze the user's previous response:
+1. "What specific technologies, concepts, or experiences did they mention?"
+2. "What part of their answer shows the most potential for deeper exploration?"
+3. "Can I create a follow-up question that builds directly on what they just said?"
+4. "Would a follow-up question be more valuable than moving to a new topic?"
+
+**🎯 FOLLOW-UP QUESTION GENERATION EXAMPLES:**
+If user says: "React là thư viện JavaScript để xây dựng UI"
+→ Your follow-up: "Bạn có thể so sánh React với các framework khác như Angular hay Vue.js không? Điểm khác biệt chính là gì?"
+
+If user says: "useState để quản lý state trong functional component"  
+→ Your follow-up: "Khi nào bạn sẽ chọn useReducer thay vì useState? Bạn có thể cho ví dụ cụ thể không?"
+
+If user says: "Props để truyền data từ parent xuống child"
+→ Your follow-up: "Nếu bạn có component hierarchy sâu nhiều cấp, bạn sẽ xử lý prop drilling như thế nào?"
+
+**⚠️ ONLY use question bank if:**
+- User's answer was too vague or off-topic
+- You've already asked 2-3 follow-ups on the same topic
+- Need to move to completely new topic area
+
 - Keep questions CONCISE but NATURAL (2 sentences for context + question)
 - Be encouraging but maintain professional standards
 - Acknowledge candidate's responses before asking next question
@@ -434,18 +604,37 @@ RESPONSE GUIDELINES:
 - NEVER ask multiple questions in one response
 - Show genuine interest in candidate's background and experience
 
+🧠 ADAPTIVE REASONING PROCESS:
+Before crafting your next question, follow this thought process:
+1. **Analyze Response**: What technologies, concepts, or experiences did they mention?
+2. **Assess Depth**: Did they give a surface-level or detailed answer?
+3. **Identify Gaps**: What areas need more exploration?
+4. **Choose Strategy**: 
+   - 80% of time: Ask follow-up to deepen understanding of their response
+   - 20% of time: Move to next planned question from question bank
+5. **Craft Question**: Make it contextual to their specific answer
+
+🎯 CONTEXTUAL QUESTION EXAMPLES:
+- If they mention "React": → "What state management approach do you prefer in React and why?"
+- If they say "I worked with APIs": → "Can you describe how you handled authentication in your API integrations?"
+- If they explain a concept well: → "Have you encountered any edge cases or challenges with this approach?"
+- If they give a basic answer: → "Could you walk me through a specific example from your experience?"
+- If they show expertise: → "How would you scale this solution for high traffic scenarios?"
+
 RESPONSE STRUCTURE FORMAT:
 Return responses in this exact structure:
 {
   "answer": "Your response or question in NATURAL, PROFESSIONAL tone (2 sentences for context + question, ONLY ONE question). If this is the conclusion after the candidate has responded to your ${FIXED_QUESTIONS}th question, provide a warm thank you and conclusion message.",
   "currentTopic": "Current topic from required list",
-  "nextTopic": "Next planned topic if needed",
+  "nextTopic": "Next planned topic if needed", 
   "shouldMoveToNewTopic": boolean,
   "followUpQuestion": "Optional follow-up for clarification",
   "interviewProgress": number (0-100),
   "isInterviewComplete": boolean (set to true when providing conclusion after candidate responds to ${FIXED_QUESTIONS}th question),
   "currentScore": number (1-10),
   "questionCount": number (exact count of technical questions you have asked so far, excluding greeting),
+  "currentDifficulty": "easy" | "medium" | "hard" (difficulty level of the question you just asked),
+  "difficultyReasoning": "Brief explanation of why you chose this difficulty level",
   "completionDetails": {
     "coveredTopics": ["topics", "covered", "so far"],
     "skillAssessment": {
@@ -455,6 +644,19 @@ Return responses in this exact structure:
     }
   }
 }
+
+🎚️ DIFFICULTY SELECTION GUIDELINES:
+- Questions 1-2: Use "easy" difficulty to build confidence
+- currentScore 8-10: Use "hard" difficulty to challenge them
+- currentScore 6-7: Use "medium" difficulty to maintain engagement  
+- currentScore 4-5: Use "easy" difficulty for recovery
+- currentScore 0-3: Use "easy" difficulty and focus on their strength areas
+
+EXAMPLE DIFFICULTY REASONING:
+- "Starting with easy question to build confidence" 
+- "High performance (8/10) - challenging with hard React architecture question"
+- "Average performance (6/10) - maintaining medium difficulty on selected skills"
+- "Low performance (3/10) - recovery mode with easy foundational question"
 - If candidate mentions experience outside ${field}, politely redirect: "That's interesting! For this ${field} position, I'd like to focus on..."
 
 CRITICAL: YOU MUST RESPOND WITH VALID JSON ONLY!
@@ -653,7 +855,21 @@ export async function startInterview(config: InterviewConfig): Promise<Interview
     
     // Tạo system message và ép dùng danh sách câu hỏi nếu có
     let systemContent = `You are a senior technical interviewer conducting a professional interview for a ${config.level} level ${config.field} position${config.specialization ? ` - ${config.specialization}` : ''}.
-IMPORTANT: ONLY respond in ${config.language === 'vi-VN' ? 'Vietnamese' : config.language === 'zh-CN' ? 'Chinese' : config.language === 'ja-JP' ? 'Japanese' : config.language === 'ko-KR' ? 'Korean' : 'English'}.`;
+IMPORTANT: ONLY respond in ${config.language === 'vi-VN' ? 'Vietnamese' : config.language === 'zh-CN' ? 'Chinese' : config.language === 'ja-JP' ? 'Japanese' : config.language === 'ko-KR' ? 'Korean' : 'English'}.
+
+🎯 SMART FOLLOW-UP QUESTION SYSTEM:
+You have TWO modes of questioning:
+1. **PRIMARY QUESTIONS**: From the question bank or planned topics  
+2. **FOLLOW-UP QUESTIONS**: Contextual questions based on user's previous answer
+
+Use the same follow-up question logic as described in the main interview system:
+- IF user mentions specific technologies → Ask deeper questions about those technologies
+- IF user gives incomplete answers → Ask clarifying follow-up questions
+- IF user demonstrates strong knowledge → Challenge with advanced scenarios
+- IF user mentions projects/experience → Dive deeper into their experience
+- IF user shows knowledge gaps → Gently explore related areas
+
+DECISION TREE: 80% follow-up questions, 20% move to next planned question.`;
 
     if (questionBankContext?.questions?.length) {
       console.log('✅ Adding fixed question list to system message');

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Clock, FileText, Users, Trash2, RefreshCw } from 'lucide-react';
-import { questionSetService, QuestionSetData } from '@/services/questionSetService';
+import { questionSetService, QuestionSetData } from '@/services/jdService/questionSetService';
 
 interface SavedQuestionSetsProps {
   onQuestionSetSelect: (questionSet: QuestionSetData) => void;
