@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let updateData: Record<string, any> = {};
+    let updateData: Record<string, unknown> = {};
 
     // Xử lý từng step
     switch (step) {
@@ -172,6 +172,9 @@ export async function PUT(request: NextRequest) {
     if (department !== undefined) updateData.department = department;
     if (joinDate !== undefined) updateData.joinDate = joinDate;
 
+    // Đánh dấu onboarding đã hoàn thành
+    updateData.onboardingStatus = true;
+
     const updatedUser = await prisma.user.update({
       where: { clerkId: userId },
       data: updateData,
@@ -187,6 +190,7 @@ export async function PUT(request: NextRequest) {
         bio: true,
         department: true,
         joinDate: true,
+        onboardingStatus: true,
         preferredJobRole: {
           select: {
             id: true,

@@ -8,9 +8,6 @@ import {
   USER_LIST_CACHE_DURATION
 } from "../../../lib/userCache";
 
-
-
-
 export async function GET() {
   try {
     // Check cache first
@@ -113,32 +110,36 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { email, firstName, lastName, clerkId, avatar } = body;
+  let retryCount = 0;
+  const maxRetries = 3;
+  
+  while (retryCount < maxRetries) {
+    try {
+      const body = await request.json();
+      const { email, firstName, lastName, clerkId, avatar } = body;
 
-    if (!email || !clerkId) {
-      return (NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 }));
-    }
-
-    // Check if user was recently updated (within last hour) to avoid unnecessary updates
-    const recentUpdateKey = `user_update_${clerkId}`;
-    const userUpdateCache = getUserUpdateCache();
-    const lastUpdate = userUpdateCache.get(recentUpdateKey);
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-
-    if (lastUpdate && lastUpdate > oneHourAgo) {
-      // Return cached user data if recently updated
-      const userCache = getUserCache();
-      const cachedUser = userCache.get(clerkId);
-      if (cachedUser) {
-        return (NextResponse.json({
-          message: "User data is current (cached)",
-          user: cachedUser,
-          action: "cached"
-        }));
+      if (!email || !clerkId) {
+        return (NextResponse.json({ error: "Email and clerkId are required" }, { status: 400 }));
       }
-    }
+
+      // Check if user was recently updated (within last hour) to avoid unnecessary updates
+      const recentUpdateKey = `user_update_${clerkId}`;
+      const userUpdateCache = getUserUpdateCache();
+      const lastUpdate = userUpdateCache.get(recentUpdateKey);
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+
+      if (lastUpdate && lastUpdate > oneHourAgo) {
+        // Return cached user data if recently updated
+        const userCache = getUserCache();
+        const cachedUser = userCache.get(clerkId);
+        if (cachedUser) {
+          return (NextResponse.json({
+            message: "User data is current (cached)",
+            user: cachedUser,
+            action: "cached"
+          }));
+        }
+      }
 
     // Kiểm tra xem user đã tồn tại chưa
     const existingUser = await prisma.user.findUnique({
@@ -174,6 +175,7 @@ export async function POST(request: Request) {
           }
         });
       } else {
+        // Tạo user mới - sử dụng default role từ schema
         user = await prisma.user.create({
           data: {
             clerkId,
@@ -181,8 +183,8 @@ export async function POST(request: Request) {
             firstName: firstName || '',
             lastName: lastName || '',
             avatar: avatar || '',
-            lastLogin: new Date(),
-            roleId: 'user_role_id'
+            lastLogin: new Date()
+            // Không set roleId, để schema tự động sử dụng default value
           },
           include: {
             role: { select: { id: true, name: true, displayName: true } }
@@ -306,11 +308,43 @@ export async function POST(request: Request) {
     };
 
     return (NextResponse.json(transformedResult));
-  } catch (error) {
-    console.error("Error in user API:", error);
-    return (NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    ));
+    
+    } catch (error) {
+      console.error(`❌ Error in user API (attempt ${retryCount + 1}):`, error);
+      
+      // Check if it's a foreign key constraint error
+      if (error instanceof Error && error.message.includes('Foreign key constraint')) {
+        console.error('Foreign key constraint violated - checking default role...');
+        
+        // Try to find any available role if default role failed
+        try {
+          const anyRole = await prisma.role.findFirst({
+            where: { isActive: true }
+          });
+          
+          if (!anyRole) {
+            return NextResponse.json(
+              { error: "System configuration error: No active roles found" },
+              { status: 500 }
+            );
+          }
+        } catch (roleError) {
+          console.error('Error checking roles:', roleError);
+        }
+      }
+      
+      retryCount++;
+      
+      // If this was the last retry, return error
+      if (retryCount >= maxRetries) {
+        return (NextResponse.json(
+          { error: "Failed to create/update user after multiple attempts" },
+          { status: 500 }
+        ));
+      }
+      
+      // Wait before retry (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+    }
   }
 }

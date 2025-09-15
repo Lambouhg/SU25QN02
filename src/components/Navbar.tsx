@@ -24,11 +24,11 @@ export default function Navbar() {
         {/* Content */}
         <div className="flex items-center justify-between px-4 md:px-12 py-4 md:py-6 relative z-50 max-w-[2100px] mx-auto">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <div className="rounded-full bg-white p-1.5 ring-1 ring-white/80 shadow-sm">
               <Logo size="md" />
             </div>
-          </div>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-10">

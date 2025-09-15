@@ -78,6 +78,7 @@ model User {
   preferredLanguage        String?             @default("vi")
   interviewPreferences     Json?
   autoStartWithPreferences Boolean             @default(true)
+  onboardingStatus         Boolean             @default(false)
   interviews               Interview[]
   paymentHistory           PaymentHistory[]
   questionItemsCreated     QuestionItem[]      @relation("QuestionItemsCreated")

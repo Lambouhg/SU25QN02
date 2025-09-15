@@ -454,11 +454,6 @@ export default function OnboardingSteps() {
       })
 
       if (profileResponse.ok) {
-        console.log('✅ Onboarding completed successfully!')
-        console.log('📝 Skills saved:', formData.skills)
-        console.log('🎯 Job Role:', formData.jobRole)
-        console.log('📊 Experience Level:', formData.experienceLevel)
-        
         // Set completed state instead of redirecting immediately
         setIsCompleted(true)
       } else {
@@ -475,7 +470,26 @@ export default function OnboardingSteps() {
 
   // Show completion screen if onboarding is completed
   if (isCompleted) {
-    return <OnboardingComplete onContinue={() => {
+    return <OnboardingComplete onContinue={async () => {
+      try {
+        // Cập nhật onboardingStatus trong database
+        const response = await fetch('/api/user/onboarding-status', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ onboardingStatus: true })
+        });
+
+        if (response.ok) {
+          // Success - status updated
+        } else {
+          console.error('❌ Failed to update onboarding status');
+        }
+      } catch (error) {
+        console.error('❌ Error updating onboarding status:', error);
+      }
+      
       // Set flag to show streak popup after onboarding completion
       localStorage.setItem('showStreakReminderAfterOnboarding', '1')
       router.push('/dashboard')
