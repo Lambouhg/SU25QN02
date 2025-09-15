@@ -193,19 +193,19 @@ model QuestionSetQuestion {
 }
 
 model QuizAttempt {
-  id            String      @id @default(uuid())
-  questionSetId String
+  id            String       @id @default(uuid())
+  questionSetId String?
   userId        String
-  status        String      @default("in_progress")
-  startedAt     DateTime    @default(now())
+  status        String       @default("in_progress")
+  startedAt     DateTime     @default(now())
   completedAt   DateTime?
   timeUsed      Int?
   score         Float?
   sectionScores Json?
   itemsSnapshot Json
   responses     Json?
-  questionSet   QuestionSet @relation(fields: [questionSetId], references: [id])
-  user          User        @relation(fields: [userId], references: [id])
+  questionSet   QuestionSet? @relation(fields: [questionSetId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([questionSetId])

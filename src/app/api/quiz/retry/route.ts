@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 // Create a new quiz attempt with the same questions as a previous attempt
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as { 
+    originalAttemptId?: string;
     items: Array<{
       questionId: string;
       stem: string;
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
       options?: { text: string }[];
     }>;
   };
-  const { items } = body || {};
+  const { originalAttemptId, items } = body || {};
 
   const { userId: clerkId } = await auth();
   if (!clerkId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,18 +26,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Create a temporary practice set for retry
-    const retrySetName = `Retry Practice ${Date.now()}`;
-    const retrySet = await prisma.questionSet.create({
-      data: {
-        name: retrySetName,
-        status: "draft",
-        topics: [],
-        fields: [],
-        skills: []
-      },
-      select: { id: true }
-    });
+    // Get the original attempt to reuse the same questionSetId (if any)
+    let questionSetId: string | null = null;
+    
+    if (originalAttemptId) {
+      const originalAttempt = await prisma.quizAttempt.findUnique({
+        where: { id: originalAttemptId },
+        select: { questionSetId: true, userId: true }
+      });
+      
+      if (originalAttempt && originalAttempt.userId === user.id) {
+        questionSetId = originalAttempt.questionSetId; // Keep same questionSetId (null or actual ID)
+      }
+    }
+    // If no original attempt or not found, questionSetId stays null (practice quiz)
 
     // Create new attempt with the same questions
     const snapshot = items.map((item) => ({
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest) {
     const attempt = await prisma.quizAttempt.create({
       data: {
         userId: user.id,
-        questionSetId: retrySet.id,
+        questionSetId: questionSetId, // null for practice, ID for company quiz
         status: "in_progress",
         itemsSnapshot: snapshot,
       },

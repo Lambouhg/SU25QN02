@@ -62,10 +62,8 @@ export async function POST(req: NextRequest) {
       options: (q.options || []).map((o) => ({ text: o.text, isCorrect: o.isCorrect })),
     }));
 
-    // ensure a stable practice set id exists so quizAttempt.questionSetId is not null
-    const practiceName = "Ad-hoc Practice";
-    const practice = await prisma.questionSet.findFirst({ where: { name: practiceName, status: "draft" }, select: { id: true } });
-    resolvedSetId = practice?.id || (await prisma.questionSet.create({ data: { name: practiceName, status: "draft", topics: [], fields: [], skills: [] }, select: { id: true } })).id;
+    // For filter-based quizzes, no need to link to any question set
+    resolvedSetId = null;
   }
 
   // Snapshot hides correctness
@@ -79,7 +77,7 @@ export async function POST(req: NextRequest) {
   const attempt = await prisma.quizAttempt.create({
     data: {
       userId: user.id,
-      questionSetId: resolvedSetId as string,
+      questionSetId: resolvedSetId, // null for practice quiz, valid ID for company quiz
       status: "in_progress",
       itemsSnapshot: snapshot,
     },

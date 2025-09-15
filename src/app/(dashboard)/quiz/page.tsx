@@ -97,8 +97,14 @@ export default function QuizPage() {
     
     try {
       const payload: Record<string, unknown> = {};
+      console.log("Debug - Quiz start:", { mode, questionSetId, category, topic, tags, count, level });
+      
       if (mode === 'company') {
-        if (questionSetId) payload.questionSetId = questionSetId;
+        if (!questionSetId) {
+          setError("Vui lòng chọn bộ câu hỏi để bắt đầu.");
+          return;
+        }
+        payload.questionSetId = questionSetId;
       } else {
         if (category) payload.category = category;
         if (topic) payload.topic = topic;
@@ -106,6 +112,8 @@ export default function QuizPage() {
         if (count) payload.count = Number(count);
         if (level) payload.level = level;
       }
+      
+      console.log("Debug - Payload sent to API:", payload);
       
       const res = await fetch("/api/quiz/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const j = await res.json();
@@ -260,11 +268,14 @@ export default function QuizPage() {
     setStartTime(Date.now());
     
     try {
-      // Call retry API with the original questions
+      // Call retry API with the original questions and attempt ID
       const res = await fetch("/api/quiz/retry", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
-        body: JSON.stringify({ items: originalItems }) 
+        body: JSON.stringify({ 
+          items: originalItems,
+          originalAttemptId: attemptId // Pass current attemptId to reference original question set
+        }) 
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.error || "Retry failed");
@@ -293,7 +304,7 @@ export default function QuizPage() {
     } finally {
       setLoading(false);
     }
-  }, [originalItems, userId]);
+  }, [originalItems, userId, attemptId]);
 
   // Keyboard shortcuts
   useEffect(() => {

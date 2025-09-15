@@ -43,7 +43,7 @@ export default function QuizHistoryPage() {
     const fetchQuizHistory = useCallback(async () => {
         try {
             setIsLoading(true)
-            const response = await fetch("/api/quizzes/history")
+            const response = await fetch("/api/quiz/history")
             if (!response.ok) {
                 const errorData = await response.json()
                 throw new Error(errorData.message || `HTTP ${response.status}`)
