@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useConversation } from './useConversation';
@@ -198,19 +198,22 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
 
 
 
-  // Tạo config cho question bank integration
-  const questionBankConfig = {
-    field: jobRoles.find(role => role.id === jobRoleId)?.category?.name || 'software development',
-    level: jobRoles.find(role => role.id === jobRoleId)?.level || 'mid',
-    language: mapUILanguageToAI(config.language || 'en'),
-    jobRoleTitle: jobRoles.find(role => role.id === jobRoleId)?.title,
-    jobRoleLevel: jobRoles.find(role => role.id === jobRoleId)?.level,
-    selectedSkills: userPreferences?.interviewPreferences?.selectedSkills || [],
-    customSkills: userPreferences?.interviewPreferences?.customSkills || []
-  };
-
-  // Log config để debug
-  console.log('🔗 Question Bank Config created:', questionBankConfig);
+  // Tạo config cho question bank integration - only recreate when dependencies change
+  const questionBankConfig = useMemo(() => {
+    const bankConfig = {
+      field: jobRoles.find(role => role.id === jobRoleId)?.category?.name || 'software development',
+      level: jobRoles.find(role => role.id === jobRoleId)?.level || 'mid',
+      language: mapUILanguageToAI(config.language || 'en'),
+      jobRoleTitle: jobRoles.find(role => role.id === jobRoleId)?.title,
+      jobRoleLevel: jobRoles.find(role => role.id === jobRoleId)?.level,
+      selectedSkills: userPreferences?.interviewPreferences?.selectedSkills || [],
+      customSkills: userPreferences?.interviewPreferences?.customSkills || []
+    };
+    
+    // Log config để debug - only when config actually changes
+    console.log('🔗 Question Bank Config created:', bankConfig);
+    return bankConfig;
+  }, [jobRoleId, jobRoles, config.language, userPreferences?.interviewPreferences?.selectedSkills, userPreferences?.interviewPreferences?.customSkills]);
 
   const {
     isThinking,

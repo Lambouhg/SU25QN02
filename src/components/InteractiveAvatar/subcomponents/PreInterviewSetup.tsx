@@ -149,7 +149,12 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       }
     }
 
-    // Load skills-specific question count
+    loadUserPreferences()
+    loadQuestionBankStats()
+  }, [userId, jobRoles, onJobRoleIdChange, onPositionKeyChange, config, onConfigChange])
+
+  // Separate useEffect for loading skills-specific question count
+  useEffect(() => {
     const loadSkillsQuestionCount = async (selectedSkills: string[]) => {
       if (!selectedJobRole || !selectedSkills || selectedSkills.length === 0) {
         setSkillsQuestionCount(null)
@@ -186,15 +191,12 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       }
     }
 
-    loadUserPreferences()
-    loadQuestionBankStats()
-
-    // Load skills-specific question count when user preferences change
+    // Load skills-specific question count when skills or job role change
     const selectedSkills = userPreferences?.interviewPreferences?.selectedSkills
     if (selectedSkills && selectedSkills.length > 0 && selectedJobRole) {
       loadSkillsQuestionCount(selectedSkills)
     }
-  }, [userId, jobRoles, onJobRoleIdChange, onPositionKeyChange, config, onConfigChange, userPreferences, selectedJobRole])
+  }, [userPreferences?.interviewPreferences?.selectedSkills, selectedJobRole])
 
   // Map avatar name to image in public/avatar
   const getAvatarImage = useCallback((avatarName: string): string => {
@@ -279,7 +281,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
         experience: `${selectedJobRole.minExperience}-${selectedJobRole.maxExperience || "∞"} years`,
         category: selectedJobRole.category?.name,
         specialization: selectedJobRole.specialization?.name,
-        skills: selectedJobRole.category?.skills || [],
+        skills: userPreferences?.interviewPreferences?.selectedSkills || [],  // ✅ FIX: Use user's actual selected skills
         key: selectedJobRole.key,
       },
       language: config.language,
@@ -291,7 +293,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       jobRoleTitle: selectedJobRole.title,
       jobRoleLevel: selectedJobRole.level,
     }
-  }, [selectedJobRole, config.language, config.avatarName])
+  }, [selectedJobRole, config.language, config.avatarName, userPreferences?.interviewPreferences?.selectedSkills])
 
   // Handle start interview
   const handleStartInterview = useCallback(async () => {
