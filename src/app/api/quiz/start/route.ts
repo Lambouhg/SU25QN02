@@ -5,10 +5,10 @@ import { auth } from "@clerk/nextjs/server";
 
 // Start a quiz attempt. Supports two modes:
 // - Set-based: pass questionSetId (must be published)
-// - Filter-based: pass category/topic/tags/count to pick random questions
+// - Filter-based: pass category/topic/count to pick random questions
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as { questionSetId?: string; category?: string; topic?: string; tags?: string; count?: number; level?: string };
-  const { questionSetId, category, topic, tags, count = 10, level } = body || {};
+  const body = (await req.json()) as { questionSetId?: string; category?: string; topic?: string; count?: number; level?: string };
+  const { questionSetId, category, topic, count = 10, level } = body || {};
 
   const { userId: clerkId } = await auth();
   if (!clerkId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
     if (category) where.category = category;
     if (topic) where.topics = { has: topic };
     if (level) where.level = level;
-    if (tags) where.tags = { hasSome: String(tags).split(",").map((s) => s.trim()).filter(Boolean) };
     
     const pool = await prisma.questionItem.findMany({ where, include: { options: true } });
     for (let i = pool.length - 1; i > 0; i--) {

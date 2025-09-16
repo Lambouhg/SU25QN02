@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       orderBy: { startedAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      select: { id: true, status: true, score: true, completedAt: true, startedAt: true, questionSetId: true, questionSet: { select: { name: true } } },
+      select: { id: true, status: true, score: true, completedAt: true, startedAt: true, questionSetId: true, questionSet: { select: { name: true } }, itemsSnapshot: true },
     }),
     prisma.quizAttempt.count({ where: { userId: user.id } }),
   ]);

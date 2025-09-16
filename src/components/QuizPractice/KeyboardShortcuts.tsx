@@ -24,6 +24,9 @@ export default function KeyboardShortcuts({ mode = 'quiz' }: KeyboardShortcutsPr
   const reviewShortcuts = [
     { key: '←', description: 'Previous question' },
     { key: '→', description: 'Next question' },
+    { key: 'Home', description: 'First question' },
+    { key: 'End', description: 'Last question' },
+    { key: '1-9', description: 'Jump to question' },
     { key: 'Esc', description: 'Back to results' },
   ];
 

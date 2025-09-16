@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   const page = Math.max(parseInt(q.page || "1", 10), 1);
   const pageSize = Math.min(Math.max(parseInt(q.pageSize || "20", 10), 1), 100);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = {};
   if (q.userId) where.userId = q.userId;
   if (q.questionSetId) where.questionSetId = q.questionSetId;

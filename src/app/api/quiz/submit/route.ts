@@ -5,11 +5,12 @@ import prisma from "@/lib/prisma";
 type SubmitBody = {
   attemptId: string;
   responses: Array<{ questionId: string; answer: number[] | number | string | null }>;
+  timeUsed?: number;
 };
 
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as SubmitBody;
-  const { attemptId, responses } = body || {};
+  const { attemptId, responses, timeUsed } = body || {};
   if (!attemptId || !Array.isArray(responses)) return NextResponse.json({ error: "invalid payload" }, { status: 400 });
 
   const attempt = await prisma.quizAttempt.findUnique({ where: { id: attemptId } });
@@ -48,18 +49,22 @@ export async function POST(req: NextRequest) {
     details.push({ questionId: snap.questionId, correctIdx, givenIdx: given, isRight });
   }
 
+  // Calculate scaled score (out of 10)
+  const scaledScore = total > 0 ? Math.round((gained / total) * 10 * 10) / 10 : 0;
+
   await prisma.quizAttempt.update({
     where: { id: attemptId },
     data: {
       status: "completed",
       completedAt: new Date(),
       responses,
-      score: gained,
+      score: scaledScore,
       sectionScores,
+      timeUsed: timeUsed || 0,
     },
   });
 
-  return NextResponse.json({ data: { score: gained, total, sectionScores, details } });
+  return NextResponse.json({ data: { score: scaledScore, total, sectionScores, details } });
 }
 
 

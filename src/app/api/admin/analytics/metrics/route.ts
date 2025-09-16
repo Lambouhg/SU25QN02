@@ -47,7 +47,7 @@ export async function GET() {
     });
 
     // Lấy dữ liệu quizzes (completed quizzes have completedAt field)
-    const quizzes = await prisma.quiz.findMany({
+    const quizzes = await prisma.quizAttempt.findMany({
       where: {
         completedAt: {
           not: null

@@ -3,23 +3,26 @@ import prisma from "@/lib/prisma";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db: any = prisma as any;
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
-  const item = await db.questionItem.findUnique({ where: { id: params.id }, include: { options: true } });
+  const { id } = await params;
+  const item = await db.questionItem.findUnique({ where: { id }, include: { options: true } });
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ data: item });
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
+  const { id } = await params;
   const body = await req.json();
   const { type, stem, explanation, level, topics, fields, skills, difficulty, options, category, tags, estimatedTime, sourceAuthor, version, isArchived } = body || {};
 
-  const exist = await db.questionItem.findUnique({ where: { id: params.id } });
+  const exist = await db.questionItem.findUnique({ where: { id } });
   if (!exist) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updated = await db.$transaction(async (tx: any) => {
-    const normalizeDifficulty = (val: unknown, fallback: any) => {
+    const normalizeDifficulty = (val: unknown, fallback: unknown) => {
       if (val === undefined) return fallback;
       if (val == null) return null;
       const s = String(val).toLowerCase();
@@ -33,8 +36,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
       return fallback;
     };
 
-    const base = await tx.questionItem.update({
-      where: { id: params.id },
+    await tx.questionItem.update({
+      where: { id },
       data: {
         type: type ?? exist.type,
         stem: stem ?? exist.stem,
@@ -54,24 +57,26 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
 
     if (Array.isArray(options)) {
-      await tx.questionOption.deleteMany({ where: { questionId: params.id } });
+      await tx.questionOption.deleteMany({ where: { questionId: id } });
       if (options.length) {
         await tx.questionOption.createMany({
-          data: options.map((o: any, idx: number) => ({ questionId: params.id, text: o.text, isCorrect: !!o.isCorrect, order: o.order ?? idx, metadata: o.metadata || null })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: options.map((o: any, idx: number) => ({ questionId: id, text: o.text, isCorrect: !!o.isCorrect, order: o.order ?? idx, metadata: o.metadata || null })),
         });
       }
     }
 
-    return tx.questionItem.findUnique({ where: { id: params.id }, include: { options: true } });
+    return tx.questionItem.findUnique({ where: { id }, include: { options: true } });
   });
 
   return NextResponse.json({ data: updated });
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
+  const { id } = await params;
   await db.$transaction([
-    db.questionOption.deleteMany({ where: { questionId: params.id } }),
-    db.questionItem.delete({ where: { id: params.id } }),
+    db.questionOption.deleteMany({ where: { questionId: id } }),
+    db.questionItem.delete({ where: { id } }),
   ]);
   return NextResponse.json({ ok: true });
 }

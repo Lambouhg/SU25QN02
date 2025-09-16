@@ -1,21 +1,19 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { 
   CheckCircle2, 
   XCircle, 
-  ChevronLeft,
-  ChevronRight,
   RotateCcw,
-  BookOpen,
   Lightbulb,
-  Target,
   Trophy,
-  ArrowLeft
+  Play,
+  BookOpen,
+  Bookmark,
+  BookmarkCheck
 } from 'lucide-react';
 import KeyboardShortcuts from './KeyboardShortcuts';
 
@@ -57,17 +55,15 @@ export default function QuizResults({
   onBack,
   onRestart
 }: QuizResultsProps) {
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [showExplanations, setShowExplanations] = useState(true);
-
-  const progress = ((currentQuestionIndex + 1) / items.length) * 100;
-  const currentQuestion = items[currentQuestionIndex];
-  const userAnswers = answers[currentQuestion?.questionId] || [];
-  const questionDetail = score.details?.[currentQuestionIndex];
+  const [showExplanations] = useState(true);
+  const [savedQuestions, setSavedQuestions] = useState<Set<string>>(new Set());
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
+  const [isBulkSaving, setIsBulkSaving] = useState(false);
   
-  // Calculate percentage and determine if score is low
-  const scorePercentage = (score.score / score.total) * 100;
-  const isLowScore = scorePercentage < 60; // Consider below 60% as low score
+  // Calculate percentage and determine score level
+  const scorePercentage = score.score * 10; // score.score is already on 10-point scale
+  const isLowScore = scorePercentage < 70; // Below 70% shows encouragement
+  const isHighScore = scorePercentage >= 70; // 70% and above shows congratulations
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -75,17 +71,60 @@ export default function QuizResults({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const goToPrevious = useCallback(() => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
-  }, [currentQuestionIndex]);
+  const handleToggleQuestionSelection = (questionId: string) => {
+    setSelectedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(questionId)) {
+        newSet.delete(questionId);
+      } else {
+        newSet.add(questionId);
+      }
+      return newSet;
+    });
+  };
 
-  const goToNext = useCallback(() => {
-    if (currentQuestionIndex < items.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+
+  const handleBulkSave = async () => {
+    if (selectedQuestions.size === 0 || isBulkSaving) return;
+    
+    setIsBulkSaving(true);
+    
+    try {
+      const response = await fetch('/api/questions/saved-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ questionIds: Array.from(selectedQuestions) }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setSavedQuestions(prev => {
+          const newSet = new Set(prev);
+          result.newlySaved?.forEach((id: string) => newSet.add(id));
+          return newSet;
+        });
+        // Clear selection after saving
+        setSelectedQuestions(new Set());
+      } else {
+        console.error('Failed to save questions');
+      }
+    } catch (error) {
+      console.error('Error saving questions:', error);
+    } finally {
+      setIsBulkSaving(false);
     }
-  }, [currentQuestionIndex, items.length]);
+  };
+
+  const selectAllQuestions = () => {
+    setSelectedQuestions(new Set(items.map(item => item.questionId)));
+  };
+
+  const clearSelection = () => {
+    setSelectedQuestions(new Set());
+  };
+
 
   // Keyboard shortcuts for review mode
   React.useEffect(() => {
@@ -95,14 +134,6 @@ export default function QuizResults({
       }
 
       switch (e.key) {
-        case 'ArrowLeft':
-          e.preventDefault();
-          goToPrevious();
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          goToNext();
-          break;
         case 'Escape':
           e.preventDefault();
           onBack();
@@ -112,7 +143,7 @@ export default function QuizResults({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentQuestionIndex, onBack, goToPrevious, goToNext]);
+  }, [onBack]);
 
   const getScoreIcon = (isCorrect: boolean) => {
     return isCorrect ? (
@@ -136,22 +167,22 @@ export default function QuizResults({
       </div>
 
       {/* Summary Stats */}
-      <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50">
+      <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
             <div>
-              <div className="text-2xl font-bold text-gray-800">{score.score}/{score.total}</div>
+              <div className="text-2xl font-bold text-gray-800">{score.score}/10</div>
               <div className="text-sm text-gray-600">Score</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-gray-800">
-                {Math.round((score.score / score.total) * 100)}%
+                {Math.round(score.score * 10)}%
               </div>
               <div className="text-sm text-gray-600">Accuracy</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-gray-800">
-                {score.details?.filter(d => d.isRight).length || 0}
+                {score.details?.filter(d => d.isRight).length || 0}/{score.total}
               </div>
               <div className="text-sm text-gray-600">Correct</div>
             </div>
@@ -166,13 +197,66 @@ export default function QuizResults({
           {/* Low Score Encouragement */}
           {isLowScore && (
             <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center gap-2 text-yellow-800 mb-2">
-                <Lightbulb className="w-5 h-5" />
-                <span className="font-semibold">Keep trying! You can do better!</span>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-yellow-800 mb-2">
+                    <Lightbulb className="w-5 h-5" />
+                    <span className="font-semibold">Keep trying! You can do better!</span>
+                  </div>
+                  <p className="text-sm text-yellow-700">
+                    Practice makes perfect. Review the explanations below and try again to improve your score.
+                  </p>
+                </div>
+                <div className="ml-4 flex flex-col gap-3">
+                  <Button
+                    onClick={onRestart}
+                    className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white animate-pulse flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Try Again to Improve!
+                  </Button>
+                  <Button
+                    onClick={onBack}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 px-6 py-2 text-base font-semibold rounded-xl"
+                  >
+                    <Play className="w-4 h-4" />
+                    Start New Quiz
+                  </Button>
+                </div>
               </div>
-              <p className="text-sm text-yellow-700">
-                Practice makes perfect. Review the explanations below and try again to improve your score.
-              </p>
+            </div>
+          )}
+
+          {/* High Score Congratulations */}
+          {isHighScore && (
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 text-green-800 mb-2">
+                    <Trophy className="w-5 h-5" />
+                    <span className="font-semibold">Congratulations! Great job!</span>
+                  </div>
+                  <p className="text-sm text-green-700">
+                    Excellent performance! You&apos;ve mastered this topic. Keep up the great work!
+                  </p>
+                </div>
+                <div className="ml-4 flex flex-col gap-3">
+                  <Button
+                    onClick={onRestart}
+                    className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white flex items-center gap-2"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Try Again
+                  </Button>
+                  <Button
+                    onClick={onBack}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 px-6 py-2 text-base font-semibold rounded-xl"
+                  >
+                    <Play className="w-4 h-4" />
+                    Start New Quiz
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -191,7 +275,7 @@ export default function QuizResults({
                     </span>
                     <div className="flex items-center gap-4">
                       <span className="font-medium">
-                        {attempt.score}/{attempt.total} ({Math.round((attempt.score / attempt.total) * 100)}%)
+                        {Math.round((attempt.score / 10) * attempt.total)}/{attempt.total} ({Math.round(attempt.score * 10)}%)
                       </span>
                       <span className="text-gray-500">
                         {formatTime(attempt.timeUsed)}
@@ -202,216 +286,224 @@ export default function QuizResults({
               </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+         </CardContent>
+       </Card>
 
-      {/* Progress */}
-      <Card className="border-0 shadow-lg">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                <Target className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-800">Question Review</h2>
-                <p className="text-sm text-gray-600">Question {currentQuestionIndex + 1} of {items.length}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowExplanations(!showExplanations)}
-                className={showExplanations ? 'bg-green-50 border-green-200 text-green-700' : ''}
-              >
-                <Lightbulb className="w-4 h-4 mr-2" />
-                {showExplanations ? 'Hide' : 'Show'} Explanations
-              </Button>
-            </div>
-          </div>
+       {/* Bulk Save Controls */}
+       <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
+         <CardContent className="p-6">
+           <div className="flex items-center justify-between">
+             <div className="flex items-center gap-4">
+               <h3 className="text-lg font-semibold text-gray-800">Save Questions</h3>
+               <div className="flex items-center gap-2">
+                 <span className="text-sm text-gray-600">
+                   {selectedQuestions.size} of {items.length} selected
+                 </span>
+                 {selectedQuestions.size > 0 && (
+                   <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                     {selectedQuestions.size} selected
+                   </Badge>
+                 )}
+               </div>
+             </div>
+             <div className="flex items-center gap-3">
+               <Button
+                 onClick={selectAllQuestions}
+                 variant="outline"
+                 size="sm"
+                 disabled={selectedQuestions.size === items.length}
+                 className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+               >
+                 Select All
+               </Button>
+               <Button
+                 onClick={clearSelection}
+                 variant="outline"
+                 size="sm"
+                 disabled={selectedQuestions.size === 0}
+                 className="bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+               >
+                 Clear
+               </Button>
+               <Button
+                 onClick={handleBulkSave}
+                 disabled={selectedQuestions.size === 0 || isBulkSaving}
+                 className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-white flex items-center gap-2"
+               >
+                 {isBulkSaving ? (
+                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                 ) : (
+                   <Bookmark className="w-4 h-4" />
+                 )}
+                 {isBulkSaving ? 'Saving...' : `Save ${selectedQuestions.size} Questions`}
+               </Button>
+             </div>
+           </div>
+         </CardContent>
+       </Card>
+
+       {/* All Questions Review */}
+      <div className="space-y-8">
+        {items.map((question, questionIndex) => {
+          const questionDetail = score.details?.[questionIndex];
+          const userAnswers = answers[question.questionId] || [];
           
-          <Progress value={progress} className="h-2" />
-          <div className="flex justify-between text-sm text-gray-600 mt-2">
-            <span>Progress: {Math.round(progress)}%</span>
-            <span>{currentQuestionIndex + 1} / {items.length}</span>
-          </div>
-        </CardHeader>
-      </Card>
+           return (
+             <Card key={questionIndex} className={`bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl ${
+               selectedQuestions.has(question.questionId) ? 'ring-2 ring-blue-500 ring-opacity-50' : ''
+             } ${
+               savedQuestions.has(question.questionId) ? 'border-green-200' : ''
+             }`}>
+               <CardContent className="p-8">
+                 <div className="space-y-6">
+                   {/* Question Header */}
+                   <div className="flex items-start justify-between">
+                     <div className="flex-1">
+                       <div className="flex items-center gap-2 mb-3">
+                         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                           Question {questionIndex + 1}
+                         </Badge>
+                         <Badge variant="outline" className="capitalize">
+                           {question.type.replace('_', ' ')}
+                         </Badge>
+                         {questionDetail && (
+                           <Badge className={`${
+                             questionDetail.isRight ? 'bg-green-500' : 'bg-red-500'
+                           } text-white px-3 py-1`}>
+                             <div className="flex items-center gap-1">
+                               {getScoreIcon(questionDetail.isRight)}
+                               {questionDetail.isRight ? 'Correct' : 'Incorrect'}
+                             </div>
+                           </Badge>
+                         )}
+                         {savedQuestions.has(question.questionId) && (
+                           <Badge className="bg-green-100 text-green-800 border-green-200">
+                             <div className="flex items-center gap-1">
+                               <BookmarkCheck className="w-3 h-3" />
+                               Saved
+                             </div>
+                           </Badge>
+                         )}
+                       </div>
+                       <h3 className="text-lg font-semibold text-gray-800 leading-relaxed">
+                         {question.stem}
+                       </h3>
+                     </div>
+                     <div className="ml-4 flex-shrink-0">
+                       <Button
+                         onClick={() => handleToggleQuestionSelection(question.questionId)}
+                         variant="outline"
+                         size="sm"
+                         className={`${
+                           selectedQuestions.has(question.questionId)
+                             ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                             : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                         } transition-all duration-200`}
+                       >
+                         {selectedQuestions.has(question.questionId) ? (
+                           <BookmarkCheck className="w-4 h-4" />
+                         ) : (
+                           <Bookmark className="w-4 h-4" />
+                         )}
+                         <span className="ml-2">
+                           {selectedQuestions.has(question.questionId) ? 'Selected' : 'Select to Save'}
+                         </span>
+                       </Button>
+                     </div>
+                   </div>
 
-      {/* Question Card */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-8">
-          <div className="space-y-6">
-            {/* Question Header */}
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-3">
-                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                    Question {currentQuestionIndex + 1}
-                  </Badge>
-                  <Badge variant="outline" className="capitalize">
-                    {currentQuestion.type.replace('_', ' ')}
-                  </Badge>
-                  {questionDetail && (
-                    <Badge className={`${
-                      questionDetail.isRight ? 'bg-green-500' : 'bg-red-500'
-                    } text-white px-3 py-1`}>
-                      <div className="flex items-center gap-1">
-                        {getScoreIcon(questionDetail.isRight)}
-                        {questionDetail.isRight ? 'Correct' : 'Incorrect'}
-                      </div>
-                    </Badge>
-                  )}
-                </div>
-                <h3 className="text-lg font-semibold text-gray-800 leading-relaxed">
-                  {currentQuestion.stem}
-                </h3>
-              </div>
-            </div>
+                  {/* Options */}
+                  <div className="space-y-3">
+                    {question.options?.map((option, optionIndex) => {
+                      const isUserAnswer = userAnswers.includes(optionIndex);
+                      const isCorrectOption = questionDetail?.correctIdx.includes(optionIndex) || false;
+                      
+                      return (
+                        <div
+                          key={optionIndex}
+                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                            isUserAnswer && isCorrectOption
+                              ? 'border-green-500 bg-green-50 shadow-md'
+                              : isUserAnswer && !isCorrectOption
+                              ? 'border-red-500 bg-red-50 shadow-md'
+                              : isCorrectOption
+                              ? 'border-green-300 bg-green-50'
+                              : 'border-gray-200 bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex-shrink-0">
+                              <span className="font-medium text-gray-600">
+                                {String.fromCharCode(65 + optionIndex)}.
+                              </span>
+                            </div>
+                            <div className="flex-1">
+                              <span className="text-gray-800 leading-relaxed">{option.text}</span>
+                            </div>
+                            <div className="flex-shrink-0">
+                              {isCorrectOption && (
+                                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                              )}
+                              {isUserAnswer && !isCorrectOption && (
+                                <XCircle className="w-5 h-5 text-red-600" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
 
-            {/* Options */}
-            <div className="space-y-3">
-              {currentQuestion.options?.map((option, index) => {
-                const isUserAnswer = userAnswers.includes(index);
-                const isCorrect = questionDetail?.correctIdx.includes(index) || false;
-                
-                return (
-                  <div
-                    key={index}
-                    className={`p-4 rounded-lg border-2 transition-all duration-200 ${
-                      isUserAnswer && isCorrect
-                        ? 'border-green-500 bg-green-50 shadow-md'
-                        : isUserAnswer && !isCorrect
-                        ? 'border-red-500 bg-red-50 shadow-md'
-                        : isCorrect
-                        ? 'border-green-300 bg-green-25'
-                        : 'border-gray-200 bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex-shrink-0">
-                        <span className="font-medium text-gray-600">
-                          {String.fromCharCode(65 + index)}.
+                  {/* Answer Summary */}
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Trophy className="w-4 h-4 text-gray-600" />
+                      <span className="font-medium text-gray-800">Your Answer:</span>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {userAnswers.length > 0 ? (
+                        <span className="font-medium">
+                          {userAnswers.map(idx => String.fromCharCode(65 + idx)).join(', ')}
+                          {userAnswers.length > 0 && question?.options && (
+                            <span className="font-medium ml-1 text-blue-600">
+                              ({userAnswers.map(idx => question?.options?.[idx]?.text).filter(Boolean).join(', ')})
+                            </span>
+                          )}
+                          {questionDetail && !questionDetail.isRight && (
+                            <span className="font-medium text-green-600"> - Correct: {questionDetail.correctIdx.map(idx => String.fromCharCode(65 + idx)).join(', ')}</span>
+                          )}
                         </span>
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-gray-800 leading-relaxed">{option.text}</span>
-                      </div>
-                      <div className="flex-shrink-0">
-                        {isCorrect && (
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        )}
-                        {isUserAnswer && !isCorrect && (
-                          <XCircle className="w-5 h-5 text-red-600" />
-                        )}
-                      </div>
+                      ) : (
+                        <span className="text-red-600">No answer selected</span>
+                      )}
                     </div>
                   </div>
-                );
-              })}
-            </div>
 
-            {/* Answer Summary */}
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Trophy className="w-4 h-4 text-gray-600" />
-                <span className="font-medium text-gray-800">Your Answer:</span>
-              </div>
-              <div className="text-sm text-gray-600">
-                {userAnswers.length > 0 ? (
-                  <span className="font-medium">
-                    {userAnswers.map(idx => String.fromCharCode(65 + idx)).join(', ')}
-                    {userAnswers.length > 0 && currentQuestion?.options && (
-                      <span className="font-medium ml-1 text-blue-600">
-                        ({userAnswers.map(idx => currentQuestion?.options?.[idx]?.text).filter(Boolean).join(', ')})
-                      </span>
-                    )}
-                    {questionDetail && !questionDetail.isRight && (
-                      <span className="font-medium text-green-600"> - Correct: {questionDetail.correctIdx.map(idx => String.fromCharCode(65 + idx)).join(', ')}</span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="text-red-600">No answer selected</span>
-                )}
-              </div>
-            </div>
+                   {/* Explanation */}
+                   {showExplanations && (
+                     <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                       <div className="flex items-start gap-2">
+                         <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
+                         <div>
+                           <h4 className="font-medium text-yellow-800 mb-1">Explanation</h4>
+                           <p className="text-yellow-700 text-sm">
+                             {questionDetail?.isRight 
+                               ? "Great job! You got this question correct. This demonstrates good understanding of the concept."
+                               : "This question was incorrect. Review the correct answer and explanation to improve your understanding."
+                             }
+                           </p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
 
-            {/* Explanation */}
-            {showExplanations && (
-              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-yellow-800 mb-1">Explanation</h4>
-                    <p className="text-yellow-700 text-sm">
-                      {questionDetail?.isRight 
-                        ? "Great job! You got this question correct. This demonstrates good understanding of the concept."
-                        : "This question was incorrect. Review the correct answer and explanation to improve your understanding."
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+                 </div>
+               </CardContent>
+             </Card>
+          );
+        })}
+      </div>
 
-      {/* Navigation */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="outline"
-              onClick={onBack}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Quiz Setup
-            </Button>
-
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={goToPrevious}
-                disabled={currentQuestionIndex === 0}
-                className="flex items-center gap-2"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </Button>
-
-              <div className="text-sm text-gray-600 px-3">
-                {currentQuestionIndex + 1} / {items.length}
-              </div>
-
-              <Button
-                variant="outline"
-                onClick={goToNext}
-                disabled={currentQuestionIndex === items.length - 1}
-                className="flex items-center gap-2"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <Button
-              onClick={onRestart}
-              className={`flex items-center gap-2 ${
-                isLowScore 
-                  ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white animate-pulse' 
-                  : 'bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white'
-              }`}
-            >
-              <RotateCcw className="w-4 h-4" />
-              {isLowScore ? 'Try Again to Improve!' : 'Try Again'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Keyboard Shortcuts */}
       <KeyboardShortcuts mode="review" />

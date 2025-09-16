@@ -7,50 +7,44 @@ export async function GET(req: NextRequest) {
 
   try {
     if (category) {
-      // Get topics and tags for specific category
+      // Get topics for specific category
       const arrs = await prisma.questionItem.findMany({
         where: { 
           isArchived: false,
           type: { in: ['single_choice', 'multiple_choice'] },
           category: category
         },
-        select: { topics: true, tags: true },
+        select: { topics: true },
       });
 
       const topicSet = new Set<string>();
-      const tagSet = new Set<string>();
       
       for (const it of arrs) {
         (it.topics || []).forEach((t) => t && topicSet.add(t));
-        (it.tags || []).forEach((t) => t && tagSet.add(t));
       }
 
       const topics = Array.from(topicSet).sort();
-      const tags = Array.from(tagSet).sort();
 
-      return NextResponse.json({ data: { topics, tags } });
+      return NextResponse.json({ data: { topics } });
     } else {
-      // Return all topics and tags when no category selected
+      // Return all topics when no category selected
       const arrs = await prisma.questionItem.findMany({
         where: { 
           isArchived: false,
           type: { in: ['single_choice', 'multiple_choice'] }
         },
-        select: { topics: true, tags: true },
+        select: { topics: true },
       });
 
       const topicSet = new Set<string>();
-      const tagSet = new Set<string>();
       
       for (const it of arrs) {
         (it.topics || []).forEach((t) => t && topicSet.add(t));
-        (it.tags || []).forEach((t) => t && tagSet.add(t));
       }
 
       const topics = Array.from(topicSet).sort();
-      const tags = Array.from(tagSet).sort();
 
-      return NextResponse.json({ data: { topics, tags } });
+      return NextResponse.json({ data: { topics } });
     }
   } catch (error) {
     console.error('Error fetching filtered facets:', error);

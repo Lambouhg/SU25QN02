@@ -18,7 +18,11 @@ export async function GET(req: NextRequest) {
   const page = Math.max(parseInt(q.page || "1", 10), 1);
   const pageSize = Math.min(Math.max(parseInt(q.pageSize || "20", 10), 1), 100);
 
-  const where: any = {};
+  const where: {
+    level?: string;
+    status?: string;
+    name?: { contains: string; mode: "insensitive" };
+  } = {};
   if (q.level) where.level = q.level;
   if (q.status) where.status = q.status;
   if (q.search) where.name = { contains: q.search, mode: "insensitive" };

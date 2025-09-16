@@ -12,26 +12,23 @@ export async function GET() {
     distinct: ["category"],
   });
 
-  // Collect topics and tags from arrays (single_choice and multiple_choice only)
+  // Collect topics from arrays (single_choice and multiple_choice only)
   const arrs = await prisma.questionItem.findMany({
     where: { 
       isArchived: false,
       type: { in: ['single_choice', 'multiple_choice'] }
     },
-    select: { topics: true, tags: true },
+    select: { topics: true },
   });
   const topicSet = new Set<string>();
-  const tagSet = new Set<string>();
   for (const it of arrs) {
     (it.topics || []).forEach((t) => t && topicSet.add(t));
-    (it.tags || []).forEach((t) => t && tagSet.add(t));
   }
 
   const categories = cats.map((c) => c.category).filter((v): v is string => !!v);
   const topics = Array.from(topicSet).sort();
-  const tags = Array.from(tagSet).sort();
 
-  return NextResponse.json({ data: { categories, topics, tags } });
+  return NextResponse.json({ data: { categories, topics } });
 }
 
 

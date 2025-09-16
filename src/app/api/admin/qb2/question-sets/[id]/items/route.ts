@@ -21,6 +21,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
   const list = await req.json();
   if (!Array.isArray(list)) return NextResponse.json({ error: "Body must be an array" }, { status: 400 });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = list.map((row: any, idx: number) => ({
     questionSetId: id,
     questionId: row.questionId,
@@ -31,6 +32,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     timeSuggestion: row.timeSuggestion ?? null,
   }));
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await db.$transaction(async (tx: any) => {
     await tx.questionSetQuestion.deleteMany({ where: { questionSetId: id } });
     if (data.length) await tx.questionSetQuestion.createMany({ data });

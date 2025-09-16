@@ -24,12 +24,10 @@ export default function QuizPage() {
   const [mode, setMode] = useState<'quick'|'topic'|'company'>('company');
   const [category, setCategory] = useState<string>("");
   const [topic, setTopic] = useState<string>("");
-  const [tags, setTags] = useState<string>("");
-  const [count, setCount] = useState<string>("10");
+  const [count, setCount] = useState<string>("");
   const [level, setLevel] = useState<string>("");
   const [facetCats, setFacetCats] = useState<string[]>([]);
   const [facetTopics, setFacetTopics] = useState<string[]>([]);
-  const [facetTags, setFacetTags] = useState<string[]>([]);
   const [questionSetId, setQuestionSetId] = useState("");
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [items, setItems] = useState<SnapshotItem[]>([]);
@@ -79,7 +77,6 @@ export default function QuizPage() {
         if (fRes.ok) {
           setFacetCats(fJson.data?.categories || []);
           setFacetTopics(fJson.data?.topics || []);
-          setFacetTags(fJson.data?.tags || []);
         }
       } catch {}
     })();
@@ -97,7 +94,7 @@ export default function QuizPage() {
     
     try {
       const payload: Record<string, unknown> = {};
-      console.log("Debug - Quiz start:", { mode, questionSetId, category, topic, tags, count, level });
+      console.log("Debug - Quiz start:", { mode, questionSetId, category, topic, count, level });
       
       if (mode === 'company') {
         if (!questionSetId) {
@@ -108,7 +105,6 @@ export default function QuizPage() {
       } else {
         if (category) payload.category = category;
         if (topic) payload.topic = topic;
-        if (tags) payload.tags = tags;
         if (count) payload.count = Number(count);
         if (level) payload.level = level;
       }
@@ -131,7 +127,7 @@ export default function QuizPage() {
     } finally {
       setLoading(false);
     }
-  }, [userId, mode, questionSetId, category, topic, tags, count, level]);
+  }, [userId, mode, questionSetId, category, topic, count, level]);
 
   const submit = useCallback(async () => {
     if (!attemptId) return;
@@ -139,7 +135,7 @@ export default function QuizPage() {
     setError(null);
     try {
       const responses = Object.entries(answers).map(([qid, arr]) => ({ questionId: qid, answer: arr }));
-      const res = await fetch("/api/quiz/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attemptId, responses }) });
+      const res = await fetch("/api/quiz/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attemptId, responses, timeUsed }) });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.error || "Submit failed");
       const scoreResult = { score: j.data.score, total: j.data.total, details: j.data.details };
@@ -220,11 +216,14 @@ export default function QuizPage() {
 
   // Generate question statuses for navigator
   const questionStatuses = useMemo(() => {
-    return items.map((item, index) => ({
+    const statuses = items.map((item, index) => ({
       questionIndex: index,
       isAnswered: Boolean(answers[item.questionId] && answers[item.questionId].length > 0),
       isBookmarked: bookmarkedQuestions.has(item.questionId)
     }));
+    
+    
+    return statuses;
   }, [items, answers, bookmarkedQuestions]);
 
   const toggleBookmark = useCallback(() => {
@@ -246,14 +245,20 @@ export default function QuizPage() {
     setAttemptId(null);
     setItems([]);
     setOriginalItems([]); // Clear original items when starting fresh
-    setAnswers({});
     setScore(null);
     setCurrentQuestionIndex(0);
     setBookmarkedQuestions(new Set());
     setTimeUsed(0);
     setStartTime(null);
     setTimeLeft(null);
+    // Clear answers last to prevent UI flicker
+    setAnswers({});
   }, []);
+
+  // Handle exit quiz - same as restart but with different name for clarity
+  const handleExitQuiz = useCallback(() => {
+    restart();
+  }, [restart]);
 
   // New function: Retry the same quiz with same questions
   const retryQuiz = useCallback(async () => {
@@ -266,6 +271,9 @@ export default function QuizPage() {
     setBookmarkedQuestions(new Set());
     setTimeUsed(0);
     setStartTime(Date.now());
+    
+    // Clear answers immediately to prevent UI flicker
+    setAnswers({});
     
     try {
       // Call retry API with the original questions and attempt ID
@@ -298,7 +306,6 @@ export default function QuizPage() {
       // Set timer: use default timing
       const defaultTimeLimit = (questionsToSet.length || 10) * 120; // 2 minutes per question
       setTimeLeft(defaultTimeLimit);
-      setAnswers({});
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -345,13 +352,62 @@ export default function QuizPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [attemptId, score, goToPrevious, goToNext, currentQuestionIndex, items.length, submit, toggleBookmark]);
 
-  return (
-    <DashboardLayout>
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-lg">
-        <div className="px-4 py-4">
+  // Quiz Phase - Full screen without DashboardLayout
+  if (attemptId && !score && items.length > 0) {
+    return (
+      <>
         {/* Error Display */}
         {error && (
-          <Card className="mb-4 border-red-200 bg-red-50">
+          <div className="fixed top-4 left-4 right-4 z-50">
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-3">
+                <div className="flex items-center gap-2 text-red-700">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="font-medium text-sm">{error}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <QuizCard
+          key={attemptId} // Force re-render when attemptId changes (retry)
+          question={items[currentQuestionIndex]}
+          questionIndex={currentQuestionIndex}
+          totalQuestions={items.length}
+          selectedAnswers={answers[items[currentQuestionIndex]?.questionId] || []}
+          questionStatuses={questionStatuses}
+          onAnswerChange={setAnswer}
+          onPrevious={goToPrevious}
+          onNext={goToNext}
+          onSubmit={submit}
+          onQuestionSelect={goToQuestion}
+          timeLeft={timeLeft ?? undefined}
+          shuffleKey={attemptId} // Use attemptId as shuffle key to trigger re-shuffle on retry
+          attemptId={attemptId} // Pass attemptId for exit functionality
+          onExit={handleExitQuiz} // Pass exit handler
+        />
+
+        {/* Keyboard Shortcuts */}
+        <KeyboardShortcuts />
+      </>
+    );
+  }
+
+  // Setup and Results Phase - With DashboardLayout
+  return (
+    <DashboardLayout>
+      <div className="min-h-screen">
+        {/* Background Effects */}
+        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-200/30 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl animate-pulse delay-1000" />
+        </div>
+        <div className="relative z-10 px-4 py-4">
+        {/* Error Display */}
+        {error && (
+          <Card className="mb-4 bg-red-50/80 backdrop-blur-lg border-red-200/50 shadow-2xl">
             <CardContent className="p-3">
               <div className="flex items-center gap-2 text-red-700">
                 <AlertCircle className="w-4 h-4" />
@@ -370,8 +426,6 @@ export default function QuizPage() {
             setCategory={setCategory}
             topic={topic}
             setTopic={setTopic}
-            tags={tags}
-            setTags={setTags}
             count={count}
             setCount={setCount}
             level={level}
@@ -381,30 +435,8 @@ export default function QuizPage() {
             sets={sets}
             facetCats={facetCats}
             facetTopics={facetTopics}
-            facetTags={facetTags}
             onStart={start}
             loading={loading}
-          />
-        )}
-
-        {/* Quiz Phase */}
-        {attemptId && !score && items.length > 0 && (
-          <QuizCard
-            question={items[currentQuestionIndex]}
-            questionIndex={currentQuestionIndex}
-            totalQuestions={items.length}
-            selectedAnswers={answers[items[currentQuestionIndex]?.questionId] || []}
-            questionStatuses={questionStatuses}
-            onAnswerChange={setAnswer}
-            onPrevious={goToPrevious}
-            onNext={goToNext}
-            onSubmit={submit}
-            onQuestionSelect={goToQuestion}
-            timeLeft={timeLeft ?? undefined}
-            isBookmarked={bookmarkedQuestions.has(items[currentQuestionIndex]?.questionId)}
-            onToggleBookmark={toggleBookmark}
-            showNavigator={true} // Show navigator during quiz
-            shuffleKey={attemptId} // Use attemptId as shuffle key to trigger re-shuffle on retry
           />
         )}
 
