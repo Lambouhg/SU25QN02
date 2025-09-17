@@ -304,6 +304,26 @@ export async function POST(req: NextRequest) {
           ...(typeof evalObj.problemSolvingScore === 'number' ? { problemSolvingScore: evalObj.problemSolvingScore } : {}),
           ...(typeof evalObj.deliveryScore === 'number' ? { deliveryScore: evalObj.deliveryScore } : {}),
         };
+        
+        // Standardize skill names - get from evaluationBreakdown instead of skillAssessment
+        const standardizedSkillDeltas: Record<string, number> = {};
+        
+        if (evaluationBreakdown) {
+          // Map evaluation scores to standardized skill names
+          if (typeof evaluationBreakdown.technicalScore === 'number') {
+            standardizedSkillDeltas['Technical Knowledge'] = evaluationBreakdown.technicalScore;
+          }
+          if (typeof evaluationBreakdown.communicationScore === 'number') {
+            standardizedSkillDeltas['Communication'] = evaluationBreakdown.communicationScore;
+          }
+          if (typeof evaluationBreakdown.problemSolvingScore === 'number') {
+            standardizedSkillDeltas['Problem Solving'] = evaluationBreakdown.problemSolvingScore;
+          }
+          if (typeof evaluationBreakdown.deliveryScore === 'number') {
+            standardizedSkillDeltas['Presentation'] = evaluationBreakdown.deliveryScore;
+          }
+        }
+        
         await TrackingEventService.trackAvatarInterviewCompleted({
           userId: dbUser.id,
           interviewId: newInterview.id,
@@ -314,7 +334,7 @@ export async function POST(req: NextRequest) {
           evaluationBreakdown,
           language: newInterview.language,
           jobRoleId: newInterview.jobRoleId,
-          skillDeltas: (newInterview.skillAssessment as Record<string, number> | undefined),
+          skillDeltas: Object.keys(standardizedSkillDeltas).length > 0 ? standardizedSkillDeltas : undefined,
           progress: typeof newInterview.progress === 'number' ? newInterview.progress : undefined,
         });
       } catch (e) {

@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type = 'test', jobRoleId, position, topic, history, ...rest } = body;
+    const { type = 'test', jobRoleId, position, topic, ...rest } = body;
 
     // Kiểm tra type hợp lệ (chỉ còn 'test')
     if (type !== 'test') {
@@ -156,18 +156,36 @@ export async function POST(request: NextRequest) {
     // Track assessment completion via event system only when finalScores are present
     if (type === 'test' && data.finalScores && data.finalScores.overall !== undefined) {
       try {
+        // Convert totalTime from minutes to seconds for tracking
+        const totalTimeInSeconds = assessment.totalTime ? assessment.totalTime * 60 : 0;
+        
+        // Calculate skillDeltas from finalScores for UserSkillSnapshot creation
+        const finalScores = data.finalScores;
+        const skillDeltas: Record<string, number> = {};
+        
+        if (finalScores.fundamental !== undefined) {
+          skillDeltas['Technical Knowledge'] = Number(finalScores.fundamental);
+        }
+        if (finalScores.logic !== undefined) {
+          skillDeltas['Problem Solving'] = Number(finalScores.logic);
+        }
+        if (finalScores.language !== undefined) {
+          skillDeltas['Communication'] = Number(finalScores.language);
+        }
+        
         await TrackingEventService.trackAssessmentCompleted({
           userId: dbUser.id,
           assessmentId: assessment.id,
           level: assessment.level,
-          totalTimeSeconds: assessment.totalTime || 0,
+          totalTimeSeconds: totalTimeInSeconds,
           overallScore: Number((assessment.finalScores as { overall?: number } | null)?.overall ?? data.finalScores?.overall ?? 0),
           jobRoleId: assessment.jobRoleId,
           history: assessment.history,
           realTimeScores: assessment.realTimeScores,
           finalScores: assessment.finalScores,
+          skillDeltas, // ✅ Thêm skillDeltas để tạo UserSkillSnapshot
         });
-        console.log(`[Assessment API] Event-tracked ${type} completion for user ${dbUser.id}`);
+        console.log(`[Assessment API] Event-tracked ${type} completion for user ${dbUser.id} with duration ${totalTimeInSeconds}s and skills:`, skillDeltas);
       } catch (trackingError) {
         console.error(`[Assessment API] Error tracking (events) ${type} completion:`, trackingError);
       }

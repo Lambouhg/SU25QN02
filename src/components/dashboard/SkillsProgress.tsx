@@ -1,0 +1,243 @@
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
+import { Brain, TestTube, FileText, Target, ChevronDown, ChevronUp } from 'lucide-react';
+
+interface SkillProgress {
+  name: string;
+  level: string;
+  score: number;
+  trend?: number | null;
+  source: string;
+  lastUpdated: Date;
+  totalSessions: number;
+  progress: Array<{
+    date: Date;
+    score: number;
+    source?: string;
+  }>;
+}
+
+interface SkillsProgressProps {
+  skillProgress: SkillProgress[];
+  loading: boolean;
+  collapsible?: boolean;
+}
+
+const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading, collapsible = false }) => {
+  const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
+
+  const toggleSkillExpanded = (skillName: string) => {
+    setExpandedSkills(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(skillName)) {
+        newSet.delete(skillName);
+      } else {
+        newSet.add(skillName);
+      }
+      return newSet;
+    });
+  };
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i}>
+            <div className="flex justify-between mb-2">
+              <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+              <div className="h-4 bg-gray-200 rounded w-8 animate-pulse"></div>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full">
+              <div className="h-2 bg-gray-200 rounded-full animate-pulse" style={{width: "60%"}}></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (skillProgress && skillProgress.length > 0) {
+    return (
+      <div className="space-y-4">
+        {skillProgress.map((skill) => {
+          const isExpanded = expandedSkills.has(skill.name);
+          const hasProgressData = skill.progress && skill.progress.length > 0;
+          
+          return (
+            <div key={skill.name} className="border border-gray-200 rounded-lg overflow-hidden">
+              <div 
+                className={`p-4 bg-gray-50 ${hasProgressData && collapsible ? 'cursor-pointer hover:bg-gray-100' : ''} transition-colors`}
+                onClick={() => hasProgressData && collapsible && toggleSkillExpanded(skill.name)}
+              >
+                <div className="flex justify-between items-center">
+                  <span className="font-medium text-gray-900">{skill.name}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      skill.level === 'expert' ? 'bg-purple-100 text-purple-800' :
+                      skill.level === 'advanced' ? 'bg-blue-100 text-blue-800' :
+                      skill.level === 'intermediate' ? 'bg-green-100 text-green-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {skill.level}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-700">{skill.score.toFixed(1)}</span>
+                    {skill.trend !== null && skill.trend !== undefined && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        skill.trend > 0 ? 'bg-green-100 text-green-700' :
+                        skill.trend < 0 ? 'bg-red-100 text-red-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {skill.trend > 0 ? '+' : ''}{skill.trend.toFixed(1)}
+                      </span>
+                    )}
+                    {hasProgressData && collapsible && (
+                      <div className="ml-2">
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4 text-gray-500" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-500" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="h-2 bg-gray-200 rounded-full">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        skill.level === 'expert' ? 'bg-purple-500' :
+                        skill.level === 'advanced' ? 'bg-blue-500' :
+                        skill.level === 'intermediate' ? 'bg-green-500' :
+                        'bg-gray-500'
+                      }`}
+                      style={{ width: `${Math.min(100, skill.score)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>{skill.totalSessions} sessions</span>
+                      <span>•</span>
+                      <span className={`px-2 py-0.5 rounded text-xs ${
+                        skill.source === 'Assessment' ? 'bg-purple-50 text-purple-600' :
+                        skill.source === 'Interview' ? 'bg-blue-50 text-blue-600' :
+                        'bg-gray-50 text-gray-600'
+                      }`}>
+                        {skill.source}
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {new Date(skill.lastUpdated).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {hasProgressData && (!collapsible || isExpanded) && (
+                <div className="p-4 bg-white border-t border-gray-200">
+                  <div className="h-[120px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={skill.progress}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(date) =>
+                            new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          }
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                        />
+                        <YAxis 
+                          domain={[0, 100]} 
+                          tick={{ fontSize: 10, fill: '#6b7280' }}
+                        />
+                        <Tooltip
+                          labelFormatter={(date) =>
+                            new Date(date).toLocaleDateString('en-US', { 
+                              weekday: 'short', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })
+                          }
+                          formatter={(value: number, name: string, props: { payload: { source?: string } }) => [
+                            `${value.toFixed(1)} ${props.payload.source ? `(${props.payload.source})` : ''}`, 
+                            'Score'
+                          ]}
+                          contentStyle={{ 
+                            backgroundColor: '#f9fafb', 
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            fontSize: '12px'
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="score"
+                          stroke={
+                            skill.level === 'expert' ? '#8b5cf6' :
+                            skill.level === 'advanced' ? '#3b82f6' :
+                            skill.level === 'intermediate' ? '#10b981' :
+                            '#6b7280'
+                          }
+                          strokeWidth={2}
+                          dot={{ r: 3 }}
+                          activeDot={{ r: 5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // No Skills Data Available
+  return (
+    <div className="text-center py-12">
+      <div className="mb-4">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Target className="w-8 h-8 text-gray-400" />
+        </div>
+        <h4 className="text-lg font-medium text-gray-900 mb-2">No Skills Tracked Yet</h4>
+        <p className="text-gray-500 mb-6">
+          Complete interviews, assessments, or JD analysis to see your skill development
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 max-w-sm mx-auto">
+        <Link 
+          href="/avatar-interview"
+          className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+        >
+          <Brain className="w-4 h-4" />
+          <span className="text-sm font-medium">Start AI Interview</span>
+        </Link>
+        <Link 
+          href="/test"
+          className="flex items-center justify-center gap-2 px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+        >
+          <TestTube className="w-4 h-4" />
+          <span className="text-sm font-medium">Take Assessment</span>
+        </Link>
+        <Link 
+          href="/jd"
+          className="flex items-center justify-center gap-2 px-4 py-3 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors"
+        >
+          <FileText className="w-4 h-4" />
+          <span className="text-sm font-medium">Analyze Job Description</span>
+        </Link>
+      </div>
+    </div>
+  );
+};
+
+export default SkillsProgress;

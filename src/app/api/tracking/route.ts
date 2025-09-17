@@ -6,6 +6,15 @@ import { prisma } from '@/lib/prisma';
 interface ProgressData {
   activities?: Array<{ timestamp: string }>;
   recentActivities?: Array<{ timestamp: string }>;
+  skillProgress?: Array<{
+    name: string;
+    level: string;
+    score: number;
+    progress: Array<{
+      date: Date;
+      score: number;
+    }>;
+  }>;
   [key: string]: unknown;
 }
 
@@ -89,14 +98,68 @@ export async function GET() {
       if (datesSet.has(key)) studyStreak++; else break;
     }
 
-    // Skill trends: group snapshots by skill
-    const skillTrendsMap: Record<string, Array<{ createdAt: Date; score: number }>> = {};
+    // Skill trends: group snapshots by skill with source breakdown
+    const skillTrendsMap: Record<string, Array<{ createdAt: Date; score: number; source: string }>> = {};
     for (const s of skillSnapshots) {
       const name = s.skillName;
       if (!skillTrendsMap[name]) skillTrendsMap[name] = [];
-      skillTrendsMap[name].push({ createdAt: s.createdAt, score: s.score });
+      skillTrendsMap[name].push({ 
+        createdAt: s.createdAt, 
+        score: s.score, 
+        source: s.source || 'unknown'
+      });
     }
     const skillTrends = Object.entries(skillTrendsMap).map(([skill, history]) => ({ skill, history }));
+
+    // Helper function to determine skill level based on score
+    // Thresholds adjusted for 10-point scale per test
+    const getSkillLevel = (score: number): string => {
+      if (score >= 8.5) return 'expert';     // 85%+ mastery
+      if (score >= 7.0) return 'advanced';   // 70%+ proficient
+      if (score >= 5.5) return 'intermediate'; // 55%+ developing
+      return 'beginner';                      // <55% learning
+    };
+
+    // Transform skillTrends into simplified skillProgress format with average scoring
+    const skillProgress = skillTrends.map(({ skill, history }) => {
+      // Sort history by date to ensure proper chronological order
+      const sortedHistory = history.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      
+      // Calculate average score from all sessions
+      const totalScore = sortedHistory.reduce((sum, h) => sum + h.score, 0);
+      const averageScore = sortedHistory.length > 0 ? totalScore / sortedHistory.length : 0;
+      
+      // Get latest and previous for trend calculation
+      const latest = sortedHistory[sortedHistory.length - 1];
+      const previous = sortedHistory[sortedHistory.length - 2];
+      
+      const level = getSkillLevel(averageScore);
+      
+      // Calculate trend based on latest vs previous
+      const trend = previous ? latest.score - previous.score : null;
+      
+      // Determine source display name from latest session
+      const sourceDisplay = latest.source === 'ASSESSMENT' || latest.source === 'assessment' ? 'Assessment' : 
+                           latest.source === 'AVATAR_INTERVIEW' || latest.source === 'interview' ? 'Interview' : 
+                           latest.source || 'Unknown';
+
+      return {
+        name: skill,
+        level,
+        score: Math.round(averageScore * 10) / 10, // Average score instead of latest
+        trend: trend ? Math.round(trend * 10) / 10 : null,
+        source: sourceDisplay,
+        lastUpdated: latest.createdAt,
+        totalSessions: sortedHistory.length,
+        progress: sortedHistory.map(h => ({
+          date: h.createdAt,
+          score: Math.round(h.score * 10) / 10,
+          source: h.source === 'ASSESSMENT' || h.source === 'assessment' ? 'Assessment' : 
+                  h.source === 'AVATAR_INTERVIEW' || h.source === 'interview' ? 'Interview' : 
+                  h.source || 'Unknown'
+        }))
+      };
+    });
 
     // Normalization helpers and improvement metrics
     const normalizeScore = (v: unknown): number | null => {
@@ -106,8 +169,8 @@ export async function GET() {
       return Math.max(0, Math.min(100, v));
     };
 
-    type DimKey = 'FUND' | 'PROB' | 'COMM' | 'DOMAIN';
-    const dims: DimKey[] = ['FUND', 'PROB', 'COMM', 'DOMAIN'];
+    type DimKey = 'Technical Knowledge' | 'Problem Solving' | 'Communication' | 'Presentation' | 'DOMAIN';
+    const dims: DimKey[] = ['Technical Knowledge', 'Problem Solving', 'Communication', 'Presentation', 'DOMAIN'];
 
     type EventRow = {
       feature?: string | null;
@@ -126,7 +189,7 @@ export async function GET() {
 
       if (feature === 'secure_quiz') {
         if (score != null) {
-          out.FUND = score; out.PROB = score; out.DOMAIN = score;
+          out['Technical Knowledge'] = score; out['Problem Solving'] = score; out.DOMAIN = score;
         }
         return out;
       }
@@ -134,10 +197,10 @@ export async function GET() {
         const fs = (md.finalScores || {}) as Record<string, unknown>;
         const fund = normalizeScore(fs.fundamental ?? fs.fundamentalKnowledge);
         const prob = normalizeScore(fs.logic ?? fs.logicalReasoning);
-        const comm = normalizeScore(fs.language ?? fs.communication);
-        if (fund != null) out.FUND = fund;
-        if (prob != null) out.PROB = prob;
-        if (comm != null) out.COMM = comm;
+        const comm = normalizeScore(fs.language ?? fs.languageFluency ?? fs.communication);
+        if (fund != null) out['Technical Knowledge'] = fund;
+        if (prob != null) out['Problem Solving'] = prob;
+        if (comm != null) out['Communication'] = comm;
         if (score != null && Object.keys(out).length === 0) out.DOMAIN = score;
         return out;
       }
@@ -147,10 +210,10 @@ export async function GET() {
         const comm = normalizeScore(eb.communicationScore ?? eb.communication);
         const ps = normalizeScore(eb.problemSolvingScore ?? eb.problemSolving);
         const del = normalizeScore(eb.deliveryScore ?? eb.delivery);
-        if (tech != null) out.FUND = tech; // Technical fundamentals
-        if (ps != null) out.PROB = ps;     // Problem solving
-        if (comm != null) out.COMM = comm; // Communication
-        if (del != null) out.DOMAIN = del; // Use DOMAIN slot for delivery/presentation
+        if (tech != null) out['Technical Knowledge'] = tech; // Technical fundamentals
+        if (ps != null) out['Problem Solving'] = ps;     // Problem solving
+        if (comm != null) out['Communication'] = comm; // Communication
+        if (del != null) out['Presentation'] = del; // Delivery/presentation skills
         if (score != null && Object.keys(out).length === 0) out.DOMAIN = score;
         return out;
       }
@@ -158,7 +221,7 @@ export async function GET() {
         // JD overall or detailed
         const ds = (md.detailedScores || {}) as Record<string, unknown>;
         const comm = normalizeScore(ds.Communication ?? ds.communication ?? ds.Writing ?? ds.writing);
-        if (comm != null) out.COMM = comm;
+        if (comm != null) out['Communication'] = comm;
         if (score != null) out.DOMAIN = score;
         return out;
       }
@@ -190,7 +253,13 @@ export async function GET() {
     const improvementDelta = Number((overallCurrent - overallPrevious).toFixed(2));
 
     // Dimension currents
-    const dimValsCurrent: Record<DimKey, number[]> = { FUND: [], PROB: [], COMM: [], DOMAIN: [] };
+    const dimValsCurrent: Record<DimKey, number[]> = { 
+      'Technical Knowledge': [], 
+      'Problem Solving': [], 
+      'Communication': [], 
+      'Presentation': [],
+      DOMAIN: [] 
+    };
     for (const e of currentEvents) {
       const m = mapEventToDims(e);
       for (const d of dims) safePush(dimValsCurrent, d, m[d] ?? null);
@@ -215,7 +284,13 @@ export async function GET() {
     const trend = Object.entries(trendMap).sort((a,b) => a[0].localeCompare(b[0])).map(([date, arr]) => ({ date, overall: Number(avg(arr).toFixed(2)) }));
 
     // Dimension trends (daily)
-    const dimTrendMap: Record<DimKey, Record<string, number[]>> = { FUND: {}, PROB: {}, COMM: {}, DOMAIN: {} };
+    const dimTrendMap: Record<DimKey, Record<string, number[]>> = { 
+      'Technical Knowledge': {}, 
+      'Problem Solving': {}, 
+      'Communication': {}, 
+      'Presentation': {},
+      DOMAIN: {} 
+    };
     for (const e of currentEvents) {
       const key = new Date(e.timestamp).toISOString().slice(0,10);
       const dimsVal = mapEventToDims(e);
@@ -261,6 +336,7 @@ export async function GET() {
         type: (e.activityType as string) === 'assessment' ? 'assessment' : e.activityType || 'other',
         score: e.score,
       })),
+      skillProgress,
       skillTrends,
       normalized: {
         overallCurrent: Number(overallCurrent.toFixed(2)),

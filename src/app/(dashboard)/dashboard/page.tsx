@@ -3,32 +3,21 @@
 import { 
   Brain, FileText,
   TestTube, FileQuestion, TrendingUp,
-  Clock, Award, Users, Target, Home, BookOpen, Calendar, Settings
+  Clock, Award, Users, Home, BookOpen, Calendar, Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useUser } from '@clerk/nextjs';
 import { useEffect, useState, useMemo } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { usePet } from '@/hooks/usePet';
 import { PetDisplay } from '@/components/pet/PetDisplay';
 import { getPetEvolutionStages } from '@/utils/petLogic';
-import { ChartRadarLinesOnly } from '@/components/ui/chart-radar-lines-only';
 import { ChartMultiAreaInteractive } from '@/components/ui/chart-multi-area-interactive';
 import { ChartSingleLine } from '@/components/ui/chart-single-line';
 import MagicDock from '@/components/ui/magicdock';
 import { useRouter } from 'next/navigation';
+import SkillsProgress from '@/components/dashboard/SkillsProgress';
 
 
 interface SkillProgress {
@@ -144,39 +133,6 @@ export default function DashboardPage() {
     };
   } | null>(null);
 
-  // Spider chart data state
-  const [overallSpiderData, setOverallSpiderData] = useState<Array<{
-    subject: string;
-    A: number;
-    fullMark: number;
-    target: number;
-    unit: string;
-  }>>([]);
-  const [showTargetModal, setShowTargetModal] = useState(false);
-  type PersonalTargets = {
-    totalActivities: number;
-    averageScore: number;
-    studyTime: number;
-    completionRate: number;
-    learningFrequency: number;
-  };
-  const defaultTargets: PersonalTargets = {
-    totalActivities: 50,
-    averageScore: 80,
-    studyTime: 200,
-    completionRate: 90,
-    learningFrequency: 15,
-  };
-  const [personalTargets, setPersonalTargets] = useState<PersonalTargets>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('personalTargets');
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return defaultTargets;
-  });
-
   // --- STREAK FEATURE STATE & LOGIC ---
   const [showStreakModal, setShowStreakModal] = useState(false);
   // Lấy số ngày streak thực tế từ progress.stats.studyStreak
@@ -237,6 +193,10 @@ export default function DashboardPage() {
         const response = await fetch('/api/tracking');
         if (response.ok) {
           const data = await response.json();
+        
+        // Debug log để kiểm tra skillProgress data
+        console.log('📊 Dashboard Debug - skillProgress data:', data.skillProgress);
+        console.log('📊 Dashboard Debug - skillTrends data:', data.skillTrends);
         
         // API trả về data trực tiếp, không có .progress
         setProgress(data);
@@ -429,49 +389,6 @@ export default function DashboardPage() {
       });
     }
   }, [memoizedChartData]);
-
-  // Tính toán dữ liệu spider chart mỗi khi progress thay đổi
-  useEffect(() => {
-    if (!progress) return;
-    
-    // Sử dụng totalActivities để tính tổng số activities
-    const totalCount = totalActivities;
-    const avgScore = progress.stats?.averageScore || 0;
-    // Study time chuyển sang giờ, làm tròn 1 số thập phân
-    const totalStudyTimeRaw = progress.stats?.totalStudyTime || 0;
-    const totalStudyTime = +(totalStudyTimeRaw / 60).toFixed(1); // giờ
-    
-    // Tính completion rate và frequency từ recentActivities nếu có
-    let completionRate = 0;
-    let frequency = 0;
-    
-    if (progress.recentActivities && progress.recentActivities.length > 0) {
-      const activities = progress.recentActivities;
-      completionRate = activities.filter(a => a.score !== undefined).length / activities.length * 100;
-      
-      // Tần suất học: số lần trong 30 ngày gần nhất
-      const now = new Date();
-      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      frequency = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo).length;
-    }
-    setOverallSpiderData([
-      {
-        subject: 'Total Activities', A: Math.min(totalCount, 100), fullMark: 100, target: personalTargets.totalActivities, unit: 'times'
-      },
-      {
-        subject: 'Average Score', A: Math.round(avgScore), fullMark: 100, target: personalTargets.averageScore, unit: ''
-      },
-      {
-        subject: 'Study Time', A: Math.min(totalStudyTime, 10), fullMark: 10, target: personalTargets.studyTime, unit: 'h'
-      },
-      {
-        subject: 'Completion Rate', A: Math.round(completionRate), fullMark: 100, target: personalTargets.completionRate, unit: '%'
-      },
-      {
-        subject: 'Learning Frequency', A: Math.min(frequency, 20), fullMark: 20, target: personalTargets.learningFrequency, unit: 'times/month'
-      },
-    ]);
-  }, [progress, personalTargets, totalActivities]);
 
   return (
     <DashboardLayout>
@@ -703,30 +620,24 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
-          {/* Spider Chart - Right */}
+          
+          {/* Skills Development - Right */}
           <div>
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">Overall Progress</h2>
-                <Button 
-                  onClick={() => setShowTargetModal(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Target className="w-4 h-4" />
-                  Set Targets
-                </Button>
+                <div>
+                  <h2 className="text-xl font-semibold">Skills Development</h2>
+                  <p className="text-sm text-gray-600 mt-1">Your average performance across all practice sessions</p>
+                </div>
+                <div className="text-sm text-gray-500">
+                  Click on skills to view detailed progress charts
+                </div>
               </div>
-              <div className="h-72">
-                <ChartRadarLinesOnly 
-                  data={overallSpiderData.map(item => ({
-                    month: item.subject,
-                    desktop: item.A,
-                    mobile: item.target
-                  }))}
-                  title=""
-                  description=""
-                  showTargets={true}
-                  hideCard={true}
+              <div className="max-h-[400px] overflow-y-auto">
+                <SkillsProgress 
+                  skillProgress={progress?.skillProgress || []} 
+                  loading={loading}
+                  collapsible={true}
                 />
               </div>
             </div>
@@ -789,204 +700,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Column - Progress */}
-          <div className="space-y-6">            {/* Skills Progress */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold mb-4">Skills Progress</h3>
-              <p className="text-sm text-gray-600 mb-6">Competency scores by skill area</p>
-              
-              {loading ? (
-              <div className="space-y-4">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i}>
-                      <div className="flex justify-between mb-2">
-                        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
-                        <div className="h-4 bg-gray-200 rounded w-8 animate-pulse"></div>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                        <div className="h-2 bg-gray-200 rounded-full animate-pulse" style={{width: "60%"}}></div>
-                      </div>
-                  </div>
-                  ))}
-                </div>
-              ) : progress?.skillProgress && progress.skillProgress.length > 0 ? (
-                <div className="space-y-6">
-                  {progress.skillProgress.map((skill) => (
-                    <div key={skill.name}>
-                      <div className="flex justify-between mb-2">
-                        <span className="font-medium text-gray-700">{skill.name}</span>
-                        <span className="text-sm text-gray-500">{skill.level}</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                        <div
-                          className="h-2 bg-blue-500 rounded-full transition-all duration-300"
-                          style={{ width: `${skill.score}%` }}
-                        />
-                      </div>
-                      {skill.progress && skill.progress.length > 0 && (
-                        <div className="mt-4 h-[100px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={skill.progress}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis
-                                dataKey="date"
-                                tickFormatter={(date) =>
-                                  new Date(date).toLocaleDateString()
-                                }
-                              />
-                              <YAxis domain={[0, 100]} />
-                              <Tooltip
-                                labelFormatter={(date) =>
-                                  new Date(date).toLocaleDateString()
-                                }
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="score"
-                                stroke="#2563eb"
-                                strokeWidth={2}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                  </div>
-                  ))}
-                </div>
-              ) : progress?.stats ? (
-                // Fallback: Hiển thị stats cơ bản nếu không có skillProgress
-                <div className="space-y-4">
-                <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-gray-700">Overall Performance</span>
-                      <span className="text-sm text-gray-500">Current</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                      <div
-                        className="h-2 bg-blue-500 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, progress.stats.averageScore)}%` }}
-                      />
-                  </div>
-                    <p className="text-xs text-gray-500 mt-1">Average Score: {progress.stats.averageScore.toFixed(1)}%</p>
-                </div>
-                
-                <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-gray-700">Study Streak</span>
-                      <span className="text-sm text-gray-500">{progress.stats.studyStreak} days</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                      <div
-                        className="h-2 bg-green-500 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, progress.stats.studyStreak * 10)}%` }}
-                      />
-                  </div>
-                </div>
-                
-                <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-gray-700">Total Study Time</span>
-                      <span className="text-sm text-gray-500">{progress.stats.totalStudyTime} min</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                      <div
-                        className="h-2 bg-purple-500 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, progress.stats.totalStudyTime / 10)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No skill progress data available</p>
-                  <p className="text-sm text-gray-400 mt-2">Complete some activities to see your progress</p>
-                </div>
-              )}
-            </div>
+          {/* Right Column - Other Content (if needed) */}
+          <div className="space-y-6">
+            {/* Future content can go here */}
           </div>
         </div>
      </div>
-      {/* Target Modal */}
-      {showTargetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold">Set Overall Progress Targets</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowTargetModal(false)}>
-                ✕
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="totalActivities">Total Activities</Label>
-                <Input
-                  id="totalActivities"
-                  type="number"
-                  min="0"
-                  value={personalTargets.totalActivities}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, totalActivities: Math.max(0, parseInt(e.target.value) || 0) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="averageScore">Average Score</Label>
-                <Input
-                  id="averageScore"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={personalTargets.averageScore}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, averageScore: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="studyTime">Study Time (hours)</Label>
-                <Input
-                  id="studyTime"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={personalTargets.studyTime}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, studyTime: Math.max(0, parseFloat(e.target.value) || 0) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="completionRate">Completion Rate (%)</Label>
-                <Input
-                  id="completionRate"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={personalTargets.completionRate}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, completionRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="learningFrequency">Learning Frequency (times/month)</Label>
-                <Input
-                  id="learningFrequency"
-                  type="number"
-                  min="0"
-                  value={personalTargets.learningFrequency}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, learningFrequency: Math.max(0, parseInt(e.target.value) || 0) }))}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowTargetModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  localStorage.setItem('personalTargets', JSON.stringify(personalTargets));
-                  setShowTargetModal(false);
-                }}
-              >
-                Save Targets
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Streak Detail Modal */}
       {showStreakModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
