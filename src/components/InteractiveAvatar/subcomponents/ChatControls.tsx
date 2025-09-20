@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useRef, useEffect } from 'react';
-import { Users, MessageSquare, CheckCircle, FileText, Brain, TrendingUp, Lightbulb, Activity } from "lucide-react";
+import { Users, MessageSquare, CheckCircle, FileText, Brain, TrendingUp, Activity, Lightbulb } from "lucide-react";
 import { SessionState } from '../HeygenConfig';
 
 interface Message {
@@ -13,10 +13,13 @@ interface Message {
   isPartial?: boolean;
 }
 
-interface SkillAssessment {
-  technical: number;
-  communication: number;
-  problemSolving: number;
+interface Evaluation {
+  technicalScore: number;
+  communicationScore: number;
+  problemSolvingScore: number;
+  deliveryScore?: number;
+  overallRating?: number;
+  recommendations?: string[];
 }
 
 interface ChatControlsProps {
@@ -29,7 +32,7 @@ interface ChatControlsProps {
   isThinking?: boolean;
   isInterviewComplete?: boolean;
   questionCount?: number;
-  skillAssessment?: SkillAssessment;
+  evaluation?: Evaluation; // Primary source for skill evaluation
   coveredTopics?: string[];
   progress?: number;
 }
@@ -136,7 +139,7 @@ const ChatControls: React.FC<ChatControlsProps> = ({
   isThinking = false,
   isInterviewComplete = false,
   questionCount = 0,
-  skillAssessment,
+  evaluation, // Primary source for skill evaluation
   coveredTopics = [],
   progress = 0
 }) => {
@@ -225,34 +228,38 @@ const ChatControls: React.FC<ChatControlsProps> = ({
     isUser: msg.sender === 'user',
   }));
 
-  // Transform skill assessment to match new UI format
+  // Use evaluation scores directly (no fallback needed since we always have evaluation)
+  const technicalScore = evaluation?.technicalScore ?? 0;
+  const communicationScore = evaluation?.communicationScore ?? 0;
+  const problemSolvingScore = evaluation?.problemSolvingScore ?? 0;
+  
   const evaluationStatus = [
     {
       category: "Technical Skills",
       icon: Brain,
-      score: skillAssessment?.technical || 0,
-      status: (skillAssessment?.technical || 0) >= 80 ? "excellent" : (skillAssessment?.technical || 0) >= 60 ? "good" : "average",
+      score: technicalScore,
+      status: technicalScore >= 8 ? "excellent" : technicalScore >= 6 ? "good" : "average",
       feedback: "Technical knowledge and problem solving",
-      color: (skillAssessment?.technical || 0) >= 80 ? "text-green-600" : (skillAssessment?.technical || 0) >= 60 ? "text-blue-600" : "text-orange-600",
-      bgColor: (skillAssessment?.technical || 0) >= 80 ? "bg-green-50" : (skillAssessment?.technical || 0) >= 60 ? "bg-blue-50" : "bg-orange-50",
+      color: technicalScore >= 8 ? "text-green-600" : technicalScore >= 6 ? "text-blue-600" : "text-orange-600",
+      bgColor: technicalScore >= 8 ? "bg-green-50" : technicalScore >= 6 ? "bg-blue-50" : "bg-orange-50",
     },
     {
       category: "Communication",
       icon: MessageSquare,
-      score: skillAssessment?.communication || 0,
-      status: (skillAssessment?.communication || 0) >= 80 ? "excellent" : (skillAssessment?.communication || 0) >= 60 ? "good" : "average",
+      score: communicationScore,
+      status: communicationScore >= 8 ? "excellent" : communicationScore >= 6 ? "good" : "average",
       feedback: "Clear articulation and good interaction",
-      color: (skillAssessment?.communication || 0) >= 80 ? "text-green-600" : (skillAssessment?.communication || 0) >= 60 ? "text-blue-600" : "text-orange-600",
-      bgColor: (skillAssessment?.communication || 0) >= 80 ? "bg-green-50" : (skillAssessment?.communication || 0) >= 60 ? "bg-blue-50" : "bg-orange-50",
+      color: communicationScore >= 8 ? "text-green-600" : communicationScore >= 6 ? "text-blue-600" : "text-orange-600",
+      bgColor: communicationScore >= 8 ? "bg-green-50" : communicationScore >= 6 ? "bg-blue-50" : "bg-orange-50",
     },
     {
       category: "Problem Solving",
       icon: Lightbulb,
-      score: skillAssessment?.problemSolving || 0,
-      status: (skillAssessment?.problemSolving || 0) >= 80 ? "excellent" : (skillAssessment?.problemSolving || 0) >= 60 ? "good" : "average",
+      score: problemSolvingScore,
+      status: problemSolvingScore >= 8 ? "excellent" : problemSolvingScore >= 6 ? "good" : "average",
       feedback: "Analytical thinking and solution approach",
-      color: (skillAssessment?.problemSolving || 0) >= 80 ? "text-green-600" : (skillAssessment?.problemSolving || 0) >= 60 ? "text-blue-600" : "text-orange-600",
-      bgColor: (skillAssessment?.problemSolving || 0) >= 80 ? "bg-green-50" : (skillAssessment?.problemSolving || 0) >= 60 ? "bg-blue-50" : "bg-orange-50",
+      color: problemSolvingScore >= 8 ? "text-green-600" : problemSolvingScore >= 6 ? "text-blue-600" : "text-orange-600",
+      bgColor: problemSolvingScore >= 8 ? "bg-green-50" : problemSolvingScore >= 6 ? "bg-blue-50" : "bg-orange-50",
     },
   ];
 
@@ -367,13 +374,13 @@ const ChatControls: React.FC<ChatControlsProps> = ({
                         <div className="flex items-center gap-2">
                           <div className="w-12 bg-gray-200 rounded-full h-1">
                             <div
-                              className={`h-1 rounded-full ${item.score >= 80 ? "bg-green-500" : item.score >= 60 ? "bg-blue-500" : "bg-orange-500"
+                              className={`h-1 rounded-full ${item.score >= 8 ? "bg-green-500" : item.score >= 6 ? "bg-blue-500" : "bg-orange-500"
                                 }`}
-                              style={{ width: `${item.score}%` }}
+                              style={{ width: `${(item.score / 10) * 100}%` }}
                             ></div>
                           </div>
                           <Badge variant="outline" className={`text-xs ${item.color} border-current`}>
-                            {item.score}%
+                            {item.score.toFixed(1)}/10
                           </Badge>
                         </div>
                       </div>

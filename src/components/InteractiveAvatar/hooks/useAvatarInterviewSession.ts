@@ -414,7 +414,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         evaluation,
         questionCount: questionCount,
         coveredTopics: interviewState.coveredTopics,
-        skillAssessment: interviewState.skillAssessment,
+        // skillAssessment: interviewState.skillAssessment, // Removed: using evaluation as single source of truth
         progress,
         status: 'completed'
       };
@@ -468,7 +468,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
           problemSolvingScore: evaluation.problemSolvingScore,
           recommendations: evaluation.recommendations
         },
-        skillAssessment: interviewState.skillAssessment
+        // skillAssessment: interviewState.skillAssessment // Removed: using evaluation as single source of truth
       };
       
       // Gọi onEndSession với data để component cha có thể xử lý

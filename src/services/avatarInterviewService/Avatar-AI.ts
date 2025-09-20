@@ -9,8 +9,8 @@ export interface InterviewConfig {
   minExperience?: number;
   maxExperience?: number;
   jobRoleTitle?: string; // Thêm jobRoleTitle để mapping với question bank
-  jobRoleLevel?: string; // Thêm jobRoleLevel để mapping với question bank
   selectedSkills?: string[]; // User selected skills từ preferences
+  jobRoleLevel?: string; // Thêm jobRoleLevel để mapping với question bank
   customSkills?: string[]; // User custom skills từ preferences
 }
 
@@ -112,10 +112,13 @@ export interface InterviewResponse {
   performanceTrend?: 'improving' | 'stable' | 'declining';
   completionDetails?: {
     coveredTopics: string[];
-    skillAssessment: {
-      technical: number;
-      communication: number;
-      problemSolving: number;
+    evaluation?: {
+      technicalScore: number;
+      communicationScore: number;
+      problemSolvingScore: number;
+      deliveryScore?: number;
+      overallRating?: number;
+      recommendations?: string[];
     };
   };
 }
@@ -673,18 +676,20 @@ USE THIS EXACT FORMAT (do not include any text outside the JSON structure):
   "questionCount": number (exact count of technical questions you have asked so far, excluding greeting),
   "completionDetails": {
     "coveredTopics": ["topics", "covered", "so far"],
-    "skillAssessment": {
-      "technical": number (1-10, based on technical knowledge and depth demonstrated),
-      "communication": number (1-10, based on clarity and articulation of responses),
-      "problemSolving": number (1-10, based on logical thinking and approach to problems)
+    "evaluation": {
+      "technicalScore": number (1-10, based on technical knowledge and depth demonstrated),
+      "communicationScore": number (1-10, based on clarity and articulation of responses),
+      "problemSolvingScore": number (1-10, based on logical thinking and approach to problems),
+      "overallRating": number (1-10, overall assessment),
+      "recommendations": ["suggestion1", "suggestion2"]
     }
   }
 }
 
-IMPORTANT: You MUST provide realistic skillAssessment scores based on the candidate's responses:
-- technical: Evaluate based on technical knowledge, depth, and accuracy
-- communication: Evaluate based on clarity, articulation, and explanation quality  
-- problemSolving: Evaluate based on logical thinking, approach, and methodology
+IMPORTANT: You MUST provide realistic evaluation scores based on the candidate's responses:
+- technicalScore: Evaluate based on technical knowledge, depth, and accuracy
+- communicationScore: Evaluate based on clarity, articulation, and explanation quality  
+- problemSolvingScore: Evaluate based on logical thinking, approach, and methodology
 
 SCORING GUIDELINES:
 - Start from 0 and build up based on demonstrated capabilities
@@ -731,10 +736,12 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
           questionCount: questionsAsked, // Use calculated question count
           completionDetails: {
             coveredTopics: [],
-            skillAssessment: {
-              technical: 0, // Start from 0
-              communication: 0, // Start from 0
-              problemSolving: 0 // Start from 0
+            evaluation: {
+              technicalScore: 0, // Start from 0
+              communicationScore: 0, // Start from 0
+              problemSolvingScore: 0, // Start from 0
+              overallRating: 0,
+              recommendations: []
             }
           }
         };
@@ -752,10 +759,12 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
         questionCount: questionsAsked, // Use calculated question count
         completionDetails: {
           coveredTopics: [],
-          skillAssessment: {
-            technical: 0, // Start from 0
-            communication: 0, // Start from 0
-            problemSolving: 0 // Start from 0
+          evaluation: {
+            technicalScore: 0, // Start from 0
+            communicationScore: 0, // Start from 0
+            problemSolvingScore: 0, // Start from 0
+            overallRating: 0,
+            recommendations: []
           }
         }
       };
@@ -781,22 +790,14 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
       });
     }
 
-    // Calculate skill assessment from AI response or use defaults
-    const skillAssessment = result.completionDetails?.skillAssessment || result.skillAssessment || {
-      technical: Math.max(0, Math.min(10, result.currentScore || 0)), // Use currentScore as base for technical, start from 0
-      communication: 0, // Start from 0
-      problemSolving: 0 // Start from 0
-    };
-
-    // For now, use the current skill assessment directly
-    // In a real implementation, you would need to track skill assessment history separately
-    const cumulativeSkillAssessment = skillAssessment;
-
-    // Ensure all skill scores are within valid range (0-10)
-    const validatedSkillAssessment = {
-      technical: Math.max(0, Math.min(10, cumulativeSkillAssessment.technical || 0)),
-      communication: Math.max(0, Math.min(10, cumulativeSkillAssessment.communication || 0)),
-      problemSolving: Math.max(0, Math.min(10, cumulativeSkillAssessment.problemSolving || 0))
+    // Create evaluation object directly from AI response or use defaults
+    const evaluation = result.completionDetails?.evaluation || {
+      technicalScore: Math.max(0, Math.min(10, result.currentScore || 0)), // Use currentScore as fallback
+      communicationScore: 0, // Start from 0
+      problemSolvingScore: 0, // Start from 0
+      deliveryScore: 0,
+      overallRating: 0,
+      recommendations: []
     };
 
     return {
@@ -811,7 +812,7 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
       questionCount: result.questionCount || questionsAsked, // Use AI response or fallback to calculated
       completionDetails: {
         coveredTopics: result.completionDetails?.coveredTopics || result.coveredTopics || [],
-        skillAssessment: validatedSkillAssessment
+        evaluation: evaluation
       }
     };
 
@@ -835,10 +836,13 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
       questionCount: 0,
       completionDetails: {
         coveredTopics: [],
-        skillAssessment: {
-          technical: 0, // Start from 0
-          communication: 0, // Start from 0
-          problemSolving: 0 // Start from 0
+        evaluation: {
+          technicalScore: 0,
+          communicationScore: 0,
+          problemSolvingScore: 0,
+          deliveryScore: 0,
+          overallRating: 0,
+          recommendations: []
         }
       }
     };
@@ -941,10 +945,10 @@ ${firstQuestion}
         questionCount: 0, // Starting interview, no questions asked yet
         completionDetails: {
           coveredTopics: [],
-          skillAssessment: {
-            technical: 0, // Start from 0
-            communication: 0, // Start from 0
-            problemSolving: 0 // Start from 0
+          evaluation: {
+            technicalScore: 0,
+            communicationScore: 0,
+            problemSolvingScore: 0
           }
         }
       };
@@ -970,10 +974,10 @@ ${firstQuestion}
         questionCount: 0, // Starting interview, no questions asked yet
         completionDetails: {
           coveredTopics: [],
-          skillAssessment: {
-            technical: 0, // Start from 0
-            communication: 0, // Start from 0
-            problemSolving: 0 // Start from 0
+          evaluation: {
+            technicalScore: 0,
+            communicationScore: 0,
+            problemSolvingScore: 0
           }
         }
       };
@@ -1001,10 +1005,10 @@ ${firstQuestion}
       questionCount: 0, // Starting interview, no questions asked yet
       completionDetails: {
         coveredTopics: [],
-        skillAssessment: {
-          technical: 0, // Start from 0
-          communication: 0, // Start from 0
-          problemSolving: 0 // Start from 0
+        evaluation: {
+          technicalScore: 0,
+          communicationScore: 0,
+          problemSolvingScore: 0
         }
       }
     };

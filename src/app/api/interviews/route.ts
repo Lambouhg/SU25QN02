@@ -25,12 +25,12 @@ interface CreateInterviewRequest {
     technicalScore: number;
     communicationScore: number;
     problemSolvingScore: number;
+    deliveryScore?: number;
     overallRating: number;
     recommendations: string[];
   };
   questionCount?: number;
   coveredTopics?: string[];
-  skillAssessment?: Record<string, number>;
   progress?: number;
   status?: 'in_progress' | 'completed' | 'interrupted';  // Add status field
 }
@@ -120,7 +120,6 @@ type Interview = {
   evaluation?: unknown;
   questionCount: number;
   coveredTopics: string[];
-  skillAssessment: unknown;
   progress: number;
   status: 'in_progress' | 'completed' | 'interrupted';
 };
@@ -193,46 +192,23 @@ export async function POST(req: NextRequest) {
     const remaining = selectedPackage.avatarInterviewUsed;
 
     // Tạo interview
-    // Chuẩn hoá evaluation và skillAssessment để đảm bảo đủ 4 tiêu chí
-    const evalInput = (data.evaluation as Partial<{
-      technicalScore: number;
-      communicationScore: number;
-      problemSolvingScore: number;
-      deliveryScore?: number;
-      overallRating?: number;
-      recommendations?: string[];
-    }>) || {};
-    const clamp = (v: unknown) => {
-      const n = Number(v);
-      if (Number.isNaN(n)) return undefined;
-      return Math.max(0, Math.min(10, n));
-    };
+    // Chuẩn hoá evaluation để đảm bảo đủ 4 tiêu chí
     const evaluationToStore = data.evaluation ? JSON.parse(JSON.stringify(data.evaluation)) : {
       technicalScore: 0,
       communicationScore: 0,
       problemSolvingScore: 0,
+      deliveryScore: 0,
       overallRating: 0,
       recommendations: []
     };
-    const normalizedSkillAssessment: Record<string, number> = {
-      ...(data.skillAssessment || {}),
+
+    // Auto-populate skillAssessment từ evaluation để backward compatibility
+    const skillAssessmentToStore = {
+      technical: evaluationToStore.technicalScore || 0,
+      communication: evaluationToStore.communicationScore || 0,
+      problemSolving: evaluationToStore.problemSolvingScore || 0,
+      delivery: evaluationToStore.deliveryScore || 0
     };
-    const maybeTechnical = clamp(evalInput.technicalScore);
-    const maybeCommunication = clamp(evalInput.communicationScore);
-    const maybeProblem = clamp(evalInput.problemSolvingScore);
-    const maybeDelivery = clamp(evalInput.deliveryScore);
-    if (typeof normalizedSkillAssessment.technical !== 'number' && typeof maybeTechnical === 'number') {
-      normalizedSkillAssessment.technical = maybeTechnical;
-    }
-    if (typeof normalizedSkillAssessment.communication !== 'number' && typeof maybeCommunication === 'number') {
-      normalizedSkillAssessment.communication = maybeCommunication;
-    }
-    if (typeof normalizedSkillAssessment.problemSolving !== 'number' && typeof maybeProblem === 'number') {
-      normalizedSkillAssessment.problemSolving = maybeProblem;
-    }
-    if (typeof normalizedSkillAssessment.delivery !== 'number' && typeof maybeDelivery === 'number') {
-      normalizedSkillAssessment.delivery = maybeDelivery;
-    }
 
     let newInterview = await prisma.interview.create({
       data: {
@@ -248,7 +224,7 @@ export async function POST(req: NextRequest) {
         questionCount: data.questionCount || 0,
         coveredTopics: data.coveredTopics ? 
           JSON.parse(JSON.stringify(data.coveredTopics)) : [],
-        skillAssessment: JSON.parse(JSON.stringify(normalizedSkillAssessment)),
+        skillAssessment: skillAssessmentToStore, // Auto-populated from evaluation
         progress: data.progress || 0,
         status: data.status || 'in_progress'
       }
@@ -305,7 +281,7 @@ export async function POST(req: NextRequest) {
           ...(typeof evalObj.deliveryScore === 'number' ? { deliveryScore: evalObj.deliveryScore } : {}),
         };
         
-        // Standardize skill names - get from evaluationBreakdown instead of skillAssessment
+        // Get skill scores from evaluation only (single source of truth)
         const standardizedSkillDeltas: Record<string, number> = {};
         
         if (evaluationBreakdown) {

@@ -161,7 +161,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
                 isThinking={isThinking}
                 isInterviewComplete={isInterviewComplete}
                 questionCount={questionCount}
-                skillAssessment={interviewState.skillAssessment}
+                evaluation={interviewState.evaluation}
                 coveredTopics={interviewState.coveredTopics}
                 progress={interviewState.progress || 0}
               />
@@ -179,7 +179,7 @@ const InteractiveAvatar: React.FC<InteractiveAvatarProps> = ({ onEndSession }) =
                 isThinking={isThinking}
                 isInterviewComplete={isInterviewComplete}
                 questionCount={questionCount}
-                skillAssessment={interviewState.skillAssessment}
+                evaluation={interviewState.evaluation}
                 coveredTopics={interviewState.coveredTopics}
                 progress={interviewState.progress || 0}
               />

@@ -4,10 +4,13 @@ import { processInterviewResponse, startInterview, InterviewResponse, InterviewC
 
 interface InterviewState {
   coveredTopics: string[];
-  skillAssessment: {
-    technical: number;
-    communication: number;
-    problemSolving: number;
+  evaluation: {
+    technicalScore: number;
+    communicationScore: number;
+    problemSolvingScore: number;
+    deliveryScore?: number;
+    overallRating?: number;
+    recommendations?: string[];
   };
   progress: number;
 }
@@ -35,10 +38,13 @@ const MAX_AUTO_PROMPTS = 3; // Maximum number of auto prompts before ending inte
 // Initial state for interview metrics
 const initialInterviewState: InterviewState = {
   coveredTopics: [],
-  skillAssessment: {
-    technical: 1,
-    communication: 1,
-    problemSolving: 1
+  evaluation: {
+    technicalScore: 0,
+    communicationScore: 0,
+    problemSolvingScore: 0,
+    deliveryScore: 0,
+    overallRating: 0,
+    recommendations: []
   },
   progress: 0
 };
@@ -197,7 +203,7 @@ export const useAIConversation = ({
     if (response.completionDetails) {
       setInterviewState(prev => ({
         coveredTopics: response.completionDetails?.coveredTopics || prev.coveredTopics,
-        skillAssessment: response.completionDetails?.skillAssessment || prev.skillAssessment,
+        evaluation: response.completionDetails?.evaluation || prev.evaluation,
         progress: response.interviewProgress
       }));
 
