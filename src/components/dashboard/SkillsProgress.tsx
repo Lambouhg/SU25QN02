@@ -11,6 +11,107 @@ import {
 } from 'recharts';
 import { Brain, TestTube, FileText, Target, ChevronDown, ChevronUp } from 'lucide-react';
 
+// Skill name mapping for better user experience
+const getDisplaySkillName = (technicalName: string): string => {
+  const skillMapping: Record<string, string> = {
+    // Programming Languages
+    'javascript': 'JavaScript',
+    'typescript': 'TypeScript', 
+    'python': 'Python',
+    'java': 'Java',
+    'cpp': 'C++',
+    'csharp': 'C#',
+    'php': 'PHP',
+    'ruby': 'Ruby',
+    'go': 'Go',
+    'rust': 'Rust',
+    'swift': 'Swift',
+    'kotlin': 'Kotlin',
+    
+    // Frontend Technologies
+    'react': 'React',
+    'reactjs': 'React',
+    'vue': 'Vue.js',
+    'vuejs': 'Vue.js',
+    'angular': 'Angular',
+    'angularjs': 'AngularJS',
+    'html': 'HTML',
+    'css': 'CSS',
+    'sass': 'SASS',
+    'less': 'LESS',
+    'bootstrap': 'Bootstrap',
+    'tailwind': 'Tailwind CSS',
+    'tailwindcss': 'Tailwind CSS',
+    
+    // Backend Technologies  
+    'nodejs': 'Node.js',
+    'express': 'Express.js',
+    'nestjs': 'NestJS',
+    'django': 'Django',
+    'flask': 'Flask',
+    'laravel': 'Laravel',
+    'spring': 'Spring Framework',
+    'springboot': 'Spring Boot',
+    'fastapi': 'FastAPI',
+    
+    // Databases
+    'mysql': 'MySQL',
+    'postgresql': 'PostgreSQL',
+    'mongodb': 'MongoDB',
+    'redis': 'Redis',
+    'sqlite': 'SQLite',
+    'oracle': 'Oracle Database',
+    'mssql': 'SQL Server',
+    
+    // Cloud & DevOps
+    'aws': 'Amazon Web Services',
+    'azure': 'Microsoft Azure',
+    'gcp': 'Google Cloud Platform',
+    'docker': 'Docker',
+    'kubernetes': 'Kubernetes',
+    'jenkins': 'Jenkins',
+    'gitlab': 'GitLab CI/CD',
+    'github': 'GitHub Actions',
+    
+    // Tools & Methodologies
+    'git': 'Git',
+    'agile': 'Agile Development',
+    'scrum': 'Scrum',
+    'kanban': 'Kanban',
+    'tdd': 'Test-Driven Development',
+    'ci-cd': 'CI/CD',
+    'cicd': 'CI/CD',
+    
+    // Soft Skills
+    'communication': 'Communication Skills',
+    'delivery': 'Delivery Skills',
+    'presentation': 'Delivery Skills', // Changed: Map old "presentation" to "Delivery Skills" 
+    'Presentation': 'Delivery Skills', // Handle capitalized version from API
+    'leadership': 'Leadership',
+    'teamwork': 'Teamwork',
+    'problem-solving': 'Problem Solving',
+    'critical-thinking': 'Critical Thinking',
+    'time-management': 'Time Management',
+    'project-management': 'Project Management',
+    
+    // Data & AI
+    'machine-learning': 'Machine Learning',
+    'data-science': 'Data Science',
+    'artificial-intelligence': 'Artificial Intelligence',
+    'deep-learning': 'Deep Learning',
+    'pandas': 'Pandas',
+    'numpy': 'NumPy',
+    'tensorflow': 'TensorFlow',
+    'pytorch': 'PyTorch'
+  };
+  
+  // Convert to lowercase for lookup, return mapped name or original with proper casing
+  const key = technicalName.toLowerCase().trim();
+  return skillMapping[key] || technicalName.split('-').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
+};
+
 interface SkillProgress {
   name: string;
   level: string;
@@ -78,7 +179,14 @@ const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading,
                 onClick={() => hasProgressData && collapsible && toggleSkillExpanded(skill.name)}
               >
                 <div className="flex justify-between items-center">
-                  <span className="font-medium text-gray-900">{skill.name}</span>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-gray-900">{getDisplaySkillName(skill.name)}</span>
+                    {getDisplaySkillName(skill.name) !== skill.name && 
+                     skill.name !== 'Presentation' && 
+                     skill.name !== 'presentation' && (
+                      <span className="text-xs text-gray-500 mt-0.5">({skill.name})</span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                       skill.level === 'expert' ? 'bg-purple-100 text-purple-800' :
@@ -165,8 +273,8 @@ const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading,
                               day: 'numeric' 
                             })
                           }
-                          formatter={(value: number, name: string, props: { payload: { source?: string } }) => [
-                            `${value.toFixed(1)} ${props.payload.source ? `(${props.payload.source})` : ''}`, 
+                          formatter={(value: number) => [
+                            `${value.toFixed(1)}`, 
                             'Score'
                           ]}
                           contentStyle={{ 

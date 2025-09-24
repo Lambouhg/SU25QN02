@@ -64,7 +64,7 @@ const GlobalAIChatbox: React.FC<GlobalAIChatboxProps> = ({
   // Load chat history from localStorage on mount
   useEffect(() => {
     const savedHistory = localStorage.getItem('globalChatHistory');
-    console.log('Loading chat history:', savedHistory);
+
     if (savedHistory) {
       try {
         const parsedHistory = JSON.parse(savedHistory);

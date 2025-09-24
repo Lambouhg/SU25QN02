@@ -179,7 +179,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
 
         if (response.ok) {
           const data = await response.json()
-          console.log('🎯 Skills question count response:', data.total)
+
           setSkillsQuestionCount(data.total || 0)
         } else {
           console.warn('Failed to fetch skills question count')

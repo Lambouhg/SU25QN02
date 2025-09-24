@@ -296,7 +296,7 @@ export async function POST(req: NextRequest) {
             standardizedSkillDeltas['Problem Solving'] = evaluationBreakdown.problemSolvingScore;
           }
           if (typeof evaluationBreakdown.deliveryScore === 'number') {
-            standardizedSkillDeltas['Presentation'] = evaluationBreakdown.deliveryScore;
+            standardizedSkillDeltas['Delivery'] = evaluationBreakdown.deliveryScore;
           }
         }
         

@@ -176,7 +176,7 @@ export default function ReviewQuestionPage() {
 
   // Filter questions theo field/topic và search query
   let filteredQuestions = questions
-  console.log('🔍 Filter state:', { filterField, filterTopic, selectedTopics, questionsTotal: questions.length })
+ 
   
   if (filterField !== "all") {
     // Case insensitive field filtering
@@ -191,9 +191,9 @@ export default function ReviewQuestionPage() {
   if (selectedTopics.length > 0) {
     filteredQuestions = filteredQuestions.filter((q) => 
       q.topics?.some(topic => 
-        selectedTopics.some(selectedTopic => 
-          topic.toLowerCase() === selectedTopic.toLowerCase()
-        )
+      selectedTopics.some(selectedTopic => 
+        topic.toLowerCase() === selectedTopic.toLowerCase()
+      )
       )
     )
   } else if (filterTopic !== "all") {
@@ -272,22 +272,28 @@ export default function ReviewQuestionPage() {
     if (userPreferences?.preferredJobRole) {
       const { preferredJobRole } = userPreferences
       
-      // Map JobCategory.name to field
-      if (preferredJobRole.category?.name) {
-        setFilterField(preferredJobRole.category.name)
+      // TEMP FIX: Don't apply category filter since "Software Development" doesn't exist in DB
+      // Just apply skills directly without category restriction
+      setFilterField("all") // Set to "all" instead of category name
+      
+      // Auto-select user's skills to show relevant questions immediately
+      setFilterTopic("all")
+      if (userPreferences.skills && userPreferences.skills.length > 0) {
+        setSelectedTopics(userPreferences.skills) // Auto-select user's skills
+        console.log('🔍 Auto-selected user skills:', userPreferences.skills)
+      } else {
+        setSelectedTopics([]) // No skills to select
       }
       
-      // Set filterTopic to "all" but don't auto-select skills
-      setFilterTopic("all")
-      setSelectedTopics([]) // Start with no skills selected
-      
       setIsPreferencesApplied(true)
-      console.log('🔍 Applied preferences:', {
-        filterField: preferredJobRole.category?.name,
+      console.log('🔍 Applied preferences (FIXED - no category filter):', {
+        originalCategory: preferredJobRole.category?.name,
+        filterField: "all", // Changed to "all"
         filterTopic: "all",
-        selectedTopics: []
+        selectedTopics: userPreferences.skills || [],
+        userSkillsCount: userPreferences.skills?.length || 0
       })
-      toast.success(`Applied preferences for ${preferredJobRole.title}. Click skills below to filter.`, {
+      toast.success(`Applied skills filter only (${userPreferences.skills?.length || 0} skills). Category filter removed due to DB mismatch.`, {
         duration: 4000,
         icon: '⚡'
       })
@@ -387,7 +393,7 @@ export default function ReviewQuestionPage() {
                           Applied Your Preferences
                         </h4>
                         <p className="text-xs text-blue-700">
-                          Category: {userPreferences.preferredJobRole.category?.name}
+                          Skills-based filtering applied
                           {userPreferences.skills && userPreferences.skills.length > 0 && (
                             <>
                               <br />
@@ -417,7 +423,14 @@ export default function ReviewQuestionPage() {
                           {/* Debug info */}
                           <div className="text-xs text-gray-500 mb-2 p-2 bg-gray-50 rounded">
                             Debug: Your skills: {JSON.stringify(userPreferences.skills)} | 
-                            Selected: {JSON.stringify(selectedTopics)}
+                            Selected: {JSON.stringify(selectedTopics)} | 
+                            Questions loaded: {questions.length} | 
+                            Questions after filters: {filteredQuestions.length}
+                            {questions.length > 0 && (
+                              <>
+                                <br />Sample question topics: {JSON.stringify(questions.slice(0, 2).flatMap(q => q.topics || []))}
+                              </>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {userPreferences.skills.map((skill, index) => {

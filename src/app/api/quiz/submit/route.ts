@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import TrackingEventService from "@/services/trackingEventService";
 
 type SubmitBody = {
   attemptId: string;
@@ -63,6 +64,35 @@ export async function POST(req: NextRequest) {
       timeUsed: timeUsed || 0,
     },
   });
+
+  // Tracking: record quiz completion event (non-blocking)
+  try {
+    // Prefer using attempt.userId (DB ID) to avoid dependency on Clerk auth in this route
+    const dbUserId = attempt.userId;
+    if (dbUserId) {
+      // Infer metadata from attempt snapshot
+      const itemsSnapshot = (attempt.itemsSnapshot as any[]) || [];
+      const firstItem = itemsSnapshot[0] || {};
+      // Best-effort derive field/topic/level
+      const field = firstItem.category || firstItem.field || "general";
+      const topic = (Array.isArray(firstItem.topics) ? firstItem.topics[0] : firstItem.topic) || "generic";
+      const level = firstItem.level || "junior";
+      const correctAnswers = details.filter((d) => d.isRight).length;
+      await TrackingEventService.trackQuizCompleted({
+        userId: dbUserId,
+        quizId: attempt.id,
+        field,
+        topic,
+        level,
+        score: scaledScore,
+        totalQuestions: total,
+        correctAnswers,
+        timeUsedSeconds: (timeUsed || 0),
+      });
+    }
+  } catch (e) {
+    console.error("[Quiz Submit] Tracking failed:", e);
+  }
 
   return NextResponse.json({ data: { score: scaledScore, total, sectionScores, details } });
 }

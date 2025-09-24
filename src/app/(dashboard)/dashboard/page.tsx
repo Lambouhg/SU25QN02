@@ -28,6 +28,9 @@ interface SkillProgress {
     date: Date;
     score: number;
   }>;
+  source: string;
+  lastUpdated: Date;
+  totalSessions: number;
 }
 
 interface ProgressData {
@@ -197,6 +200,8 @@ export default function DashboardPage() {
         // Debug log để kiểm tra skillProgress data
         console.log('📊 Dashboard Debug - skillProgress data:', data.skillProgress);
         console.log('📊 Dashboard Debug - skillTrends data:', data.skillTrends);
+        console.log('📊 Dashboard Debug - totalStudyTime:', data.stats?.totalStudyTime, 'seconds');
+        console.log('📊 Dashboard Debug - allActivities:', data.allActivities?.length || 0, 'activities');
         
         // API trả về data trực tiếp, không có .progress
         setProgress(data);
@@ -223,10 +228,7 @@ export default function DashboardPage() {
     // Sử dụng allActivities thay vì recentActivities để có đầy đủ dữ liệu
     const activities = progress.allActivities || progress.recentActivities || [];
     
-    // Debug: Log dữ liệu để kiểm tra
-    console.log('📊 Dashboard Debug - Activities:', activities);
-    console.log('📊 Dashboard Debug - Activities length:', activities.length);
-    console.log('📊 Dashboard Debug - View mode:', viewMode);
+    
     
     const groupKey = (date: Date, index?: number): string => {
       if (viewMode === 'day') return date.toISOString().slice(0, 10);
@@ -302,9 +304,21 @@ export default function DashboardPage() {
           interview: vals.interview.length,
         };
       }
-    }).sort((a, b) => a.period.localeCompare(b.period));
+    }).sort((a, b) => {
+      // ✅ FIX: Numeric sorting for sessions, alphabetical for dates
+      if (viewMode === 'session') {
+        // Extract session numbers for proper numeric sorting
+        const aNum = parseInt(a.period.replace('Session ', ''));
+        const bNum = parseInt(b.period.replace('Session ', ''));
+        return aNum - bNum;
+      } else {
+        // Use alphabetical sorting for date-based periods
+        return a.period.localeCompare(b.period);
+      }
+    });
 
     console.log('📊 Dashboard Debug - Final chart data:', chartData);
+    console.log('🔍 View Mode Debug:', { viewMode, lineMode, chartDataLength: chartData.length });
     
     // Nếu có ít hơn 3 điểm dữ liệu và không phải chế độ Session, tạo dữ liệu ổn định để có đường cong
     if (chartData.length < 3 && viewMode !== 'session') {
@@ -372,23 +386,86 @@ export default function DashboardPage() {
     
     // Tính improvement metrics cho từng mode
     if (memoizedChartData.length >= 2) {
-      const latest = memoizedChartData[memoizedChartData.length - 1];
-      const previous = memoizedChartData[memoizedChartData.length - 2];
+      let latest, previous;
       
-      const calculateModeMetrics = (latest: number, previous: number): { percentage: number; trend: 'improving' | 'declining' | 'stable' } => {
-        const change = latest - previous;
-        const percentage = previous > 0 ? Math.round((change / previous) * 100 * 100) / 100 : 0;
-        const trend = percentage > 2 ? 'improving' as const : percentage < -2 ? 'declining' as const : 'stable' as const;
+      if (viewMode === 'session') {
+        // Trong Session mode: So sánh session đầu vs session cuối để thấy tiến bộ tổng thể
+        latest = memoizedChartData[memoizedChartData.length - 1];
+        
+        // Tìm session đầu tiên có data (không phải tất cả đều 0)
+        previous = memoizedChartData.find(session => 
+          session.quiz > 0 || session.test > 0 || session.interview > 0
+        ) || memoizedChartData[0];
+        
+        // Nếu session đầu và cuối giống nhau, so sánh với session trước đó
+        if (previous === latest && memoizedChartData.length > 1) {
+          previous = memoizedChartData[memoizedChartData.length - 2];
+        }
+      } else {
+        // Các mode khác: so sánh 2 periods gần nhất
+        latest = memoizedChartData[memoizedChartData.length - 1];
+        previous = memoizedChartData[memoizedChartData.length - 2];
+      }
+      
+      console.log('🔍 Improvement Metrics Debug:', {
+        viewMode,
+        lineMode,
+        latest,
+        previous,
+        chartDataLength: memoizedChartData.length,
+        comparisonLogic: viewMode === 'session' ? 'first-with-data vs latest' : 'previous vs latest'
+      });
+      
+      const calculateModeMetrics = (latest: number, previous: number, mode: string, activityType: 'quiz' | 'test' | 'interview'): { percentage: number; trend: 'improving' | 'declining' | 'stable' } => {
+        // Trong session mode, tìm session đầu tiên có score cho activity type cụ thể
+        let actualPrevious = previous;
+        if (viewMode === 'session') {
+          const firstSessionWithScore = memoizedChartData.find(session => session[activityType] > 0);
+          if (firstSessionWithScore) {
+            actualPrevious = firstSessionWithScore[activityType];
+          }
+        }
+        
+        const change = latest - actualPrevious;
+        let percentage = 0;
+        let trend: 'improving' | 'declining' | 'stable' = 'stable';
+        
+        if (actualPrevious > 0) {
+          // Normal percentage calculation
+          percentage = Math.round((change / actualPrevious) * 100 * 100) / 100;
+          trend = percentage > 2 ? 'improving' as const : percentage < -2 ? 'declining' as const : 'stable' as const;
+        } else if (actualPrevious === 0 && latest > 0) {
+          // Special case: starting from 0, show significant improvement
+          percentage = 100;
+          trend = 'improving';
+        } else if (actualPrevious > 0 && latest === 0) {
+          // Special case: dropping to 0, show 100% decline
+          percentage = 100;
+          trend = 'declining';
+        }
+        
+        console.log(`📈 ${mode} Metrics:`, {
+          latest, previous: actualPrevious, change, percentage: Math.abs(percentage), trend,
+          sessionComparison: viewMode === 'session' ? `First ${activityType} session vs latest` : 'Previous vs latest'
+        });
+        
         return { percentage: Math.abs(percentage), trend };
       };
       
       setImprovementMetrics({
-        quiz: calculateModeMetrics(latest.quiz, previous.quiz),
-        test: calculateModeMetrics(latest.test, previous.test),
-        interview: calculateModeMetrics(latest.interview, previous.interview)
+        quiz: calculateModeMetrics(latest.quiz, previous.quiz, 'Quiz', 'quiz'),
+        test: calculateModeMetrics(latest.test, previous.test, 'Test', 'test'),
+        interview: calculateModeMetrics(latest.interview, previous.interview, 'Interview', 'interview')
+      });
+    } else {
+      console.log('⚠️ Not enough chart data for improvement calculation:', {
+        viewMode,
+        lineMode,
+        chartDataLength: memoizedChartData.length,
+        fullChartData: memoizedChartData
       });
     }
-  }, [memoizedChartData]);
+  }, [memoizedChartData, viewMode, lineMode]);
 
   return (
     <DashboardLayout>
@@ -477,9 +554,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">              <div>
                 <p className="text-sm text-gray-600 mb-1">Study Time</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : progress?.stats?.totalStudyTime ? (progress.stats.totalStudyTime / 60).toFixed(1) + 'h' : '0h'}
+                  {loading ? '...' : progress?.stats?.totalStudyTime ? (progress.stats.totalStudyTime / 3600).toFixed(1) + 'h' : '0.0h'}
                 </p>
-                <p className="text-sm text-green-600">Total minutes</p>
+                <p className="text-sm text-green-600">Total hours</p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
                 <TrendingUp className="w-6 h-6 text-purple-600" />

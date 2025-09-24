@@ -459,7 +459,7 @@ function ActivityHistory({ }: ActivityHistoryProps) {
                       )}
                       {activity.duration && (
                         <p className="text-sm text-gray-600 mt-1">
-                          Duration: <span className="font-semibold text-blue-600">{activity.duration} minutes</span>
+                          Duration: <span className="font-semibold text-blue-600">{Math.round(activity.duration / 60)} minutes</span>
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-2">

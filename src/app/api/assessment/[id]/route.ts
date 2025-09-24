@@ -17,22 +17,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get database user ID with retry logic
-    let dbUser;
-    try {
-      dbUser = await prisma.user.findUnique({
-        where: { clerkId: userId },
-        select: { id: true }
-      });
-    } catch (dbError) {
-      console.error('Database connection error:', dbError);
-      // Retry once after brief delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      dbUser = await prisma.user.findUnique({
-        where: { clerkId: userId },
-        select: { id: true }
-      });
-    }
+    // Get database user ID
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true }
+    });
 
     if (!dbUser) {
       return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
@@ -197,40 +186,22 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         console.log(`[Assessment API] Found dbUser:`, dbUser);
 
         if (dbUser) {
-          // Calculate skillDeltas from finalScores for UserSkillSnapshot creation
-          const finalScoresData = (calculatedFinalScores || finalScores) as Record<string, unknown> | undefined;
-          const skillDeltas: Record<string, number> = {};
-          
-          if (finalScoresData?.fundamental !== undefined) {
-            skillDeltas['Technical Knowledge'] = Number(finalScoresData.fundamental);
-          }
-          if (finalScoresData?.logic !== undefined) {
-            skillDeltas['Problem Solving'] = Number(finalScoresData.logic);
-          }
-          if (finalScoresData?.language !== undefined) {
-            skillDeltas['Communication'] = Number(finalScoresData.language);
-          }
-          
-          // Convert totalTime from minutes to seconds for tracking
-          const totalTimeInSeconds = updatedAssessment.totalTime ? updatedAssessment.totalTime * 60 : 0;
-          
           const trackingData = {
             userId: dbUser.id,
             assessmentId: updatedAssessment.id,
             level: updatedAssessment.level,
-            totalTimeSeconds: totalTimeInSeconds,
+            totalTimeSeconds: updatedAssessment.totalTime || 0,
             overallScore: Number(((updatedAssessment.finalScores as Record<string, number> | null | undefined)?.overall) ?? 0),
             jobRoleId: updatedAssessment.jobRoleId,
             history: updatedAssessment.history,
             realTimeScores: updatedAssessment.realTimeScores,
             finalScores: updatedAssessment.finalScores,
-            skillDeltas, // ✅ Thêm skillDeltas để tạo UserSkillSnapshot
           };
           
           console.log(`[Assessment API] Tracking data:`, trackingData);
           
           await TrackingEventService.trackAssessmentCompleted(trackingData);
-          console.log(`[Assessment API] Successfully tracked assessment completion for user ${dbUser.id} (Clerk ID: ${userId}) with skills:`, skillDeltas);
+          console.log(`[Assessment API] Successfully tracked assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
         } else {
           console.log(`[Assessment API] No database user found for Clerk ID: ${userId}`);
         }

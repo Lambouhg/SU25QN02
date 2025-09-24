@@ -31,6 +31,14 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q: ListQuery = Object.fromEntries(searchParams.entries());
 
+    console.log('🎯 Questions API called with params:', {
+      topics: q.topics,
+      skills: q.skills,
+      fields: q.fields,
+      pageSize: q.pageSize,
+      allParams: q
+    });
+
     const page = Math.max(parseInt(q.page || "1", 10), 1);
     const pageSize = Math.min(Math.max(parseInt(q.pageSize || "20", 10), 1), 100);
 
@@ -81,6 +89,19 @@ export async function GET(req: NextRequest) {
       }),
       db.questionItem.count({ where }),
     ]);
+
+    console.log('🎯 Questions API results:', {
+      whereClause: where,
+      totalFound: total,
+      returnedCount: items.length,
+      sampleQuestions: items.slice(0, 3).map((q: any) => ({
+        id: q.id,
+        stem: q.stem.substring(0, 50) + '...',
+        topics: q.topics,
+        skills: q.skills,
+        fields: q.fields
+      }))
+    });
 
     return NextResponse.json({ 
       data: items, 

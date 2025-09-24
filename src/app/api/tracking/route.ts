@@ -169,8 +169,8 @@ export async function GET() {
       return Math.max(0, Math.min(100, v));
     };
 
-    type DimKey = 'Technical Knowledge' | 'Problem Solving' | 'Communication' | 'Presentation' | 'DOMAIN';
-    const dims: DimKey[] = ['Technical Knowledge', 'Problem Solving', 'Communication', 'Presentation', 'DOMAIN'];
+    type DimKey = 'Technical Knowledge' | 'Problem Solving' | 'Communication' | 'Delivery' | 'DOMAIN';
+    const dims: DimKey[] = ['Technical Knowledge', 'Problem Solving', 'Communication', 'Delivery', 'DOMAIN'];
 
     type EventRow = {
       feature?: string | null;
@@ -213,7 +213,7 @@ export async function GET() {
         if (tech != null) out['Technical Knowledge'] = tech; // Technical fundamentals
         if (ps != null) out['Problem Solving'] = ps;     // Problem solving
         if (comm != null) out['Communication'] = comm; // Communication
-        if (del != null) out['Presentation'] = del; // Delivery/presentation skills
+        if (del != null) out['Delivery'] = del; // Delivery/presentation skills
         if (score != null && Object.keys(out).length === 0) out.DOMAIN = score;
         return out;
       }
@@ -257,7 +257,7 @@ export async function GET() {
       'Technical Knowledge': [], 
       'Problem Solving': [], 
       'Communication': [], 
-      'Presentation': [],
+      'Delivery': [],
       DOMAIN: [] 
     };
     for (const e of currentEvents) {
@@ -288,7 +288,7 @@ export async function GET() {
       'Technical Knowledge': {}, 
       'Problem Solving': {}, 
       'Communication': {}, 
-      'Presentation': {},
+      'Delivery': {},
       DOMAIN: {} 
     };
     for (const e of currentEvents) {
