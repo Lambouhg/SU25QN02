@@ -9,9 +9,20 @@ import HowItWorksSection from '@/components/HowItWorksSection';
 import PricingSection from '@/components/PricingSection';
 // import OurTeamSection from '@/components/OurTeamSection';
 import Footer from '@/components/Footer';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const { isLoaded } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
+  const router = useRouter();
+
+  // Redirect signed-in users to dashboard from home
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (isSignedIn) {
+      router.replace('/dashboard');
+    }
+  }, [isLoaded, isSignedIn, router]);
 
   // Show loading while checking auth status
   if (!isLoaded) {
@@ -21,6 +32,9 @@ export default function Home() {
       </div>
     );
   }
+
+  // Prevent flashing home before redirect
+  if (isSignedIn) return null;
 
   return (
     <div className="min-h-screen">
