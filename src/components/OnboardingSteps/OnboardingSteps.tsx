@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -20,6 +21,9 @@ import {
   Building2,
   Sparkles,
   Briefcase,
+  Search,
+  Filter,
+  X,
 } from "lucide-react"
 import OnboardingComplete from "./OnboardingComplete"
 import { useRouter } from "next/navigation"
@@ -87,6 +91,8 @@ export default function OnboardingSteps() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 6
   const [isCompleted, setIsCompleted] = useState(false)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
   // Fetch job roles from API
   useEffect(() => {
@@ -96,12 +102,14 @@ export default function OnboardingSteps() {
         const response = await fetch('/api/positions')
         if (response.ok) {
           const data = await response.json()
-          setJobRoles(data)
+          setJobRoles(data || [])
         } else {
           console.error('Failed to fetch job roles')
+          setJobRoles([])
         }
       } catch (error) {
         console.error('Error fetching job roles:', error)
+        setJobRoles([])
       } finally {
         setLoading(false)
       }
@@ -136,11 +144,81 @@ export default function OnboardingSteps() {
     fetchUserProfile()
   }, [])
 
+  // Reset pagination when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, selectedCategory])
+
+  // Auto-fill skills when job role is selected (only once)
+  const [hasAutoFilledSkills, setHasAutoFilledSkills] = useState(false)
+  
+  useEffect(() => {
+    if (formData.jobRole && formData.skills.length === 0 && !hasAutoFilledSkills && jobRoles.length > 0) {
+      const selectedRole = jobRoles.find(role => role.id === formData.jobRole)
+      if (selectedRole) {
+        // Get skills from category or fallback
+        let skillsToAdd: string[] = []
+        
+        if (selectedRole.category?.skills && selectedRole.category.skills.length > 0) {
+          skillsToAdd = selectedRole.category.skills.slice(0, 5) // Limit to 5 skills
+        } else {
+          skillsToAdd = getJobRoleSkills(selectedRole).slice(0, 5)
+        }
+        
+        if (skillsToAdd.length > 0) {
+          console.log('🎯 Auto-filling skills for role:', selectedRole.title, skillsToAdd)
+          setFormData(prev => ({ ...prev, skills: skillsToAdd }))
+          setHasAutoFilledSkills(true)
+        }
+      }
+    }
+  }, [formData.jobRole, jobRoles, formData.skills.length, hasAutoFilledSkills])
+
+  // Filter and search logic
+  const filteredJobRoles = React.useMemo(() => {
+    const filtered = jobRoles.filter((role) => {
+      // Search filter
+      const matchesSearch = searchTerm === "" || 
+        role.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        role.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (role.category?.name && role.category.name.toLowerCase().includes(searchTerm.toLowerCase()))
+      
+      // Category filter - Fixed: Handle null/undefined categories properly
+      const matchesCategory = selectedCategory === "all" || 
+        (selectedCategory === "uncategorized" && !role.category?.name) ||
+        (role.category?.name && role.category.name.toLowerCase() === selectedCategory.toLowerCase())
+      
+      return matchesSearch && matchesCategory
+    })
+    
+    return filtered
+  }, [jobRoles, searchTerm, selectedCategory])
+
+  // Get unique categories for filter
+  const categories = React.useMemo(() => {
+    const uniqueCategories = Array.from(
+      new Set(jobRoles.map(role => role.category?.name).filter(Boolean))
+    )
+    return uniqueCategories
+  }, [jobRoles])
+
+  // Check if there are roles without categories
+  const hasUncategorizedRoles = React.useMemo(() => {
+    return jobRoles.some(role => !role.category?.name)
+  }, [jobRoles])
+
+
   // Pagination logic
-  const totalPages = Math.ceil(jobRoles.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const currentJobRoles = jobRoles.slice(startIndex, endIndex)
+  const paginationData = React.useMemo(() => {
+    const totalPages = Math.ceil(filteredJobRoles.length / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    const currentJobRoles = filteredJobRoles.slice(startIndex, endIndex)
+    
+    return { totalPages, startIndex, endIndex, currentJobRoles }
+  }, [filteredJobRoles, currentPage, itemsPerPage])
+
+  const { totalPages, currentJobRoles } = paginationData
 
   // Tạo experience levels động từ JobRole.level của role đã chọn
   const experienceLevels = React.useMemo(() => {
@@ -285,6 +363,9 @@ export default function OnboardingSteps() {
       if (selectedRole) {
         console.log(`🎯 Auto-setting experience level to: ${selectedRole.level}`)
         setFormData(prev => ({ ...prev, experienceLevel: selectedRole.level }))
+        
+        // Reset auto-fill flag when changing job role
+        setHasAutoFilledSkills(false)
         
         // Auto-scroll xuống bottom sau khi chọn job role
         setTimeout(() => {
@@ -495,84 +576,113 @@ export default function OnboardingSteps() {
       router.push('/dashboard')
     }} />
   }
-       if (loading) {
-         return (
-           <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10 magical-bg flex items-center justify-center">
-             <div className="text-center">
-               <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-primary mx-auto shadow-2xl animate-pulse-glow"></div>
-               <p className="mt-4 text-foreground text-lg font-semibold">Loading job roles...</p>
-             </div>
-           </div>
-         )
-       }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-purple-500 mx-auto shadow-2xl"></div>
+          <p className="mt-4 text-foreground text-lg font-semibold">Loading job roles...</p>
+        </div>
+      </div>
+    )
+  }
 
      return (
-     <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/10 magical-bg flex items-center justify-center p-4">
-       <div className="w-full max-w-4xl">
-         <Card className="shadow-2xl border-0 bg-card/95 backdrop-blur-sm animate-fade-in-up overflow-hidden">
-           <CardContent className="p-12">
-             <div className="text-center mb-12">
-               <h1 className="text-4xl font-bold text-foreground mb-6 font-mono bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent animate-gradient animate-float">
+     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
+       {/* Header Section */}
+       <div className="bg-gradient-to-r from-white via-purple-50 to-indigo-50 border-b border-purple-100">
+         <div className="max-w-6xl mx-auto px-6 py-4">
+           <div className="text-center">
+             <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-br from-purple-600 via-violet-500 to-indigo-500 rounded-2xl mb-3 shadow-lg animate-pulse">
+               <Sparkles className="w-6 h-6 text-white" />
+             </div>
+             <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 via-violet-500 to-indigo-500 bg-clip-text text-transparent mb-2">
                  Welcome to the Team!
                </h1>
-               <p className="text-muted-foreground text-lg animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
+             <p className="text-sm text-gray-600 max-w-xl mx-auto">
                  Let's set up your professional profile in just a few steps
                </p>
+           </div>
+         </div>
              </div>
 
-                         <div className="mb-12">
-               <div className="flex justify-between items-center mb-6">
-                 <span className="text-base font-semibold text-muted-foreground animate-slide-in-left">
+       {/* Main Content */}
+       <div className="max-w-6xl mx-auto px-6 py-4">
+         <Card className="shadow-xl border-0 bg-white rounded-3xl overflow-hidden">
+           <CardContent className="p-8 md:p-12">
+
+             {/* Progress Section */}
+             <div className="mb-6">
+               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                 <div className="mb-3 sm:mb-0">
+                   <h2 className="text-lg font-bold text-gray-900 mb-1">
                    Step {currentStep} of 4
-                 </span>
-                 <span className="text-base font-bold text-primary bg-gradient-to-r from-primary/20 to-secondary/20 px-4 py-2 rounded-full border border-primary/30 animate-pulse-glow animate-slide-in-right">
-                   {Math.round(progress)}% Complete
-                 </span>
+                   </h2>
+                   <p className="text-sm text-gray-600">
+                     {currentStep === 1 && "🎯 Choose your primary role"}
+                     {currentStep === 2 && "📊 Select your experience level"}
+                     {currentStep === 3 && "⚡ Pick your technical skills"}
+                     {currentStep === 4 && "✨ Complete your profile"}
+                   </p>
                </div>
+                 <div className="flex items-center space-x-3">
+                   <div className="text-right">
+                     <div className="text-lg font-bold bg-gradient-to-r from-emerald-500 to-cyan-500 bg-clip-text text-transparent">{Math.round(progress)}%</div>
+                     <div className="text-xs text-gray-500">Complete</div>
+                   </div>
+                   <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 via-cyan-500 to-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                     <span className="text-white font-bold text-sm">{currentStep}</span>
+                   </div>
+                 </div>
+               </div>
+               
+               {/* Progress Bar */}
                <div className="relative">
-                 <Progress value={progress} className="h-4 bg-muted shadow-inner rounded-full overflow-hidden" />
-                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer rounded-full"></div>
+                 <div className="w-full bg-gradient-to-r from-gray-200 to-gray-300 rounded-full h-3 shadow-inner">
+                   <div 
+                     className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 h-3 rounded-full transition-all duration-700 ease-out shadow-lg"
+                     style={{ width: `${progress}%` }}
+                   ></div>
+                 </div>
                </div>
              </div>
 
-            {/* Step Indicators (static labels, no animation) */}
-            <div className="flex items-center justify-center mb-8">
-              {[
-                { step: 1, label: "Role" },
-                { step: 2, label: "Experience" },
-                { step: 3, label: "Skills" },
-                { step: 4, label: "Profile" }
-              ].map(({ step, label }, index) => (
+             {/* Step Indicators */}
+             <div className="flex items-center justify-center mb-6">
+               <div className="flex items-center space-x-3">
+                 {[
+                   { step: 1, label: "Role", icon: Briefcase, color: "from-purple-500 to-pink-500" },
+                   { step: 2, label: "Experience", icon: Award, color: "from-blue-500 to-cyan-500" },
+                   { step: 3, label: "Skills", icon: Sparkles, color: "from-emerald-500 to-teal-500" },
+                   { step: 4, label: "Profile", icon: Building2, color: "from-orange-500 to-red-500" }
+                 ].map(({ step, label, icon: Icon, color }, index) => (
                 <div key={step} className="flex items-center">
                   <div className="flex flex-col items-center">
                     <div
                       className={`
-                        w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-700 border-2 relative animate-float
+                           w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border-2 relative group hover:scale-110
                         ${
                           step <= currentStep
-                            ? "bg-gradient-to-br from-primary to-secondary text-white border-primary shadow-2xl animate-pulse-glow"
-                            : "bg-card text-muted-foreground border-border hover:border-primary/50 hover:scale-110"
+                               ? `bg-gradient-to-br ${color} text-white border-transparent shadow-lg scale-105`
+                               : "bg-white text-gray-400 border-gray-200 hover:border-gray-300 hover:shadow-md"
                         }
                       `}
-                      style={{ animationDelay: `${index * 0.5}s` }}
                     >
                       {step < currentStep ? (
-                        <CheckCircle className="w-6 h-6 animate-scale-in" />
+                           <CheckCircle className="w-5 h-5 animate-bounce" />
                       ) : step === currentStep ? (
-                        <Sparkles className="w-6 h-6 animate-spin" />
+                           <Icon className="w-5 h-5 animate-pulse" />
                       ) : (
-                        step
+                           <Icon className="w-5 h-5" />
                       )}
                       {step === currentStep && (
-                        <>
-                          <div className="absolute inset-0 rounded-full border-2 border-primary animate-ping opacity-75"></div>
-                          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 animate-pulse"></div>
-                        </>
+                           <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${color} animate-ping opacity-30`}></div>
                       )}
                     </div>
                     <span
-                      className={`text-xs mt-3 font-bold ${
-                        step <= currentStep ? "text-primary" : "text-muted-foreground"
+                         className={`text-xs font-semibold mt-2 transition-colors duration-300 ${
+                           step <= currentStep ? `text-transparent bg-gradient-to-r ${color} bg-clip-text` : "text-gray-400"
                       }`}
                     >
                       {label}
@@ -581,115 +691,201 @@ export default function OnboardingSteps() {
                   {index < 3 && (
                     <div
                       className={`
-                        w-20 h-1.5 mx-6 mt-[-18px] transition-all duration-700 rounded-full relative overflow-hidden
-                        ${step < currentStep ? "bg-gradient-to-r from-primary via-secondary to-accent animate-gradient" : "bg-border"}
-                      `}
-                    >
-                      {step < currentStep && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer rounded-full"></div>
-                      )}
-                    </div>
+                           w-12 h-1 mx-3 transition-all duration-500 rounded-full
+                           ${step < currentStep ? `bg-gradient-to-r ${color}` : "bg-gray-200"}
+                         `}
+                       ></div>
                   )}
                 </div>
               ))}
+               </div>
             </div>
 
                          {/* Step Content */}
-             <div className="mb-12">
+             <div className="mb-8">
                       {currentStep === 1 && (
-              <div className="space-y-6 animate-fade-in-up">
+              <div className="space-y-6">
                 <div className="text-center">
-                  <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">
                     Choose Your Role
                   </h2>
-                  <p className="text-muted-foreground text-lg">Select your primary area of expertise</p>
+                  <p className="text-sm text-gray-600 max-w-xl mx-auto">
+                    Select your main area of expertise to personalize your experience
+                  </p>
                 </div>
 
-                                                           <div className="grid gap-6">
-                  {currentJobRoles.map((role, index) => {
+                {/* Search and Filter */}
+                <div className="bg-gradient-to-r from-gray-50 via-purple-50 to-indigo-50 rounded-2xl p-5 border border-purple-100">
+                  <div className="flex flex-col lg:flex-row gap-4">
+                    {/* Search Input */}
+                    <div className="relative flex-1">
+                      <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-500 w-5 h-5" />
+                      <Input
+                        type="text"
+                        placeholder="🔍 Search roles, skills, or categories..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-12 h-12 text-sm border-2 border-purple-200 bg-white rounded-xl shadow-sm focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 hover:border-purple-300"
+                      />
+                      {searchTerm && (
+                        <button
+                          onClick={() => setSearchTerm("")}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-purple-600 transition-colors hover:scale-110"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="relative">
+                      <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-500 w-5 h-5" />
+                      <select
+                        value={selectedCategory}
+                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        className="pl-12 pr-12 h-12 border-2 border-purple-200 rounded-xl bg-white shadow-sm focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 text-sm min-w-[200px] appearance-none cursor-pointer hover:border-purple-300"
+                      >
+                        <option value="all">📂 All Categories</option>
+                        {categories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                        {hasUncategorizedRoles && (
+                          <option value="uncategorized">📋 Uncategorized</option>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Results count */}
+                  <div className="mt-4 text-center">
+                    {filteredJobRoles?.length === 0 ? (
+                      <span className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-100 to-red-100 text-orange-800 rounded-full text-sm font-semibold border border-orange-200">
+                        <X className="w-4 h-4 mr-2" />
+                        No roles found matching your criteria
+                      </span>
+                    ) : (
+                      <div className="flex items-center justify-center space-x-2">
+                        <span className="text-gray-600 text-sm font-medium">
+                          Showing {currentJobRoles.length} of {filteredJobRoles?.length || 0} roles
+                        </span>
+                        {searchTerm && (
+                          <span className="px-3 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-full text-xs font-semibold">
+                            for &quot;{searchTerm}&quot;
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Job Role Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {currentJobRoles.length > 0 ? currentJobRoles.map((role, index) => {
                     const IconComponent = getJobRoleIcon(role)
-                    const roleSkills = getJobRoleSkills(role)
-                    const roleLevels = getJobRoleLevels(role)
+                    const isSelected = formData.jobRole === role.id
+                    
+                    // Color schemes for different role types - using conditional rendering
+                    const getCardStyle = (isSelected: boolean, index: number) => {
+                      if (!isSelected) {
+                        return "border-gray-200 hover:border-purple-300 hover:shadow-md bg-white hover:bg-gray-50"
+                      }
+                      
+                      // Dashboard-style selected card
+                      return "border-purple-500 bg-gradient-to-br from-purple-50 to-indigo-50 shadow-lg ring-2 ring-purple-200"
+                    }
+                    
+                    const getIconStyle = (isSelected: boolean, index: number) => {
+                      const iconGradients = [
+                        "bg-gradient-to-br from-purple-500 to-pink-500",
+                        "bg-gradient-to-br from-blue-500 to-cyan-500", 
+                        "bg-gradient-to-br from-emerald-500 to-teal-500",
+                        "bg-gradient-to-br from-orange-500 to-red-500",
+                        "bg-gradient-to-br from-indigo-500 to-purple-500",
+                        "bg-gradient-to-br from-pink-500 to-rose-500",
+                        "bg-gradient-to-br from-cyan-500 to-blue-500",
+                        "bg-gradient-to-br from-teal-500 to-emerald-500"
+                      ]
+                      
+                      if (isSelected) {
+                        return "bg-purple-500 text-white shadow-md"
+                      }
+                      
+                      return `${iconGradients[index % iconGradients.length]} text-white group-hover:scale-105 group-hover:shadow-md`
+                    }
                     
                     return (
                       <Card
                         key={role.id}
-                        className={`cursor-pointer card-hover border-2 ${
-                          formData.jobRole === role.id
-                            ? "ring-4 ring-primary/30 border-primary bg-gradient-to-br from-primary/10 to-secondary/5 shadow-2xl animate-pulse-glow"
-                            : "border-border hover:border-primary/50 hover:bg-primary/5"
-                        }`}
+                        className={`group cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md border-2 ${getCardStyle(isSelected, index)}`}
                         onClick={() => handleInputChange("jobRole", role.id)}
                         style={{ animationDelay: `${index * 0.1}s` }}
                       >
-                        <CardContent className="p-6">
-                          <div className="flex items-start space-x-6">
+                        <CardContent className="p-4">
+                          <div className="text-center">
                             <div
-                              className={`p-4 rounded-xl transition-all duration-300 ${
-                                formData.jobRole === role.id
-                                  ? "bg-gradient-to-br from-primary to-secondary text-white shadow-lg animate-pulse"
-                                  : "bg-primary/10 text-primary hover:bg-primary/20"
-                              }`}
+                              className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3 transition-all duration-500 ${getIconStyle(isSelected, index)}`}
                             >
-                              <IconComponent className="w-8 h-8" />
+                              <IconComponent className="w-7 h-7 text-white" />
                             </div>
-                            <div className="flex-1">
-                              <h3 className="font-bold text-xl mb-2 font-mono">{role.title}</h3>
-                              <p className="text-muted-foreground mb-4 leading-relaxed text-base">
+                            <h3 className={`text-sm font-bold mb-2 transition-colors duration-300 ${
+                              isSelected 
+                                ? "text-purple-700" 
+                                : "text-gray-900 group-hover:text-gray-700"
+                            }`}>
+                              {role.title}
+                            </h3>
+                            <p className={`leading-relaxed text-xs mb-3 ${
+                              isSelected 
+                                ? "text-purple-600" 
+                                : "text-gray-600"
+                            }`}>
                                 {role.description || "No description available"}
                               </p>
-                              <div className="flex flex-wrap gap-2 mb-3">
-                                {roleLevels.map((level) => (
-                                  <Badge key={level} variant="secondary" className="text-xs font-semibold py-1 px-2">
-                                     {level}
-                                  </Badge>
-                                ))}
+                            {isSelected && (
+                              <div className="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold border border-purple-200">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Selected
                               </div>
-                              <div className="flex flex-wrap gap-2">
-                                {roleSkills.slice(0, 6).map((skill) => (
-                                  <Badge key={skill} variant="outline" className="text-xs skill-badge">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                                {roleSkills.length > 6 && (
-                                  <Badge variant="outline" className="text-xs skill-badge">
-                                    +{roleSkills.length - 6} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
                     )
-                  })}
+                  }) : (
+                    <div className="col-span-full text-center py-8">
+                      <div className="text-gray-500 text-lg mb-2">No roles found</div>
+                      <p className="text-gray-400 text-sm">Try adjusting your search or filter criteria</p>
+                    </div>
+                  )}
                 </div>
 
                                                                             {/* Pagination */}
                  {totalPages > 1 && (
-                   <div className="flex justify-center items-center gap-3 mt-8">
+                  <div className="flex justify-center items-center gap-3 mt-6">
                      <Button
                        variant="outline"
-                       size="default"
+                      size="sm"
                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                        disabled={currentPage === 1}
-                       className="border-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary transition-all duration-300 px-6 py-2"
+                      className="h-8 px-4 border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 disabled:opacity-50"
                      >
-                       <ChevronLeft className="w-4 h-4 mr-2" />
+                      <ChevronLeft className="w-4 h-4 mr-1" />
                        Previous
                      </Button>
                      
-                     <div className="flex gap-2">
+                    <div className="flex gap-1">
                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                          <Button
                            key={page}
                            variant={currentPage === page ? "default" : "outline"}
-                           size="default"
+                          size="sm"
                            onClick={() => setCurrentPage(page)}
-                           className={`w-10 h-10 p-0 transition-all duration-300 font-bold ${
+                          className={`w-8 h-8 p-0 transition-all duration-300 font-bold rounded-lg ${
                              currentPage === page 
-                               ? "bg-gradient-to-r from-primary to-secondary text-white shadow-lg" 
-                               : "border-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary"
+                              ? "bg-gradient-to-r from-purple-600 to-violet-500 text-white shadow-md" 
+                              : "border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400"
                            }`}
                          >
                            {page}
@@ -699,13 +895,13 @@ export default function OnboardingSteps() {
  
                      <Button
                        variant="outline"
-                       size="default"
+                      size="sm"
                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                        disabled={currentPage === totalPages}
-                       className="border-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary transition-all duration-300 px-6 py-2"
+                      className="h-8 px-4 border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 disabled:opacity-50"
                      >
                        Next
-                       <ChevronRight className="w-4 h-4 ml-2" />
+                      <ChevronRight className="w-4 h-4 ml-1" />
                      </Button>
                    </div>
                  )}
@@ -715,14 +911,12 @@ export default function OnboardingSteps() {
                                                                                                                                                                                {currentStep === 2 && (
                 <div className="space-y-6 animate-slide-in-right">
                   <div className="text-center">
-                    <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-purple-600 to-violet-500 bg-clip-text text-transparent">
                       Experience Level
                     </h2>
                                          <p className="text-muted-foreground text-lg">
-                       What's your current professional level?
+                  What&apos;s your current professional level?
                      </p>
-                    
-                    
                   </div>
 
                                                                                                                                    <div className="grid md:grid-cols-3 gap-6">
@@ -736,10 +930,10 @@ export default function OnboardingSteps() {
                            key={level.id}
                            className={`cursor-pointer card-hover border-2 transition-all duration-300 ${
                              isSelected
-                               ? "ring-4 ring-primary/30 border-primary bg-gradient-to-br from-primary/10 to-secondary/5 shadow-2xl animate-pulse-glow scale-105"
+                           ? "ring-4 ring-purple-300 border-purple-500 bg-gradient-to-br from-purple-50 to-violet-50 shadow-2xl scale-105"
                                : isRecommended
                                ? "ring-2 ring-green-400 border-green-500 bg-gradient-to-br from-green-500/10 to-emerald-500/5 shadow-lg hover:scale-105 hover:shadow-xl"
-                               : "border-border hover:border-primary/50 hover:bg-primary/5 hover:scale-105"
+                          : "border-gray-300 hover:border-purple-500/50 hover:bg-purple-50 hover:scale-105"
                            }`}
                                                       onClick={() => {
                               handleInputChange("experienceLevel", level.id)
@@ -758,18 +952,16 @@ export default function OnboardingSteps() {
                                <Award
                                  className={`w-12 h-12 mx-auto transition-all duration-300 ${
                                    isSelected
-                                     ? "text-primary animate-bounce"
+                                  ? "text-purple-600 animate-bounce"
                                      : isRecommended
                                      ? "text-green-500"
-                                     : "text-muted-foreground hover:text-primary"
+                                  : "text-gray-500 hover:text-purple-600"
                                  }`}
                                />
                              </div>
                              <h3 className="font-bold text-xl mb-3 font-mono">{level.title}</h3>
-                             <p className="text-primary font-bold mb-3 text-base">{level.years}</p>
+                        <p className="text-purple-600 font-bold mb-3 text-base">{level.years}</p>
                              <p className="text-muted-foreground leading-relaxed text-sm">{level.description}</p>
-                             
-                             
                            </CardContent>
                          </Card>
                        )
@@ -779,22 +971,48 @@ export default function OnboardingSteps() {
           )}
 
                                                                                        {currentStep === 3 && (
-               <div className="space-y-6 animate-fade-in-up">
+            <div className="space-y-8 animate-fade-in-up">
                  <div className="text-center">
-                   <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-purple-600 to-violet-500 bg-clip-text text-transparent">
                      Technical Skills
                    </h2>
                    <p className="text-muted-foreground text-lg">Select your areas of expertise</p>
+                
+                {/* Stats display */}
+                <div className="mt-4 flex justify-center">
+                  <div className="bg-gradient-to-r from-purple-50 to-violet-50 rounded-full px-6 py-2 border border-purple-500/20">
+                    <span className="text-purple-600 font-semibold">
+                      {formData.skills.length} skill{formData.skills.length !== 1 ? 's' : ''} selected
+                    </span>
+                  </div>
+                </div>
                  </div>
 
-                                                           <div className="space-y-6">
-                  <div>
-                    <Label htmlFor="skills" className="text-base font-bold mb-4 block">
+              <div className="space-y-8">
+                {/* Role-specific skills section */}
+                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border-2 border-purple-500/20">
+                  <div className="flex items-center justify-between mb-4">
+                    <Label htmlFor="skills" className="text-lg font-bold text-purple-600 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5" />
                       {formData.jobRole 
-                        ? `Popular skills for ${jobRoles.find(j => j.id === formData.jobRole)?.title || 'your role'}`
-                        : "Choose from popular technologies"
+                      ? `Recommended for ${jobRoles.find(j => j.id === formData.jobRole)?.title || 'your role'}`
+                      : "Popular Technologies"
                       }
                     </Label>
+                    {formData.skills.length > 0 && (
+                      <div className="text-sm text-purple-600 bg-purple-100 px-3 py-1 rounded-full">
+                        {formData.skills.length} pre-selected
+                      </div>
+                    )}
+                  </div>
+                  
+                  {formData.skills.length > 0 && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        💡 Skills have been pre-selected based on your role. You can remove any skills you don't use by clicking on them.
+                      </p>
+                    </div>
+                  )}
                    
                    {(() => {
                      const selectedRole = jobRoles.find(j => j.id === formData.jobRole)
@@ -813,19 +1031,22 @@ export default function OnboardingSteps() {
                      }
                      
                                            return (
-                        <div className="flex flex-wrap gap-3 max-h-[250px] overflow-y-auto">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                           {skillsSource.map((skill, index) => (
                             <Badge
                               key={skill}
                               variant={formData.skills.includes(skill) ? "default" : "outline"}
-                              className={`cursor-pointer skill-badge text-xs py-2 px-4 font-semibold transition-all duration-300 hover:scale-105 ${
+                            className={`cursor-pointer text-center justify-center text-sm py-3 px-4 font-semibold transition-all duration-300 hover:scale-105 transform ${
                                 formData.skills.includes(skill)
-                                  ? "bg-gradient-to-r from-primary to-secondary text-white shadow-lg animate-pulse-glow"
-                                  : "hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+                                ? "bg-gradient-to-r from-purple-600 to-violet-500 text-white shadow-lg border-purple-500"
+                                : "hover:border-purple-500/50 hover:bg-purple-50 hover:text-purple-600 border-gray-300"
                               }`}
                                                            onClick={() => {
-                                formData.skills.includes(skill) ? removeSkill(skill) : addSkill(skill)
-                                // Auto-scroll xuống bottom sau khi chọn skill
+                              if (formData.skills.includes(skill)) {
+                                removeSkill(skill);
+                              } else {
+                                addSkill(skill);
+                              }
                                 setTimeout(() => {
                                   window.scrollTo({
                                     top: document.documentElement.scrollHeight,
@@ -836,6 +1057,9 @@ export default function OnboardingSteps() {
                               style={{ animationDelay: `${index * 0.05}s` }}
                             >
                              {skill}
+                            {formData.skills.includes(skill) && (
+                              <span className="ml-2">✓</span>
+                            )}
                            </Badge>
                          ))}
                        </div>
@@ -843,53 +1067,108 @@ export default function OnboardingSteps() {
                    })()}
                  </div>
 
+                {/* Selected skills display */}
                                                   {formData.skills.length > 0 && (
-                   <div className="bg-gradient-to-br from-primary/10 to-secondary/5 rounded-2xl p-8 border-2 border-primary/20 shadow-xl animate-fade-in-up">
-                     <Label className="text-lg font-bold mb-6 block text-primary flex items-center gap-2">
-                       <Sparkles className="w-5 h-5 animate-pulse" />
-                       Selected Skills ({formData.skills.length})
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200 shadow-lg animate-fade-in-up">
+                    <Label className="text-lg font-bold mb-4 block text-green-700 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      Your Selected Skills ({formData.skills.length})
                      </Label>
-                     <div className="flex flex-wrap gap-4">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                        {formData.skills.map((skill, index) => (
-                         <Badge
+                          <div
                            key={skill}
-                           className="bg-gradient-to-r from-primary to-secondary text-white text-sm py-3 px-5 font-semibold shadow-lg animate-fade-in-up"
+                            className="bg-white rounded-lg p-3 border border-green-200 shadow-sm animate-fade-in-up flex items-center justify-between group hover:shadow-md transition-shadow duration-200"
                            style={{ animationDelay: `${index * 0.1}s` }}
                          >
-                           {skill}
+                            <span className="font-medium text-green-800">{skill}</span>
                            <button
                              onClick={() => removeSkill(skill)}
-                             className="ml-3 hover:bg-white/20 rounded-full p-1 transition-all duration-200 hover:scale-110"
+                              className="text-green-600 hover:text-red-500 hover:bg-red-50 rounded-full p-1 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                              title="Remove skill"
                            >
-                             ×
+                              <X className="w-4 h-4" />
                            </button>
-                         </Badge>
+                          </div>
                        ))}
                      </div>
+                      
+                      {/* Skills summary */}
+                      <div className="mt-4 p-4 bg-green-100 rounded-lg border border-green-200">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <Award className="w-5 h-5" />
+                          <span className="font-semibold">Skill Profile:</span>
                    </div>
-                 )}
+                        <p className="text-green-600 mt-2 text-sm">
+                          You&apos;ve selected {formData.skills.length} skill{formData.skills.length !== 1 ? 's' : ''} 
+                          {formData.jobRole && ` for ${jobRoles.find(j => j.id === formData.jobRole)?.title}`}.
+                          This will help us personalize your interview experience.
+                        </p>
+                      </div>
               </div>
             </div>
           )}
 
-                                                                                                                                                                               {currentStep === 4 && (
-                <div className="space-y-6 animate-slide-in-right">
-                  <div className="text-center">
-                    <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              </div>
+            </div>
+          )}                                                                                                                                                                               {currentStep === 4 && (
+            <div className="space-y-8 animate-slide-in-right">
+              <div className="text-center">
+                <h2 className="text-3xl font-bold text-foreground mb-3 font-mono bg-gradient-to-r from-purple-600 to-violet-500 bg-clip-text text-transparent">
                       Professional Profile
                     </h2>
                     <p className="text-muted-foreground text-lg">Complete your professional information</p>
                     
-                    
+                {/* Progress indicator for profile completion */}
+                <div className="mt-6">
+                  <div className="bg-gray-100 rounded-full h-2 max-w-md mx-auto">
+                    <div 
+                      className="bg-gradient-to-r from-purple-600 to-violet-500 h-2 rounded-full transition-all duration-500"
+                      style={{ 
+                        width: `${Math.round(
+                          (Object.values({
+                            firstName: formData.firstName,
+                            lastName: formData.lastName,
+                            phone: formData.phone,
+                            department: formData.department,
+                            joinDate: formData.joinDate,
+                            bio: formData.bio
+                          }).filter(val => val && val.toString().trim()).length / 6) * 100
+                        )}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {Object.values({
+                      firstName: formData.firstName,
+                      lastName: formData.lastName,
+                      phone: formData.phone,
+                      department: formData.department,
+                      joinDate: formData.joinDate,
+                      bio: formData.bio
+                    }).filter(val => val && val.toString().trim()).length} of 6 fields completed
+                  </p>
+                </div>
                   </div>
 
-                                            <div className="space-y-8">
-                 <div className="grid md:grid-cols-2 gap-8">
+              <div className="max-w-4xl mx-auto">
+                {/* Personal Information Section */}
+                <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-2xl p-6 border-2 border-purple-500/20 mb-8">
+                  <h3 className="text-xl font-bold text-purple-600 mb-6 flex items-center gap-2">
+                    <Building2 className="w-6 h-6" />
+                    Personal Information
+                  </h3>
+                  
+                  <div className="grid md:grid-cols-2 gap-6">
                    <div className="animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-                     <Label htmlFor="firstName" className="text-base font-bold">
+                      <Label htmlFor="firstName" className="text-base font-bold flex items-center gap-2">
                        First Name 
                        {formData.firstName && (
-                         <span className="text-green-600 text-sm ml-2">✓ Pre-filled from profile</span>
+                          <span className="text-green-600 text-sm flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" />
+                            Pre-filled
+                          </span>
                        )}
                      </Label>
                      <Input
@@ -897,20 +1176,26 @@ export default function OnboardingSteps() {
                        value={formData.firstName}
                        onChange={(e) => handleInputChange("firstName", e.target.value)}
                        placeholder="Enter your first name"
-                       className={`mt-3 h-14 text-lg border-2 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300 ${
-                         errors.firstName ? "border-red-500" : ""
-                       } ${formData.firstName ? "bg-green-50 border-green-500" : ""}`}
+                        className={`mt-3 h-12 text-base border-2 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all duration-300 ${
+                          errors.firstName ? "border-red-500 bg-red-50" : ""
+                        } ${formData.firstName ? "bg-green-50 border-green-400" : ""}`}
                      />
                      {errors.firstName && (
-                       <p className="text-red-500 text-sm mt-2">{errors.firstName}</p>
+                        <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                          <X className="w-4 h-4" />
+                          {errors.firstName}
+                        </p>
                      )}
                    </div>
 
                    <div className="animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
-                     <Label htmlFor="lastName" className="text-base font-bold">
+                      <Label htmlFor="lastName" className="text-base font-bold flex items-center gap-2">
                        Last Name
                        {formData.lastName && (
-                         <span className="text-green-600 text-sm ml-2">✓ Pre-filled from profile</span>
+                          <span className="text-green-600 text-sm flex items-center gap-1">
+                            <CheckCircle className="w-4 h-4" />
+                            Pre-filled
+                          </span>
                        )}
                      </Label>
                      <Input
@@ -918,14 +1203,16 @@ export default function OnboardingSteps() {
                        value={formData.lastName}
                        onChange={(e) => handleInputChange("lastName", e.target.value)}
                        placeholder="Enter your last name"
-                       className={`mt-3 h-14 text-lg border-2 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300 ${
-                         errors.lastName ? "border-red-500" : ""
-                       } ${formData.lastName ? "bg-green-50 border-green-500" : ""}`}
+                        className={`mt-3 h-12 text-base border-2 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all duration-300 ${
+                          errors.lastName ? "border-red-500 bg-red-50" : ""
+                        } ${formData.lastName ? "bg-green-50 border-green-400" : ""}`}
                      />
                      {errors.lastName && (
-                       <p className="text-red-500 text-sm mt-2">{errors.lastName}</p>
+                        <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                          <X className="w-4 h-4" />
+                          {errors.lastName}
+                        </p>
                      )}
-                   </div>
                  </div>
 
                  <div className="animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
@@ -935,32 +1222,19 @@ export default function OnboardingSteps() {
                      value={formData.phone}
                      onChange={(e) => handleInputChange("phone", e.target.value)}
                      placeholder="Enter your phone number"
-                     className={`mt-3 h-14 text-lg border-2 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300 ${
-                       errors.phone ? "border-red-500" : ""
+                        className={`mt-3 h-12 text-base border-2 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all duration-300 ${
+                          errors.phone ? "border-red-500 bg-red-50" : ""
                      }`}
                    />
                    {errors.phone && (
-                     <p className="text-red-500 text-sm mt-2">{errors.phone}</p>
+                        <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                          <X className="w-4 h-4" />
+                          {errors.phone}
+                        </p>
                    )}
                  </div>
 
                  <div className="animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
-                   <Label htmlFor="department" className="text-base font-bold">Department</Label>
-                   <Input
-                     id="department"
-                     value={formData.department}
-                     onChange={(e) => handleInputChange("department", e.target.value)}
-                     placeholder="e.g., Engineering, Product, Design"
-                     className={`mt-3 h-14 text-lg border-2 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300 ${
-                       errors.department ? "border-red-500" : ""
-                     }`}
-                   />
-                   {errors.department && (
-                     <p className="text-red-500 text-sm mt-2">{errors.department}</p>
-                   )}
-                 </div>
-
-                 <div className="animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
                    <Label htmlFor="joinDate" className="text-base font-bold">Start Date</Label>
                    <div className="relative mt-3">
                      <Input
@@ -968,16 +1242,47 @@ export default function OnboardingSteps() {
                        type="date"
                        value={formData.joinDate}
                        onChange={(e) => handleInputChange("joinDate", e.target.value)}
-                       className={`h-14 text-lg border-2 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300 ${
-                         errors.joinDate ? "border-red-500" : ""
+                          className={`h-12 text-base border-2 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all duration-300 ${
+                            errors.joinDate ? "border-red-500 bg-red-50" : ""
                        }`}
                      />
-                     <Calendar className="absolute right-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-muted-foreground pointer-events-none" />
+                        <Calendar className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
                    </div>
                    {errors.joinDate && (
-                     <p className="text-red-500 text-sm mt-2">{errors.joinDate}</p>
+                        <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                          <X className="w-4 h-4" />
+                          {errors.joinDate}
+                        </p>
                    )}
+                    </div>
                  </div>
+                </div>
+
+                {/* Professional Information Section */}
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-200">
+                  <h3 className="text-xl font-bold text-purple-700 mb-6 flex items-center gap-2">
+                    <Briefcase className="w-6 h-6" />
+                    Professional Details
+                  </h3>
+
+                  <div className="space-y-6">
+                    <div className="animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
+                      <Label htmlFor="department" className="text-base font-bold">Department</Label>
+                      <Input
+                        id="department"
+                        value={formData.department}
+                        onChange={(e) => handleInputChange("department", e.target.value)}
+                        placeholder="e.g., Engineering, Product, Design, Marketing"
+                        className={`mt-3 h-12 text-base border-2 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all duration-300 ${
+                          errors.department ? "border-red-500 bg-red-50" : ""
+                        }`}
+                      />
+                      {errors.department && (
+                        <p className="text-red-500 text-sm mt-2 flex items-center gap-1">
+                          <X className="w-4 h-4" />
+                          {errors.department}
+                        </p>
+                      )}
                </div>
 
                                               <div className="animate-fade-in-up" style={{ animationDelay: "0.6s" }}>
@@ -986,22 +1291,49 @@ export default function OnboardingSteps() {
                      id="bio"
                      value={formData.bio}
                      onChange={(e) => handleInputChange("bio", e.target.value)}
-                     placeholder="Brief introduction about your professional background and interests..."
-                     rows={5}
-                     className="mt-3 resize-none text-lg border-2 focus:border-primary focus:ring-4 focus:ring-primary/20 transition-all duration-300"
-                   />
+                        placeholder="Brief introduction about your professional background, interests, and what motivates you..."
+                        rows={4}
+                        className="mt-3 resize-none text-base border-2 focus:border-purple-500 focus:ring-4 focus:ring-purple-200 transition-all duration-300"
+                      />
+                      <p className="text-sm text-gray-500 mt-2">
+                        {formData.bio.length}/500 characters
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary section */}
+                {formData.jobRole && formData.experienceLevel && formData.skills.length > 0 && (
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border-2 border-green-200 animate-fade-in-up">
+                    <h3 className="text-xl font-bold text-green-700 mb-4 flex items-center gap-2">
+                      <Sparkles className="w-6 h-6" />
+                      Profile Summary
+                    </h3>
+                    <div className="space-y-3 text-green-700">
+                      <p>
+                        <strong>Role:</strong> {jobRoles.find(r => r.id === formData.jobRole)?.title}
+                      </p>
+                      <p>
+                        <strong>Experience:</strong> {formData.experienceLevel.charAt(0).toUpperCase() + formData.experienceLevel.slice(1)} Level
+                      </p>
+                      <p>
+                        <strong>Skills:</strong> {formData.skills.join(", ")}
+                      </p>
+                    </div>
+                  </div>
+                )}
                  </div>
             </div>
           )}
         </div>
 
                                                                              {/* Navigation Buttons */}
-             <div className="flex justify-between">
+             <div className="flex justify-between items-center pt-6 border-t border-gradient-to-r from-gray-100 via-purple-100 to-indigo-100">
                <Button
                  variant="outline"
                  onClick={prevStep}
                  disabled={currentStep === 1}
-                 className="flex items-center gap-3 h-12 px-8 font-bold text-lg bg-transparent border-2 hover:bg-primary/10 hover:border-primary transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 btn-magical"
+                 className="flex items-center gap-2 h-12 px-8 text-sm font-semibold border-2 border-gray-300 text-gray-600 hover:bg-gradient-to-r hover:from-gray-50 hover:to-purple-50 hover:border-purple-400 hover:text-purple-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl hover:scale-105"
                >
                  <ChevronLeft className="w-5 h-5" />
                  Back
@@ -1010,12 +1342,21 @@ export default function OnboardingSteps() {
                <Button
                  onClick={nextStep}
                  disabled={isSubmitting}
-                 className="flex items-center gap-3 h-12 px-10 font-bold text-lg bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 transition-all duration-300 hover:scale-105 shadow-2xl hover:shadow-3xl disabled:opacity-50 disabled:hover:scale-100 btn-magical animate-pulse-glow"
+                 className="flex items-center gap-2 h-12 px-8 text-sm font-semibold bg-gradient-to-r from-purple-600 via-violet-500 to-indigo-500 hover:from-purple-700 hover:via-violet-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl hover:scale-105"
                >
                  {currentStep === 4 ? (
                    <>
-                     {isSubmitting ? "Submitting..." : "Complete Setup"}
-                     <Sparkles className="w-5 h-5" />
+                     {isSubmitting ? (
+                       <>
+                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                         Submitting...
+                       </>
+                     ) : (
+                       <>
+                         Complete Setup
+                         <Sparkles className="w-5 h-5 animate-pulse" />
+                       </>
+                     )}
                    </>
                  ) : (
                    <>
