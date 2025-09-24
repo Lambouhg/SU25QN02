@@ -14,7 +14,6 @@ import {
   Trash2,
   Filter,
   Search,
-  Download,
   Eye,
   Star,
   ChevronDown,
@@ -242,43 +241,21 @@ export default function JdInterviewHistoryPage() {
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-emerald-600';
-    if (score >= 80) return 'text-green-600';
-    if (score >= 70) return 'text-yellow-600';
-    if (score >= 60) return 'text-orange-600';
+    if (score >= 9) return 'text-emerald-600';
+    if (score >= 8) return 'text-green-600';
+    if (score >= 7) return 'text-yellow-600';
+    if (score >= 6) return 'text-orange-600';
     return 'text-red-600';
   };
 
   const getScoreBg = (score: number) => {
-    if (score >= 90) return 'bg-emerald-50 border-emerald-200';
-    if (score >= 80) return 'bg-green-50 border-green-200';
-    if (score >= 70) return 'bg-yellow-50 border-yellow-200';
-    if (score >= 60) return 'bg-orange-50 border-orange-200';
+    if (score >= 9) return 'bg-emerald-50 border-emerald-200';
+    if (score >= 8) return 'bg-green-50 border-green-200';
+    if (score >= 7) return 'bg-yellow-50 border-yellow-200';
+    if (score >= 6) return 'bg-orange-50 border-orange-200';
     return 'bg-red-50 border-red-200';
   };
 
-  const exportToCSV = () => {
-    const csvContent = [
-      ['Date', 'Job Title', 'Question Type', 'Level', 'Question', 'Score', 'Time Spent'],
-      ...filteredAndSortedAnswers.map(answer => [
-        formatDate(answer.answeredAt),
-        answer.jdQuestionSet.jobTitle,
-        answer.jdQuestionSet.questionType,
-        answer.jdQuestionSet.level,
-        answer.questionText,
-        answer.overallScore?.toFixed(1) || 'N/A',
-        answer.timeSpent ? formatDuration(answer.timeSpent) : 'N/A'
-      ])
-    ].map(row => row.join(',')).join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'jd-interview-history.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
 
   if (loading) {
     return (
@@ -368,15 +345,6 @@ export default function JdInterviewHistoryPage() {
               Back to Dashboard
             </Link>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={exportToCSV}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg"
-            >
-              <Download className="w-4 h-4" />
-              Export Data
-            </button>
-          </div>
         </div>
 
         <div className="flex items-center gap-4 mb-8">
@@ -418,7 +386,7 @@ export default function JdInterviewHistoryPage() {
                 </div>
                 <div className="text-right">
                   <p className={`text-2xl font-bold ${getScoreColor(stats.averageScore)}`}>
-                    {stats.averageScore.toFixed(1)}%
+                    {stats.averageScore.toFixed(1)}
                   </p>
                   <p className="text-sm text-emerald-600">Average Score</p>
                 </div>
@@ -426,7 +394,7 @@ export default function JdInterviewHistoryPage() {
               <div className="h-1 bg-emerald-200 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-emerald-500 to-green-600 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(stats.averageScore, 100)}%` }}
+                  style={{ width: `${Math.min(stats.averageScore * 10, 100)}%` }}
                 ></div>
               </div>
             </CardContent>
@@ -663,7 +631,7 @@ export default function JdInterviewHistoryPage() {
                           {answer.overallScore !== undefined && (
                             <div className={`px-3 py-2 rounded-lg border-2 ${getScoreBg(answer.overallScore)}`}>
                               <span className={`text-lg font-bold ${getScoreColor(answer.overallScore)}`}>
-                                {answer.overallScore.toFixed(0)}%
+                                {answer.overallScore.toFixed(1)}/10
                               </span>
                             </div>
                           )}
@@ -867,7 +835,7 @@ export default function JdInterviewHistoryPage() {
                       {selectedAnswer.overallScore !== undefined && (
                         <div className={`px-4 py-2 rounded-lg ${getScoreBg(selectedAnswer.overallScore)}`}>
                           <span className={`text-lg font-bold ${getScoreColor(selectedAnswer.overallScore)}`}>
-                            {selectedAnswer.overallScore.toFixed(1)}%
+                            {selectedAnswer.overallScore.toFixed(1)}/10
                           </span>
                         </div>
                       )}
@@ -942,13 +910,13 @@ export default function JdInterviewHistoryPage() {
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
                               <div 
                                 className={`h-2 rounded-full transition-all duration-500 ${
-                                  score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                  score >= 8 ? 'bg-green-500' : score >= 6 ? 'bg-yellow-500' : 'bg-red-500'
                                 }`}
-                                style={{ width: `${Math.min(score, 100)}%` }}
+                                style={{ width: `${Math.min(score * 10, 100)}%` }}
                               ></div>
                             </div>
                             <span className={`text-lg font-bold ${getScoreColor(score)}`}>
-                              {score.toFixed(0)}%
+                              {score.toFixed(1)}/10
                             </span>
                           </div>
                         </div>

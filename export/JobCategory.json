@@ -1,91 +1,178 @@
 [
   {
-    "id": "frontend_category_id",
-    "name": "Frontend Development",
+    "id": "0ce4aa88-96ec-4b76-9653-9fabcbd26072",
+    "name": "Software Development",
     "skills": [
-      "HTML",
-      "CSS",
-      "JavaScript",
       "React",
-      "Vue.js",
+      "Vue",
       "Angular",
       "TypeScript",
-      "SASS",
-      "Webpack",
-      "Vite"
-    ]
-  },
-  {
-    "id": "backend_category_id",
-    "name": "Backend Development",
-    "skills": [
+      "JavaScript",
       "Node.js",
       "Python",
       "Java",
       "C#",
-      ".NET",
       "PHP",
+      "Ruby",
       "Go",
       "Rust",
-      "Database",
-      "API Design",
-      "Microservices"
+      "Vite",
+      "Webpack",
+      "Docker",
+      "Git",
+      "REST API",
+      "GraphQL",
+      "SQL",
+      "MongoDB",
+      "Redis",
+      "AWS",
+      "Azure",
+      "GCP"
     ]
   },
   {
-    "id": "fullstack_category_id",
-    "name": "Full Stack Development",
+    "id": "c9a43ebc-3c0d-4acd-945d-5f300f7160bd",
+    "name": "Data Science",
     "skills": [
-      "Frontend",
-      "Backend",
-      "Database",
-      "DevOps",
-      "API Design",
-      "System Design",
-      "Cloud Services"
+      "Python",
+      "R",
+      "SQL",
+      "Pandas",
+      "NumPy",
+      "Scikit-learn",
+      "TensorFlow",
+      "PyTorch",
+      "Jupyter",
+      "Tableau",
+      "Power BI",
+      "Apache Spark",
+      "Hadoop",
+      "Machine Learning",
+      "Deep Learning",
+      "Statistics",
+      "Data Visualization"
     ]
   },
   {
-    "id": "mobile_category_id",
-    "name": "Mobile Development",
-    "skills": [
-      "React Native",
-      "Flutter",
-      "iOS",
-      "Android",
-      "Swift",
-      "Kotlin",
-      "Mobile UI/UX",
-      "App Store"
-    ]
-  },
-  {
-    "id": "devops_category_id",
-    "name": "DevOps & Cloud",
+    "id": "394882f3-6dae-4eef-974e-c81f96416869",
+    "name": "DevOps",
     "skills": [
       "Docker",
       "Kubernetes",
+      "Jenkins",
+      "GitLab CI",
+      "GitHub Actions",
+      "Terraform",
+      "Ansible",
       "AWS",
       "Azure",
       "GCP",
-      "CI/CD",
-      "Terraform",
+      "Linux",
+      "Shell Scripting",
+      "Python",
+      "Go",
       "Monitoring",
-      "Linux"
+      "Logging",
+      "ELK Stack",
+      "Prometheus",
+      "Grafana"
     ]
   },
   {
-    "id": "data_category_id",
-    "name": "Data & AI",
+    "id": "465738b6-1bfa-46cc-bc7e-d646665eacc2",
+    "name": "Product Management",
     "skills": [
-      "Python",
-      "SQL",
-      "Machine Learning",
-      "Data Analysis",
-      "TensorFlow",
-      "PyTorch",
-      "Big Data",
-      "Statistics"
+      "Product Strategy",
+      "User Research",
+      "Market Analysis",
+      "Agile",
+      "Scrum",
+      "JIRA",
+      "Confluence",
+      "Figma",
+      "Analytics",
+      "A/B Testing",
+      "Customer Development",
+      "Roadmapping",
+      "Stakeholder Management",
+      "Data Analysis"
+    ]
+  },
+  {
+    "id": "9e7c080a-ebc4-4192-8bf9-a89b6f99d68e",
+    "name": "Design",
+    "skills": [
+      "Figma",
+      "Adobe XD",
+      "Sketch",
+      "Photoshop",
+      "Illustrator",
+      "InDesign",
+      "Prototyping",
+      "User Research",
+      "Wireframing",
+      "UI Design",
+      "UX Design",
+      "Design Systems",
+      "Typography",
+      "Color Theory",
+      "Accessibility"
+    ]
+  },
+  {
+    "id": "53e50b73-13a1-4bd3-be4c-9705d35297f6",
+    "name": "Marketing",
+    "skills": [
+      "Digital Marketing",
+      "SEO",
+      "SEM",
+      "Google Analytics",
+      "Facebook Ads",
+      "Google Ads",
+      "Email Marketing",
+      "Content Marketing",
+      "Social Media Marketing",
+      "Marketing Automation",
+      "CRM",
+      "HubSpot",
+      "Mailchimp",
+      "Canva"
+    ]
+  },
+  {
+    "id": "ee223596-8591-4e65-9b78-e440f1fd2b22",
+    "name": "Sales",
+    "skills": [
+      "CRM",
+      "Salesforce",
+      "HubSpot",
+      "Lead Generation",
+      "Prospecting",
+      "Negotiation",
+      "Presentation Skills",
+      "Relationship Building",
+      "Sales Strategy",
+      "Pipeline Management",
+      "Customer Success",
+      "Account Management"
+    ]
+  },
+  {
+    "id": "5610a073-a017-4ed4-ba8d-9d0e53cbfd26",
+    "name": "Customer Support",
+    "skills": [
+      "Customer Service",
+      "Zendesk",
+      "Intercom",
+      "Live Chat",
+      "Email Support",
+      "Phone Support",
+      "Problem Solving",
+      "Communication Skills",
+      "Product Knowledge",
+      "Escalation Management",
+      "Customer Success",
+      "Feedback Collection"
     ]
   }
 ]

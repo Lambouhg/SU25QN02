@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { JobRole } from '../../hooks/useJobRoles';
+import { syncSkills } from '@/utils/skillsSync';
 
 interface InterviewPreferencesFormProps {
   jobRoles: JobRole[];
@@ -297,8 +298,25 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
 
       if (response.ok) {
         const savedPreferences = await response.json();
+        
+        // Sync selectedSkills to User.skills table using utility function
+        if (preferences.interviewPreferences?.selectedSkills) {
+          try {
+            await syncSkills({
+              skills: preferences.interviewPreferences.selectedSkills,
+              syncToInterviewPreferences: false // Already saved above
+            });
+          } catch (syncError) {
+            console.warn('Failed to sync skills to User.skills:', syncError);
+          }
+        }
+        
         onSave?.(savedPreferences);
         showToastNotification('Preferences saved successfully!', 'success');
+        
+        // Notify other components about the update
+        window.dispatchEvent(new Event('preferences-updated'));
+        localStorage.setItem('preferences-updated', Date.now().toString());
       } else {
         throw new Error('Failed to save preferences');
       }

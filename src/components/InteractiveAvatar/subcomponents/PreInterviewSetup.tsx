@@ -109,7 +109,9 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       if (!userId) return
 
       try {
-        const response = await fetch("/api/profile/interview-preferences")
+        // Add cache-busting parameter to force fresh data
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/profile/interview-preferences?t=${timestamp}`)
         if (response.ok) {
           const preferences = await response.json()
           console.log('🎯 PreInterviewSetup loaded preferences:', preferences)
@@ -151,6 +153,28 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
 
     loadUserPreferences()
     loadQuestionBankStats()
+
+    // Listen for storage events to reload preferences when updated from other tabs/windows
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'preferences-updated') {
+        console.log('🔄 Preferences updated externally, reloading...')
+        loadUserPreferences()
+      }
+    }
+
+    // Listen for custom events from Profile component
+    const handlePreferencesUpdate = () => {
+      console.log('🔄 Preferences updated, reloading...')
+      loadUserPreferences()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('preferences-updated', handlePreferencesUpdate)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('preferences-updated', handlePreferencesUpdate)
+    }
   }, [userId, jobRoles, onJobRoleIdChange, onPositionKeyChange, config, onConfigChange])
 
   // Separate useEffect for loading skills-specific question count
@@ -546,7 +570,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                                 </a>
                               )}
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2">                    
                               {(() => {
                                 // Use user selected skills if available, otherwise use all category skills
                                 const skillsToShow = userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0

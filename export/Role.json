@@ -1,22 +1,42 @@
 [
   {
-    "id": "user_role_id",
-    "name": "user",
-    "displayName": "User",
-    "description": "Standard user role",
-    "isActive": true,
-    "isDefault": true,
-    "createdAt": "2025-08-26T03:39:19.985Z",
-    "updatedAt": "2025-08-26T03:39:19.985Z"
-  },
-  {
-    "id": "admin_role_id",
+    "id": "2367bbe2-50d5-4bdb-a80f-ed5826660aa6",
     "name": "admin",
-    "displayName": "Administrator",
-    "description": "Administrator with full access",
+    "displayName": "Quản trị viên",
+    "description": "Vai trò quản trị viên với toàn quyền truy cập hệ thống",
     "isActive": true,
     "isDefault": false,
-    "createdAt": "2025-08-26T03:39:20.106Z",
-    "updatedAt": "2025-08-26T03:39:20.106Z"
+    "createdAt": "2025-09-09T16:46:46.423Z",
+    "updatedAt": "2025-09-09T16:59:37.495Z"
+  },
+  {
+    "id": "8113dd44-6282-48e0-b526-11d5525a1565",
+    "name": "moderator",
+    "displayName": "Điều hành viên",
+    "description": "Vai trò điều hành viên với quyền quản lý nội dung",
+    "isActive": true,
+    "isDefault": false,
+    "createdAt": "2025-09-09T16:59:37.498Z",
+    "updatedAt": "2025-09-09T16:59:37.498Z"
+  },
+  {
+    "id": "81c4410a-62d4-4e18-a7ff-85bb20d1defd",
+    "name": "content_manager",
+    "displayName": "Quản lý nội dung",
+    "description": "Vai trò quản lý nội dung câu hỏi và bộ đề",
+    "isActive": true,
+    "isDefault": false,
+    "createdAt": "2025-09-09T16:59:37.501Z",
+    "updatedAt": "2025-09-09T16:59:37.501Z"
+  },
+  {
+    "id": "ba1383db-8bbc-4bc8-952f-cb2b6ce8d363",
+    "name": "user",
+    "displayName": "Người dùng",
+    "description": "Vai trò người dùng thông thường",
+    "isActive": true,
+    "isDefault": true,
+    "createdAt": "2025-09-09T16:46:46.688Z",
+    "updatedAt": "2025-09-09T16:59:37.511Z"
   }
 ]
