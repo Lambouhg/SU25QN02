@@ -520,13 +520,13 @@ export default function TestPanel() {
     const evaluation = await evaluateAnswer(currentQuestion, message, getHistorySummary());
     console.log(`🔍 [DEBUG] evaluation result:`, evaluation);
     
-    // Cập nhật điểm real-time (chuyển từ thang 0-10 sang 0-100)
+    // Cập nhật điểm real-time (giữ thang điểm 0-10 để đồng bộ với BE)
     // Chỉ cập nhật nếu câu trả lời liên quan; tránh ghi đè điểm bằng 0 khi user trả lời lạc đề
     if (evaluation && evaluation.scores && evaluation.isRelevant !== false) {
       setRealTimeScores({
-        fundamental: Math.max(0, Math.min(100, Math.round((evaluation.scores.fundamental || 0) * 10))),
-        logic: Math.max(0, Math.min(100, Math.round((evaluation.scores.logic || 0) * 10))),
-        language: Math.max(0, Math.min(100, Math.round((evaluation.scores.language || 0) * 10))),
+        fundamental: Math.max(0, Math.min(10, Math.round((evaluation.scores.fundamental || 0)))),
+        logic: Math.max(0, Math.min(10, Math.round((evaluation.scores.logic || 0)))),
+        language: Math.max(0, Math.min(10, Math.round((evaluation.scores.language || 0)))),
         suggestions: evaluation.suggestions || realTimeScores.suggestions
       });
     }
@@ -578,10 +578,6 @@ export default function TestPanel() {
       responseText += `- **Suggested Improvements:**\n`;
       responseText += evaluation.suggestedImprovements.map((i: string) => `  - ${i}`).join("\n") + "\n";
     }
-    let nextQuestion = '';
-    if (evaluation.followUpQuestions && evaluation.followUpQuestions.length > 0) {
-      nextQuestion = evaluation.followUpQuestions[0];
-    }
     // set feedback thay vì add vào chat
     setLastFeedback(responseText);
     
@@ -592,20 +588,8 @@ export default function TestPanel() {
       return;
     }
     
-    // Nếu vẫn muốn AI hỏi tiếp: gửi lời cảm ơn rồi gõ từ từ câu tiếp theo
-    if (nextQuestion) {
-      const acknowledgements = [
-        'Thanks for your answer! ',
-        'Great, appreciate the details. ',
-        'Got it, thank you! ',
-      ];
-      const ack = acknowledgements[Math.floor(Math.random() * acknowledgements.length)] + 'Here is the next question:';
-      await addAiMessageTyping(ack);
-      await addAiMessageTyping(nextQuestion);
-    }
-    if (evaluation.isComplete && (!evaluation.followUpQuestions || evaluation.followUpQuestions.length === 0)) {
-      await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing);
-    }
+    // Luôn chuyển sang câu hỏi tiếp theo trong danh sách có sẵn (bỏ qua follow-up để tránh kẹt 1 chủ đề)
+    await handleQuestionTransition(interviewState, setInterviewState, setConversation, setInterviewing);
   };
 
   // Fix: increment currentQuestionIndex only AFTER sending the next question
@@ -1046,6 +1030,7 @@ export default function TestPanel() {
                 messageListRef={messageListRef}
                 duration={duration}
                 realTimeScores={{
+                  // Pass 0-10 scale directly for UI to render on 10-point system
                   fundamental: realTimeScores.fundamental,
                   logic: realTimeScores.logic,
                   language: realTimeScores.language
