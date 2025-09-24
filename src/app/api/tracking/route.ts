@@ -84,9 +84,38 @@ export async function GET() {
     // Compute stats
     const totalActivities = dailyStats.reduce((s, d) => s + (d.totalActivities || 0), 0);
     const totalStudyTime = dailyStats.reduce((s, d) => s + (d.totalDuration || 0), 0);
-    const scoredDays = dailyStats.filter(d => typeof d.avgScore === 'number');
-    const averageScore = scoredDays.length > 0
-      ? scoredDays.reduce((s, d) => s + (d.avgScore || 0), 0) / scoredDays.length
+    
+    // NEW: Use same logic as enhanced analytics (30-day period with daily grouping)
+    const monthlyActivityEvents = await prisma.userActivityEvent.findMany({
+      where: { 
+        userId: user.id,
+        timestamp: { gte: thirtyDaysAgo, lte: now },
+        score: { not: null }
+      },
+      select: { 
+        score: true, 
+        timestamp: true 
+      }
+    });
+    
+    // Group by day and calculate daily averages, then average the daily averages
+    const dailyScoresMap = new Map<string, number[]>();
+    monthlyActivityEvents.forEach(event => {
+      const day = event.timestamp.toISOString().split('T')[0];
+      if (!dailyScoresMap.has(day)) {
+        dailyScoresMap.set(day, []);
+      }
+      if (event.score) {
+        dailyScoresMap.get(day)!.push(event.score);
+      }
+    });
+    
+    const dailyAverages = Array.from(dailyScoresMap.values()).map(scores => 
+      scores.reduce((sum, score) => sum + score, 0) / scores.length
+    );
+    
+    const averageScore = dailyAverages.length > 0 
+      ? dailyAverages.reduce((sum, avg) => sum + avg, 0) / dailyAverages.length
       : 0;
 
     // Simple study streak: count consecutive recent days with activity

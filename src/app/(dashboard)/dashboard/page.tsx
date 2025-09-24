@@ -20,13 +20,18 @@ import { useRouter } from 'next/navigation';
 import SkillsProgress from '@/components/dashboard/SkillsProgress';
 
 
-interface SkillProgress {
+interface DashboardSkillProgress {
   name: string;
   level: string;
   score: number;
+  trend?: number | null;
+  source: string;
+  lastUpdated: Date;
+  totalSessions: number;
   progress: Array<{
     date: Date;
     score: number;
+    source?: string;
   }>;
   source: string;
   lastUpdated: Date;
@@ -40,7 +45,7 @@ interface ProgressData {
     studyStreak: number;
     totalStudyTime: number;
   };
-  skillProgress: SkillProgress[];
+  skillProgress: DashboardSkillProgress[];
   currentFocus: string[];
   nextMilestones: Array<{
     goal: string;
@@ -98,6 +103,20 @@ export default function DashboardPage() {
     },
     {
       id: 4,
+      icon: <TrendingUp className="w-6 h-6 text-white" />,
+      label: "Analytics",
+      description: "Progress insights",
+      onClick: () => router.push("/detailed-analytics")
+    },
+    {
+      id: 5,
+      icon: <TestTube className="w-6 h-6 text-white" />,
+      label: "API Test",
+      description: "Test analytics API",
+      onClick: () => router.push("/enhanced-analytics-test")
+    },
+    {
+      id: 6,
       icon: <Settings className="w-6 h-6 text-white" />,
       label: "Profile",
       description: "Account settings",
