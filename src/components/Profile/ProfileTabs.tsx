@@ -56,13 +56,31 @@ export default function ProfileTabs({
         // Load merged skills from both sources
         const mergedSkills = await loadMergedSkills();
         setUserSkills(mergedSkills);
+        
+        // Auto-sync to ensure both sources are consistent on load
+        if (mergedSkills.length > 0) {
+          console.log('🔄 Auto-syncing skills on load to ensure consistency');
+          await syncSkills({ 
+            skills: mergedSkills, 
+            syncToInterviewPreferences: true 
+          });
+        }
       } catch (error) {
         console.error('Error loading user skills:', error);
         // Fallback to basic user skills
         const response = await fetch('/api/user/current');
         if (response.ok) {
           const userData = await response.json();
-          setUserSkills(Array.isArray(userData.skills) ? userData.skills : []);
+          const fallbackSkills = Array.isArray(userData.skills) ? userData.skills : [];
+          setUserSkills(fallbackSkills);
+          
+          // Auto-sync fallback skills too
+          if (fallbackSkills.length > 0) {
+            await syncSkills({ 
+              skills: fallbackSkills, 
+              syncToInterviewPreferences: true 
+            });
+          }
         }
       } finally {
         setSkillsLoading(false);
@@ -73,6 +91,11 @@ export default function ProfileTabs({
   }, []);
 
   const handleSkillsChange = async (newSkills: string[]) => {
+    console.log('🔄 ProfileTabs: Handling skills change:', { 
+      oldSkills: userSkills, 
+      newSkills 
+    });
+    
     try {
       setUserSkills(newSkills);
       const result = await syncSkills({ 
@@ -80,18 +103,21 @@ export default function ProfileTabs({
         syncToInterviewPreferences: true 
       });
       
+      console.log('📊 Sync result:', result);
+      
       if (result.success) {
+        console.log('✅ Skills synced successfully');
         // Notify other components about the update
         window.dispatchEvent(new Event('preferences-updated'));
         localStorage.setItem('preferences-updated', Date.now().toString());
       } else {
-        console.error('Failed to sync skills:', result.error);
+        console.error('❌ Failed to sync skills:', result.error);
         // Revert on error
         const mergedSkills = await loadMergedSkills();
         setUserSkills(mergedSkills);
       }
     } catch (error) {
-      console.error('Error saving skills:', error);
+      console.error('❌ Error saving skills:', error);
       // Revert on error
       const mergedSkills = await loadMergedSkills();
       setUserSkills(mergedSkills);

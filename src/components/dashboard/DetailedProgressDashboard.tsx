@@ -300,11 +300,10 @@ const DetailedProgressDashboard: React.FC = () => {
 
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 bg-white border border-gray-200 shadow-sm">
+        <TabsList className="grid w-full grid-cols-5 bg-white border border-gray-200 shadow-sm">
           <TabsTrigger value="overview" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Overview</TabsTrigger>
           <TabsTrigger value="trends" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Trends</TabsTrigger>
           <TabsTrigger value="skills" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Skills</TabsTrigger>
-          <TabsTrigger value="performance" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Performance</TabsTrigger>
           <TabsTrigger value="insights" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Insights</TabsTrigger>
           <TabsTrigger value="milestones" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Milestones</TabsTrigger>
         </TabsList>
@@ -613,91 +612,6 @@ const DetailedProgressDashboard: React.FC = () => {
             </Card>
           </div>
         </TabsContent>
-
-        {/* Performance Tab */}
-        <TabsContent value="performance" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Period Comparison */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Performance Comparison
-                </CardTitle>
-                <p className="text-sm text-gray-600">Compare current vs previous period</p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Activities</h3>
-                    <div className="text-3xl font-bold text-blue-600 mb-1">
-                      {comparison.current.totalActivities}
-                    </div>
-                    <div className="text-sm text-gray-500 mb-2">vs {comparison.previous.totalActivities} previous</div>
-                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      comparison.improvement.percentage > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {comparison.improvement.percentage > 0 ? '+' : ''}{safeToFixed(comparison.improvement.percentage)}%
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Average Score</h3>
-                    <div className="text-3xl font-bold text-green-600 mb-1">
-                      {safeToFixed(comparison.current.avgScore)}%
-                    </div>
-                    <div className="text-sm text-gray-500 mb-2">vs {safeToFixed(comparison.previous.avgScore)}% previous</div>
-                    <Badge className={comparison.improvement.trend === 'improving' ? 'bg-green-100 text-green-700' : 
-                                    comparison.improvement.trend === 'declining' ? 'bg-red-100 text-red-700' :
-                                    'bg-gray-100 text-gray-700'}>
-                      {comparison.improvement.trend}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Study Time Analysis */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Study Time Analysis
-                </CardTitle>
-                <p className="text-sm text-gray-600">Total time invested in learning</p>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="text-4xl font-bold text-purple-600 mb-2">
-                      {Math.round(comparison.current.totalDuration / 60)}
-                    </div>
-                    <div className="text-sm text-gray-600 mb-1">minutes this period</div>
-                    <div className="text-xs text-gray-500">
-                      vs {Math.round(comparison.previous.totalDuration / 60)}m previous
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Daily Average</span>
-                      <span className="font-medium">
-                        {Math.round(comparison.current.totalDuration / 60 / (timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90))} min
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Improvement</span>
-                      <span className="font-medium text-purple-600">
-                        {comparison.improvement.significance}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
         {/* Skills Tab - Enhanced */}
         <TabsContent value="skills" className="space-y-6">
           <SkillDetailedAnalysis skills={insights.skills} />

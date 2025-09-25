@@ -17,13 +17,25 @@ export const SkillsManagement: React.FC<SkillsManagementProps> = ({
 
   const addSkill = () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      onSkillsChange([...skills, newSkill.trim()]);
+      const newSkills = [...skills, newSkill.trim()];
+      console.log('🆕 SkillsManagement: Adding skill:', { 
+        oldSkills: skills, 
+        newSkill: newSkill.trim(),
+        newSkills 
+      });
+      onSkillsChange(newSkills);
       setNewSkill("");
     }
   };
 
   const removeSkill = (skillToRemove: string) => {
-    onSkillsChange(skills.filter(skill => skill !== skillToRemove));
+    const newSkills = skills.filter(skill => skill !== skillToRemove);
+    console.log('🗑️ SkillsManagement: Removing skill:', { 
+      oldSkills: skills, 
+      skillToRemove, 
+      newSkills 
+    });
+    onSkillsChange(newSkills);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

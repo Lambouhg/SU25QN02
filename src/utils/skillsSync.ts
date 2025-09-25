@@ -14,6 +14,12 @@ interface SyncSkillsOptions {
 export async function syncSkills(options: SyncSkillsOptions) {
   const { skills, syncToInterviewPreferences = true } = options;
   
+  console.log('🔄 Syncing skills:', { 
+    skills, 
+    syncToInterviewPreferences,
+    optionsReceived: options 
+  });
+  
   try {
     // 1. Always save to User.skills
     const profileResponse = await fetch('/api/profile', {
@@ -26,17 +32,35 @@ export async function syncSkills(options: SyncSkillsOptions) {
       }),
     });
 
+    console.log('📝 Profile API response:', {
+      ok: profileResponse.ok,
+      status: profileResponse.status,
+      statusText: profileResponse.statusText
+    });
+
     if (!profileResponse.ok) {
+      const errorText = await profileResponse.text();
+      console.error('❌ Profile API error:', errorText);
       throw new Error('Failed to save skills to User.skills');
     }
 
+    const profileResult = await profileResponse.json();
+    console.log('✅ Profile saved successfully:', profileResult.skills);
+
+    console.log('🔍 About to check syncToInterviewPreferences:', syncToInterviewPreferences);
+
     // 2. Optionally sync to interviewPreferences.selectedSkills
     if (syncToInterviewPreferences) {
+      console.log('🔄 Syncing to interview preferences...');
       const prefResponse = await fetch('/api/profile/interview-preferences');
       if (prefResponse.ok) {
         const currentPrefs = await prefResponse.json();
+        console.log('📋 Current interview preferences:', {
+          currentSelectedSkills: currentPrefs.interviewPreferences?.selectedSkills,
+          newSkills: skills
+        });
         
-        await fetch('/api/profile/interview-preferences', {
+        const updateResponse = await fetch('/api/profile/interview-preferences', {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -49,18 +73,38 @@ export async function syncSkills(options: SyncSkillsOptions) {
             }
           }),
         });
+        
+        console.log('📝 Interview preferences response:', {
+          ok: updateResponse.ok,
+          status: updateResponse.status
+        });
+        
+        if (updateResponse.ok) {
+          const updatedPrefs = await updateResponse.json();
+          console.log('✅ Interview preferences updated:', {
+            newSelectedSkills: updatedPrefs.interviewPreferences?.selectedSkills
+          });
+        } else {
+          const errorText = await updateResponse.text();
+          console.error('❌ Failed to update interview preferences:', errorText);
+        }
+      } else {
+        console.error('❌ Failed to fetch current interview preferences');
       }
+    } else {
+      console.log('⏭️ Skipping interview preferences sync');
     }
 
     return { success: true };
   } catch (error) {
-    console.error('Error syncing skills:', error);
+    console.error('❌ Error syncing skills:', error);
     return { success: false, error };
   }
 }
 
 /**
  * Load and merge skills from both User.skills and interviewPreferences.selectedSkills
+ * Priority: Use User.skills as the primary source of truth when available
  */
 export async function loadMergedSkills(): Promise<string[]> {
   try {
@@ -83,16 +127,49 @@ export async function loadMergedSkills(): Promise<string[]> {
         ? prefsData.interviewPreferences.selectedSkills : []));
     }
 
-    // Merge and deduplicate
-    const mergedSkills = Array.from(new Set([...userSkills, ...interviewSkills]));
-    
-    // If there are differences, sync them
-    if (userSkills.length !== mergedSkills.length || 
-        interviewSkills.length !== mergedSkills.length) {
-      await syncSkills({ skills: mergedSkills });
-    }
+    console.log('📊 Skills comparison:', {
+      userSkills,
+      interviewSkills,
+      userSkillsLength: userSkills.length,
+      interviewSkillsLength: interviewSkills.length
+    });
 
-    return mergedSkills;
+    // Priority-based logic: User.skills takes precedence when available
+    let finalSkills: string[] = [];
+    
+    if (userSkills.length > 0) {
+      // Use User.skills as primary source
+      finalSkills = [...userSkills];
+      console.log('🎯 Using User.skills as primary source:', finalSkills);
+      
+      // Check if interviewPreferences needs sync
+      const skillsMatch = userSkills.length === interviewSkills.length && 
+                         userSkills.every(skill => interviewSkills.includes(skill));
+      
+      if (!skillsMatch) {
+        console.log('🔄 Syncing User.skills to interview preferences');
+        await syncSkills({ 
+          skills: finalSkills, 
+          syncToInterviewPreferences: true 
+        });
+      }
+    } else if (interviewSkills.length > 0) {
+      // Fallback to interviewPreferences if User.skills is empty
+      finalSkills = [...interviewSkills];
+      console.log('🔄 Using interview preferences as fallback:', finalSkills);
+      
+      // Sync to User.skills
+      await syncSkills({ 
+        skills: finalSkills, 
+        syncToInterviewPreferences: false 
+      });
+    } else {
+      finalSkills = [];
+      console.log('📝 No skills found in either source');
+    }
+    
+    console.log('✅ Final skills selected:', finalSkills);
+    return finalSkills;
   } catch (error) {
     console.error('Error loading merged skills:', error);
     return [];

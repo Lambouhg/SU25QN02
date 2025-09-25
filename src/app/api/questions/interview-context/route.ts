@@ -230,10 +230,13 @@ export async function POST(request: NextRequest) {
       includeDifficulty
     });
 
-    // Map common field names to database field names
+    // Map common field names to database field names and categories
     const fieldMapping: Record<string, string[]> = {
-      'software development': ['Frontend Development', 'Backend Development', 'Programming'],
+      'software development': ['Software Development', 'Frontend Development', 'Backend Development', 'Programming'],
+      'software': ['Software Development', 'Frontend Development', 'Backend Development', 'Programming'], // Add mapping for just "Software"
+      'frontend development': ['Frontend Development'],
       'frontend': ['Frontend Development'],
+      'backend development': ['Backend Development', 'Backend'],
       'backend': ['Backend Development', 'Backend'],
       'database': ['Database', 'Database Management'],
       'devops': ['DevOps', 'Cloud'],
@@ -241,21 +244,61 @@ export async function POST(request: NextRequest) {
       'web development': ['Frontend Development', 'Backend Development']
     };
 
-    // Get mapped fields or use original field
-    const mappedFields = fieldMapping[field.toLowerCase()] || [field];
-    console.log(`🔄 Mapping field "${field}" to database fields:`, mappedFields);
+    // Also map to categories for better matching
+    const categoryMapping: Record<string, string[]> = {
+      'software development': ['Software Development'],
+      'software': ['Software Development'],
+      'frontend development': ['Frontend Development', 'Frontend'],
+      'frontend': ['Frontend Development', 'Frontend'],
+      'backend development': ['Backend Development', 'Backend'],
+      'backend': ['Backend Development', 'Backend'],
+      'database': ['Database'],
+      'devops': ['DevOps'],
+      'mobile': ['Mobile Development', 'Mobile'],
+      'web development': ['Software Development', 'Frontend Development', 'Backend Development']
+    };
 
-    // Build where clause for database query with more flexible topic matching
+    // Get mapped fields and categories
+    const mappedFields = fieldMapping[field.toLowerCase()] || [field];
+    const mappedCategories = categoryMapping[field.toLowerCase()] || [field];
+    
+    console.log(`🔄 Mapping field "${field}" to:`, {
+      fields: mappedFields,
+      categories: mappedCategories
+    });
+
+    // Add debug logging for field matching
+    console.log('📊 Field matching debug:', {
+      originalField: field,
+      lowerCaseField: field.toLowerCase(),
+      mappedFields,
+      mappedCategories,
+      hasFieldMapping: !!fieldMapping[field.toLowerCase()],
+      hasCategoryMapping: !!categoryMapping[field.toLowerCase()]
+    });
+
+    // Build where clause for database query with both fields and category filtering
     let whereClause;
 
     if (selectedSkills && selectedSkills.length > 0) {
-      // Use AND + OR condition to search in topics, skills, and fields
+      // Use AND + OR condition to search in topics, skills, fields, and category
       whereClause = {
         AND: [
           {
-            fields: {
-              hasSome: mappedFields
-            }
+            OR: [
+              // Match by fields
+              {
+                fields: {
+                  hasSome: mappedFields
+                }
+              },
+              // Match by category
+              {
+                category: {
+                  in: mappedCategories
+                }
+              }
+            ]
           },
           {
             isArchived: false
@@ -288,14 +331,27 @@ export async function POST(request: NextRequest) {
       console.log('🎯 Searching for skills in topics/skills/content:', selectedSkills);
     } else {
       whereClause = {
-        fields: {
-          hasSome: mappedFields
-        },
+        OR: [
+          // Match by fields
+          {
+            fields: {
+              hasSome: mappedFields
+            }
+          },
+          // Match by category
+          {
+            category: {
+              in: mappedCategories
+            }
+          }
+        ],
         isArchived: false
       };
     }
 
     // Fetch questions from database
+    console.log('🔍 Database query where clause:', JSON.stringify(whereClause, null, 2));
+    
     const dbQuestions = await prisma.questionItem.findMany({
       where: whereClause,
       select: {
@@ -314,16 +370,78 @@ export async function POST(request: NextRequest) {
     });
 
     console.log('📋 Found questions:', dbQuestions.length);
-    console.log('📋 Sample questions found:', dbQuestions.slice(0, 3).map(q => ({
+    console.log('📋 Total questions in fields:', mappedFields);
+    console.log('📋 Total questions in categories:', mappedCategories);
+    
+    // Debug: show actual fields and categories in database for these questions
+    const actualFieldsSet = new Set(dbQuestions.flatMap(q => q.fields));
+    const actualFields = Array.from(actualFieldsSet);
+    const actualCategoriesSet = new Set(dbQuestions.map(q => q.category).filter(Boolean));
+    const actualCategories = Array.from(actualCategoriesSet);
+    
+    console.log('📋 Actual fields in found questions:', actualFields);
+    console.log('📋 Actual categories in found questions:', actualCategories);
+    
+    console.log('📋 Sample questions found:', dbQuestions.slice(0, 5).map(q => ({
       id: q.id,
       question: q.stem.substring(0, 100) + '...',
       topics: q.topics,
       skills: q.skills,
+      fields: q.fields,
+      category: q.category,
       difficulty: q.difficulty
     })));
     
     if (selectedSkills && selectedSkills.length > 0) {
       console.log('🎯 Filtering by selected skills:', selectedSkills);
+      
+      // Debug: count questions by category and skills
+      const categoryBreakdown = dbQuestions.reduce((acc: Record<string, number>, q) => {
+        const category = q.category || 'No Category';
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log('📊 Questions by category:', categoryBreakdown);
+      
+      // Debug: show which questions match which skills
+      let reactQuestionsCount = 0;
+      dbQuestions.forEach(q => {
+        const matchingInTopics = q.topics?.filter(topic => 
+          selectedSkills.some((skill: string) => 
+            topic.toLowerCase().includes(skill.toLowerCase()) ||
+            skill.toLowerCase().includes(topic.toLowerCase())
+          )
+        );
+        const matchingInSkills = q.skills?.filter(skill => 
+          selectedSkills.some((selectedSkill: string) => 
+            skill.toLowerCase().includes(selectedSkill.toLowerCase()) ||
+            selectedSkill.toLowerCase().includes(skill.toLowerCase())
+          )
+        );
+        
+        const hasReactMatch = matchingInTopics?.some(t => t.toLowerCase().includes('react')) ||
+                             matchingInSkills?.some(s => s.toLowerCase().includes('react'));
+        
+        if (hasReactMatch) {
+          reactQuestionsCount++;
+        }
+        
+        if (matchingInTopics?.length || matchingInSkills?.length) {
+          console.log(`🎯 Question matches:`, {
+            questionId: q.id,
+            question: q.stem.substring(0, 60) + '...',
+            category: q.category,
+            matchingInTopics,
+            matchingInSkills,
+            allTopics: q.topics,
+            allSkills: q.skills,
+            hasReactMatch
+          });
+        }
+      });
+      
+      console.log('⚛️ Total React-related questions found:', reactQuestionsCount);
     }
 
     // Map questions to context structure with difficulty support

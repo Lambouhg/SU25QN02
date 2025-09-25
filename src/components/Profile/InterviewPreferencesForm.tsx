@@ -300,12 +300,23 @@ const InterviewPreferencesForm: React.FC<InterviewPreferencesFormProps> = ({
         const savedPreferences = await response.json();
         
         // Sync selectedSkills to User.skills table using utility function
+        // Only sync if User.skills is empty or outdated
         if (preferences.interviewPreferences?.selectedSkills) {
           try {
-            await syncSkills({
-              skills: preferences.interviewPreferences.selectedSkills,
-              syncToInterviewPreferences: false // Already saved above
-            });
+            // Check current User.skills first
+            const userResponse = await fetch('/api/user/current');
+            const shouldSync = !userResponse.ok || 
+              !(await userResponse.json()).skills?.length;
+            
+            if (shouldSync) {
+              console.log('🔄 Syncing interview skills to User.skills (User.skills is empty)');
+              await syncSkills({
+                skills: preferences.interviewPreferences.selectedSkills,
+                syncToInterviewPreferences: false // Already saved above
+              });
+            } else {
+              console.log('⏭️ Skipping skill sync (User.skills already has data)');
+            }
           } catch (syncError) {
             console.warn('Failed to sync skills to User.skills:', syncError);
           }
