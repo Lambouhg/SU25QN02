@@ -31,7 +31,7 @@ interface SkillDetailedAnalysisProps {
 }
 
 const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills }) => {
-  // Nhóm kỹ năng theo category
+  // Group skills by category
   const skillCategories = {
     technical: ['Programming', 'Database', 'System Design', 'Data Structures', 'Algorithms', 'API Design'],
     communication: ['Communication', 'Presentation', 'Teamwork', 'Leadership', 'Problem Explanation'],
@@ -58,14 +58,12 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
     }
   };
 
-
-
   const getScoreLevel = (score: number) => {
-    if (score >= 90) return { level: 'Chuyên gia', color: 'text-purple-600 bg-purple-100' };
-    if (score >= 80) return { level: 'Thành thạo', color: 'text-green-600 bg-green-100' };
-    if (score >= 70) return { level: 'Tốt', color: 'text-blue-600 bg-blue-100' };
-    if (score >= 60) return { level: 'Khá', color: 'text-yellow-600 bg-yellow-100' };
-    return { level: 'Cần cải thiện', color: 'text-red-600 bg-red-100' };
+    if (score >= 90) return { level: 'Expert', color: 'text-purple-600 bg-purple-100' };
+    if (score >= 80) return { level: 'Proficient', color: 'text-green-600 bg-green-100' };
+    if (score >= 70) return { level: 'Good', color: 'text-blue-600 bg-blue-100' };
+    if (score >= 60) return { level: 'Fair', color: 'text-yellow-600 bg-yellow-100' };
+    return { level: 'Needs Improvement', color: 'text-red-600 bg-red-100' };
   };
 
   const getTrendIcon = (trend: string, improvement: number) => {
@@ -78,7 +76,7 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
     return <Activity className="h-4 w-4 text-gray-500" />;
   };
 
-  // Phân tích tổng quan kỹ năng
+  // Skill summary analysis
   const getSkillSummary = () => {
     if (skills.length === 0) return null;
 
@@ -122,10 +120,10 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
         <div className="text-center">
           <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Chưa Có Phân Tích Kỹ Năng
+            No Skill Analysis Yet
           </h3>
           <p className="text-gray-600 mb-6">
-            Bắt đầu luyện tập để xem phân tích chi tiết về kỹ năng của bạn.
+            Start practicing to see detailed analysis of your skills.
           </p>
         </div>
       </Card>
@@ -140,26 +138,26 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-indigo-800">
               <Award className="h-5 w-5" />
-              Tổng Quan Kỹ Năng
+              Skill Overview
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="text-center p-3 bg-white rounded-lg border border-indigo-200">
                 <div className="text-2xl font-bold text-indigo-900">{Math.round(summary.avgScore)}%</div>
-                <div className="text-sm text-indigo-600">Điểm TB Tổng</div>
+                <div className="text-sm text-indigo-600">Average Score</div>
               </div>
               <div className="text-center p-3 bg-white rounded-lg border border-indigo-200">
                 <div className="text-2xl font-bold text-green-600">{summary.improvingSkills}</div>
-                <div className="text-sm text-indigo-600">Kỹ Năng Tăng</div>
+                <div className="text-sm text-indigo-600">Improving Skills</div>
               </div>
               <div className="text-center p-3 bg-white rounded-lg border border-indigo-200">
                 <div className="text-2xl font-bold text-red-600">{summary.decliningSkills}</div>
-                <div className="text-sm text-indigo-600">Cần Chú Ý</div>
+                <div className="text-sm text-indigo-600">Needs Attention</div>
               </div>
               <div className="text-center p-3 bg-white rounded-lg border border-indigo-200">
                 <div className="text-2xl font-bold text-indigo-900">{summary.totalSkills}</div>
-                <div className="text-sm text-indigo-600">Tổng Kỹ Năng</div>
+                <div className="text-sm text-indigo-600">Total Skills</div>
               </div>
             </div>
             
@@ -167,7 +165,7 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
               <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <Award className="h-4 w-4 text-green-600" />
-                  <span className="font-semibold text-green-800">Kỹ Năng Mạnh Nhất</span>
+                  <span className="font-semibold text-green-800">Strongest Skill</span>
                 </div>
                 <div className="text-sm">
                   <span className="font-medium">{summary.topSkill.skillName}</span>
@@ -178,7 +176,7 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <Target className="h-4 w-4 text-amber-600" />
-                  <span className="font-semibold text-amber-800">Cần Cải Thiện</span>
+                  <span className="font-semibold text-amber-800">Needs Improvement</span>
                 </div>
                 <div className="text-sm">
                   <span className="font-medium">{summary.needsWorkSkill.skillName}</span>
@@ -199,13 +197,13 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <IconComponent className="h-5 w-5" />
-                {category === 'technical' && 'Kỹ Năng Kỹ Thuật'}
-                {category === 'communication' && 'Kỹ Năng Giao Tiếp'}
-                {category === 'problemSolving' && 'Tư Duy Logic'}
-                {category === 'interview' && 'Kỹ Năng Phỏng Vấn'}
-                {category === 'other' && 'Kỹ Năng Khác'}
+                {category === 'technical' && 'Technical Skills'}
+                {category === 'communication' && 'Communication Skills'}
+                {category === 'problemSolving' && 'Logical Thinking'}
+                {category === 'interview' && 'Interview Skills'}
+                {category === 'other' && 'Other Skills'}
                 <Badge variant="outline" className="ml-2">
-                  {categorySkills.length} kỹ năng
+                  {categorySkills.length} skills
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -230,7 +228,7 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
                               {scoreLevel.level}
                             </Badge>
                             <span className="text-sm text-gray-600">
-                              Điểm hiện tại: {Math.round(skill.currentScore)}%
+                              Current Score: {Math.round(skill.currentScore)}%
                             </span>
                           </div>
                         </div>
@@ -239,7 +237,7 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
                           {recentGrowth !== 0 && (
                             <div className={`text-sm ${recentGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
                               {recentGrowth > 0 ? '+' : ''}{Math.round(recentGrowth)}%
-                              <div className="text-xs text-gray-500">từ lần cuối</div>
+                              <div className="text-xs text-gray-500">since last</div>
                             </div>
                           )}
                         </div>
@@ -260,7 +258,7 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
                           <div className="flex items-center gap-2 mb-2">
                             <Zap className="h-3 w-3 text-blue-500" />
                             <span className="text-xs text-gray-600">
-                              Lịch sử ({skill.timeline.length} lần đánh giá)
+                              History ({skill.timeline.length} assessments)
                             </span>
                           </div>
                           <div className="flex items-end gap-1 h-8">
@@ -271,7 +269,7 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
                                 style={{ height: `${(point.score / 100) * 100}%`, minHeight: '2px' }}
                               >
                                 <div className="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                  {Math.round(point.score)}% - {new Date(point.date).toLocaleDateString('vi-VN')}
+                                  {Math.round(point.score)}% - {new Date(point.date).toLocaleDateString('en-US')}
                                 </div>
                               </div>
                             ))}
@@ -284,11 +282,11 @@ const SkillDetailedAnalysis: React.FC<SkillDetailedAnalysisProps> = ({ skills })
                         <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
                           <div className="flex items-center gap-2 mb-1">
                             <Lightbulb className="h-3 w-3 text-blue-600" />
-                            <span className="text-xs font-medium text-blue-800">Gợi ý cải thiện:</span>
+                            <span className="text-xs font-medium text-blue-800">Improvement Suggestions:</span>
                           </div>
                           <p className="text-xs text-blue-700">
-                            {skill.currentScore < 50 && 'Cần luyện tập cơ bản và đọc tài liệu để nắm vững kiến thức.'}
-                            {skill.currentScore >= 50 && skill.currentScore < 75 && 'Hãy thực hành nhiều bài tập và tham gia các dự án thực tế.'}
+                            {skill.currentScore < 50 && 'Practice basic exercises and read documentation to master the fundamentals.'}
+                            {skill.currentScore >= 50 && skill.currentScore < 75 && 'Do more exercises and participate in real-world projects.'}
                           </p>
                         </div>
                       )}

@@ -429,7 +429,11 @@ export default function DashboardPage() {
         latest,
         previous,
         chartDataLength: memoizedChartData.length,
-        comparisonLogic: viewMode === 'session' ? 'first-with-data vs latest' : 'previous vs latest'
+        comparisonLogic: viewMode === 'session' ? 'first-with-data vs latest' : 'previous vs latest',
+        fullChartData: memoizedChartData,
+        quizComparison: { latest: latest?.quiz, previous: previous?.quiz },
+        testComparison: { latest: latest?.test, previous: previous?.test },
+        interviewComparison: { latest: latest?.interview, previous: previous?.interview }
       });
       
       const calculateModeMetrics = (latest: number, previous: number, mode: string, activityType: 'quiz' | 'test' | 'interview'): { percentage: number; trend: 'improving' | 'declining' | 'stable' } => {
@@ -446,9 +450,10 @@ export default function DashboardPage() {
         let percentage = 0;
         let trend: 'improving' | 'declining' | 'stable' = 'stable';
         
-        if (actualPrevious > 0) {
-          // Normal percentage calculation
-          percentage = Math.round((change / actualPrevious) * 100 * 100) / 100;
+        if (actualPrevious >= 0) {
+          // Normalized growth calculation (based on 10-point scale)
+          const maxScore = 10;
+          percentage = Math.round((change / maxScore) * 100);
           trend = percentage > 2 ? 'improving' as const : percentage < -2 ? 'declining' as const : 'stable' as const;
         } else if (actualPrevious === 0 && latest > 0) {
           // Special case: starting from 0, show significant improvement
@@ -462,7 +467,16 @@ export default function DashboardPage() {
         
         console.log(`📈 ${mode} Metrics:`, {
           latest, previous: actualPrevious, change, percentage: Math.abs(percentage), trend,
-          sessionComparison: viewMode === 'session' ? `First ${activityType} session vs latest` : 'Previous vs latest'
+          sessionComparison: viewMode === 'session' ? `First ${activityType} session vs latest` : 'Previous vs latest',
+          calculation: `(${latest} - ${actualPrevious}) / 10 * 100 = ${percentage}%`,
+          rawData: { 
+            latest, 
+            actualPrevious, 
+            maxScore: 10,
+            rawChange: change,
+            rawPercentage: (change / 10) * 100,
+            roundedPercentage: Math.round((change / 10) * 100)
+          }
         });
         
         return { percentage: Math.abs(percentage), trend };

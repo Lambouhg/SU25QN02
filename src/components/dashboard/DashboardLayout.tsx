@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion,  History, 
   Star, Settings, Menu, X, Search, LogOut, Shield,
-  ChevronRight, ChevronDown, BookOpen, BarChart3
+  ChevronRight, ChevronDown, BookOpen, BarChart3, TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
 import { UserButton, useUser, useClerk } from '@clerk/nextjs';
@@ -175,6 +175,12 @@ export default function DashboardLayout({
       label: 'Usage',
       href: '/usage',
       key: 'usage'
+    },
+    {
+      icon: TrendingUp,
+      label: 'Analytics',
+      href: '/detailed-analytics',
+      key: 'analytics'
     },
     { 
       icon: Star, 

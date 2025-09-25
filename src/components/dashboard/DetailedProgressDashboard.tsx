@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import LearningMilestones from './analytics/LearningMilestones';
 import SkillDetailedAnalysis from './analytics/SkillDetailedAnalysis';
 import PersonalizedInsights from './analytics/PersonalizedInsights';
-import StudyTimeAnalysis from './analytics/StudyTimeAnalysis';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -158,11 +157,7 @@ const DetailedProgressDashboard: React.FC = () => {
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
+
 
 
 
@@ -305,14 +300,13 @@ const DetailedProgressDashboard: React.FC = () => {
 
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
-          <TabsTrigger value="skills">Skills</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="insights">Insights</TabsTrigger>
-          <TabsTrigger value="milestones">Milestones</TabsTrigger>
-          <TabsTrigger value="studytime">Study Time</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-6 bg-white border border-gray-200 shadow-sm">
+          <TabsTrigger value="overview" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Overview</TabsTrigger>
+          <TabsTrigger value="trends" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Trends</TabsTrigger>
+          <TabsTrigger value="skills" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Skills</TabsTrigger>
+          <TabsTrigger value="performance" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Performance</TabsTrigger>
+          <TabsTrigger value="insights" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Insights</TabsTrigger>
+          <TabsTrigger value="milestones" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">Milestones</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -373,9 +367,9 @@ const DetailedProgressDashboard: React.FC = () => {
                       textAnchor="end"
                       height={60}
                     />
-                    <YAxis domain={[0, 100]} />
+                    <YAxis domain={[0, 10]} />
                     <Tooltip 
-                      formatter={(value) => [`${safeToFixed(Number(value))}%`, 'Score']}
+                      formatter={(value) => [`${safeToFixed(Number(value))}/10`, 'Score']}
                       labelFormatter={(label) => `Date: ${new Date(label).toLocaleDateString()}`}
                       contentStyle={{
                         backgroundColor: '#f8fafc',
@@ -618,41 +612,6 @@ const DetailedProgressDashboard: React.FC = () => {
               </CardContent>
             </Card>
           </div>
-
-          {/* Detailed Timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Activity Timeline</CardTitle>
-              <p className="text-sm text-gray-600">Detailed breakdown of your recent activities</p>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {trends.timeline.slice(0, 5).map((period, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="font-medium text-gray-900">
-                          {new Date(period.period).toLocaleDateString()}
-                        </span>
-                        <Badge variant="outline">
-                          {period.totalActivities} activities
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        Average Score: {safeToFixed(period.avgScore)}% • 
-                        Time: {Math.round(period.totalDuration / 60)} minutes
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-lg font-bold ${getScoreColor(period.avgScore)}`}>
-                        {safeToFixed(period.avgScore)}%
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Performance Tab */}
@@ -765,17 +724,24 @@ const DetailedProgressDashboard: React.FC = () => {
             totalActivities={trends.totalEvents}
             weeklyAvgScore={insights.summary.weeklyAvgScore}
             monthlyAvgScore={insights.summary.monthlyAvgScore}
-            totalStudyTime={trends.timeline.reduce((sum, t) => sum + t.totalDuration, 0)}
-          />
-        </TabsContent>
-
-        {/* New Study Time Analysis Tab */}
-        <TabsContent value="studytime" className="space-y-6">
-          <StudyTimeAnalysis
-            timeline={trends.timeline}
-            timeRange={timeRange}
-            totalStudyTime={trends.timeline.reduce((sum, t) => sum + t.totalDuration, 0)}
-            currentStreak={insights.summary.currentStreak}
+            totalStudyTime={(() => {
+              const calculatedTime = trends.timeline.reduce((sum, t) => sum + t.totalDuration, 0);
+              console.log('🔍 Study Time Debug:', {
+                timelineLength: trends.timeline.length,
+                timelineData: trends.timeline.map(t => ({
+                  period: t.period,
+                  totalDuration: t.totalDuration,
+                  totalActivities: t.totalActivities
+                })),
+                calculatedTimeMinutes: Math.round(calculatedTime / 60 * 100) / 100,
+                calculatedTimeSeconds: calculatedTime,
+                milestoneHours: {
+                  firstHour: calculatedTime >= 60 * 60 ? 'PASSED' : 'FAILED',
+                  fiveHours: calculatedTime >= 5 * 60 * 60 ? 'PASSED' : 'FAILED'
+                }
+              });
+              return calculatedTime;
+            })()}
           />
         </TabsContent>
       </Tabs>

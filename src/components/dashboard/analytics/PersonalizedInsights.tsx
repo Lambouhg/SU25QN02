@@ -88,24 +88,24 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
     if (currentStreak === 0) {
       insights.push({
         type: 'streak',
-        title: 'Bắt Đầu Streak Mới',
-        message: 'Hãy bắt đầu chuỗi học tập liên tục để xây dựng thói quen học tập tốt.',
+        title: 'Start a New Streak',
+        message: 'Begin a continuous learning streak to build good study habits.',
         icon: <Calendar className="h-5 w-5 text-blue-500" />,
         color: 'bg-blue-50 border-blue-200'
       });
     } else if (currentStreak < 3) {
       insights.push({
         type: 'streak',
-        title: 'Đang Xây Dựng Thói Quen',
-        message: `Bạn đã học ${currentStreak} ngày liên tục! Hãy tiếp tục để đạt mốc 7 ngày.`,
+        title: 'Building a Habit',
+        message: `You've studied for ${currentStreak} consecutive days! Keep going to reach 7 days.`,
         icon: <Calendar className="h-5 w-5 text-green-500" />,
         color: 'bg-green-50 border-green-200'
       });
     } else if (currentStreak >= 7) {
       insights.push({
         type: 'streak',
-        title: 'Streak Ấn Tượng!',
-        message: `Xuất sắc! Bạn đã duy trì streak ${currentStreak} ngày. Đây là thói quen tuyệt vời!`,
+        title: 'Impressive Streak!',
+        message: `Excellent! You've maintained a ${currentStreak}-day streak. This is a great habit!`,
         icon: <Star className="h-5 w-5 text-purple-500" />,
         color: 'bg-purple-50 border-purple-200'
       });
@@ -115,16 +115,16 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
     if (totalActivities < 5) {
       insights.push({
         type: 'activity',
-        title: 'Tăng Cường Luyện Tập',
-        message: 'Hãy tham gia thêm nhiều hoạt động để có trải nghiệm học tập toàn diện hơn.',
+        title: 'Increase Practice',
+        message: 'Participate in more activities for a more comprehensive learning experience.',
         icon: <Zap className="h-5 w-5 text-orange-500" />,
         color: 'bg-orange-50 border-orange-200'
       });
     } else if (totalActivities >= 25) {
       insights.push({
         type: 'activity',
-        title: 'Người Học Tích Cực',
-        message: `Bạn đã hoàn thành ${totalActivities} hoạt động! Đây là nỗ lực đáng khen ngợi.`,
+        title: 'Active Learner',
+        message: `You've completed ${totalActivities} activities! This is commendable effort.`,
         icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
         color: 'bg-green-50 border-green-200'
       });
@@ -134,16 +134,16 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
     if (avgScore >= 85) {
       insights.push({
         type: 'performance',
-        title: 'Thành Tích Xuất Sắc',
-        message: `Điểm trung bình ${Math.round(avgScore)}% cho thấy bạn có hiệu suất học tập rất tốt!`,
+        title: 'Outstanding Performance',
+        message: `An average score of ${Math.round(avgScore)}% shows excellent learning efficiency!`,
         icon: <TrendingUp className="h-5 w-5 text-purple-500" />,
         color: 'bg-purple-50 border-purple-200'
       });
     } else if (avgScore < 60) {
       insights.push({
         type: 'performance',
-        title: 'Cải Thiện Điểm Số',
-        message: 'Hãy tập trung vào việc ôn tập và luyện tập để cải thiện điểm số.',
+        title: 'Improve Your Score',
+        message: 'Focus on reviewing and practicing to improve your scores.',
         icon: <Target className="h-5 w-5 text-red-500" />,
         color: 'bg-red-50 border-red-200'
       });
@@ -153,16 +153,16 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
     if (weeklyTrend.direction === 'improving') {
       insights.push({
         type: 'trend',
-        title: 'Xu Hướng Tích Cực',
-        message: 'Hiệu suất của bạn đang cải thiện trong tuần qua. Hãy duy trì!',
+        title: 'Positive Trend',
+        message: 'Your performance has improved over the past week. Keep it up!',
         icon: <TrendingUp className="h-5 w-5 text-green-500" />,
         color: 'bg-green-50 border-green-200'
       });
     } else if (weeklyTrend.direction === 'declining') {
       insights.push({
         type: 'trend',
-        title: 'Cần Chú Ý',
-        message: 'Hiệu suất đang giảm trong tuần qua. Hãy xem lại phương pháp học tập.',
+        title: 'Needs Attention',
+        message: 'Performance has declined this week. Review your study methods.',
         icon: <TrendingDown className="h-5 w-5 text-yellow-500" />,
         color: 'bg-yellow-50 border-yellow-200'
       });
@@ -180,10 +180,10 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-purple-800">
             <Lightbulb className="h-5 w-5" />
-            Nhận Xét Cá Nhân
+            Personalized Insights
           </CardTitle>
           <p className="text-sm text-purple-600">
-            Phân tích dựa trên hoạt động học tập của bạn
+            Analysis based on your learning activity
           </p>
         </CardHeader>
         <CardContent>
@@ -209,7 +209,7 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5" />
-              Cảnh Báo & Lưu Ý ({alerts.length})
+              Alerts & Notices ({alerts.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -220,13 +220,13 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
                     {getSeverityIcon(alert.severity)}
                     <div className="flex-1">
                       <AlertDescription className="text-red-800">
-                        <strong>{alert.type === 'performance' ? 'Hiệu suất' : 
+                        <strong>{alert.type === 'performance' ? 'Performance' : 
                                 alert.type === 'streak' ? 'Streak' : 
-                                alert.type === 'goal' ? 'Mục tiêu' : 'Học tập'}:</strong> {alert.message}
+                                alert.type === 'goal' ? 'Goal' : 'Learning'}:</strong> {alert.message}
                       </AlertDescription>
                       {alert.suggestions && alert.suggestions.length > 0 && (
                         <div className="mt-2">
-                          <p className="text-sm font-medium text-red-800 mb-1">Gợi ý:</p>
+                          <p className="text-sm font-medium text-red-800 mb-1">Suggestions:</p>
                           <ul className="text-sm text-red-700 space-y-1">
                             {alert.suggestions.map((suggestion, idx) => (
                               <li key={idx} className="flex items-start gap-2">
@@ -252,10 +252,10 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Khuyến Nghị AI ({recommendations.length})
+              AI Recommendations ({recommendations.length})
             </CardTitle>
             <p className="text-sm text-gray-600">
-              Được tạo dựa trên mô hình phân tích học tập của bạn
+              Generated based on your learning analytics model
             </p>
           </CardHeader>
           <CardContent>
@@ -269,22 +269,22 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-semibold text-gray-900">
-                          {rec.type === 'study_plan' && 'Kế Hoạch Học Tập'}
-                          {rec.type === 'skill_focus' && 'Tập Trung Kỹ Năng'}
-                          {rec.type === 'practice' && 'Luyện Tập'}
-                          {rec.type === 'schedule' && 'Thời Gian Biểu'}
-                          {rec.type === 'performance' && 'Cải Thiện Hiệu Suất'}
-                          {!['study_plan', 'skill_focus', 'practice', 'schedule', 'performance'].includes(rec.type) && 'Khuyến Nghị'}
+                          {rec.type === 'study_plan' && 'Study Plan'}
+                          {rec.type === 'skill_focus' && 'Skill Focus'}
+                          {rec.type === 'practice' && 'Practice'}
+                          {rec.type === 'schedule' && 'Schedule'}
+                          {rec.type === 'performance' && 'Improve Performance'}
+                          {!['study_plan', 'skill_focus', 'practice', 'schedule', 'performance'].includes(rec.type) && 'Recommendation'}
                         </h4>
                         <Badge className={getPriorityColor(rec.priority)}>
-                          {rec.priority === 'high' ? 'Cao' : rec.priority === 'medium' ? 'Trung bình' : 'Thấp'}
+                          {rec.priority === 'high' ? 'High' : rec.priority === 'medium' ? 'Medium' : 'Low'}
                         </Badge>
                       </div>
                       <p className="text-gray-700 text-sm mb-3">{rec.message}</p>
                       
                       {rec.actions && rec.actions.length > 0 && (
                         <div>
-                          <p className="text-sm font-medium text-gray-800 mb-2">Hành động cụ thể:</p>
+                          <p className="text-sm font-medium text-gray-800 mb-2">Specific actions:</p>
                           <ul className="space-y-1">
                             {rec.actions.map((action, actionIdx) => (
                               <li key={actionIdx} className="flex items-start gap-2 text-sm text-gray-600">
@@ -309,13 +309,13 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-blue-800">
             <Clock className="h-5 w-5" />
-            Phân Tích Xu Hướng Học Tập
+            Study Trend Analysis
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <h4 className="font-semibold text-blue-900">Xu Hướng Tuần Này</h4>
+              <h4 className="font-semibold text-blue-900">This Week's Trend</h4>
               <div className="flex items-center gap-3">
                 {weeklyTrend.direction === 'improving' ? (
                   <TrendingUp className="h-6 w-6 text-green-500" />
@@ -326,19 +326,19 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
                 )}
                 <div>
                   <p className="font-medium">
-                    {weeklyTrend.direction === 'improving' && 'Đang Cải Thiện'}
-                    {weeklyTrend.direction === 'declining' && 'Đang Giảm'}
-                    {weeklyTrend.direction === 'stable' && 'Ổn Định'}
+                    {weeklyTrend.direction === 'improving' && 'Improving'}
+                    {weeklyTrend.direction === 'declining' && 'Declining'}
+                    {weeklyTrend.direction === 'stable' && 'Stable'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Hiệu suất {weeklyTrend.direction === 'improving' ? 'tăng' : weeklyTrend.direction === 'declining' ? 'giảm' : 'không đổi'} trong tuần qua
+                    Performance {weeklyTrend.direction === 'improving' ? 'increased' : weeklyTrend.direction === 'declining' ? 'decreased' : 'remained stable'} this week
                   </p>
                 </div>
               </div>
             </div>
             
             <div className="space-y-3">
-              <h4 className="font-semibold text-blue-900">Xu Hướng Tháng Này</h4>
+              <h4 className="font-semibold text-blue-900">This Month's Trend</h4>
               <div className="flex items-center gap-3">
                 {monthlyTrend.direction === 'improving' ? (
                   <TrendingUp className="h-6 w-6 text-green-500" />
@@ -349,12 +349,12 @@ const PersonalizedInsights: React.FC<PersonalizedInsightsProps> = ({
                 )}
                 <div>
                   <p className="font-medium">
-                    {monthlyTrend.direction === 'improving' && 'Tiến Bộ Dài Hạn'}
-                    {monthlyTrend.direction === 'declining' && 'Cần Chú Ý'}
-                    {monthlyTrend.direction === 'stable' && 'Ổn Định'}
+                    {monthlyTrend.direction === 'improving' && 'Long-term Progress'}
+                    {monthlyTrend.direction === 'declining' && 'Needs Attention'}
+                    {monthlyTrend.direction === 'stable' && 'Stable'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Hiệu suất {monthlyTrend.direction === 'improving' ? 'tăng' : monthlyTrend.direction === 'declining' ? 'giảm' : 'không đổi'} trong tháng qua
+                    Performance {monthlyTrend.direction === 'improving' ? 'increased' : monthlyTrend.direction === 'declining' ? 'decreased' : 'remained stable'} this month
                   </p>
                 </div>
               </div>

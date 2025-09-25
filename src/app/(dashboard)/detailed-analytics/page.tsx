@@ -2,6 +2,7 @@
 
 import React from 'react';
 import DetailedProgressDashboard from '@/components/dashboard/DetailedProgressDashboard';
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, BarChart3 } from 'lucide-react';
@@ -9,8 +10,9 @@ import Link from 'next/link';
 
 export default function DetailedAnalyticsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
+    <DashboardLayout>
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -135,5 +137,6 @@ export default function DetailedAnalyticsPage() {
         </Card>
       </div>
     </div>
+    </DashboardLayout>
   );
 }

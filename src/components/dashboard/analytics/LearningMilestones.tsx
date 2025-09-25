@@ -40,34 +40,34 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
   weeklyAvgScore,
   totalStudyTime
 }) => {
-  // Định nghĩa các milestone có thể đạt được
+  // Define possible milestones
   const allMilestones = [
     // Streak Milestones
-    { type: 'streak', threshold: 3, title: '3-Day Streak', description: 'Học liên tục 3 ngày', icon: Flame, color: 'orange' },
-    { type: 'streak', threshold: 7, title: 'Weekly Warrior', description: 'Học liên tục 1 tuần', icon: Flame, color: 'orange' },
-    { type: 'streak', threshold: 14, title: 'Two-Week Champion', description: 'Học liên tục 2 tuần', icon: Flame, color: 'red' },
-    { type: 'streak', threshold: 30, title: 'Monthly Master', description: 'Học liên tục 1 tháng', icon: Trophy, color: 'gold' },
+    { type: 'streak', threshold: 3, title: '3-Day Streak', description: 'Study for 3 consecutive days', icon: Flame, color: 'orange' },
+    { type: 'streak', threshold: 7, title: 'Weekly Warrior', description: 'Study for 1 week straight', icon: Flame, color: 'orange' },
+    { type: 'streak', threshold: 14, title: 'Two-Week Champion', description: 'Study for 2 weeks straight', icon: Flame, color: 'red' },
+    { type: 'streak', threshold: 30, title: 'Monthly Master', description: 'Study for 1 month straight', icon: Trophy, color: 'gold' },
     
     // Activity Milestones
-    { type: 'activities', threshold: 5, title: 'Getting Started', description: 'Hoàn thành 5 hoạt động', icon: Target, color: 'blue' },
-    { type: 'activities', threshold: 10, title: 'Committed Learner', description: 'Hoàn thành 10 hoạt động', icon: CheckCircle2, color: 'green' },
-    { type: 'activities', threshold: 25, title: 'Practice Expert', description: 'Hoàn thành 25 hoạt động', icon: Star, color: 'purple' },
-    { type: 'activities', threshold: 50, title: 'Dedication Master', description: 'Hoàn thành 50 hoạt động', icon: Award, color: 'gold' },
-    { type: 'activities', threshold: 100, title: 'Century Club', description: 'Hoàn thành 100 hoạt động', icon: Trophy, color: 'gold' },
+    { type: 'activities', threshold: 5, title: 'Getting Started', description: 'Complete 5 activities', icon: Target, color: 'blue' },
+    { type: 'activities', threshold: 10, title: 'Committed Learner', description: 'Complete 10 activities', icon: CheckCircle2, color: 'green' },
+    { type: 'activities', threshold: 25, title: 'Practice Expert', description: 'Complete 25 activities', icon: Star, color: 'purple' },
+    { type: 'activities', threshold: 50, title: 'Dedication Master', description: 'Complete 50 activities', icon: Award, color: 'gold' },
+    { type: 'activities', threshold: 100, title: 'Century Club', description: 'Complete 100 activities', icon: Trophy, color: 'gold' },
     
     // Score Milestones
-    { type: 'score', threshold: 70, title: 'Solid Performer', description: 'Điểm trung bình tuần đạt 70%', icon: TrendingUp, color: 'green' },
-    { type: 'score', threshold: 80, title: 'High Achiever', description: 'Điểm trung bình tuần đạt 80%', icon: Star, color: 'purple' },
-    { type: 'score', threshold: 90, title: 'Excellence Award', description: 'Điểm trung bình tuần đạt 90%', icon: Trophy, color: 'gold' },
+    { type: 'score', threshold: 70, title: 'Solid Performer', description: 'Weekly average score reaches 70%', icon: TrendingUp, color: 'green' },
+    { type: 'score', threshold: 80, title: 'High Achiever', description: 'Weekly average score reaches 80%', icon: Star, color: 'purple' },
+    { type: 'score', threshold: 90, title: 'Excellence Award', description: 'Weekly average score reaches 90%', icon: Trophy, color: 'gold' },
     
     // Study Time Milestones (in minutes)
-    { type: 'study_time', threshold: 60, title: 'First Hour', description: 'Học tổng cộng 1 giờ', icon: Clock, color: 'blue' },
-    { type: 'study_time', threshold: 300, title: 'Five Hours Strong', description: 'Học tổng cộng 5 giờ', icon: Clock, color: 'green' },
-    { type: 'study_time', threshold: 600, title: 'Ten Hour Hero', description: 'Học tổng cộng 10 giờ', icon: Zap, color: 'purple' },
-    { type: 'study_time', threshold: 1200, title: 'Study Marathon', description: 'Học tổng cộng 20 giờ', icon: Award, color: 'gold' }
+    { type: 'study_time', threshold: 60, title: 'First Hour', description: 'Total study time reaches 1 hour', icon: Clock, color: 'blue' },
+    { type: 'study_time', threshold: 300, title: 'Five Hours Strong', description: 'Total study time reaches 5 hours', icon: Clock, color: 'green' },
+    { type: 'study_time', threshold: 600, title: 'Ten Hour Hero', description: 'Total study time reaches 10 hours', icon: Zap, color: 'purple' },
+    { type: 'study_time', threshold: 1200, title: 'Study Marathon', description: 'Total study time reaches 20 hours', icon: Award, color: 'gold' }
   ];
 
-  // Kiểm tra milestone nào đã đạt được
+  // Check which milestones have been achieved
   const checkMilestone = (milestone: typeof allMilestones[0]) => {
     switch (milestone.type) {
       case 'streak':
@@ -77,17 +77,19 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
       case 'score':
         return weeklyAvgScore >= milestone.threshold;
       case 'study_time':
-        return totalStudyTime >= milestone.threshold;
+        // Convert totalStudyTime from seconds to minutes for comparison
+        const studyTimeInMinutes = totalStudyTime / 60;
+        return studyTimeInMinutes >= milestone.threshold;
       default:
         return false;
     }
   };
 
-  // Tính toán milestone tiếp theo
+  // Calculate next milestones
   const getNextMilestones = () => {
     return allMilestones
       .filter(m => !checkMilestone(m))
-      .sort((a, b) => a.threshold - b.threshold)
+      .sort((a, b) => getProgress(b) - getProgress(a)) // Sort by progress descending
       .slice(0, 4);
   };
 
@@ -104,7 +106,8 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
         current = weeklyAvgScore;
         break;
       case 'study_time':
-        current = totalStudyTime;
+        // Convert totalStudyTime from seconds to minutes for progress calculation
+        current = totalStudyTime / 60;
         break;
     }
     return Math.min((current / milestone.threshold) * 100, 100);
@@ -131,6 +134,22 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
 
   const unlockedMilestones = allMilestones.filter(checkMilestone);
   const nextMilestones = getNextMilestones();
+  
+  // Debug logging for milestones
+  console.log('📊 All milestones check:', allMilestones.map(m => ({
+    title: m.title,
+    type: m.type,
+    threshold: m.threshold,
+    achieved: checkMilestone(m),
+    progress: getProgress(m)
+  })));
+  console.log('🎯 Next milestones debug:', nextMilestones.map(m => ({ 
+    title: m.title, 
+    achieved: checkMilestone(m), 
+    progress: getProgress(m) 
+  })));
+  console.log('🏆 Unlocked milestones:', unlockedMilestones.map(m => m.title));
+  console.log('📊 Next milestones length:', nextMilestones.length);
 
   return (
     <div className="space-y-6">
@@ -139,7 +158,7 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-yellow-800">
             <Trophy className="h-5 w-5" />
-            Thành Tích Đã Mở Khóa ({unlockedMilestones.length})
+            Unlocked Achievements ({unlockedMilestones.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -158,7 +177,7 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
                     </div>
                     <Badge className="bg-green-100 text-green-700 text-xs">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Đã đạt
+                      Achieved
                     </Badge>
                   </div>
                 );
@@ -167,7 +186,7 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
           ) : (
             <div className="text-center py-8">
               <Trophy className="h-12 w-12 text-yellow-400 mx-auto mb-3" />
-              <p className="text-gray-600">Hãy tiếp tục học để mở khóa thành tích đầu tiên!</p>
+              <p className="text-gray-600">Keep studying to unlock your first achievement!</p>
             </div>
           )}
         </CardContent>
@@ -178,13 +197,14 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5" />
-            Mục Tiêu Sắp Tới
+            Upcoming Goals
           </CardTitle>
-          <p className="text-sm text-gray-600">Bạn đang tiến gần đến những thành tích này</p>
+          <p className="text-sm text-gray-600">You are getting close to these achievements</p>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {nextMilestones.map((milestone, index) => {
+          {nextMilestones.length > 0 ? (
+            <div className="space-y-4">
+              {nextMilestones.map((milestone, index) => {
               const IconComponent = milestone.icon;
               const progress = getProgress(milestone);
               
@@ -207,23 +227,29 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
                     <Progress value={progress} className="h-2" />
                     <div className="flex justify-between text-xs text-gray-500">
                       <span>
-                        {milestone.type === 'streak' && `${currentStreak}/${milestone.threshold} ngày`}
-                        {milestone.type === 'activities' && `${totalActivities}/${milestone.threshold} hoạt động`}
+                        {milestone.type === 'streak' && `${currentStreak}/${milestone.threshold} days`}
+                        {milestone.type === 'activities' && `${totalActivities}/${milestone.threshold} activities`}
                         {milestone.type === 'score' && `${Math.round(weeklyAvgScore)}%/${milestone.threshold}%`}
                         {milestone.type === 'study_time' && `${Math.round(totalStudyTime/60)}h/${Math.round(milestone.threshold/60)}h`}
                       </span>
                       <span>
-                        {milestone.type === 'streak' && `Còn ${milestone.threshold - currentStreak} ngày`}
-                        {milestone.type === 'activities' && `Còn ${milestone.threshold - totalActivities} hoạt động`}
-                        {milestone.type === 'score' && `Còn ${Math.round(milestone.threshold - weeklyAvgScore)}%`}
-                        {milestone.type === 'study_time' && `Còn ${Math.round((milestone.threshold - totalStudyTime)/60)}h`}
+                        {milestone.type === 'streak' && `Remaining ${milestone.threshold - currentStreak} days`}
+                        {milestone.type === 'activities' && `Remaining ${milestone.threshold - totalActivities} activities`}
+                        {milestone.type === 'score' && `Remaining ${Math.round(milestone.threshold - weeklyAvgScore)}%`}
+                        {milestone.type === 'study_time' && `Remaining ${Math.round((milestone.threshold - totalStudyTime)/60)}h`}
                       </span>
                     </div>
                   </div>
                 </div>
               );
             })}
-          </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Target className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600">No upcoming goals!</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -232,7 +258,7 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-blue-800">
             <Calendar className="h-5 w-5" />
-            Thống Kê Học Tập
+            Study Statistics
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -240,22 +266,22 @@ const LearningMilestones: React.FC<LearningMilestonesProps> = ({
             <div className="text-center p-3 bg-white rounded-lg border border-blue-200">
               <Flame className="h-6 w-6 text-orange-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-blue-900">{currentStreak}</div>
-              <div className="text-sm text-blue-600">Streak hiện tại</div>
+              <div className="text-sm text-blue-600">Current streak</div>
             </div>
             <div className="text-center p-3 bg-white rounded-lg border border-blue-200">
               <CheckCircle2 className="h-6 w-6 text-green-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-blue-900">{totalActivities}</div>
-              <div className="text-sm text-blue-600">Tổng hoạt động</div>
+              <div className="text-sm text-blue-600">Total activities</div>
             </div>
             <div className="text-center p-3 bg-white rounded-lg border border-blue-200">
               <Star className="h-6 w-6 text-purple-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-blue-900">{Math.round(weeklyAvgScore)}%</div>
-              <div className="text-sm text-blue-600">Điểm TB tuần</div>
+              <div className="text-sm text-blue-600">Weekly avg. score</div>
             </div>
             <div className="text-center p-3 bg-white rounded-lg border border-blue-200">
               <Clock className="h-6 w-6 text-blue-500 mx-auto mb-2" />
               <div className="text-2xl font-bold text-blue-900">{Math.round(totalStudyTime/60)}h</div>
-              <div className="text-sm text-blue-600">Tổng thời gian</div>
+              <div className="text-sm text-blue-600">Total study time</div>
             </div>
           </div>
         </CardContent>
