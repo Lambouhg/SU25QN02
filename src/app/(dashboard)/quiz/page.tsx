@@ -16,7 +16,17 @@ type SnapshotItem = {
   options?: { text: string }[];
 };
 
-type SetRow = { id: string; name: string };
+type SetRow = { id: string; name: string; description?: string; topics?: string[]; fields?: string[]; skills?: string[]; level?: string; questionCount?: number };
+
+type CategoryData = {
+  id: string;
+  name: string;
+  skills: string[];
+  topics: string[];
+  fields: string[];
+  levels: string[];
+  questionCount: number;
+};
 
 export default function QuizPage() {
   const { userId } = useAuth();
@@ -72,17 +82,44 @@ export default function QuizPage() {
         const sRes = await fetch("/api/quiz/sets?status=published", { cache: "no-store" });
         const sJson = await sRes.json();
         if (sRes.ok) {
-          const list = sJson.data?.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name })) || [];
+          const list = sJson.data?.map((x: { 
+            id: string; 
+            name: string; 
+            description?: string;
+            topics?: string[]; 
+            fields?: string[]; 
+            skills?: string[]; 
+            level?: string;
+            _count?: { items: number };
+          }) => ({ 
+            id: x.id, 
+            name: x.name, 
+            description: x.description,
+            topics: x.topics, 
+            fields: x.fields, 
+            skills: x.skills, 
+            level: x.level,
+            questionCount: x._count?.items || 0
+          })) || [];
           setSets(list);
           if (list.length && !questionSetId) setQuestionSetId(list[0].id);
         }
-        const fRes = await fetch("/api/quiz/facets", { cache: "no-store" });
-        const fJson = await fRes.json();
-        if (fRes.ok) {
-          setFacetCats(fJson.data?.categories || []);
-          setFacetTopics(fJson.data?.topics || []);
-          setFacetFields(fJson.data?.fields || []);
-          setFacetSkills(fJson.data?.skills || []);
+        // Load categories data using new consolidated API
+        const categoriesRes = await fetch("/api/quiz/categories", { cache: "no-store" });
+        if (categoriesRes.ok) {
+          const categoriesData = await categoriesRes.json();
+          const categories: CategoryData[] = categoriesData.data || [];
+          
+          // Extract facets from categories data
+          const cats = categories.map(cat => cat.name);
+          const allSkills = Array.from(new Set(categories.flatMap(cat => cat.skills || []))).filter((skill): skill is string => typeof skill === 'string');
+          const allTopics = Array.from(new Set(categories.flatMap(cat => cat.topics || []))).filter((topic): topic is string => typeof topic === 'string');
+          const allFields = Array.from(new Set(categories.flatMap(cat => cat.fields || []))).filter((field): field is string => typeof field === 'string');
+          
+          setFacetCats(cats);
+          setFacetSkills(allSkills);
+          setFacetTopics(allTopics);
+          setFacetFields(allFields);
         }
       } catch {}
     })();
