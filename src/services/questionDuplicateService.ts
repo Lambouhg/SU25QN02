@@ -203,11 +203,11 @@ Determine overall similarities and provide detailed reasoning.`;
     let recommendation: 'save' | 'review' | 'reject' = 'save';
     
     // Use dynamic thresholds based on similarityThreshold parameter
-    const rejectThreshold = Math.max(similarityThreshold, 0.9); // At least 0.9 for reject
-    const reviewThreshold = Math.max(similarityThreshold - 0.1, 0.7); // 0.1 below threshold for review
+    const rejectThreshold = similarityThreshold; // Use user-defined threshold for reject
+    const reviewThreshold = Math.max(similarityThreshold - 0.1, 0.6); // 0.1 below threshold for review, minimum 0.6
     
     if (maxSimilarity >= rejectThreshold) {
-      recommendation = 'reject'; // Very high similarity
+      recommendation = 'reject'; // High similarity above user threshold
     } else if (maxSimilarity >= reviewThreshold) {
       recommendation = 'review'; // Moderate similarity, needs review
     }
@@ -318,11 +318,22 @@ async function fallbackSimilarityCheck(
   similarities.sort((a, b) => b.similarity - a.similarity);
   const maxSimilarity = similarities.length > 0 ? similarities[0].similarity : 0;
   
+  // Determine recommendation based on similarityThreshold
+  let recommendation: 'save' | 'review' | 'reject' = 'save';
+  const rejectThreshold = similarityThreshold;
+  const reviewThreshold = Math.max(similarityThreshold - 0.1, 0.6);
+  
+  if (maxSimilarity >= rejectThreshold) {
+    recommendation = 'reject';
+  } else if (maxSimilarity >= reviewThreshold) {
+    recommendation = 'review';
+  }
+
   return {
     isDuplicate: maxSimilarity >= similarityThreshold,
     similarQuestions: similarities,
     confidence: 0.7, // Lower confidence for fallback method
-    recommendation: maxSimilarity >= 0.8 ? 'review' : 'save'
+    recommendation
   };
 }
 

@@ -62,7 +62,6 @@ type QuizDetail = {
 type QuestionDetail = {
   id: string;
   category: string;
-  topics: string[];
   level: string;
   stem: string;
   type: string;
@@ -90,24 +89,23 @@ export default function QuizHistoryPage() {
     const titles: Record<string, string> = {};
     
     for (const attempt of attempts) {
-      // If it's a company quiz, use question set name
+      // If it's a question set quiz, use question set name
       if (attempt.questionSet?.name) {
         titles[attempt.id] = attempt.questionSet.name;
         continue;
       }
 
-      // For practice quizzes, extract category, topic, level from itemsSnapshot
+      // For practice quizzes, extract category from itemsSnapshot
       if (attempt.itemsSnapshot && attempt.itemsSnapshot.length > 0) {
         try {
-          // Get the first question to extract category, topic, level
+          // Get the first question to extract category info
           const firstQuestionId = attempt.itemsSnapshot[0].questionId;
           const response = await fetch(`/api/questions/${firstQuestionId}`);
           if (response.ok) {
             const questionData = await response.json();
-            const category = questionData.category || 'Unknown';
-            const topic = questionData.topics?.[0] || 'Unknown';
-            const level = questionData.level || 'Unknown';
-            titles[attempt.id] = `${category} - ${topic} - ${level}`;
+            const category = questionData.category || 'General';
+            const level = questionData.level || 'Mixed';
+            titles[attempt.id] = `${category} - ${level} Practice`;
           } else {
             titles[attempt.id] = 'Practice Quiz';
           }

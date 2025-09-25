@@ -49,8 +49,8 @@ const DuplicateDetectionSettings: React.FC<DuplicateDetectionSettingsProps> = ({
                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
               />
               <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>60% (Less strict)</span>
-                <span>100% (Very strict)</span>
+                <span>60% (Very strict)</span>
+                <span>100% (Less strict)</span>
               </div>
             </div>
             

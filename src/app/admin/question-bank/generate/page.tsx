@@ -86,6 +86,10 @@ interface ImportResult {
     message: string;
     duplicateInfo?: DuplicateCheckResult;
   }>;
+  // Additional fields for comprehensive results
+  totalGenerated?: number;
+  totalSelected?: number;
+  totalUnselected?: number;
 }
 
 export default function AdminQuestionGeneratorPage() {
@@ -420,7 +424,7 @@ export default function AdminQuestionGeneratorPage() {
               [`option${idx + 1}_correct`]: opt.isCorrect
             }), {})
           })),
-          skipDuplicateCheck,
+          skipDuplicateCheck: true, // Always skip duplicate check when saving (already checked during generation)
           similarityThreshold
         }),
       });
@@ -431,13 +435,26 @@ export default function AdminQuestionGeneratorPage() {
         throw new Error(result.error || 'Save failed');
       }
 
-      setImportResult(result);
+      // Calculate comprehensive results including unselected questions
+      const totalGenerated = generatedQuestions.length;
+      const totalSelected = questionsToSave.length;
+      const totalUnselected = totalGenerated - totalSelected;
+      const totalDuplicatesFromCheck = duplicateCheckResults?.results.filter(r => r.isDuplicate).length || 0;
+      
+      const comprehensiveResult = {
+        ...result,
+        // Override with comprehensive numbers
+        skipped: totalUnselected, // Questions not selected for save
+        duplicatesFound: totalDuplicatesFromCheck, // Total duplicates found during generation check
+        totalGenerated,
+        totalSelected,
+        totalUnselected
+      };
+      
+      setImportResult(comprehensiveResult);
       
       // Show summary message
-      let message = result.message || `Successfully processed ${questionsToSave.length} questions!`;
-      if (result.duplicatesFound > 0) {
-        message += ` Duplicate Detection Summary: ${result.success} saved, ${result.skipped} skipped, ${result.warnings?.length || 0} warnings`;
-      }
+      const message = result.message || `Successfully saved ${result.success} out of ${totalSelected} selected questions! (${totalUnselected} questions were not selected)`;
       
       showToast(message, 'success');
       
