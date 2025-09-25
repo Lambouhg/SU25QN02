@@ -63,7 +63,7 @@ export default function CelebrationModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop with animated gradient */}
       <div 
-        className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/30 to-black/70 backdrop-blur-sm transition-opacity duration-300"
+        className="absolute inset-0 bg-gradient-to-br from-white/30 via-purple-200/20 to-white/30 backdrop-blur-sm transition-opacity duration-300"
         onClick={handleClose}
       />
       

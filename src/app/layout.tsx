@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import UserSync from "@/components/UserSync";
 import AuthRedirect from "@/components/auth/AuthRedirect";
@@ -63,6 +64,30 @@ export default function RootLayout({
                   <UserSync />
                   <AuthRedirect />
                   <GlobalChatboxContainer />
+                  <Toaster 
+                    position="top-right"
+                    toastOptions={{
+                      duration: 3000,
+                      style: {
+                        background: '#363636',
+                        color: '#fff',
+                      },
+                      success: {
+                        duration: 3000,
+                        iconTheme: {
+                          primary: '#4ade80',
+                          secondary: '#fff',
+                        },
+                      },
+                      error: {
+                        duration: 4000,
+                        iconTheme: {
+                          primary: '#ef4444',
+                          secondary: '#fff',
+                        },
+                      },
+                    }}
+                  />
                 </body>
               </html>
             </GlobalChatboxProvider>

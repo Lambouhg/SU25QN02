@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
 import { Sparkles, Plus, Settings, Wand2, Edit, Save, X } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   JobRoleSelection,
   GeneratedPropertiesDisplay,
@@ -9,7 +10,6 @@ import {
   DuplicateDetectionSettings,
   SimilarityModal
 } from "@/components/admin/generateQuestions";
-import Toast from "@/components/ui/Toast";
 
 interface JobCategory {
   id: string;
@@ -140,21 +140,7 @@ export default function AdminQuestionGeneratorPage() {
     }>;
   } | null>(null);
 
-  // Toast State
-  const [toast, setToast] = useState<{
-    show: boolean;
-    message: string;
-    type: 'success' | 'error' | 'info' | 'warning';
-  }>({
-    show: false,
-    message: '',
-    type: 'info'
-  });
 
-  // Toast helper function
-  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
-    setToast({ show: true, message, type });
-  };
 
   const loadJobRoleMasterdata = async () => {
     try {
@@ -220,12 +206,12 @@ export default function AdminQuestionGeneratorPage() {
   const handleGenerate = async () => {
     // Validate configuration
     if (!config.selectedCategoryId) {
-      showToast('Please select a Category', 'warning');
+      toast.error('Please select a Category');
       return;
     }
     
     if (!config.selectedLevel) {
-      showToast('Please select a Level', 'warning');
+      toast.error('Please select a Level');
       return;
     }
 
@@ -306,7 +292,7 @@ export default function AdminQuestionGeneratorPage() {
       setSelectedQuestions(new Set(Array.from({ length: allGeneratedQuestions.length }, (_, i) => i)));
       
       // Show success toast
-      showToast(`Successfully generated ${allGeneratedQuestions.length} questions!`, 'success');
+      toast.success(`Successfully generated ${allGeneratedQuestions.length} questions!`);
       
       // Auto-check duplicates if questions were generated successfully
       if (allGeneratedQuestions.length > 0 && !skipDuplicateCheck) {
@@ -315,10 +301,10 @@ export default function AdminQuestionGeneratorPage() {
       
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        showToast('Question generation stopped by user', 'info');
+        toast('Question generation stopped by user');
       } else {
         console.error('Generation error:', error);
-        showToast('Failed to generate questions: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+        toast.error('Failed to generate questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
       }
     } finally {
       setGenerating(false);
@@ -332,7 +318,7 @@ export default function AdminQuestionGeneratorPage() {
       setAbortController(null);
       setGenerating(false);
       setCheckingDuplicates(false);
-      showToast('Generation stopped', 'info');
+      toast('Generation stopped');
     }
   };
 
@@ -378,9 +364,9 @@ export default function AdminQuestionGeneratorPage() {
       // Show duplicate check completion toast
       const rejectedCount = duplicateData.results.filter((r: DuplicateCheckResult) => r.recommendation === 'reject').length;
       if (rejectedCount > 0) {
-        showToast(`Duplicate check completed: ${rejectedCount} questions auto-deselected due to high similarity`, 'info');
+        toast(`Duplicate check completed: ${rejectedCount} questions auto-deselected due to high similarity`);
       } else {
-        showToast('Duplicate check completed: No high-similarity duplicates found', 'success');
+        toast.success('Duplicate check completed: No high-similarity duplicates found');
       }
       
     } catch (error) {
@@ -398,7 +384,7 @@ export default function AdminQuestionGeneratorPage() {
     const questionsToSave = generatedQuestions.filter((_, index) => selectedQuestions.has(index));
     
     if (questionsToSave.length === 0) {
-      showToast('Please select at least one question to save', 'warning');
+      toast.error('Please select at least one question to save');
       return;
     }
 
@@ -456,7 +442,7 @@ export default function AdminQuestionGeneratorPage() {
       // Show summary message
       const message = result.message || `Successfully saved ${result.success} out of ${totalSelected} selected questions! (${totalUnselected} questions were not selected)`;
       
-      showToast(message, 'success');
+      toast.success(message);
       
       // Remove the entire Generated Questions table after successful save
       if (result.success > 0) {
@@ -467,7 +453,7 @@ export default function AdminQuestionGeneratorPage() {
       
     } catch (error) {
       console.error('Save error:', error);
-      showToast('Failed to save questions: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+      toast.error('Failed to save questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setSaving(false);
     }
@@ -1068,14 +1054,7 @@ export default function AdminQuestionGeneratorPage() {
         data={similarityModalData}
       />
 
-      {/* Toast Notifications */}
-      <Toast
-        show={toast.show}
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast({ ...toast, show: false })}
-        duration={4000}
-      />
+
     </div>
   );
 }

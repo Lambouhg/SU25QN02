@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useMemo } from "react";
 import { Plus, Search, Filter, Users, Settings, Trash2, AlertCircle } from "lucide-react";
+import toast from "react-hot-toast";
 
 type QuestionItem = { id: string; stem: string; type?: string; level?: string | null };
 type SetItem = { questionId: string; order?: number; section?: string; weight?: number; isRequired?: boolean; timeSuggestion?: number | null; question?: QuestionItem };
@@ -80,9 +81,10 @@ export default function AdminQuestionSetsPage() {
     const res = await fetch("/api/admin/qb2/question-sets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const j = await res.json();
     if (!res.ok) {
-      alert((j as { error?: string })?.error || "Create failed");
+      toast.error((j as { error?: string })?.error || "Create failed");
       return;
     }
+    toast.success("Question set created successfully!");
     setFormOpen(false);
     await load();
   }
@@ -96,7 +98,7 @@ export default function AdminQuestionSetsPage() {
       const res = await fetch(`/api/admin/qb2/question-sets/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const j = await res.json();
-        alert((j as { error?: string })?.error || "Delete failed");
+        toast.error((j as { error?: string })?.error || "Delete failed");
         return;
       }
       
@@ -105,17 +107,15 @@ export default function AdminQuestionSetsPage() {
         const { quizAttempts, questionLinks } = result.deleted;
         let message = "Question set deleted successfully!";
         if (quizAttempts > 0 || questionLinks > 0) {
-          message += `\n\nAlso deleted:\n`;
-          if (quizAttempts > 0) message += `• ${quizAttempts} quiz attempt(s)\n`;
-          if (questionLinks > 0) message += `• ${questionLinks} question link(s)\n`;
+          message += ` Also deleted: ${quizAttempts} quiz attempt(s), ${questionLinks} question link(s)`;
         }
-        alert(message);
+        toast.success(message);
       }
       
       await load();
     } catch (error) {
       console.error("Delete error:", error);
-      alert("An unexpected error occurred while deleting the question set. Please try again.");
+      toast.error("An unexpected error occurred while deleting the question set. Please try again.");
     }
   }
 
@@ -152,9 +152,10 @@ export default function AdminQuestionSetsPage() {
     const res = await fetch(`/api/admin/qb2/question-sets/${editing.id}/items`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const j = await res.json();
     if (!res.ok) {
-      alert((j as { error?: string })?.error || "Save failed");
+      toast.error((j as { error?: string })?.error || "Save failed");
       return;
     }
+    toast.success("Question set items saved successfully!");
     setItemsOpen(false);
     await load();
   }
@@ -185,7 +186,7 @@ export default function AdminQuestionSetsPage() {
       console.log("Loaded questions:", ((j as { data?: QuestionItem[] })?.data)?.length || 0);
     } else {
       console.error("Failed to load questions:", j);
-      alert((j as { error?: string })?.error || "Failed to load questions from question bank");
+      toast.error((j as { error?: string })?.error || "Failed to load questions from question bank");
     }
   }
 
@@ -201,7 +202,7 @@ export default function AdminQuestionSetsPage() {
   function applyPicked() {
     const chosen = pickerList.filter((q) => pickerSel[q.id]);
     if (!chosen.length) { 
-      alert("Please select at least one question to add.");
+      toast.error("Please select at least one question to add.");
       return; 
     }
     
@@ -222,7 +223,7 @@ export default function AdminQuestionSetsPage() {
     
     // Show success message
     const count = chosen.length;
-    alert(`✅ Successfully added ${count} question${count > 1 ? 's' : ''} to the set!`);
+    toast.success(`Successfully added ${count} question${count > 1 ? 's' : ''} to the set!`);
   }
 
   return (
@@ -412,7 +413,7 @@ export default function AdminQuestionSetsPage() {
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Create Question Set</h2>
@@ -507,7 +508,7 @@ export default function AdminQuestionSetsPage() {
       )}
 
       {itemsOpen && editing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-green-50 to-emerald-50">
@@ -703,7 +704,7 @@ export default function AdminQuestionSetsPage() {
       )}
 
       {pickerOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+        <div className="fixed inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">

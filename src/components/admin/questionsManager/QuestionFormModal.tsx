@@ -127,7 +127,7 @@ export const QuestionFormModal = ({
 
   const modalContent = (
     <div 
-      className="modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      className="modal-overlay fixed inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={handleClose}
     >
       <div 
