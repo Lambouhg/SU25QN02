@@ -21,8 +21,8 @@ type SetRow = { id: string; name: string; description?: string; topics?: string[
 type CategoryData = {
   id: string;
   name: string;
+  topics: Array<{name: string; skills: string[]}>;
   skills: string[];
-  topics: string[];
   fields: string[];
   levels: string[];
   questionCount: number;
@@ -39,6 +39,7 @@ export default function QuizPage() {
   const [field, setField] = useState<string>("");
   const [skill, setSkill] = useState<string>("");
   const [facetCats, setFacetCats] = useState<string[]>([]);
+  const [categoriesData, setCategoriesData] = useState<CategoryData[]>([]);
   const [facetTopics, setFacetTopics] = useState<string[]>([]);
   const [facetFields, setFacetFields] = useState<string[]>([]);
   const [facetSkills, setFacetSkills] = useState<string[]>([]);
@@ -102,7 +103,6 @@ export default function QuizPage() {
             questionCount: x._count?.items || 0
           })) || [];
           setSets(list);
-          if (list.length && !questionSetId) setQuestionSetId(list[0].id);
         }
         // Load categories data using new consolidated API
         const categoriesRes = await fetch("/api/quiz/categories", { cache: "no-store" });
@@ -110,10 +110,13 @@ export default function QuizPage() {
           const categoriesData = await categoriesRes.json();
           const categories: CategoryData[] = categoriesData.data || [];
           
+          // Store categories data with hierarchy
+          setCategoriesData(categories);
+          
           // Extract facets from categories data
           const cats = categories.map(cat => cat.name);
           const allSkills = Array.from(new Set(categories.flatMap(cat => cat.skills || []))).filter((skill): skill is string => typeof skill === 'string');
-          const allTopics = Array.from(new Set(categories.flatMap(cat => cat.topics || []))).filter((topic): topic is string => typeof topic === 'string');
+          const allTopics = Array.from(new Set(categories.flatMap(cat => cat.topics?.map(t => t.name) || []))).filter((topic): topic is string => typeof topic === 'string');
           const allFields = Array.from(new Set(categories.flatMap(cat => cat.fields || []))).filter((field): field is string => typeof field === 'string');
           
           setFacetCats(cats);
@@ -486,6 +489,7 @@ export default function QuizPage() {
             questionSetId={questionSetId}
             setQuestionSetId={setQuestionSetId}
             sets={sets}
+            categoriesData={categoriesData}
             facetCats={facetCats}
             facetTopics={facetTopics}
             facetFields={facetFields}

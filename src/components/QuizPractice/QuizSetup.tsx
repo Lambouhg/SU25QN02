@@ -10,11 +10,9 @@ import {
   Target, 
   Zap, 
   Building2, 
-  Clock,
   Tag,
   TrendingUp,
-  Star,
-  X
+  Star
 } from 'lucide-react';
 
 interface UserPreferences {
@@ -36,6 +34,16 @@ interface UserPreferences {
   };
 }
 
+interface CategoryData {
+  id: string;
+  name: string;
+  topics: Array<{name: string; skills: string[]}>;
+  skills: string[];
+  fields: string[];
+  levels: string[];
+  questionCount: number;
+}
+
 interface QuizSetupProps {
   mode: 'quick' | 'topic' | 'company';
   setMode: (mode: 'quick' | 'topic' | 'company') => void;
@@ -54,6 +62,7 @@ interface QuizSetupProps {
   questionSetId: string;
   setQuestionSetId: (id: string) => void;
   sets: { id: string; name: string; description?: string; topics?: string[]; fields?: string[]; skills?: string[]; level?: string; questionCount?: number }[];
+  categoriesData: CategoryData[];
   facetCats: string[];
   facetTopics: string[];
   facetFields: string[];
@@ -80,8 +89,9 @@ export default function QuizSetup({
   questionSetId,
   setQuestionSetId,
   sets,
+  categoriesData,
   facetCats,
-  facetTopics,
+  facetTopics, // eslint-disable-line @typescript-eslint/no-unused-vars
   facetFields, // eslint-disable-line @typescript-eslint/no-unused-vars
   facetSkills,
   onStart,
@@ -91,9 +101,11 @@ export default function QuizSetup({
   
   // State for filtered options based on cascade filtering
   const [filteredSkills, setFilteredSkills] = useState<string[]>(facetSkills);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [filteredTopics, setFilteredTopics] = useState<Array<{name: string; skills: string[]}>>([]);
+  const [isPreferencesAppliedQuick, setIsPreferencesAppliedQuick] = useState(false);
   
-  // State for topics-skills mapping
-  const [topicsWithSkills, setTopicsWithSkills] = useState<Array<{topic: string; skills: string[]}>>([]);
+  // State for loading topics
   const [loadingTopicsSkills, setLoadingTopicsSkills] = useState(false);
   
   // User preferences state
@@ -121,7 +133,10 @@ export default function QuizSetup({
     setLevel('');
     setCount('');
     setQuestionSetId('');
+    setSelectedSkills([]);
+    setFilteredTopics([]);
     setIsPreferencesApplied(false);
+    setIsPreferencesAppliedQuick(false);
   }, [mode, setCategory, setTopic, setSkill, setLevel, setCount, setQuestionSetId]);
 
   // Load user preferences on component mount
@@ -143,23 +158,32 @@ export default function QuizSetup({
     loadUserPreferences();
   }, [userId]);
 
-  // Client-side filtering logic (no API calls needed)
+  // Client-side filtering logic dựa trên hierarchy: Category → Skills → Topics
   useEffect(() => {
-    // Simple client-side filtering based on category selection
     if (!category) {
       setFilteredSkills(facetSkills);
+      setSelectedSkills([]);
+      setFilteredTopics([]);
       return;
     }
 
-    // For now, use all skills when category is selected
-    // This can be enhanced with more sophisticated filtering logic if needed
-    setFilteredSkills(facetSkills);
-    
-    // Only reset skill selection if it's not available in filtered results
-    if (skill && facetSkills.length > 0 && !facetSkills.includes(skill)) {
-      setSkill('');
+    // Filter skills based on selected category
+    const selectedCategoryData = categoriesData.find(cat => cat.name === category);
+    if (selectedCategoryData) {
+      setFilteredSkills(selectedCategoryData.skills);
+      
+      // Only validate and update selectedSkills if needed (avoid infinite loop)
+      setSelectedSkills(prev => {
+        const validSelectedSkills = prev.filter(skill => selectedCategoryData.skills.includes(skill));
+        // Only update if different to avoid re-render
+        return validSelectedSkills.length !== prev.length ? validSelectedSkills : prev;
+      });
+    } else {
+      setFilteredSkills([]);
+      setSelectedSkills([]);
+      setFilteredTopics([]);
     }
-  }, [category, skill, facetSkills, setSkill]);
+  }, [category, categoriesData, facetSkills]);
 
   // Update filtered lists when base facets change
   useEffect(() => {
@@ -168,26 +192,40 @@ export default function QuizSetup({
     }
   }, [facetSkills, category, skill]);
 
-  // Build topics-skills mapping from facet data (client-side)
+  // Build topics filtering based on selected skills
   useEffect(() => {
     if (mode !== 'quick') return;
     
     setLoadingTopicsSkills(true);
     
-    // Create simple topics-skills mapping from available facets
-    // This is a simplified version - can be enhanced based on your needs
-    const topicsMapping = facetTopics.map(topic => ({
-      topic: topic,
-      skills: facetSkills.filter(skill => 
-        // Simple matching logic - you can enhance this
-        topic.toLowerCase().includes(skill.toLowerCase()) || 
-        skill.toLowerCase().includes(topic.toLowerCase())
-      )
-    })).filter(item => item.skills.length > 0);
+    // Find selected category data
+    const selectedCategoryData = categoriesData.find(cat => cat.name === category);
     
-    setTopicsWithSkills(topicsMapping);
+    if (selectedCategoryData && selectedSkills.length > 0) {
+      // Filter topics that contain at least one of the selected skills
+      const relevantTopics = selectedCategoryData.topics.filter(topicData => 
+        topicData.skills.some(skill => selectedSkills.includes(skill))
+      );
+      setFilteredTopics(relevantTopics);
+    } else if (selectedCategoryData && selectedSkills.length === 0) {
+      // Show all topics when no skills selected yet
+      setFilteredTopics(selectedCategoryData.topics);
+    } else {
+      setFilteredTopics([]);
+    }
+    
     setLoadingTopicsSkills(false);
-  }, [mode, category, facetTopics, facetSkills]);
+  }, [mode, category, selectedSkills, categoriesData]);
+
+  // Separate effect to handle topic validation when filtered topics change
+  useEffect(() => {
+    if (mode !== 'quick' || !topic) return;
+    
+    // Reset topic if current topic is not in filtered results
+    if (filteredTopics.length > 0 && !filteredTopics.some(t => t.name === topic)) {
+      setTopic('');
+    }
+  }, [mode, topic, filteredTopics, setTopic]);
 
   // Fetch user progress for progression system
   const fetchUserProgress = async (category: string, skill: string) => {
@@ -218,13 +256,12 @@ export default function QuizSetup({
     }
   }, [mode, category, skill]);
 
-  // Apply user preferences function
-  const applyUserPreferences = () => {
-    if (userPreferences?.preferredJobRole) {
+  // Auto-apply preferences for Skill Mastery mode
+  useEffect(() => {
+    if (mode === 'topic' && userPreferences?.preferredJobRole && !isPreferencesApplied) {
       const { preferredJobRole } = userPreferences;
       
-      // Don't auto-select anything - just mark preferences as applied
-      // User will select skill from the buttons, then category will be set
+      // Auto-apply preferences without user action
       setCategory('');
       setSkill('');
       setLevel('');
@@ -232,20 +269,9 @@ export default function QuizSetup({
       
       setIsPreferencesApplied(true);
       
-      toast.success(`Applied preferences for ${preferredJobRole.title} ⚡`);
+      toast.success(`Auto-applied preferences for ${preferredJobRole.title} ⚡`);
     }
-  };
-
-  // Clear all filters function
-  const clearAllFilters = () => {
-    setCategory('');
-    setTopic('');
-    setSkill('');
-    setLevel('');
-    setCount('');
-    setIsPreferencesApplied(false);
-    toast.success("Filters cleared");
-  };
+  }, [mode, userPreferences, isPreferencesApplied, setCategory, setSkill, setLevel, setCount]);
 
   const modeCards: Array<{
     id: 'quick' | 'topic' | 'company';
@@ -279,21 +305,10 @@ export default function QuizSetup({
 
   return (
     <div className="w-full max-w-full mx-auto space-y-8 overflow-x-hidden">
-      {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-3">
-          <div className="p-3 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl">
-            <Play className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-800">Quiz Practice</h1>
-        </div>
-        <p className="text-gray-600 text-lg">Choose your practice mode and start learning</p>
-      </div>
-
       {/* Mode Selection */}
       <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
         <CardHeader>
-          <h2 className="text-xl font-semibold text-gray-800">Choose Practice Mode</h2>
+          <h1 className="text-3xl font-bold text-gray-800">Quiz Practice Mode</h1>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -326,32 +341,27 @@ export default function QuizSetup({
         <CardContent className="space-y-6">
           {/* Company Mode */}
           {mode === 'company' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-4">
-                <Building2 className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold text-gray-800">Question Set</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-6">
+              <div className="max-w-2xl mx-auto">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-100">
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">📚</span>
+                    </div>
                     Select Question Set
-                  </label>
+                  </h4>
+                  
                   <select
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full p-4 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg bg-white"
                     value={questionSetId}
                     onChange={(e) => setQuestionSetId(e.target.value)}
                   >
-                    <option value="">-- Choose a set --</option>
-                    {sets.map((set) => {
-                      const skills = set.skills && set.skills.length > 0 ? ` • ${set.skills.slice(0, 3).join(', ')}${set.skills.length > 3 ? '...' : ''}` : '';
-                      const level = set.level ? ` [${set.level.charAt(0).toUpperCase() + set.level.slice(1)}]` : '';
-                      const questionCount = set.questionCount !== undefined ? ` (${set.questionCount} questions)` : '';
-                      return (
-                        <option key={set.id} value={set.id}>
-                          {set.name}{level}{questionCount}{skills}
-                        </option>
-                      );
-                    })}
+                    <option value="">-- Choose a question set --</option>
+                    {sets.map((set) => (
+                      <option key={set.id} value={set.id}>
+                        {set.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -360,99 +370,166 @@ export default function QuizSetup({
               {questionSetId && (() => {
                 const selectedSet = sets.find(set => set.id === questionSetId);
                 return selectedSet && (
-                  <div className="mt-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-                    <h5 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                      <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">ℹ</span>
+                  <div className="max-w-4xl mx-auto mt-8">
+                    <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-100 p-8 rounded-2xl border-2 border-blue-200 shadow-lg">
+                      {/* Header */}
+                      <div className="text-center mb-6">
+                        <h5 className="text-xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-3">
+                          <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg">
+                            <span className="text-white text-lg">📋</span>
+                          </div>
+                          Question Set Details
+                        </h5>
+                        <div className="w-20 h-1 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full mx-auto"></div>
                       </div>
-                      Question Set Details
-                    </h5>
 
-                    {/* Description */}
-                    {selectedSet.description && (
-                      <div className="mb-4 p-3 bg-white rounded-lg border border-blue-100">
-                        <p className="text-sm text-gray-700 leading-relaxed">{selectedSet.description}</p>
+                      {/* Selected Set Name */}
+                      <div className="text-center mb-6">
+                        <h6 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700">
+                          {selectedSet.name}
+                        </h6>
                       </div>
-                    )}
 
-                    {/* Stats */}
-                    <div className="flex items-center gap-4 mb-4">
-                      {selectedSet.questionCount !== undefined && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-blue-100">
-                          <span className="text-blue-600 font-medium text-sm">📝</span>
-                          <span className="text-blue-800 font-semibold text-sm">{selectedSet.questionCount} Questions</span>
+                      {/* Description */}
+                      {selectedSet.description && (
+                        <div className="mb-6">
+                          <div className="p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-blue-200 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                <span className="text-blue-600 text-sm">📝</span>
+                              </div>
+                              <div>
+                                <h6 className="font-semibold text-gray-800 mb-1">Description</h6>
+                                <p className="text-gray-700 leading-relaxed">{selectedSet.description}</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
-                      {selectedSet.level && (
-                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium ${
-                          selectedSet.level === 'junior' ? 'bg-green-100 text-green-800' :
-                          selectedSet.level === 'middle' ? 'bg-blue-100 text-blue-800' :
-                          selectedSet.level === 'senior' ? 'bg-purple-100 text-purple-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          <span>🎯</span>
-                          <span>{selectedSet.level.charAt(0).toUpperCase() + selectedSet.level.slice(1)} Level</span>
-                        </div>
-                      )}
-                    </div>
+
+                      {/* Stats Cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {selectedSet.questionCount !== undefined && (
+                          <div className="bg-gradient-to-r from-emerald-50 to-green-100 p-4 rounded-xl border border-emerald-200">
+                            <div className="flex items-center gap-3">
+                              <div className="p-3 bg-emerald-500 rounded-lg">
+                                <span className="text-white text-lg">📝</span>
+                              </div>
+                              <div>
+                                <h6 className="font-bold text-emerald-800 text-xl">{selectedSet.questionCount}</h6>
+                                <p className="text-emerald-600 font-medium">Questions</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {selectedSet.level && (
+                          <div className={`p-4 rounded-xl border-2 ${
+                            selectedSet.level === 'junior' ? 'bg-gradient-to-r from-green-50 to-emerald-100 border-green-200' :
+                            selectedSet.level === 'middle' ? 'bg-gradient-to-r from-blue-50 to-cyan-100 border-blue-200' :
+                            selectedSet.level === 'senior' ? 'bg-gradient-to-r from-purple-50 to-violet-100 border-purple-200' :
+                            'bg-gradient-to-r from-gray-50 to-slate-100 border-gray-200'
+                          }`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`p-3 rounded-lg ${
+                                selectedSet.level === 'junior' ? 'bg-green-500' :
+                                selectedSet.level === 'middle' ? 'bg-blue-500' :
+                                selectedSet.level === 'senior' ? 'bg-purple-500' :
+                                'bg-gray-500'
+                              }`}>
+                                <span className="text-white text-lg">🎯</span>
+                              </div>
+                              <div>
+                                <h6 className={`font-bold text-xl ${
+                                  selectedSet.level === 'junior' ? 'text-green-800' :
+                                  selectedSet.level === 'middle' ? 'text-blue-800' :
+                                  selectedSet.level === 'senior' ? 'text-purple-800' :
+                                  'text-gray-800'
+                                }`}>
+                                  {selectedSet.level.charAt(0).toUpperCase() + selectedSet.level.slice(1)}
+                                </h6>
+                                <p className={`font-medium ${
+                                  selectedSet.level === 'junior' ? 'text-green-600' :
+                                  selectedSet.level === 'middle' ? 'text-blue-600' :
+                                  selectedSet.level === 'senior' ? 'text-purple-600' :
+                                  'text-gray-600'
+                                }`}>
+                                  Experience Level
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     
-                    <div className="grid grid-cols-1 gap-4">
-                      {/* Skills */}
-                      {selectedSet.skills && selectedSet.skills.length > 0 && (
-                        <div>
-                          <span className="text-xs text-blue-600 font-medium mb-2 block">💡 Skills:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {selectedSet.skills.slice(0, 8).map((skill, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-white border border-blue-200 text-blue-700 rounded-md text-xs">
-                                {skill}
+                      {/* Content Categories */}
+                      <div className="grid grid-cols-1 gap-6">
+                        {/* Skills */}
+                        {selectedSet.skills && selectedSet.skills.length > 0 && (
+                          <div className="bg-white/60 backdrop-blur-sm p-5 rounded-xl border border-blue-200">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg">
+                                <span className="text-white text-lg">💡</span>
+                              </div>
+                              <h6 className="font-bold text-gray-800 text-lg">Skills Covered</h6>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                                {selectedSet.skills.length} skills
                               </span>
-                            ))}
-                            {selectedSet.skills.length > 8 && (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-                                +{selectedSet.skills.length - 8} more
-                              </span>
-                            )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedSet.skills.map((skill, idx) => (
+                                <span key={idx} className="px-3 py-2 bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200 text-blue-800 rounded-lg text-sm font-medium hover:shadow-md transition-shadow">
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Topics */}
-                      {selectedSet.topics && selectedSet.topics.length > 0 && (
-                        <div>
-                          <span className="text-xs text-blue-600 font-medium mb-2 block">📚 Topics:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {selectedSet.topics.slice(0, 6).map((topic, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-md text-xs">
-                                {topic}
+                        {/* Topics */}
+                        {selectedSet.topics && selectedSet.topics.length > 0 && (
+                          <div className="bg-white/60 backdrop-blur-sm p-5 rounded-xl border border-indigo-200">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg">
+                                <span className="text-white text-lg">📚</span>
+                              </div>
+                              <h6 className="font-bold text-gray-800 text-lg">Topics</h6>
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium">
+                                {selectedSet.topics.length} topics
                               </span>
-                            ))}
-                            {selectedSet.topics.length > 6 && (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-                                +{selectedSet.topics.length - 6} more
-                              </span>
-                            )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedSet.topics.map((topic, idx) => (
+                                <span key={idx} className="px-3 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 border border-indigo-200 text-indigo-800 rounded-lg text-sm font-medium hover:shadow-md transition-shadow">
+                                  {topic}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Fields */}
-                      {selectedSet.fields && selectedSet.fields.length > 0 && (
-                        <div>
-                          <span className="text-xs text-blue-600 font-medium mb-2 block">🏢 Fields:</span>
-                          <div className="flex flex-wrap gap-1">
-                            {selectedSet.fields.slice(0, 6).map((field, idx) => (
-                              <span key={idx} className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-md text-xs">
-                                {field}
+                        {/* Fields */}
+                        {selectedSet.fields && selectedSet.fields.length > 0 && (
+                          <div className="bg-white/60 backdrop-blur-sm p-5 rounded-xl border border-emerald-200">
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
+                                <span className="text-white text-lg">🏢</span>
+                              </div>
+                              <h6 className="font-bold text-gray-800 text-lg">Fields</h6>
+                              <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">
+                                {selectedSet.fields.length} fields
                               </span>
-                            ))}
-                            {selectedSet.fields.length > 6 && (
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-                                +{selectedSet.fields.length - 6} more
-                              </span>
-                            )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedSet.fields.map((field, idx) => (
+                                <span key={idx} className="px-3 py-2 bg-gradient-to-r from-emerald-100 to-teal-100 border border-emerald-200 text-emerald-800 rounded-lg text-sm font-medium hover:shadow-md transition-shadow">
+                                  {field}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -463,29 +540,70 @@ export default function QuizSetup({
           {/* Quick Mode - Topic Practice */}
           {mode === 'quick' && (
             <div className="space-y-6">
-              <div className="text-center">
-                <h4 className="text-2xl font-bold text-gray-800 mb-2">Topic Practice</h4>
-                <p className="text-gray-600">Choose your category, topic, and configure your quiz</p>
-              </div>
-
               {/* Main Configuration Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 
-                {/* Left Column - Category & Topic Selection */}
+                {/* Left Column - Category & Skills Selection */}
                 <div className="space-y-6">
                   <div className="bg-gradient-to-br from-green-50 to-blue-50 p-6 rounded-2xl border border-green-100">
-                    <h5 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                      <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
-                        <Tag className="w-3 h-3 text-white" />
-                      </div>
-                      Content Selection
-                    </h5>
+                    <div className="flex items-center justify-between mb-4">
+                      <h5 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                        <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
+                          <Tag className="w-3 h-3 text-white" />
+                        </div>
+                        Content Selection
+                      </h5>
+                      
+                      {/* Apply/Unapply Preferences Button */}
+                      {userPreferences?.preferredJobRole && (
+                        <button
+                          onClick={() => {
+                            if (!isPreferencesAppliedQuick) {
+                              // Apply preferences
+                              if (userPreferences.preferredJobRole?.category?.name) {
+                                setCategory(userPreferences.preferredJobRole.category.name);
+                                // Auto-select user's preferred skills
+                                if (userPreferences.skills && userPreferences.skills.length > 0) {
+                                  setSelectedSkills([...userPreferences.skills]);
+                                }
+                                setIsPreferencesAppliedQuick(true);
+                                toast.success(`Applied preferences for ${userPreferences.preferredJobRole.title} ⚡`);
+                              }
+                            } else {
+                              // Unapply preferences
+                              setCategory('');
+                              setSelectedSkills([]);
+                              setTopic('');
+                              setIsPreferencesAppliedQuick(false);
+                              toast.success('Preferences cleared ✨');
+                            }
+                          }}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md ${
+                            isPreferencesAppliedQuick
+                              ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700'
+                              : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700'
+                          }`}
+                        >
+                          {isPreferencesAppliedQuick ? (
+                            <>
+                              <Star className="w-4 h-4 fill-current" />
+                              Unapply Preferences
+                            </>
+                          ) : (
+                            <>
+                              <Star className="w-4 h-4" />
+                              Apply Preferences
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                     
                     <div className="space-y-4">
                       {/* Category Selection */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Category
+                          1. Choose Category
                         </label>
                         <select
                           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
@@ -501,56 +619,124 @@ export default function QuizSetup({
                         </select>
                       </div>
 
-                      {/* Topic Selection */}
-                      <div className={!category ? 'opacity-50 pointer-events-none' : ''}>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Topic {loadingTopicsSkills && <span className="text-xs text-gray-500 animate-pulse ml-1">(Loading...)</span>}
-                        </label>
-                        {loadingTopicsSkills ? (
-                          <div className="flex items-center justify-center py-8">
-                            <div className="inline-block w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                      {/* Skills Selection - Only show when category is selected */}
+                      {category && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            2. Select Skills to Practice ({selectedSkills.length} selected)
+                          </label>
+                        <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {filteredSkills.map((skillOption) => (
+                              <label key={skillOption} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSkills.includes(skillOption)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedSkills(prev => [...prev, skillOption]);
+                                    } else {
+                                      setSelectedSkills(prev => prev.filter(s => s !== skillOption));
+                                    }
+                                  }}
+                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <span className="text-sm font-medium text-gray-700">
+                                  {skillOption}
+                                </span>
+                              </label>
+                            ))}
                           </div>
-                        ) : (
-                          <div>
-                            <select
-                              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                              value={topic}
-                              onChange={(e) => setTopic(e.target.value)}
-                            >
-                              <option value="">Choose a topic...</option>
-                              {topicsWithSkills.map((topicItem) => (
-                                <option key={topicItem.topic} value={topicItem.topic}>
-                                  {topicItem.topic} ({topicItem.skills.length} skills)
-                                </option>
+                        </div>
+                        
+                        {/* Selected Skills Preview */}
+                        {selectedSkills.length > 0 && (
+                          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="text-xs text-green-600 font-medium mb-2">
+                              Selected Skills:
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {selectedSkills.map((skill, idx) => (
+                                <span key={idx} className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs flex items-center gap-1">
+                                  {skill}
+                                  <button
+                                    onClick={() => setSelectedSkills(prev => prev.filter(s => s !== skill))}
+                                    className="ml-1 text-green-600 hover:text-green-800"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
                               ))}
-                            </select>
-                            
-                            {/* Skills Preview */}
-                            {(() => {
-                              const selectedTopic = topic ? topicsWithSkills.find(t => t.topic === topic) : null;
-                              return selectedTopic && (
-                                <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                  <div className="text-xs text-blue-600 font-medium mb-2">
-                                    Related Skills:
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {selectedTopic.skills.slice(0, 6).map((skill, idx) => (
-                                      <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                                        {skill}
-                                      </span>
-                                    ))}
-                                    {selectedTopic.skills.length > 6 && (
-                                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
-                                        +{selectedTopic.skills.length - 6} more
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })()}
+                            </div>
                           </div>
                         )}
-                      </div>
+                        </div>
+                      )}
+
+                      {/* Topic Selection - Only show when category and skills are selected */}
+                      {category && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            3. Choose Topic {loadingTopicsSkills && <span className="text-xs text-gray-500 animate-pulse ml-1">(Loading...)</span>}
+                          </label>
+                          {loadingTopicsSkills ? (
+                            <div className="flex items-center justify-center py-8">
+                              <div className="inline-block w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                            </div>
+                          ) : (
+                            <div>
+                              <select
+                                className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${selectedSkills.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                                disabled={selectedSkills.length === 0}
+                              >
+                                <option value="">Choose a topic...</option>
+                                {filteredTopics.map((topicData) => {
+                                  // Lấy skills chưa được selected
+                                  const additionalSkills = topicData.skills.filter(skill => !selectedSkills.includes(skill));
+                                  const skillsText = additionalSkills.length > 0 ? ` (+${additionalSkills.join(', ')})` : '';
+                                  
+                                  return (
+                                    <option key={topicData.name} value={topicData.name}>
+                                      {topicData.name}{skillsText}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                              {/* Topic Preview */}
+                              {(() => {
+                                const selectedTopicData = topic ? filteredTopics.find(t => t.name === topic) : null;
+                                return selectedTopicData && (
+                                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <div className="text-xs text-blue-600 font-medium mb-2">
+                                      Topic: {selectedTopicData.name}
+                                    </div>
+                                    <div className="text-xs text-blue-500 mb-2">
+                                      Skills you&apos;ll practice in this topic:
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {selectedTopicData.skills.map((skill, idx) => (
+                                        <span 
+                                          key={idx} 
+                                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                            selectedSkills.includes(skill) 
+                                              ? 'bg-green-100 text-green-800 border border-green-300' 
+                                              : 'bg-gray-100 text-gray-600'
+                                          }`}
+                                        >
+                                          {skill}
+                                          {selectedSkills.includes(skill) && ' ✓'}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -559,7 +745,7 @@ export default function QuizSetup({
                 <div className="space-y-6">
                   
                   {/* Experience Level */}
-                  <div className={`bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-2xl border border-purple-100 ${!category || !topic ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className={`bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-2xl border border-purple-100 ${!category || selectedSkills.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
                     <h5 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                         <TrendingUp className="w-3 h-3 text-white" />
@@ -592,33 +778,50 @@ export default function QuizSetup({
                   </div>
 
                   {/* Quiz Settings */}
-                  <div className={`bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-2xl border border-orange-100 ${!category || !topic || !level ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className={`bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-2xl border border-orange-100 ${!category || selectedSkills.length === 0 || !level ? 'opacity-50 pointer-events-none' : ''}`}>
                     <h5 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                        <Clock className="w-3 h-3 text-white" />
+                        <Target className="w-3 h-3 text-white" />
                       </div>
-                      Quiz Length
+                      Quiz Settings
                     </h5>
                     
-                    <select
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                      value={count}
-                      onChange={(e) => setCount(e.target.value)}
-                    >
-                      <option value="">Choose duration...</option>
-                      <option value="5">⚡ Quick - 5 questions (~10 min)</option>
-                      <option value="10">📝 Standard - 10 questions (~20 min)</option>
-                      <option value="15">📚 Extended - 15 questions (~30 min)</option>
-                      <option value="20">🎯 Comprehensive - 20 questions (~40 min)</option>
-                    </select>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { questions: "5", timeLimit: "10", label: "5 questions - 10 minutes", type: "Quick", color: "from-green-400 to-emerald-400" },
+                        { questions: "10", timeLimit: "20", label: "10 questions - 20 minutes", type: "Standard", color: "from-blue-400 to-cyan-400" },
+                        { questions: "15", timeLimit: "30", label: "15 questions - 30 minutes", type: "Extended", color: "from-purple-400 to-pink-400" },
+                        { questions: "20", timeLimit: "40", label: "20 questions - 40 minutes", type: "Comprehensive", color: "from-orange-400 to-red-400" },
+                      ].map((setting) => (
+                        <div
+                          key={setting.questions}
+                          onClick={() => setCount(setting.questions)}
+                          className={`relative group p-4 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+                            count === setting.questions
+                              ? `bg-gradient-to-r ${setting.color.replace("400", "500/10")} border-orange-500/50 shadow-lg`
+                              : "bg-white/50 border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
+                          }`}
+                        >
+                          <div className="text-center">
+                            <div className="font-bold text-gray-800 text-sm mb-1">{setting.label}</div>
+                            <div className="text-xs text-gray-500">{setting.type}</div>
+                          </div>
+                          {count === setting.questions && (
+                            <div className="absolute top-2 right-2 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Progress Summary */}
-              {(category || topic || level || count) && (
+              {(category || selectedSkills.length > 0 || topic || level || count) && (
                 <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-4 rounded-xl border border-gray-200">
-                  <div className="flex items-center justify-center gap-4 text-sm">
+                  <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-gray-600">Category:</span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${category ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
@@ -627,15 +830,22 @@ export default function QuizSetup({
                     </div>
                     <div className="w-px h-4 bg-gray-300"></div>
                     <div className="flex items-center gap-2">
+                      <span className="text-gray-600">Skills:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${selectedSkills.length > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+                        {selectedSkills.length > 0 ? `${selectedSkills.length} selected` : 'None selected'}
+                      </span>
+                    </div>
+                    <div className="w-px h-4 bg-gray-300"></div>
+                    <div className="flex items-center gap-2">
                       <span className="text-gray-600">Topic:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${topic ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${topic ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500'}`}>
                         {topic || 'Not selected'}
                       </span>
                     </div>
                     <div className="w-px h-4 bg-gray-300"></div>
                     <div className="flex items-center gap-2">
                       <span className="text-gray-600">Level:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${level ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500'}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${level ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-500'}`}>
                         {level ? level.charAt(0).toUpperCase() + level.slice(1) : 'Not selected'}
                       </span>
                     </div>
@@ -655,24 +865,6 @@ export default function QuizSetup({
           {/* Topic Practice Mode - All in One Screen */}
           {mode === 'topic' && (
             <div className="space-y-8">
-              <div className="text-center">
-                <h4 className="text-xl font-bold text-gray-800 mb-2">Topic Practice Setup</h4>
-                <p className="text-gray-600 text-sm">Configure all settings in one place</p>
-              </div>
-
-              {/* Apply Preferences Section */}
-              <div className="flex justify-center">
-                {userPreferences?.preferredJobRole && !isPreferencesApplied && (
-                  <button
-                    onClick={applyUserPreferences}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all"
-                  >
-                    <Star className="w-4 h-4" />
-                    Apply My Preferences
-                  </button>
-                )}
-              </div>
-
               {/* Preferences Applied Indicator with Skills Selection */}
               {isPreferencesApplied && userPreferences?.preferredJobRole && (
                 <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
@@ -686,17 +878,10 @@ export default function QuizSetup({
                           Preferences Applied: {userPreferences.preferredJobRole.title}
                         </h4>
                         <p className="text-xs text-blue-600">
-                          {userPreferences.preferredJobRole.category?.name} • Level: {userPreferences.preferredJobRole.level}
+                          {userPreferences.preferredJobRole.category?.name}
                         </p>
                       </div>
                     </div>
-                    <button
-                      onClick={clearAllFilters}
-                      className="flex items-center gap-1 px-3 py-1 bg-white/80 hover:bg-white text-blue-600 hover:text-blue-700 rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                      Clear
-                    </button>
                   </div>
                   
                   {/* User Skills Selection as Buttons */}
@@ -890,23 +1075,38 @@ export default function QuizSetup({
               <div className={`space-y-4 ${!category || !skill || !level ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-white" />
+                    <Target className="w-4 h-4 text-white" />
                   </div>
                   <h4 className="text-lg font-semibold text-gray-700">Quiz Settings</h4>
                 </div>
                 
-                <div className="max-w-md">
-                  <select
-                    className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                    value={count}
-                    onChange={(e) => setCount(e.target.value)}
-                  >
-                    <option value="">Choose quiz length...</option>
-                    <option value="5">5 questions - 10 minutes (Quick)</option>
-                    <option value="10">10 questions - 20 minutes (Standard)</option>
-                    <option value="15">15 questions - 30 minutes (Extended)</option>
-                    <option value="20">20 questions - 40 minutes (Comprehensive)</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-4 max-w-4xl mx-auto justify-center">
+                  {[
+                    { questions: "5", timeLimit: "10", label: "5 questions - 10 minutes", type: "Quick", color: "from-green-400 to-emerald-400" },
+                    { questions: "10", timeLimit: "20", label: "10 questions - 20 minutes", type: "Standard", color: "from-blue-400 to-cyan-400" },
+                    { questions: "15", timeLimit: "30", label: "15 questions - 30 minutes", type: "Extended", color: "from-purple-400 to-pink-400" },
+                    { questions: "20", timeLimit: "40", label: "20 questions - 40 minutes", type: "Comprehensive", color: "from-orange-400 to-red-400" },
+                  ].map((setting) => (
+                    <div
+                      key={setting.questions}
+                      onClick={() => setCount(setting.questions)}
+                      className={`relative group p-6 rounded-xl cursor-pointer transition-all duration-300 border-2 ${
+                        count === setting.questions
+                          ? `bg-gradient-to-r ${setting.color.replace("400", "500/10")} border-orange-500/50 shadow-lg`
+                          : "bg-white/50 border-gray-200 hover:border-orange-300 hover:bg-orange-50/50"
+                      }`}
+                    >
+                      <div className="text-center">
+                        <div className="font-bold text-gray-800 text-base mb-2">{setting.label}</div>
+                        <div className="text-sm text-gray-500">{setting.type}</div>
+                      </div>
+                      {count === setting.questions && (
+                        <div className="absolute top-3 right-3 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
+                          <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -919,8 +1119,14 @@ export default function QuizSetup({
       {/* Start Button */}
       <div className="text-center">
         <Button
-          onClick={onStart}
-          disabled={loading || (mode === 'company' && !questionSetId) || (mode === 'quick' && (!category || !topic || !count)) || (mode === 'topic' && (!category || !skill || !level))}
+          onClick={() => {
+            // Set skill prop to first selected skill for backward compatibility
+            if (selectedSkills.length > 0) {
+              setSkill(selectedSkills[0]);
+            }
+            onStart();
+          }}
+          disabled={loading || (mode === 'company' && !questionSetId) || (mode === 'quick' && (!category || selectedSkills.length === 0 || !topic || !count)) || (mode === 'topic' && (!category || !skill || !level))}
           className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
         >
           {loading ? (

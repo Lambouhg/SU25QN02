@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { AlertCircle, FileText, Filter, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import {
   LoadingSpinner,
   PaginationComponent,
@@ -240,9 +241,10 @@ export default function AdminQuestionsPage() {
     const res = await fetch(`/api/admin/qb2/questions/${id}`, { method: "DELETE" });
     if (!res.ok) {
       const j = await res.json();
-      alert(j?.error || "Delete failed");
+      toast.error(j?.error || "Delete failed");
       return;
     }
+    toast.success("Question deleted successfully");
     await load();
   }
 
@@ -286,14 +288,14 @@ export default function AdminQuestionsPage() {
         throw new Error(result.error || 'Failed to delete questions');
       }
 
-      alert(result.message || `Successfully deleted ${result.deletedCount} question(s).`);
+      toast.success(result.message || `Successfully deleted ${result.deletedCount} question(s).`);
       
       // Clear selection and reload
       setSelectedItems(new Set());
       await load();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred during bulk delete operation.';
-      alert(errorMessage);
+      toast.error(errorMessage);
       console.error('Bulk delete error:', error);
     } finally {
       setBulkDeleteLoading(false);

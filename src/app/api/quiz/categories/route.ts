@@ -42,7 +42,7 @@ export async function GET() {
       }
     });
 
-    // Build response data từ questions thực tế
+    // Build response data với hierarchy: Category → Topics → Skills
     const responseData = Array.from(categoriesMap.entries()).map(([categoryName, categoryData]) => {
       const categoryQuestions = categoryData.questions;
       
@@ -51,26 +51,45 @@ export async function GET() {
         new Set(categoryQuestions.map(q => q.level).filter(Boolean))
       ).sort();
 
-      // Extract available topics từ questions
-      const topicsFromQuestions = Array.from(
-        new Set(categoryQuestions.flatMap(q => q.topics || []))
-      ).sort();
-
       // Extract fields từ questions
       const fieldsFromQuestions = Array.from(
         new Set(categoryQuestions.flatMap(q => q.fields || []))
       ).sort();
 
-      // Skills từ questions
-      const skillsFromQuestions = Array.from(
+      // Tạo topics với skills tương ứng
+      const topicsMap = new Map<string, Set<string>>();
+      
+      categoryQuestions.forEach(question => {
+        const questionTopics = question.topics || [];
+        const questionSkills = question.skills || [];
+        
+        questionTopics.forEach(topic => {
+          if (!topicsMap.has(topic)) {
+            topicsMap.set(topic, new Set<string>());
+          }
+          // Add skills cho topic này
+          questionSkills.forEach(skill => {
+            topicsMap.get(topic)!.add(skill);
+          });
+        });
+      });
+
+      // Convert topics map thành array với skills
+      const topicsWithSkills = Array.from(topicsMap.entries()).map(([topicName, skillsSet]) => ({
+        name: topicName,
+        skills: Array.from(skillsSet).sort()
+      })).sort((a, b) => a.name.localeCompare(b.name));
+
+      // All skills trong category (flatten từ topics)
+      const allSkillsInCategory = Array.from(
         new Set(categoryQuestions.flatMap(q => q.skills || []))
       ).sort();
 
       return {
         id: categoryName.toLowerCase().replace(/\s+/g, '-'), // Generate ID từ name
         name: categoryName,
-        skills: skillsFromQuestions,
-        topics: topicsFromQuestions,
+        topics: topicsWithSkills, // Topics với skills tương ứng
+        skills: allSkillsInCategory, // All skills trong category
         fields: fieldsFromQuestions,
         levels: availableLevels,
         questionCount: categoryQuestions.length
@@ -82,7 +101,8 @@ export async function GET() {
       totalCategories: responseData.length,
       totalQuestions: questions.length,
       totalSkills: Array.from(new Set(questions.flatMap(q => q.skills || []))).length,
-      totalTopics: Array.from(new Set(questions.flatMap(q => q.topics || []))).length
+      totalTopics: Array.from(new Set(questions.flatMap(q => q.topics || []))).length,
+      totalFields: Array.from(new Set(questions.flatMap(q => q.fields || []))).length
     };
 
     return NextResponse.json({

@@ -242,7 +242,6 @@ export default function QuizHistoryPage() {
             </div>
             <h1 className="text-3xl font-bold text-gray-800">Quiz History</h1>
           </div>
-          <p className="text-gray-600 text-lg">Review your past quiz attempts and performance</p>
         </div>
 
         {/* Error Display */}
