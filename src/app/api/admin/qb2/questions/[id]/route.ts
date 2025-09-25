@@ -75,7 +75,11 @@ export async function PUT(req: NextRequest, { params }: Params) {
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   await db.$transaction([
+    // Delete question options first
     db.questionOption.deleteMany({ where: { questionId: id } }),
+    // Delete question set associations
+    db.questionSetQuestion.deleteMany({ where: { questionId: id } }),
+    // Finally delete the question item itself
     db.questionItem.delete({ where: { id } }),
   ]);
   return NextResponse.json({ ok: true });

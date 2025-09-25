@@ -28,9 +28,11 @@ interface QuestionCardProps {
   question: QuestionItem;
   onEdit: (question: QuestionItem) => void;
   onDelete: (id: string) => void;
+  isSelected?: boolean;
+  onSelect?: (id: string, checked: boolean) => void;
 }
 
-export const QuestionCard = ({ question, onEdit, onDelete }: QuestionCardProps) => {
+export const QuestionCard = ({ question, onEdit, onDelete, isSelected = false, onSelect }: QuestionCardProps) => {
   const getDifficultyColor = (diff: string | null | undefined) => {
     switch (diff) {
       case 'easy': return 'text-green-600 bg-green-50';
@@ -52,23 +54,35 @@ export const QuestionCard = ({ question, onEdit, onDelete }: QuestionCardProps) 
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow duration-200">
-      {/* Header */}
+    <div className={`bg-white rounded-lg border p-6 hover:shadow-lg transition-all duration-200 ${
+      isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+    }`}>
+      {/* Header with Selection */}
       <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-            {getTypeLabel(question.type)}
-          </span>
-          {question.level && (
-            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
-              {question.level}
-            </span>
+        <div className="flex items-center gap-3">
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => onSelect(question.id, e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
           )}
-          {question.difficulty && (
-            <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty)}`}>
-              {question.difficulty}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+              {getTypeLabel(question.type)}
             </span>
-          )}
+            {question.level && (
+              <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-full">
+                {question.level}
+              </span>
+            )}
+            {question.difficulty && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${getDifficultyColor(question.difficulty)}`}>
+                {question.difficulty}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <button 

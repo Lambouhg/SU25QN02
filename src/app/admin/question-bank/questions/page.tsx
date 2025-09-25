@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertCircle, FileText, Filter } from "lucide-react";
+import { AlertCircle, FileText, Filter, Trash2 } from "lucide-react";
 import {
   LoadingSpinner,
   PaginationComponent,
@@ -65,6 +65,10 @@ export default function AdminQuestionsPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<QuestionItem | null>(null);
+  
+  // Bulk selection states
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -242,6 +246,60 @@ export default function AdminQuestionsPage() {
     await load();
   }
 
+  // Bulk selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(items.map(item => item.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const handleSelectItem = (id: string, checked: boolean) => {
+    const newSelection = new Set(selectedItems);
+    if (checked) {
+      newSelection.add(id);
+    } else {
+      newSelection.delete(id);
+    }
+    setSelectedItems(newSelection);
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    
+    const confirmMessage = `Are you sure you want to delete ${selectedItems.size} question(s)? This action cannot be undone.`;
+    if (!confirm(confirmMessage)) return;
+
+    setBulkDeleteLoading(true);
+    try {
+      const response = await fetch('/api/admin/qb2/questions/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIds: Array.from(selectedItems) })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete questions');
+      }
+
+      alert(result.message || `Successfully deleted ${result.deletedCount} question(s).`);
+      
+      // Clear selection and reload
+      setSelectedItems(new Set());
+      await load();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred during bulk delete operation.';
+      alert(errorMessage);
+      console.error('Bulk delete error:', error);
+    } finally {
+      setBulkDeleteLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative z-0">
       {/* Quick Actions */}
@@ -308,13 +366,18 @@ export default function AdminQuestionsPage() {
           {/* Content */}
           {!loading && !error && (
             <>
-              {/* Enhanced Stats Bar */}
+              {/* Enhanced Stats Bar with Bulk Actions */}
               <div className="mb-6 bg-white rounded-xl border p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-6">
                     <p className="text-gray-600">
                       Showing <span className="font-bold text-gray-900">{items.length}</span> questions
                     </p>
+                    {selectedItems.size > 0 && (
+                      <p className="text-sm text-blue-600 font-medium">
+                        {selectedItems.size} selected
+                      </p>
+                    )}
                     {Object.values(filters).some(v => v) && (
                       <p className="text-sm text-blue-600">
                         <Filter className="w-4 h-4 inline mr-1" />
@@ -322,10 +385,61 @@ export default function AdminQuestionsPage() {
                       </p>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {lastUpdated ? `Last updated: ${lastUpdated.toLocaleTimeString()}` : 'Last updated: Not yet loaded'}
+                  <div className="flex items-center gap-3">
+                    {selectedItems.size > 0 && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setSelectedItems(new Set())}
+                          className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                        >
+                          Clear Selection
+                        </button>
+                        <button
+                          onClick={handleBulkDelete}
+                          disabled={bulkDeleteLoading}
+                          className="px-3 py-1 text-sm text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed rounded-md transition-colors flex items-center gap-1"
+                        >
+                          {bulkDeleteLoading ? (
+                            <>
+                              <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                              Deleting...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-3 h-3" />
+                              Delete ({selectedItems.size})
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                    <div className="text-sm text-gray-500">
+                      {lastUpdated ? `Last updated: ${lastUpdated.toLocaleTimeString()}` : 'Last updated: Not yet loaded'}
+                    </div>
                   </div>
                 </div>
+                
+                {/* Bulk Selection Controls */}
+                {items.length > 0 && (
+                  <div className="mt-3 pt-3 border-t flex items-center gap-4">
+                    <label className="flex items-center gap-2 text-sm text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.size === items.length && items.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      Select all on this page
+                    </label>
+                    <span className="text-gray-400">|</span>
+                    <button
+                      onClick={() => setSelectedItems(new Set())}
+                      className="text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      Deselect all
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Questions Display */}
@@ -384,6 +498,8 @@ export default function AdminQuestionsPage() {
                         }}
                         onEdit={handleEdit}
                         onDelete={remove}
+                        isSelected={selectedItems.has(question.id)}
+                        onSelect={handleSelectItem}
                       />
                     ))
                   ) : (
@@ -402,6 +518,9 @@ export default function AdminQuestionsPage() {
                       }))}
                       onEdit={handleEdit}
                       onDelete={remove}
+                      selectedItems={selectedItems}
+                      onSelectItem={handleSelectItem}
+                      onSelectAll={handleSelectAll}
                     />
                   )}
                 </div>

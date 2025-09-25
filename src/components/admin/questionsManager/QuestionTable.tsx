@@ -27,9 +27,12 @@ interface QuestionTableProps {
   questions: QuestionItem[];
   onEdit: (question: QuestionItem) => void;
   onDelete: (id: string) => void;
+  selectedItems?: Set<string>;
+  onSelectItem?: (id: string, checked: boolean) => void;
+  onSelectAll?: (checked: boolean) => void;
 }
 
-export const QuestionTable = ({ questions, onEdit, onDelete }: QuestionTableProps) => {
+export const QuestionTable = ({ questions, onEdit, onDelete, selectedItems = new Set(), onSelectItem, onSelectAll }: QuestionTableProps) => {
   const getTypeLabel = (type: string) => {
     switch (type) {
       case 'single_choice': return 'Single Choice';
@@ -56,6 +59,16 @@ export const QuestionTable = ({ questions, onEdit, onDelete }: QuestionTableProp
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
+              {onSelectAll && (
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                  <input
+                    type="checkbox"
+                    checked={selectedItems.size === questions.length && questions.length > 0}
+                    onChange={(e) => onSelectAll(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+              )}
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Question
               </th>
@@ -84,7 +97,19 @@ export const QuestionTable = ({ questions, onEdit, onDelete }: QuestionTableProp
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {questions.map((question) => (
-              <tr key={question.id} className="hover:bg-gray-50">
+              <tr key={question.id} className={`hover:bg-gray-50 ${
+                selectedItems.has(question.id) ? 'bg-blue-50' : ''
+              }`}>
+                {onSelectItem && (
+                  <td className="px-4 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedItems.has(question.id)}
+                      onChange={(e) => onSelectItem(question.id, e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-4">
                   <div className="max-w-xs">
                     <p className="text-sm font-medium text-gray-900 line-clamp-2">
