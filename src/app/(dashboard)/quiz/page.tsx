@@ -26,8 +26,12 @@ export default function QuizPage() {
   const [topic, setTopic] = useState<string>("");
   const [count, setCount] = useState<string>("");
   const [level, setLevel] = useState<string>("");
+  const [field, setField] = useState<string>("");
+  const [skill, setSkill] = useState<string>("");
   const [facetCats, setFacetCats] = useState<string[]>([]);
   const [facetTopics, setFacetTopics] = useState<string[]>([]);
+  const [facetFields, setFacetFields] = useState<string[]>([]);
+  const [facetSkills, setFacetSkills] = useState<string[]>([]);
   const [questionSetId, setQuestionSetId] = useState("");
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [items, setItems] = useState<SnapshotItem[]>([]);
@@ -77,6 +81,8 @@ export default function QuizPage() {
         if (fRes.ok) {
           setFacetCats(fJson.data?.categories || []);
           setFacetTopics(fJson.data?.topics || []);
+          setFacetFields(fJson.data?.fields || []);
+          setFacetSkills(fJson.data?.skills || []);
         }
       } catch {}
     })();
@@ -93,8 +99,8 @@ export default function QuizPage() {
     setStartTime(Date.now());
     
     try {
-      const payload: Record<string, unknown> = {};
-      console.log("Debug - Quiz start:", { mode, questionSetId, category, topic, count, level });
+      const payload: Record<string, unknown> = { mode }; // Always include mode
+      console.log("Debug - Quiz start:", { mode, questionSetId, category, topic, count, level, field, skill });
       
       if (mode === 'company') {
         if (!questionSetId) {
@@ -107,6 +113,8 @@ export default function QuizPage() {
         if (topic) payload.topic = topic;
         if (count) payload.count = Number(count);
         if (level) payload.level = level;
+        if (field) payload.field = field;
+        if (skill) payload.skill = skill;
       }
       
       console.log("Debug - Payload sent to API:", payload);
@@ -127,7 +135,7 @@ export default function QuizPage() {
     } finally {
       setLoading(false);
     }
-  }, [userId, mode, questionSetId, category, topic, count, level]);
+  }, [userId, mode, questionSetId, category, topic, count, level, field, skill]);
 
   const submit = useCallback(async () => {
     if (!attemptId) return;
@@ -135,11 +143,15 @@ export default function QuizPage() {
     setError(null);
     try {
       const responses = Object.entries(answers).map(([qid, arr]) => ({ questionId: qid, answer: arr }));
-      const res = await fetch("/api/quiz/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attemptId, responses, timeUsed }) });
+      const res = await fetch("/api/quiz/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ attemptId, responses }) });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.error || "Submit failed");
       const scoreResult = { score: j.data.score, total: j.data.total, details: j.data.details };
       setScore(scoreResult);
+      
+      // Use server-calculated timeUsed instead of client timer
+      const serverTimeUsed = j.data.timeUsed || timeUsed;
+      setTimeUsed(serverTimeUsed);
       
       // Add to attempt history
       if (attemptId) {
@@ -147,7 +159,7 @@ export default function QuizPage() {
           attemptId,
           score: j.data.score,
           total: j.data.total,
-          timeUsed,
+          timeUsed: serverTimeUsed,
           timestamp: new Date()
         }]);
       }
@@ -430,11 +442,17 @@ export default function QuizPage() {
             setCount={setCount}
             level={level}
             setLevel={setLevel}
+            field={field}
+            setField={setField}
+            skill={skill}
+            setSkill={setSkill}
             questionSetId={questionSetId}
             setQuestionSetId={setQuestionSetId}
             sets={sets}
             facetCats={facetCats}
             facetTopics={facetTopics}
+            facetFields={facetFields}
+            facetSkills={facetSkills}
             onStart={start}
             loading={loading}
           />

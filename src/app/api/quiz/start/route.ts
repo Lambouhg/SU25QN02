@@ -7,8 +7,16 @@ import { auth } from "@clerk/nextjs/server";
 // - Set-based: pass questionSetId (must be published)
 // - Filter-based: pass category/topic/count to pick random questions
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as { questionSetId?: string; category?: string; topic?: string; count?: number; level?: string };
-  const { questionSetId, category, topic, count = 10, level } = body || {};
+  const body = (await req.json()) as { 
+    questionSetId?: string; 
+    category?: string; 
+    topic?: string; 
+    count?: number; 
+    level?: string; 
+    skill?: string;
+    mode?: string; // Add mode to identify practice type
+  };
+  const { questionSetId, category, topic, count = 10, level, skill, mode } = body || {};
 
   const { userId: clerkId } = await auth();
   if (!clerkId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -45,8 +53,16 @@ export async function POST(req: NextRequest) {
     where.type = { in: ['single_choice', 'multiple_choice'] };
     
     if (category) where.category = category;
-    if (topic) where.topics = { has: topic };
     if (level) where.level = level;
+    
+    // Filter based on mode:
+    // - 'quick' mode (Topic Practice): filter by topics  
+    // - 'topic' mode (Skill Mastery): filter by skills
+    if (mode === 'quick' && topic) {
+      where.topics = { has: topic };
+    } else if (mode === 'topic' && skill) {
+      where.skills = { has: skill };
+    }
     
     const pool = await prisma.questionItem.findMany({ where, include: { options: true } });
     for (let i = pool.length - 1; i > 0; i--) {
@@ -73,12 +89,33 @@ export async function POST(req: NextRequest) {
     options: (it.options || []).map((o) => ({ text: o.text })),
   }));
 
+  // Determine practice mode and store metadata
+  let practiceMode = 'company'; // Default to company mode
+  let practiceMetadata: Record<string, unknown> = {};
+
+  if (questionSetId) {
+    practiceMode = 'company'; // Question Sets mode
+    practiceMetadata = { questionSetId };
+  } else if (mode === 'quick') {
+    // Topic Practice mode: uses category + topic
+    practiceMode = 'topic';
+    practiceMetadata = { category, topic, level };
+  } else if (mode === 'topic') {
+    // Skill Mastery mode: uses category + skill
+    practiceMode = 'skill';
+    practiceMetadata = { category, skill, level };
+  }
+
   const attempt = await prisma.quizAttempt.create({
     data: {
       userId: user.id,
       questionSetId: resolvedSetId, // null for practice quiz, valid ID for company quiz
       status: "in_progress",
       itemsSnapshot: snapshot,
+      sectionScores: {
+        practiceMode,
+        metadata: practiceMetadata
+      } as any
     },
     select: { id: true },
   });

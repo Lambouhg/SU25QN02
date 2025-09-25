@@ -1,6 +1,21 @@
 "use client";
-import React, { useState } from "react";
-import { Sparkles, Plus, Settings, Wand2 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Sparkles, Plus, Settings, Wand2, Edit, Save, X } from "lucide-react";
+import {
+  JobRoleSelection,
+  GeneratedPropertiesDisplay,
+  ManualOverrideSection,
+  QuestionPropertiesSection,
+  DuplicateDetectionSettings,
+  SimilarityModal
+} from "@/components/admin/generateQuestions";
+import Toast from "@/components/ui/Toast";
+
+interface JobCategory {
+  id: string;
+  name: string;
+  skills?: string[];
+}
 
 interface GeneratedQuestion {
   stem: string;
@@ -16,12 +31,23 @@ interface GeneratedQuestion {
 }
 
 interface GenerationConfig {
-  field: string;
-  level: string;
-  difficulty: string;
+  // Simplified Selection
+  selectedCategoryId?: string;
+  selectedLevel?: 'Junior' | 'Middle' | 'Senior';
+  
+  // Question Properties
   questionCount: number;
-  questionType: string;
-  topics: string;
+  difficulty: string;
+  
+  // Auto-filled from Category
+  generatedFields: string[];
+  generatedTopics: string[];
+  generatedSkills: string[];
+  
+  // Manual Override
+  customFields?: string;
+  customTopics?: string;
+  customSkills?: string;
   customPrompt?: string;
 }
 
@@ -63,16 +89,26 @@ interface ImportResult {
 }
 
 export default function AdminQuestionGeneratorPage() {
+  // JobRole Data State
+  const [categories, setCategories] = useState<JobCategory[]>([]);
+  const [loadingJobRoles, setLoadingJobRoles] = useState(true);
+  
+  // Generation Config State
   const [config, setConfig] = useState<GenerationConfig>({
-    field: 'Frontend Development',
-    level: 'junior',
-    difficulty: 'easy',
+    selectedCategoryId: '',
+    selectedLevel: undefined,
     questionCount: 5,
-    questionType: 'single_choice',
-    topics: '',
+    difficulty: 'easy',
+    generatedFields: [],
+    generatedTopics: [],
+    generatedSkills: [],
+    customFields: '',
+    customTopics: '',
+    customSkills: '',
     customPrompt: ''
   });
   
+  // Generation Process State
   const [generating, setGenerating] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
@@ -82,38 +118,217 @@ export default function AdminQuestionGeneratorPage() {
   const [similarityThreshold, setSimilarityThreshold] = useState(0.8);
   const [duplicateCheckResults, setDuplicateCheckResults] = useState<DuplicateCheckResponse | null>(null);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  
+  // Edit Question State
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+  const [editingQuestion, setEditingQuestion] = useState<GeneratedQuestion | null>(null);
+  
+  // Similarity Modal State
+  const [similarityModalOpen, setSimilarityModalOpen] = useState(false);
+  const [similarityModalData, setSimilarityModalData] = useState<{
+    question: GeneratedQuestion;
+    similarQuestions: Array<{
+      questionId: string;
+      similarity: number;
+      reason: string;
+      stem: string;
+    }>;
+  } | null>(null);
 
-  const handleGenerate = async () => {
-    setGenerating(true);
-    setDuplicateCheckResults(null);
+  // Toast State
+  const [toast, setToast] = useState<{
+    show: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  }>({
+    show: false,
+    message: '',
+    type: 'info'
+  });
+
+  // Toast helper function
+  const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'info') => {
+    setToast({ show: true, message, type });
+  };
+
+  const loadJobRoleMasterdata = async () => {
     try {
-      const response = await fetch('/api/admin/qb2/questions/ai-generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-
-      const data = await response.json();
+      setLoadingJobRoles(true);
       
-      if (!response.ok) {
-        throw new Error(data.error || 'Generation failed');
-      }
-
-      setGeneratedQuestions(data.questions || []);
-      setSelectedQuestions(new Set(Array.from({ length: data.questions?.length || 0 }, (_, i) => i)));
-      
-      // Auto-check duplicates if questions were generated successfully
-      if (data.questions && data.questions.length > 0 && !skipDuplicateCheck) {
-        await checkDuplicatesForGeneratedQuestions(data.questions);
+      // Load Categories only
+      const categoriesResponse = await fetch('/api/job-categories');
+      if (categoriesResponse.ok) {
+        const categoriesData = await categoriesResponse.json();
+        setCategories(categoriesData);
       }
       
     } catch (error) {
-      console.error('Generation error:', error);
-      alert('Failed to generate questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      console.error('Error loading job role masterdata:', error);
+    } finally {
+      setLoadingJobRoles(false);
+    }
+  };
+
+  const generateQuestionPropertiesFromCategory = useCallback(() => {
+    const selectedCategory = categories.find(cat => cat.id === config.selectedCategoryId);
+    
+    if (selectedCategory) {
+      const fields: string[] = [];
+      const topics: string[] = [];
+      const skills: string[] = [];
+      
+      // Generate from Category
+      fields.push(selectedCategory.name);
+      if (selectedCategory.skills) {
+        skills.push(...selectedCategory.skills);
+      }
+      
+      // Generate level-specific topics
+      topics.push(`${selectedCategory.name} Fundamentals`);
+      if (config.selectedLevel) {
+        topics.push(`${config.selectedLevel} Level Questions`);
+        topics.push(`${selectedCategory.name} ${config.selectedLevel} Skills`);
+      }
+      
+      // Update config with generated properties
+      setConfig(prev => ({
+        ...prev,
+        generatedFields: Array.from(new Set(fields)),
+        generatedTopics: Array.from(new Set(topics)),
+        generatedSkills: Array.from(new Set(skills)),
+      }));
+    }
+  }, [categories, config.selectedCategoryId, config.selectedLevel]);
+
+  // Load JobRole masterdata
+  useEffect(() => {
+    loadJobRoleMasterdata();
+  }, []);
+
+  // Auto-generate fields/topics/skills when Category or Level changes
+  useEffect(() => {
+    if (config.selectedCategoryId) {
+      generateQuestionPropertiesFromCategory();
+    }
+  }, [config.selectedCategoryId, config.selectedLevel, generateQuestionPropertiesFromCategory]);
+
+  const handleGenerate = async () => {
+    // Validate configuration
+    if (!config.selectedCategoryId) {
+      showToast('Please select a Category', 'warning');
+      return;
+    }
+    
+    if (!config.selectedLevel) {
+      showToast('Please select a Level', 'warning');
+      return;
+    }
+
+    // Create new AbortController for this generation
+    const controller = new AbortController();
+    setAbortController(controller);
+    setGenerating(true);
+    setDuplicateCheckResults(null);
+    
+    try {
+      // Prepare generation payload
+      const selectedCategory = categories.find(cat => cat.id === config.selectedCategoryId);
+      
+      // Determine final properties (custom overrides auto-generated)
+      const finalFields = config.customFields 
+        ? config.customFields.split(',').map(f => f.trim()).filter(Boolean)
+        : config.generatedFields;
+        
+      const finalTopics = config.customTopics
+        ? config.customTopics.split(',').map(t => t.trim()).filter(Boolean)
+        : config.generatedTopics;
+        
+      const finalSkills = config.customSkills
+        ? config.customSkills.split(',').map(s => s.trim()).filter(Boolean)
+        : config.generatedSkills;
+
+      // Generate questions - mix of single_choice and multiple_choice
+      const questionsToGenerate = [];
+      
+      // Tạo 1 request duy nhất với tổng số câu hỏi mong muốn
+      // API sẽ tự động chia mix giữa single_choice và multiple_choice
+      questionsToGenerate.push({
+        categoryName: selectedCategory?.name,
+        level: config.selectedLevel,
+        fields: finalFields,
+        topics: finalTopics,
+        skills: finalSkills,
+        questionType: 'mixed', // Cho phép API tự mix các loại câu hỏi
+        difficulty: config.difficulty,
+        questionCount: config.questionCount, // Sử dụng đúng số lượng user chọn
+        customPrompt: config.customPrompt,
+      });
+
+      // Generate questions for both types
+      const allGeneratedQuestions: GeneratedQuestion[] = [];
+      
+      for (const payload of questionsToGenerate) {
+        if (payload.questionCount > 0) {
+          const response = await fetch('/api/admin/qb2/questions/ai-generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+
+          const data = await response.json();
+          
+          if (!response.ok) {
+            throw new Error(data.error || 'Generation failed');
+          }
+
+          // Add generated questions
+          const questions = (data.questions || []).map((q: GeneratedQuestion) => ({
+            ...q,
+            category: selectedCategory?.name || q.category,
+            fields: q.fields?.length ? q.fields : finalFields,
+            topics: q.topics?.length ? q.topics : finalTopics,
+            skills: q.skills?.length ? q.skills : finalSkills,
+          }));
+          
+          allGeneratedQuestions.push(...questions);
+        }
+      }
+
+      setGeneratedQuestions(allGeneratedQuestions);
+      setSelectedQuestions(new Set(Array.from({ length: allGeneratedQuestions.length }, (_, i) => i)));
+      
+      // Show success toast
+      showToast(`Successfully generated ${allGeneratedQuestions.length} questions!`, 'success');
+      
+      // Auto-check duplicates if questions were generated successfully
+      if (allGeneratedQuestions.length > 0 && !skipDuplicateCheck) {
+        await checkDuplicatesForGeneratedQuestions(allGeneratedQuestions);
+      }
+      
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        showToast('Question generation stopped by user', 'info');
+      } else {
+        console.error('Generation error:', error);
+        showToast('Failed to generate questions: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
+      }
     } finally {
       setGenerating(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleStopGeneration = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setGenerating(false);
+      setCheckingDuplicates(false);
+      showToast('Generation stopped', 'info');
     }
   };
 
@@ -129,10 +344,13 @@ export default function AdminQuestionGeneratorPage() {
           questions: questions.map(q => ({
             stem: q.stem,
             category: q.category,
-            fields: q.fields
+            fields: q.fields,
+            options: q.options,
+            explanation: q.explanation
           })),
           similarityThreshold
         }),
+        signal: abortController?.signal,
       });
 
       const duplicateData = await response.json();
@@ -153,6 +371,14 @@ export default function AdminQuestionGeneratorPage() {
       });
       setSelectedQuestions(newSelectedQuestions);
       
+      // Show duplicate check completion toast
+      const rejectedCount = duplicateData.results.filter((r: DuplicateCheckResult) => r.recommendation === 'reject').length;
+      if (rejectedCount > 0) {
+        showToast(`Duplicate check completed: ${rejectedCount} questions auto-deselected due to high similarity`, 'info');
+      } else {
+        showToast('Duplicate check completed: No high-similarity duplicates found', 'success');
+      }
+      
     } catch (error) {
       console.error('Duplicate check error:', error);
       // Don't show error alert for duplicate check failure - just continue without it
@@ -162,19 +388,13 @@ export default function AdminQuestionGeneratorPage() {
     }
   };
 
-  const recheckDuplicates = async () => {
-    if (generatedQuestions.length === 0) {
-      alert('No questions to check');
-      return;
-    }
-    await checkDuplicatesForGeneratedQuestions(generatedQuestions);
-  };
+
 
   const handleSaveSelected = async () => {
     const questionsToSave = generatedQuestions.filter((_, index) => selectedQuestions.has(index));
     
     if (questionsToSave.length === 0) {
-      alert('Please select at least one question to save');
+      showToast('Please select at least one question to save', 'warning');
       return;
     }
 
@@ -193,6 +413,7 @@ export default function AdminQuestionGeneratorPage() {
             fields: q.fields.join(','),
             topics: q.topics.join(','),
             skills: q.skills.join(','),
+            tags: '', // Add empty tags field to prevent undefined error
             ...q.options?.reduce((acc, opt, idx) => ({
               ...acc,
               [`option${idx + 1}`]: opt.text,
@@ -215,28 +436,21 @@ export default function AdminQuestionGeneratorPage() {
       // Show summary message
       let message = result.message || `Successfully processed ${questionsToSave.length} questions!`;
       if (result.duplicatesFound > 0) {
-        message += `\n\nDuplicate Detection Summary:`;
-        message += `\n- ${result.success} questions saved successfully`;
-        message += `\n- ${result.skipped} questions skipped due to high similarity`;
-        message += `\n- ${result.warnings?.length || 0} questions saved with similarity warnings`;
+        message += ` Duplicate Detection Summary: ${result.success} saved, ${result.skipped} skipped, ${result.warnings?.length || 0} warnings`;
       }
       
-      alert(message);
+      showToast(message, 'success');
       
-      // Clear only successfully saved questions
+      // Remove the entire Generated Questions table after successful save
       if (result.success > 0) {
-        const newGeneratedQuestions = generatedQuestions.filter((_, index) => {
-          const detail = result.duplicateDetails?.find((d: { questionIndex: number; status: string }) => d.questionIndex === index);
-          return detail?.status !== 'success';
-        });
-        
-        setGeneratedQuestions(newGeneratedQuestions);
+        setGeneratedQuestions([]);
         setSelectedQuestions(new Set());
+        setDuplicateCheckResults(null);
       }
       
     } catch (error) {
       console.error('Save error:', error);
-      alert('Failed to save questions: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      showToast('Failed to save questions: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error');
     } finally {
       setSaving(false);
     }
@@ -250,6 +464,71 @@ export default function AdminQuestionGeneratorPage() {
       newSelected.add(index);
     }
     setSelectedQuestions(newSelected);
+  };
+
+  const startEditQuestion = (index: number) => {
+    const question = generatedQuestions[index];
+    setEditingQuestionIndex(index);
+    setEditingQuestion({ ...question });
+  };
+
+  const cancelEditQuestion = () => {
+    setEditingQuestionIndex(null);
+    setEditingQuestion(null);
+  };
+
+  const saveEditQuestion = () => {
+    if (editingQuestionIndex !== null && editingQuestion) {
+      const updatedQuestions = [...generatedQuestions];
+      updatedQuestions[editingQuestionIndex] = editingQuestion;
+      setGeneratedQuestions(updatedQuestions);
+      setEditingQuestionIndex(null);
+      setEditingQuestion(null);
+    }
+  };
+
+  const updateEditingQuestion = (field: string, value: string | string[]) => {
+    if (editingQuestion) {
+      setEditingQuestion({
+        ...editingQuestion,
+        [field]: value
+      });
+    }
+  };
+
+  const updateEditingQuestionOption = (optionIndex: number, field: 'text' | 'isCorrect', value: string | boolean) => {
+    if (editingQuestion && editingQuestion.options) {
+      const updatedOptions = [...editingQuestion.options];
+      updatedOptions[optionIndex] = {
+        ...updatedOptions[optionIndex],
+        [field]: value
+      };
+      setEditingQuestion({
+        ...editingQuestion,
+        options: updatedOptions
+      });
+    }
+  };
+
+  const addEditingQuestionOption = () => {
+    if (editingQuestion) {
+      const newOptions = [...(editingQuestion.options || [])];
+      newOptions.push({ text: '', isCorrect: false });
+      setEditingQuestion({
+        ...editingQuestion,
+        options: newOptions
+      });
+    }
+  };
+
+  const removeEditingQuestionOption = (optionIndex: number) => {
+    if (editingQuestion && editingQuestion.options) {
+      const updatedOptions = editingQuestion.options.filter((_, idx) => idx !== optionIndex);
+      setEditingQuestion({
+        ...editingQuestion,
+        options: updatedOptions
+      });
+    }
   };
 
   return (
@@ -271,88 +550,40 @@ export default function AdminQuestionGeneratorPage() {
           Generation Configuration
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Field</label>
-            <select
-              value={config.field}
-              onChange={(e) => setConfig({ ...config, field: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            >
-              <option value="Frontend Development">Frontend Development</option>
-              <option value="Backend Development">Backend Development</option>
-              <option value="Full Stack Development">Full Stack Development</option>
-              <option value="DevOps">DevOps</option>
-              <option value="Mobile Development">Mobile Development</option>
-              <option value="Data Science">Data Science</option>
-              <option value="Machine Learning">Machine Learning</option>
-              <option value="System Design">System Design</option>
-            </select>
-          </div>
+        {/* Job Role Selection Section */}
+        <JobRoleSelection
+          categories={categories}
+          config={{
+            selectedCategoryId: config.selectedCategoryId,
+            selectedLevel: config.selectedLevel
+          }}
+          onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+          loadingJobRoles={loadingJobRoles}
+        />
+        
+        {/* Auto-Generated Properties Display */}
+        <GeneratedPropertiesDisplay
+          generatedFields={config.generatedFields}
+          generatedTopics={config.generatedTopics}
+          generatedSkills={config.generatedSkills}
+        />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
-            <select
-              value={config.level}
-              onChange={(e) => setConfig({ ...config, level: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            >
-              <option value="junior">Junior</option>
-              <option value="middle">Middle</option>
-              <option value="senior">Senior</option>
-            </select>
-          </div>
+        {/* Manual Override Section */}
+        <ManualOverrideSection
+          config={{
+            customFields: config.customFields,
+            customTopics: config.customTopics,
+            customSkills: config.customSkills
+          }}
+          onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+        />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
-            <select
-              value={config.difficulty}
-              onChange={(e) => setConfig({ ...config, difficulty: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            >
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
+        <QuestionPropertiesSection
+          config={config}
+          onConfigChange={(updates) => setConfig({ ...config, ...updates })}
+        />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
-            <select
-              value={config.questionType}
-              onChange={(e) => setConfig({ ...config, questionType: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            >
-              <option value="single_choice">Single Choice</option>
-              <option value="multiple_choice">Multiple Choice</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Question Count</label>
-            <input
-              type="number"
-              min="1"
-              max="20"
-              value={config.questionCount}
-              onChange={(e) => setConfig({ ...config, questionCount: parseInt(e.target.value) || 1 })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Topics (comma-separated)</label>
-            <input
-              type="text"
-              value={config.topics}
-              onChange={(e) => setConfig({ ...config, topics: e.target.value })}
-              placeholder="React, JavaScript, APIs"
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
-            />
-          </div>
-        </div>
-
-        <div className="mt-4">
+                <div className="mt-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Custom Prompt (Optional)</label>
           <textarea
             value={config.customPrompt}
@@ -363,118 +594,40 @@ export default function AdminQuestionGeneratorPage() {
           />
         </div>
 
-        {/* Duplicate Check Settings */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-md font-medium text-gray-900 mb-3">Duplicate Detection Settings</h3>
-          
-          <div className="space-y-3">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="skipDuplicateCheck"
-                checked={skipDuplicateCheck}
-                onChange={(e) => setSkipDuplicateCheck(e.target.checked)}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="skipDuplicateCheck" className="ml-2 text-sm text-gray-700">
-                Skip duplicate detection (save all questions without checking)
-              </label>
-            </div>
+        <DuplicateDetectionSettings
+          skipDuplicateCheck={skipDuplicateCheck}
+          onSkipDuplicateCheckChange={setSkipDuplicateCheck}
+          similarityThreshold={similarityThreshold}
+          onSimilarityThresholdChange={setSimilarityThreshold}
+        />
 
-            {!skipDuplicateCheck && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Similarity Threshold: {Math.round(similarityThreshold * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0.6"
-                  max="1.0"
-                  step="0.05"
-                  value={similarityThreshold}
-                  onChange={(e) => setSimilarityThreshold(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>60% (Less strict)</span>
-                  <span>100% (Very strict)</span>
-                </div>
-                <p className="text-xs text-gray-600 mt-1">
-                  Questions with similarity above this threshold will be flagged as potential duplicates
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-6">
+        <div className="mt-6 flex items-center gap-3">
           <button
             onClick={handleGenerate}
-            disabled={generating || checkingDuplicates}
+            disabled={loadingJobRoles || generating || checkingDuplicates}
             className={`flex items-center gap-2 px-6 py-2 rounded-lg font-medium ${
-              generating || checkingDuplicates
+              loadingJobRoles || generating || checkingDuplicates
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-purple-600 text-white hover:bg-purple-700'
             }`}
           >
             <Wand2 className="w-4 h-4" />
-            {generating ? 'Generating...' : checkingDuplicates ? 'Checking Duplicates...' : 'Generate Questions'}
+            {loadingJobRoles ? 'Loading Job Roles...' : generating ? 'Generating...' : checkingDuplicates ? 'Checking Duplicates...' : 'Generate Questions'}
           </button>
+          
+          {(generating || checkingDuplicates) && (
+            <button
+              onClick={handleStopGeneration}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+            >
+              <X className="w-4 h-4" />
+              Stop
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Duplicate Check Results Summary */}
-      {duplicateCheckResults && (
-        <div className="bg-white rounded-lg border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Duplicate Check Results</h2>
-            <button
-              onClick={recheckDuplicates}
-              disabled={checkingDuplicates}
-              className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400"
-            >
-              {checkingDuplicates ? 'Checking...' : 'Recheck'}
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{duplicateCheckResults.summary.safe}</div>
-              <div className="text-sm text-green-700">Safe to Save</div>
-            </div>
-            <div className="text-center p-3 bg-yellow-50 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">{duplicateCheckResults.summary.warnings}</div>
-              <div className="text-sm text-yellow-700">Review Needed</div>
-            </div>
-            <div className="text-center p-3 bg-red-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">{duplicateCheckResults.summary.duplicates}</div>
-              <div className="text-sm text-red-700">Likely Duplicates</div>
-            </div>
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{duplicateCheckResults.summary.total}</div>
-              <div className="text-sm text-blue-700">Total Checked</div>
-            </div>
-          </div>
 
-          {duplicateCheckResults.summary.duplicates > 0 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800">
-                <strong>Note:</strong> Questions marked as likely duplicates have been automatically deselected. 
-                Review the similar questions below before deciding to save them.
-              </p>
-            </div>
-          )}
-
-          {duplicateCheckResults.summary.warnings > 0 && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mt-3">
-              <p className="text-sm text-yellow-800">
-                <strong>Warning:</strong> Some questions have moderate similarity to existing ones. 
-                Please review them carefully before saving.
-              </p>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Import Results */}
       {importResult && (
@@ -511,48 +664,7 @@ export default function AdminQuestionGeneratorPage() {
             </div>
           )}
 
-          {importResult.duplicateDetails && importResult.duplicateDetails.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="font-medium text-gray-900">Detailed Results:</h4>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {importResult.duplicateDetails.map((detail, index) => (
-                  <div
-                    key={index}
-                    className={`p-3 rounded-lg border text-sm ${
-                      detail.status === 'success' 
-                        ? 'bg-green-50 border-green-200 text-green-800'
-                        : detail.status === 'warning'
-                        ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                        : detail.status === 'duplicate'
-                        ? 'bg-orange-50 border-orange-200 text-orange-800'
-                        : 'bg-red-50 border-red-200 text-red-800'
-                    }`}
-                  >
-                    <div className="font-medium">Question {detail.questionIndex + 1}: {detail.message}</div>
-                    
-                    {detail.duplicateInfo && detail.duplicateInfo.similarQuestions.length > 0 && (
-                      <div className="mt-2">
-                        <div className="text-xs font-medium mb-1">Similar questions found:</div>
-                        <div className="space-y-1">
-                          {detail.duplicateInfo.similarQuestions.slice(0, 3).map((similar: { 
-                            similarity: number; 
-                            stem: string; 
-                            reason: string; 
-                          }, idx: number) => (
-                            <div key={idx} className="text-xs bg-white bg-opacity-50 p-2 rounded">
-                              <div className="font-medium">Similarity: {Math.round(similar.similarity * 100)}%</div>
-                              <div className="truncate">{similar.stem}</div>
-                              <div className="text-xs opacity-75">{similar.reason}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
         </div>
       )}
 
@@ -623,73 +735,306 @@ export default function AdminQuestionGeneratorPage() {
                       className="mt-1"
                     />
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                          {question.type}
-                        </span>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
-                          {question.level}
-                        </span>
-                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
-                          {question.difficulty}
-                        </span>
-                        {statusIcon}
-                      </div>
-                      
-                      <h3 className="font-medium text-gray-900 mb-2">{question.stem}</h3>
-                      
-                      {question.options && question.options.length > 0 && (
-                        <div className="mb-2">
-                          <p className="text-sm font-medium text-gray-700 mb-1">Options:</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            {question.options.map((option, optIndex) => (
-                              <li
-                                key={optIndex}
-                                className={`text-sm ${
-                                  option.isCorrect ? 'text-green-700 font-medium' : 'text-gray-600'
-                                }`}
-                              >
-                                {option.text} {option.isCorrect && '✓'}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {question.explanation && (
-                        <p className="text-sm text-gray-600 italic mb-2">{question.explanation}</p>
-                      )}
-                      
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {question.topics.map((topic, topicIndex) => (
-                          <span
-                            key={topicIndex}
-                            className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded"
-                          >
-                            {topic}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                            {question.type}
                           </span>
-                        ))}
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                            {question.level}
+                          </span>
+                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                            {question.difficulty}
+                          </span>
+                          {statusIcon}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {editingQuestionIndex === index ? (
+                            <>
+                              <button
+                                onClick={saveEditQuestion}
+                                className="p-1 text-green-600 hover:text-green-800 hover:bg-green-100 rounded"
+                                title="Save changes"
+                              >
+                                <Save className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={cancelEditQuestion}
+                                className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+                                title="Cancel editing"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => startEditQuestion(index)}
+                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded"
+                              title="Edit question"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-
-                      {/* Show duplicate information if available */}
-                      {duplicateResult && duplicateResult.similarQuestions.length > 0 && (
-                        <div className="mt-3 p-3 bg-white bg-opacity-75 rounded border-l-4 border-orange-400">
-                          <div className="text-sm font-medium text-orange-800 mb-2">
-                            Similar Questions Found (Confidence: {Math.round(duplicateResult.confidence * 100)}%)
+                      
+                      {editingQuestionIndex === index && editingQuestion ? (
+                        // Edit Form
+                        <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+                          {/* Question Stem */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+                            <textarea
+                              value={editingQuestion.stem}
+                              onChange={(e) => updateEditingQuestion('stem', e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              rows={3}
+                            />
                           </div>
-                          <div className="space-y-2">
-                            {duplicateResult.similarQuestions.slice(0, 2).map((similar, idx) => (
-                              <div key={idx} className="text-xs">
-                                <div className="font-medium text-orange-700">
-                                  Similarity: {Math.round(similar.similarity * 100)}%
-                                </div>
-                                <div className="text-gray-700 truncate">{similar.stem}</div>
-                                <div className="text-gray-600 italic">{similar.reason}</div>
+
+                          {/* Basic Properties */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                              <select
+                                value={editingQuestion.type}
+                                onChange={(e) => updateEditingQuestion('type', e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="single_choice">Single Choice</option>
+                                <option value="multiple_choice">Multiple Choice</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
+                              <select
+                                value={editingQuestion.level}
+                                onChange={(e) => updateEditingQuestion('level', e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="Junior">Junior</option>
+                                <option value="Middle">Middle</option>
+                                <option value="Senior">Senior</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Difficulty</label>
+                              <select
+                                value={editingQuestion.difficulty}
+                                onChange={(e) => updateEditingQuestion('difficulty', e.target.value)}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              >
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Category */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                            <input
+                              type="text"
+                              value={editingQuestion.category}
+                              onChange={(e) => updateEditingQuestion('category', e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          {/* Options */}
+                          {editingQuestion.options && editingQuestion.options.length > 0 && (
+                            <div>
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-medium text-gray-700">Options</label>
+                                <button
+                                  onClick={addEditingQuestionOption}
+                                  className="text-sm text-blue-600 hover:text-blue-800"
+                                >
+                                  + Add Option
+                                </button>
                               </div>
-                            ))}
+                              <div className="space-y-2">
+                                {editingQuestion.options.map((option, optIndex) => (
+                                  <div key={optIndex} className="flex items-center gap-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={option.isCorrect}
+                                      onChange={(e) => updateEditingQuestionOption(optIndex, 'isCorrect', e.target.checked)}
+                                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={option.text}
+                                      onChange={(e) => updateEditingQuestionOption(optIndex, 'text', e.target.value)}
+                                      className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      placeholder={`Option ${optIndex + 1}`}
+                                    />
+                                    <button
+                                      onClick={() => removeEditingQuestionOption(optIndex)}
+                                      className="text-red-600 hover:text-red-800 p-1"
+                                      title="Remove option"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Explanation */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Explanation</label>
+                            <textarea
+                              value={editingQuestion.explanation || ''}
+                              onChange={(e) => updateEditingQuestion('explanation', e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              rows={2}
+                              placeholder="Optional explanation for the answer..."
+                            />
+                          </div>
+
+                          {/* Fields, Topics and Skills */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Fields</label>
+                              <input
+                                type="text"
+                                value={editingQuestion.fields.join(', ')}
+                                onChange={(e) => updateEditingQuestion('fields', e.target.value.split(',').map(f => f.trim()).filter(Boolean))}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Frontend, Backend, DevOps..."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Topics</label>
+                              <input
+                                type="text"
+                                value={editingQuestion.topics.join(', ')}
+                                onChange={(e) => updateEditingQuestion('topics', e.target.value.split(',').map(t => t.trim()).filter(Boolean))}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="React, JavaScript, APIs..."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Skills</label>
+                              <input
+                                type="text"
+                                value={editingQuestion.skills.join(', ')}
+                                onChange={(e) => updateEditingQuestion('skills', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="React, Vue, Angular..."
+                              />
+                            </div>
                           </div>
                         </div>
+                      ) : (
+                        // Display Mode
+                        <div>
+                          <h3 className="font-medium text-gray-900 mb-2">{question.stem}</h3>
+                          
+                          {question.options && question.options.length > 0 && (
+                            <div className="mb-2">
+                              <p className="text-sm font-medium text-gray-700 mb-1">Options:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                {question.options.map((option, optIndex) => (
+                                  <li
+                                    key={optIndex}
+                                    className={`text-sm ${
+                                      option.isCorrect ? 'text-green-700 font-medium' : 'text-gray-600'
+                                    }`}
+                                  >
+                                    {option.text} {option.isCorrect && '✓'}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {question.explanation && (
+                            <p className="text-sm text-gray-600 italic mb-2">{question.explanation}</p>
+                          )}
+                          
+                          {/* Fields, Topics and Skills */}
+                          {(question.fields.length > 0 || question.topics.length > 0 || question.skills.length > 0) && (
+                            <div className="mt-2 space-y-1">
+                              {question.topics.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-gray-500">Topics:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {question.topics.map((topic, topicIndex) => (
+                                      <span
+                                        key={topicIndex}
+                                        className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded"
+                                      >
+                                        {topic}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {question.fields.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-gray-500">Fields:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {question.fields.map((field, fieldIndex) => (
+                                      <span
+                                        key={fieldIndex}
+                                        className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded"
+                                      >
+                                        {field}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {question.skills.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-medium text-gray-500">Skills:</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {question.skills.slice(0, 5).map((skill, skillIndex) => (
+                                      <span
+                                        key={skillIndex}
+                                        className="px-2 py-1 bg-teal-100 text-teal-700 text-xs rounded"
+                                      >
+                                        {skill}
+                                      </span>
+                                    ))}
+                                    {question.skills.length > 5 && (
+                                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                        +{question.skills.length - 5} more
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
+
+                      {/* Similarity Analysis Button */}
+                      {duplicateResult && duplicateResult.similarQuestions && duplicateResult.similarQuestions.length > 0 && (
+                        <div className="mt-3">
+                          <button
+                            onClick={() => {
+                              setSimilarityModalData({
+                                question: question,
+                                similarQuestions: duplicateResult.similarQuestions
+                              });
+                              setSimilarityModalOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-md hover:bg-blue-200 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            View Similarity ({duplicateResult.similarQuestions.length})
+                          </button>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 </div>
@@ -698,6 +1043,22 @@ export default function AdminQuestionGeneratorPage() {
           </div>
         </div>
       )}
+
+      {/* Similarity Modal */}
+      <SimilarityModal
+        isOpen={similarityModalOpen}
+        onClose={() => setSimilarityModalOpen(false)}
+        data={similarityModalData}
+      />
+
+      {/* Toast Notifications */}
+      <Toast
+        show={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+        duration={4000}
+      />
     </div>
   );
 }

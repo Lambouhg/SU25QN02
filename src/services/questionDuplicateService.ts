@@ -16,6 +16,31 @@ export interface DuplicateCheckResult {
 }
 
 /**
+ * Build comprehensive question content for comparison including stem, options, and explanation
+ */
+function buildQuestionContent(question: {
+  stem: string;
+  options?: Array<{ text: string; isCorrect: boolean }>;
+  explanation?: string;
+}): string {
+  let content = `"${question.stem}"`;
+  
+  if (question.options && question.options.length > 0) {
+    content += '\nOptions:';
+    question.options.forEach((option, index) => {
+      const marker = option.isCorrect ? '✓' : ' ';
+      content += `\n  ${String.fromCharCode(65 + index)}. [${marker}] ${option.text}`;
+    });
+  }
+  
+  if (question.explanation && question.explanation.trim()) {
+    content += `\nExplanation: "${question.explanation.trim()}"`;
+  }
+  
+  return content;
+}
+
+/**
  * Check if a question is similar to existing questions using AI
  * @param newQuestionStem The new question to check
  * @param existingQuestions Array of existing questions to compare against
@@ -23,12 +48,23 @@ export interface DuplicateCheckResult {
  * @returns Promise<DuplicateCheckResult>
  */
 export async function checkQuestionDuplicateWithAI(
-  newQuestionStem: string,
-  existingQuestions: Array<{ id: string; stem: string; category?: string; fields?: string[] }>,
+  newQuestion: {
+    stem: string;
+    options?: Array<{ text: string; isCorrect: boolean }>;
+    explanation?: string;
+  },
+  existingQuestions: Array<{ 
+    id: string; 
+    stem: string; 
+    category?: string; 
+    fields?: string[];
+    options?: Array<{ text: string; isCorrect: boolean }>;
+    explanation?: string;
+  }>,
   similarityThreshold: number = 0.8
 ): Promise<DuplicateCheckResult> {
   try {
-    if (!newQuestionStem?.trim()) {
+    if (!newQuestion?.stem?.trim()) {
       throw new Error('Question stem is required');
     }
 
@@ -47,7 +83,7 @@ export async function checkQuestionDuplicateWithAI(
 
     // Skip AI check if there are very few questions (less than 3)
     if (questionsToCheck.length < 3) {
-      return await fallbackSimilarityCheck(newQuestionStem, questionsToCheck, similarityThreshold);
+      return await fallbackSimilarityCheck(newQuestion, questionsToCheck, similarityThreshold);
     }
 
     const systemPrompt = `You are an expert question similarity analyzer. Your task is to determine if a new question is similar or duplicate to existing questions.
@@ -91,13 +127,25 @@ IMPORTANT:
 - Consider domain-specific terminology
 - Focus on what knowledge/skill is being tested`;
 
+    // Build comprehensive question content for comparison
+    const newQuestionContent = buildQuestionContent(newQuestion);
+    const existingQuestionsContent = questionsToCheck.map((q, index) => 
+      `${index + 1}. [ID: ${q.id}] ${buildQuestionContent(q)}`
+    ).join('\n');
+
     const userPrompt = `NEW QUESTION TO CHECK:
-"${newQuestionStem}"
+${newQuestionContent}
 
 EXISTING QUESTIONS TO COMPARE AGAINST:
-${questionsToCheck.map((q, index) => `${index + 1}. [ID: ${q.id}] "${q.stem}"`).join('\n')}
+${existingQuestionsContent}
 
-Analyze the new question against these existing questions and determine similarities.`;
+Analyze the new question against these existing questions. Consider:
+1. Question content/stem similarity
+2. Answer options similarity (if present)
+3. Explanation similarity (if present)
+4. Whether they test the same knowledge/skill even if worded differently
+
+Determine overall similarities and provide detailed reasoning.`;
 
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -175,7 +223,7 @@ Analyze the new question against these existing questions and determine similari
     console.error('Error in AI duplicate check:', error);
     
     // Fallback to basic string similarity if AI fails
-    return await fallbackSimilarityCheck(newQuestionStem, existingQuestions, similarityThreshold);
+    return await fallbackSimilarityCheck(newQuestion, existingQuestions, similarityThreshold);
   }
 }
 
@@ -183,23 +231,85 @@ Analyze the new question against these existing questions and determine similari
  * Fallback similarity check using basic string comparison
  */
 async function fallbackSimilarityCheck(
-  newQuestionStem: string,
-  existingQuestions: Array<{ id: string; stem: string }>,
+  newQuestion: {
+    stem: string;
+    options?: Array<{ text: string; isCorrect: boolean }>;
+    explanation?: string;
+  },
+  existingQuestions: Array<{ 
+    id: string; 
+    stem: string;
+    options?: Array<{ text: string; isCorrect: boolean }>;
+    explanation?: string;
+  }>,
   similarityThreshold: number
 ): Promise<DuplicateCheckResult> {
   const similarities: QuestionSimilarity[] = [];
   
-  const newQuestionNormalized = normalizeText(newQuestionStem);
+  const newQuestionNormalized = normalizeText(newQuestion.stem);
   
   for (const existing of existingQuestions) {
     const existingNormalized = normalizeText(existing.stem);
-    const similarity = calculateJaccardSimilarity(newQuestionNormalized, existingNormalized);
     
-    if (similarity >= 0.6) {
+    // 1. Calculate stem similarity
+    const stemSimilarity = calculateJaccardSimilarity(newQuestionNormalized, existingNormalized);
+    
+    // 2. Calculate options similarity (if both have options)
+    let optionsSimilarity = 0;
+    let optionsWeight = 0;
+    if (newQuestion.options && existing.options && newQuestion.options.length > 0 && existing.options.length > 0) {
+      const newOptionsText = newQuestion.options.map(o => normalizeText(o.text)).join(' ');
+      const existingOptionsText = existing.options.map(o => normalizeText(o.text)).join(' ');
+      optionsSimilarity = calculateJaccardSimilarity(newOptionsText, existingOptionsText);
+      optionsWeight = 0.3; // Options contribute 30%
+      
+      // Check if correct answers are the same
+      const newCorrectOptions = newQuestion.options.filter(o => o.isCorrect).map(o => normalizeText(o.text));
+      const existingCorrectOptions = existing.options.filter(o => o.isCorrect).map(o => normalizeText(o.text));
+      
+      if (newCorrectOptions.length > 0 && existingCorrectOptions.length > 0) {
+        const correctAnswerSimilarity = calculateJaccardSimilarity(
+          newCorrectOptions.join(' '), 
+          existingCorrectOptions.join(' ')
+        );
+        // If correct answers are very similar but question stems are different, it might still be a different question
+        if (correctAnswerSimilarity > 0.8 && stemSimilarity < 0.7) {
+          optionsSimilarity = optionsSimilarity * 0.5; // Reduce options weight if stems are different
+        }
+      }
+    }
+    
+    // 3. Calculate explanation similarity (if both have explanations)
+    let explanationSimilarity = 0;
+    let explanationWeight = 0;
+    if (newQuestion.explanation && existing.explanation && 
+        newQuestion.explanation.trim() && existing.explanation.trim()) {
+      const newExplNormalized = normalizeText(newQuestion.explanation);
+      const existingExplNormalized = normalizeText(existing.explanation);
+      explanationSimilarity = calculateJaccardSimilarity(newExplNormalized, existingExplNormalized);
+      explanationWeight = 0.2; // Explanations contribute 20%
+    }
+    
+    // 4. Calculate weighted total similarity
+    const stemWeight = 0.5 + (optionsWeight + explanationWeight === 0 ? 0.5 : 0); // Stem is at least 50%, up to 100% if no options/explanation
+    const totalSimilarity = (stemSimilarity * stemWeight) + 
+                           (optionsSimilarity * optionsWeight) + 
+                           (explanationSimilarity * explanationWeight);
+    
+    if (totalSimilarity >= 0.6) {
+      let reason = `Stem similarity: ${Math.round(stemSimilarity * 100)}%`;
+      if (optionsWeight > 0) {
+        reason += `, Options similarity: ${Math.round(optionsSimilarity * 100)}%`;
+      }
+      if (explanationWeight > 0) {
+        reason += `, Explanation similarity: ${Math.round(explanationSimilarity * 100)}%`;
+      }
+      reason += ` (Combined: ${Math.round(totalSimilarity * 100)}%)`;
+      
       similarities.push({
         questionId: existing.id,
-        similarity,
-        reason: `Text similarity: ${Math.round(similarity * 100)}%`,
+        similarity: totalSimilarity,
+        reason,
         stem: existing.stem
       });
     }
@@ -273,7 +383,14 @@ export async function getExistingQuestionsForComparison(
         stem: true,
         category: true,
         fields: true,
-        topics: true
+        topics: true,
+        explanation: true,
+        options: {
+          select: {
+            text: true,
+            isCorrect: true
+          }
+        }
       },
       orderBy: {
         createdAt: 'desc'
@@ -286,7 +403,12 @@ export async function getExistingQuestionsForComparison(
       stem: q.stem,
       category: q.category || undefined,
       fields: q.fields,
-      topics: q.topics
+      topics: q.topics,
+      explanation: q.explanation || undefined,
+      options: q.options.map(opt => ({
+        text: opt.text,
+        isCorrect: opt.isCorrect
+      }))
     }));
   } catch (error) {
     console.error('Error fetching existing questions:', error);
@@ -332,7 +454,7 @@ export async function batchCheckQuestionDuplicates(
     
     try {
       const result = await checkQuestionDuplicateWithAI(
-        newQuestion.stem,
+        newQuestion,
         existingQuestions,
         similarityThreshold
       );

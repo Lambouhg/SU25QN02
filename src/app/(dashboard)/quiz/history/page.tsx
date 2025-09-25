@@ -78,6 +78,11 @@ export default function QuizHistoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<QuizDetail | null>(null);
+  const [stats, setStats] = useState<{
+    totalCompleted: number;
+    avgScore: number;
+    completionRate: number;
+  }>({ totalCompleted: 0, avgScore: 0, completionRate: 0 });
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [quizTitles, setQuizTitles] = useState<Record<string, string>>({});
 
@@ -152,6 +157,7 @@ export default function QuizHistoryPage() {
       if (!res.ok) throw new Error(j?.error || "Load failed");
       setRows(j.data || []);
       setTotal(j.total || 0);
+      setStats(j.stats || { totalCompleted: 0, avgScore: 0, completionRate: 0 });
       // Load quiz titles and question details after getting the data
       if (j.data && j.data.length > 0) {
         loadQuizTitles(j.data);
@@ -273,7 +279,7 @@ export default function QuizHistoryPage() {
                     <Trophy className="w-6 h-6 text-green-600" />
                   </div>
                   <div className="text-2xl font-bold text-gray-800">
-                    {rows.filter(r => r.status === 'completed').length}
+                    {stats.totalCompleted}
                   </div>
                   <div className="text-sm text-gray-600">Completed</div>
                 </div>
@@ -282,14 +288,7 @@ export default function QuizHistoryPage() {
                     <Target className="w-6 h-6 text-yellow-600" />
                   </div>
                   <div className="text-2xl font-bold text-gray-800">
-                    {(() => {
-                      const completedWithScore = rows.filter(r => r.status === 'completed' && r.score !== null);
-                      if (completedWithScore.length > 0) {
-                        const average = completedWithScore.reduce((sum, r) => sum + (r.score || 0), 0) / completedWithScore.length;
-                        return average.toFixed(1);
-                      }
-                      return '0.0';
-                    })()}
+                    {stats.avgScore.toFixed(1)}
                   </div>
                   <div className="text-sm text-gray-600">Avg Score</div>
                 </div>
@@ -298,10 +297,7 @@ export default function QuizHistoryPage() {
                     <TrendingUp className="w-6 h-6 text-purple-600" />
                   </div>
                   <div className="text-2xl font-bold text-gray-800">
-                    {rows.filter(r => r.status === 'completed').length > 0 
-                      ? Math.round((rows.filter(r => r.status === 'completed').length / total) * 100)
-                      : 0
-                    }%
+                    {stats.completionRate}%
                   </div>
                   <div className="text-sm text-gray-600">Completion Rate</div>
                 </div>

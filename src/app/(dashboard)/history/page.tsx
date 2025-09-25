@@ -11,6 +11,8 @@ interface Quiz {
     field: string
     topic: string
     level: string
+    title?: string
+    practiceMode?: string
     completedAt: string
     score: number
     timeUsed: number
@@ -99,7 +101,7 @@ export default function QuizHistoryPage() {
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60)
         const secs = seconds % 60
-        return `${mins}m ${secs}s`
+        return `${mins}:${secs.toString().padStart(2, '0')}`
     }
 
     // Score is now 0-10, so convert to percent for display and color
@@ -284,7 +286,7 @@ export default function QuizHistoryPage() {
                                                             </div>
                                                             <div>
                                                                 <h3 className="text-xl font-bold text-gray-800">
-                                                                    {(quiz.field || "Unknown Field")} - {(quiz.topic || "Unknown Topic")}
+                                                                    {quiz.title || `${quiz.field || "Unknown Field"} - ${quiz.topic || "Unknown Topic"}`}
                                                                 </h3>
                                                                 <p className="text-gray-600 capitalize">{quiz.level ? `${quiz.level} Level` : "Unknown Level"}</p>
                                                             </div>

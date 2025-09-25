@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Upload, Sparkles, BookOpen, Plus, Zap } from "lucide-react";
+import { Upload, Sparkles, BookOpen, Plus} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function QuestionBankQuickActions() {
@@ -29,25 +29,18 @@ export default function QuestionBankQuickActions() {
       action: () => router.push("/admin/question-bank/generate")
     },
     {
-      title: "Use Templates",
+      title: "Question Sets Management",
       description: "Start from pre-built templates",
       icon: BookOpen,
       color: "bg-orange-600 hover:bg-orange-700",
-      action: () => router.push("/admin/question-bank/templates")
+      action: () => router.push("/admin/question-bank/sets")
     },
-    {
-      title: "Quick Presets",
-      description: "Generate complete question sets",
-      icon: Zap,
-      color: "bg-yellow-600 hover:bg-yellow-700",
-      action: () => router.push("/admin/question-bank/templates")
-    }
   ];
 
   return (
     <div className="bg-white rounded-lg border p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 justify-items-stretch">
         {quickActions.map((action, index) => {
           const IconComponent = action.icon;
           return (

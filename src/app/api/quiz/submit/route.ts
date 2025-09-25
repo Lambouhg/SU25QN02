@@ -11,7 +11,7 @@ type SubmitBody = {
 
 export async function POST(req: NextRequest) {
   const body = (await req.json()) as SubmitBody;
-  const { attemptId, responses, timeUsed } = body || {};
+  const { attemptId, responses } = body || {};
   if (!attemptId || !Array.isArray(responses)) return NextResponse.json({ error: "invalid payload" }, { status: 400 });
 
   const attempt = await prisma.quizAttempt.findUnique({ where: { id: attemptId } });
@@ -53,15 +53,20 @@ export async function POST(req: NextRequest) {
   // Calculate scaled score (out of 10)
   const scaledScore = total > 0 ? Math.round((gained / total) * 10 * 10) / 10 : 0;
 
+  // Calculate accurate timeUsed from server timestamps
+  const completedAt = new Date();
+  const startedAt = new Date(attempt.startedAt);
+  const accurateTimeUsed = Math.floor((completedAt.getTime() - startedAt.getTime()) / 1000);
+
   await prisma.quizAttempt.update({
     where: { id: attemptId },
     data: {
       status: "completed",
-      completedAt: new Date(),
+      completedAt,
       responses,
       score: scaledScore,
       sectionScores,
-      timeUsed: timeUsed || 0,
+      timeUsed: accurateTimeUsed, // Use server-calculated time instead of client time
     },
   });
 
@@ -87,14 +92,14 @@ export async function POST(req: NextRequest) {
         score: scaledScore,
         totalQuestions: total,
         correctAnswers,
-        timeUsedSeconds: (timeUsed || 0),
+        timeUsedSeconds: accurateTimeUsed,
       });
     }
   } catch (e) {
     console.error("[Quiz Submit] Tracking failed:", e);
   }
 
-  return NextResponse.json({ data: { score: scaledScore, total, sectionScores, details } });
+  return NextResponse.json({ data: { score: scaledScore, total, sectionScores, details, timeUsed: accurateTimeUsed } });
 }
 
 

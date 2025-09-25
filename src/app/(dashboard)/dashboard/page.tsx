@@ -33,9 +33,6 @@ interface DashboardSkillProgress {
     score: number;
     source?: string;
   }>;
-  source: string;
-  lastUpdated: Date;
-  totalSessions: number;
 }
 
 interface ProgressData {

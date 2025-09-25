@@ -12,23 +12,30 @@ export async function GET() {
     distinct: ["category"],
   });
 
-  // Collect topics from arrays (single_choice and multiple_choice only)
+  // Collect topics, fields, and skills from arrays (single_choice and multiple_choice only)
   const arrs = await prisma.questionItem.findMany({
     where: { 
       isArchived: false,
       type: { in: ['single_choice', 'multiple_choice'] }
     },
-    select: { topics: true },
+    select: { topics: true, fields: true, skills: true },
   });
   const topicSet = new Set<string>();
+  const fieldSet = new Set<string>();
+  const skillSet = new Set<string>();
+  
   for (const it of arrs) {
     (it.topics || []).forEach((t) => t && topicSet.add(t));
+    (it.fields || []).forEach((f) => f && fieldSet.add(f));
+    (it.skills || []).forEach((s) => s && skillSet.add(s));
   }
 
   const categories = cats.map((c) => c.category).filter((v): v is string => !!v);
   const topics = Array.from(topicSet).sort();
+  const fields = Array.from(fieldSet).sort();
+  const skills = Array.from(skillSet).sort();
 
-  return NextResponse.json({ data: { categories, topics } });
+  return NextResponse.json({ data: { categories, topics, fields, skills } });
 }
 
 

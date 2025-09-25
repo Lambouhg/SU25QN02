@@ -11,11 +11,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
-    const topic = searchParams.get("topic");
+    const skill = searchParams.get("skill");
 
-    if (!category || !topic) {
+    if (!category || !skill) {
       return NextResponse.json(
-        { error: "Category and topic are required" },
+        { error: "Category and skill are required" },
         { status: 400 }
       );
     }
@@ -60,14 +60,14 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           category: true,
-          topics: true,
+          skills: true,
           level: true
         }
       });
 
-      // Check if any question matches the category and topic
+      // Check if any question matches the category and skill
       const matchingQuestions = questions.filter(
-        (q) => q.category === category && q.topics.includes(topic)
+        (q) => q.category === category && q.skills.includes(skill)
       );
 
       if (matchingQuestions.length > 0) {
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     // Calculate progress for each level
     const progress = {
       category,
-      topic,
+      skill,
       levels: {
         junior: {
           unlocked: true, // Junior is always unlocked

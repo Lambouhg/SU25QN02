@@ -7,6 +7,8 @@ interface CheckDuplicateRequest {
     stem: string;
     category?: string;
     fields?: string[];
+    options?: Array<{ text: string; isCorrect: boolean }>;
+    explanation?: string;
   }>;
   similarityThreshold?: number;
 }

@@ -167,15 +167,18 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // Parse array fields
-        const topics = questionData.topics ? 
-          questionData.topics.split(',').map(s => s.trim()).filter(Boolean) : [];
-        const fields = questionData.fields ? 
-          questionData.fields.split(',').map(s => s.trim()).filter(Boolean) : [];
-        const skills = questionData.skills ? 
-          questionData.skills.split(',').map(s => s.trim()).filter(Boolean) : [];
-        const tags = questionData.tags ? 
-          questionData.tags.split(',').map(s => s.trim()).filter(Boolean) : [];
+        // Parse array fields - handle both string and array types
+        const parseArrayField = (field: any): string[] => {
+          if (!field) return [];
+          if (Array.isArray(field)) return field.map(s => String(s).trim()).filter(Boolean);
+          if (typeof field === 'string') return field.split(',').map(s => s.trim()).filter(Boolean);
+          return [];
+        };
+
+        const topics = parseArrayField(questionData.topics);
+        const fields = parseArrayField(questionData.fields);
+        const skills = parseArrayField(questionData.skills);
+        const tags = parseArrayField(questionData.tags);
 
         // Normalize difficulty
         const normalizeDifficulty = (val: string | undefined) => {
@@ -206,6 +209,11 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        // Validate required fields
+        if (!questionData.type || !questionData.stem) {
+          throw new Error('Missing required fields: type and stem are required');
+        }
+
         // Create question item
         const created = await db.questionItem.create({
           data: {
@@ -230,6 +238,8 @@ export async function POST(req: NextRequest) {
           },
           include: { options: true },
         });
+
+        console.log(`Successfully created question ${created.id} for row ${rowNum}`);
 
         result.success++;
         result.successfulIds.push(created.id);
@@ -265,6 +275,7 @@ export async function POST(req: NextRequest) {
           message: `Failed to save: ${errorMessage}`
         });
         console.error(`Error importing question at row ${rowNum}:`, error);
+        console.error(`Question data for row ${rowNum}:`, JSON.stringify(questionData, null, 2));
       }
     }
 

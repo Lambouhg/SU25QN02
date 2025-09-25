@@ -53,6 +53,23 @@ export async function GET() {
       const itemsSnapshot = attempt.itemsSnapshot as unknown as QuestionSnapshot[];
       const responses = (attempt.responses as unknown as ResponseItem[]) || [];
       
+      // Extract practice mode information from sectionScores
+      const sectionScores = attempt.sectionScores as { practiceMode?: string; metadata?: Record<string, unknown> } | null;
+      let practiceMode = sectionScores?.practiceMode || 'company';
+      let practiceMetadata = sectionScores?.metadata || {};
+      
+      // For older attempts without practice mode info, try to infer from question data
+      if (!sectionScores?.practiceMode && !attempt.questionSetId) {
+        // This is a practice quiz, try to analyze the first question to determine type
+        const itemsSnapshot = attempt.itemsSnapshot as unknown as QuestionSnapshot[];
+        if (itemsSnapshot && itemsSnapshot.length > 0) {
+          // For now, default to 'topic' for old practice quizzes
+          // In the future, we could analyze question metadata to make better guesses
+          practiceMode = 'topic';
+          practiceMetadata = { category: 'Practice', topic: 'Mixed Topics', level: 'Mixed' };
+        }
+      }
+      
       // Check if this is a practice quiz (no linked question set)
       const isPracticeQuiz = !attempt.questionSetId;
       
@@ -64,11 +81,35 @@ export async function GET() {
         a.completedAt <= attempt.completedAt
       ).length - 1; // Subtract 1 because first attempt is not a retry
 
+      // Determine title based on practice mode
+      let title = "";
+      if (practiceMode === 'company' && attempt.questionSet) {
+        // Question Sets: show question set name
+        title = attempt.questionSet.name || "Question Set";
+      } else if (practiceMode === 'topic') {
+        // Topic Practice mode: Category - Topic - Level
+        const category = practiceMetadata.category as string || "Unknown Category";
+        const topic = practiceMetadata.topic as string || "Unknown Topic";
+        const level = practiceMetadata.level as string || "Mixed";
+        title = `${category} - ${topic} - ${level}`;
+      } else if (practiceMode === 'skill') {
+        // Skill Mastery mode: Category - Skill - Level
+        const category = practiceMetadata.category as string || "Unknown Category";
+        const skill = practiceMetadata.skill as string || "Unknown Skill";
+        const level = practiceMetadata.level as string || "Mixed";
+        title = `${category} - ${skill} - ${level}`;
+      } else {
+        // Fallback for older records without practice mode info
+        title = isPracticeQuiz ? "Practice Quiz" : (attempt.questionSet?.name || "Quiz");
+      }
+
       return {
         id: attempt.id,
         field: isPracticeQuiz ? "Practice" : (attempt.questionSet?.fields?.[0] || "General"),
         topic: isPracticeQuiz ? "Mixed Topics" : (attempt.questionSet?.topics?.[0] || attempt.questionSet?.name),
         level: isPracticeQuiz ? "mixed" : (attempt.questionSet?.level || "intermediate"),
+        title: title, // Add the dynamic title
+        practiceMode: practiceMode, // Add practice mode info
         completedAt: attempt.completedAt?.toISOString() || attempt.startedAt.toISOString(),
         score: attempt.score || 0,
         timeUsed: attempt.timeUsed || 0,
