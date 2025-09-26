@@ -85,38 +85,28 @@ export async function GET() {
     const totalActivities = dailyStats.reduce((s, d) => s + (d.totalActivities || 0), 0);
     const totalStudyTime = dailyStats.reduce((s, d) => s + (d.totalDuration || 0), 0);
     
-    // NEW: Use same logic as enhanced analytics (30-day period with daily grouping)
-    const monthlyActivityEvents = await prisma.userActivityEvent.findMany({
+    // SIMPLIFIED: Calculate simple average from all UserActivityEvent scores
+    const allActivityEvents = await prisma.userActivityEvent.findMany({
       where: { 
         userId: user.id,
-        timestamp: { gte: thirtyDaysAgo, lte: now },
-        score: { not: null }
+        score: { not: null } // Only get events with scores
       },
       select: { 
-        score: true, 
-        timestamp: true 
+        score: true,
+        activityType: true,
+        timestamp: true
       }
     });
     
-    // Group by day and calculate daily averages, then average the daily averages
-    const dailyScoresMap = new Map<string, number[]>();
-    monthlyActivityEvents.forEach(event => {
-      const day = event.timestamp.toISOString().split('T')[0];
-      if (!dailyScoresMap.has(day)) {
-        dailyScoresMap.set(day, []);
-      }
-      if (event.score) {
-        dailyScoresMap.get(day)!.push(event.score);
-      }
+    // Calculate simple average of all scores
+    const totalScore = allActivityEvents.reduce((sum, event) => sum + (event.score || 0), 0);
+    const averageScore = allActivityEvents.length > 0 ? totalScore / allActivityEvents.length : 0;
+    
+    console.log(`📊 Average Score Calculation:`, {
+      totalScore,
+      eventCount: allActivityEvents.length,
+      averageScore: averageScore.toFixed(2)
     });
-    
-    const dailyAverages = Array.from(dailyScoresMap.values()).map(scores => 
-      scores.reduce((sum, score) => sum + score, 0) / scores.length
-    );
-    
-    const averageScore = dailyAverages.length > 0 
-      ? dailyAverages.reduce((sum, avg) => sum + avg, 0) / dailyAverages.length
-      : 0;
 
     // Simple study streak: count consecutive recent days with activity
     let studyStreak = 0;

@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     });
 
     const page = Math.max(parseInt(q.page || "1", 10), 1);
-    const pageSize = Math.min(Math.max(parseInt(q.pageSize || "20", 10), 1), 100);
+    const pageSize = Math.min(Math.max(parseInt(q.pageSize || "20", 10), 1), 2000); // Increased limit for review mode
 
     const where: any = {
       // Only return non-archived questions for review
