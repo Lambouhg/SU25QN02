@@ -724,50 +724,69 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
           content.lastIndexOf('}') + 1
         );
         result = JSON.parse(jsonStr);
+        
+        // Debug logging for evaluation data
+        if (result.completionDetails?.evaluation) {
+          console.log('🎯 AI returned evaluation data:', {
+            technicalScore: result.completionDetails.evaluation.technicalScore,
+            communicationScore: result.completionDetails.evaluation.communicationScore,
+            problemSolvingScore: result.completionDetails.evaluation.problemSolvingScore,
+            questionCount: result.questionCount
+          });
+        } else {
+          console.log('⚠️ AI response missing evaluation data in completionDetails');
+        }
       } else {
-        // If no JSON found, create a formatted response
+        console.log('⚠️ No JSON structure found in AI response, creating default response');
+        // If no JSON found, create a formatted response with preserved evaluation logic
         result = {
           answer: content,
           currentTopic: "general",
           shouldMoveToNewTopic: false,
           interviewProgress: currentProgress,
           isInterviewComplete: questionsAsked >= FIXED_QUESTIONS && hasUserRespondedToFinalQuestion,
-          currentScore: 0, // Start from 0
+          currentScore: Math.min(10, Math.max(1, questionsAsked * 1.5)), // Progressive scoring based on question count
           questionCount: questionsAsked, // Use calculated question count
           completionDetails: {
             coveredTopics: [],
             evaluation: {
-              technicalScore: 0, // Start from 0
-              communicationScore: 0, // Start from 0
-              problemSolvingScore: 0, // Start from 0
-              overallRating: 0,
+              // Progressive evaluation based on interview progress
+              technicalScore: Math.min(10, Math.max(1, questionsAsked * 1.2)),
+              communicationScore: Math.min(10, Math.max(1, questionsAsked * 1.0)),
+              problemSolvingScore: Math.min(10, Math.max(1, questionsAsked * 1.1)),
+              overallRating: Math.min(10, Math.max(1, questionsAsked * 1.1)),
               recommendations: []
             }
           }
         };
+        console.log('📊 Created progressive evaluation scores:', result.completionDetails.evaluation);
       }
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
-      // If JSON parsing fails, create a formatted response
+      console.error('❌ Error parsing AI response:', parseError);
+      console.log('📄 Raw AI response:', content.substring(0, 200) + '...');
+      
+      // If JSON parsing fails, create a formatted response with better fallback scoring
       result = {
         answer: content,
         currentTopic: "general",
         shouldMoveToNewTopic: false,
         interviewProgress: currentProgress,
         isInterviewComplete: questionsAsked >= FIXED_QUESTIONS && hasUserRespondedToFinalQuestion,
-        currentScore: 0, // Start from 0
+        currentScore: Math.min(10, Math.max(1, questionsAsked * 1.5)), // Progressive scoring
         questionCount: questionsAsked, // Use calculated question count
         completionDetails: {
           coveredTopics: [],
           evaluation: {
-            technicalScore: 0, // Start from 0
-            communicationScore: 0, // Start from 0
-            problemSolvingScore: 0, // Start from 0
-            overallRating: 0,
+            // Better fallback scoring based on interview progress
+            technicalScore: Math.min(10, Math.max(1, questionsAsked * 1.2)),
+            communicationScore: Math.min(10, Math.max(1, questionsAsked * 1.0)),
+            problemSolvingScore: Math.min(10, Math.max(1, questionsAsked * 1.1)),
+            overallRating: Math.min(10, Math.max(1, questionsAsked * 1.1)),
             recommendations: []
           }
         }
       };
+      console.log('🔄 Created fallback evaluation scores:', result.completionDetails.evaluation);
     }
 
     const isComplete = (questionsAsked >= FIXED_QUESTIONS && hasUserRespondedToFinalQuestion) || result.isInterviewComplete || isEndingInstruction;

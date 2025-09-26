@@ -346,23 +346,28 @@ const ChatControls: React.FC<ChatControlsProps> = ({
                 </div>
               </div>
             </div>
-            {/* Live Evaluation Status */}
+            {/* Live Evaluation Status - Show real-time during interview */}
             <Card>
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4 text-purple-600" />
-                    <span className="text-sm font-medium">Live Evaluation Status</span>
+                    <span className="text-sm font-medium">
+                      {isInterviewComplete ? "Final Evaluation" : "Live Evaluation"}
+                    </span>
                   </div>
                 </div>
 
                 <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded mb-3">
-                  <strong>Current:</strong> {currentEvaluation.currentQuestion}
+                  <strong>Status:</strong> {currentEvaluation.currentQuestion}
                 </div>
 
                 <div className="space-y-2">
                   {evaluationStatus.map((item, index) => {
                     const IconComponent = item.icon
+                    // Don't show scores if they are still 0 and interview hasn't started properly
+                    const hasValidScore = item.score > 0 || isInterviewComplete;
+                    
                     return (
                       <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <div className="flex items-center gap-2">
@@ -374,13 +379,16 @@ const ChatControls: React.FC<ChatControlsProps> = ({
                         <div className="flex items-center gap-2">
                           <div className="w-12 bg-gray-200 rounded-full h-1">
                             <div
-                              className={`h-1 rounded-full ${item.score >= 8 ? "bg-green-500" : item.score >= 6 ? "bg-blue-500" : "bg-orange-500"
-                                }`}
-                              style={{ width: `${(item.score / 10) * 100}%` }}
+                              className={`h-1 rounded-full ${
+                                hasValidScore 
+                                  ? (item.score >= 8 ? "bg-green-500" : item.score >= 6 ? "bg-blue-500" : "bg-orange-500")
+                                  : "bg-gray-300"
+                              }`}
+                              style={{ width: `${hasValidScore ? (item.score / 10) * 100 : 0}%` }}
                             ></div>
                           </div>
-                          <Badge variant="outline" className={`text-xs ${item.color} border-current`}>
-                            {item.score.toFixed(1)}/10
+                          <Badge variant="outline" className={`text-xs ${hasValidScore ? item.color : 'text-gray-500'} border-current`}>
+                            {hasValidScore ? `${item.score.toFixed(1)}/10` : "Pending"}
                           </Badge>
                         </div>
                       </div>
