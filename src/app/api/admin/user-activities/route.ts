@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
       // Calculate activity counts from events
       const totalInterviews = recentEvents.filter(e => e.activityType === 'interview').length;
       const totalQuizzes = recentEvents.filter(e => e.activityType === 'quiz').length;
-      const totalTests = 0; // test not in ActivityType enum
-      const totalEQs = 0; // eq not in ActivityType enum  
+      const totalJD = recentEvents.filter(e => e.activityType === 'jd').length; // Add JD Analysis count
+      const totalAssessments = recentEvents.filter(e => e.activityType === 'assessment').length; // Add Assessment count
       const totalPractice = recentEvents.filter(e => e.activityType === 'practice').length;
       
       // Calculate average score from events
@@ -145,8 +145,8 @@ export async function GET(request: NextRequest) {
         stats: {
           totalInterviews,
           totalQuizzes,
-          totalTests,
-          totalEQs,
+          totalJD, // Add JD Analysis to stats
+          totalAssessments, // Add Assessments to stats
           totalPractice,
           totalActivities: recentEvents.length,
           averageScore: Math.round(averageScore * 100) / 100,
@@ -186,6 +186,14 @@ export async function GET(request: NextRequest) {
         const recentEvents = user.activityEvents;
         return sum + recentEvents.filter(e => e.activityType === 'interview').length;
       }, 0),
+      totalJD: users.reduce((sum, user) => {
+        const recentEvents = user.activityEvents;
+        return sum + recentEvents.filter(e => e.activityType === 'jd').length;
+      }, 0),
+      totalAssessments: users.reduce((sum, user) => {
+        const recentEvents = user.activityEvents;
+        return sum + recentEvents.filter(e => e.activityType === 'assessment').length;
+      }, 0),
       averageScore: users.filter(user => user.activityEvents.length > 0).length > 0
         ? users.reduce((sum, user) => {
             const recentEvents = user.activityEvents;
@@ -205,7 +213,7 @@ export async function GET(request: NextRequest) {
         currentlyActiveUsers, // Real-time active users (last 5 min)
         currentlyOnlineUsers, // Real-time online users (last 20 min)
         activeUsers: overallStats.activeUsers, // Historical active users (last 7 days)
-        totalActivities: overallStats.totalInterviews,
+        totalActivities: overallStats.totalInterviews + overallStats.totalJD + overallStats.totalAssessments, // Include all activity types
         averageScore: Math.round(overallStats.averageScore * 100) / 100
       },
       pagination: {

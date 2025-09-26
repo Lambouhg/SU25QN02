@@ -70,15 +70,6 @@ export interface BaseEventInput {
 
 export class TrackingEventService {
   static async recordEvent(event: BaseEventInput) {
-    console.log(`[TrackingEventService] recordEvent called with:`, {
-      userId: event.userId,
-      activityType: event.activityType,
-      feature: event.feature,
-      action: event.action,
-      score: event.score,
-      duration: event.duration
-    });
-    
     try {
       const timestamp = event.timestamp ?? new Date();
 
@@ -348,8 +339,19 @@ export class TrackingEventService {
     const entries = Object.entries(input.skillDeltas);
     if (entries.length === 0) return;
 
+    // Filter out non-numeric scores to prevent database errors
+    const validEntries = entries.filter(([skillName, score]) => {
+      if (typeof score !== 'number') {
+        console.warn(`Skipping skill snapshot for ${skillName}: expected number, got ${typeof score}`, score);
+        return false;
+      }
+      return true;
+    });
+
+    if (validEntries.length === 0) return;
+
     await prisma.$transaction(
-      entries.map(([skillName, score]) =>
+      validEntries.map(([skillName, score]) =>
         prisma.userSkillSnapshot.create({
           data: {
             userId: input.userId,

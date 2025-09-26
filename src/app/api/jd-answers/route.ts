@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { JdAnswerService, JdAnswerData, AnalysisResult } from '@/services/jdService/jdAnswerService';
 import TrackingEventService from '@/services/trackingEventService';
+import prisma from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   try {
@@ -153,8 +154,21 @@ export async function POST(request: NextRequest) {
 
     
     try {
+      // Ensure User record exists before tracking activity
+      const userRecord = await prisma.user.upsert({
+        where: { clerkId: userId },
+        update: { lastActivity: new Date() },
+        create: {
+          clerkId: userId,
+          email: 'unknown@example.com',
+          lastActivity: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      });
+      
       await TrackingEventService.trackJdAnswered({
-        userId,
+        userId: userRecord.id,
         jdQuestionSetId,
         questionIndex,
         timeSpentSeconds: timeSpent || 0,
@@ -166,7 +180,7 @@ export async function POST(request: NextRequest) {
         skillDeltas: analysisResult?.skillAssessment as Record<string, number> | undefined,
       });
     } catch (activityError) {
-      console.error(' Error tracking JD activity (events):', activityError);
+      console.error('Error tracking JD activity:', activityError);
     }
 
     return NextResponse.json({

@@ -71,7 +71,7 @@ async function getQuestionBankContext(config: InterviewConfig): Promise<{
       })
     });
 
-    console.log('🔗 Question bank API response status:', response.status);
+
 
     if (!response.ok) {
       console.warn('Failed to fetch question bank context:', response.status);
@@ -203,11 +203,11 @@ export async function processInterviewResponse(
     // Lấy question list nếu có config
     let questionBankContext: { questions: QuestionWithDifficulty[] } | null = null;
     if (config) {
-      console.log('🔗 Getting question bank context for config:', config);
+
       questionBankContext = await getQuestionBankContext(config);
-      console.log('🔗 Question bank context result:', questionBankContext ? 'Success' : 'Failed/No data');
+
     } else {
-      console.log('⚠️ No config provided for question bank integration');
+
     }
 
     const expLevel = level.toLowerCase().includes('senior') ? 'senior' 
@@ -772,23 +772,7 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
 
     const isComplete = (questionsAsked >= FIXED_QUESTIONS && hasUserRespondedToFinalQuestion) || result.isInterviewComplete || isEndingInstruction;
 
-    // Log completion status for debugging
-    if (isComplete) {
-      console.log('🎯 Interview completion triggered:', {
-        questionsAsked,
-        FIXED_QUESTIONS,
-        hasUserRespondedToFinalQuestion,
-        resultIsComplete: result.isInterviewComplete,
-        isEndingInstruction,
-        finalIsComplete: isComplete
-      });
-    } else if (questionsAsked >= FIXED_QUESTIONS && !hasUserRespondedToFinalQuestion) {
-      console.log('🎯 AI has asked the final question, waiting for user response:', {
-        questionsAsked,
-        FIXED_QUESTIONS,
-        hasUserRespondedToFinalQuestion
-      });
-    }
+    
 
     // Create evaluation object directly from AI response or use defaults
     const evaluation = result.completionDetails?.evaluation || {
@@ -852,7 +836,7 @@ QUESTION STYLE: Keep all questions NATURAL and PROFESSIONAL. Ask ONLY ONE questi
 export async function startInterview(config: InterviewConfig): Promise<InterviewResponse> {
   try {
     
-    console.log('🎯 Starting interview with config:', config);
+
     
     // Lấy question list trước
     const questionBankContext = await getQuestionBankContext(config);
@@ -876,7 +860,7 @@ Use the same follow-up question logic as described in the main interview system:
 DECISION TREE: 80% follow-up questions, 20% move to next planned question.`;
 
     if (questionBankContext?.questions?.length) {
-      console.log('✅ Adding fixed question list to system message');
+
       const questionsList = questionBankContext.questions.map((q, i) => `${i + 1}. ${q.question}`).join('\n');
       const firstQuestion = questionBankContext.questions[0]?.question || '';
       systemContent += `
@@ -889,7 +873,7 @@ YOU MUST ASK EXACTLY THIS QUESTION NOW (DO NOT REPHRASE, DO NOT ADD NEW QUESTION
 ${firstQuestion}
 `;
     } else {
-      console.log('⚠️ No question list available, using basic system message');
+      
     }
 
     const messages: ChatMessage[] = [
@@ -911,12 +895,7 @@ ${firstQuestion}
       }
     ];
 
-    console.log('🎯 Starting interview with config:', {
-      field: config.field,
-      level: config.level,
-      language: config.language,
-      specialization: config.specialization
-    });
+
 
     const response = await callOpenAI(messages);
     
