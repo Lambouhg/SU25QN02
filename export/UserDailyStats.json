@@ -1,0 +1,186 @@
+[
+  {
+    "id": "1d8dccb7-672e-49b6-ad28-f9f3775b6948",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "date": "2025-09-09T00:00:00.000Z",
+    "totalActivities": 3,
+    "totalDuration": 0,
+    "avgScore": 6.109999999999999,
+    "activityTypeBreakdown": {
+      "assessment": 3,
+      "assessment_test": 3
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-09T17:09:10.967Z",
+    "updatedAt": "2025-09-09T17:14:27.262Z"
+  },
+  {
+    "id": "11b75dc8-ce2b-48b1-8333-9c262245a13b",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "date": "2025-09-10T00:00:00.000Z",
+    "totalActivities": 3,
+    "totalDuration": 0,
+    "avgScore": 5.183333333333333,
+    "activityTypeBreakdown": {
+      "assessment": 3,
+      "assessment_test": 3
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-10T09:24:06.043Z",
+    "updatedAt": "2025-09-10T09:30:29.838Z"
+  },
+  {
+    "id": "68d54f6f-f65a-45c9-a10c-e66922b2222c",
+    "userId": "de14b86c-ada4-4010-bd4d-e5b02519ab49",
+    "date": "2025-09-13T00:00:00.000Z",
+    "totalActivities": 1,
+    "totalDuration": 0,
+    "avgScore": 0,
+    "activityTypeBreakdown": {
+      "assessment": 1,
+      "assessment_test": 1
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-13T06:37:21.159Z",
+    "updatedAt": "2025-09-13T06:37:21.159Z"
+  },
+  {
+    "id": "b131aa28-28ee-418f-bf78-7d450fc6b9d2",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "date": "2025-09-15T00:00:00.000Z",
+    "totalActivities": 1,
+    "totalDuration": 147,
+    "avgScore": 3.8,
+    "activityTypeBreakdown": {
+      "interview": 1,
+      "avatar_interview": 1
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-15T10:18:39.246Z",
+    "updatedAt": "2025-09-15T10:18:39.246Z"
+  },
+  {
+    "id": "9fad3580-4c5b-466d-9ac1-dd2b103a9189",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "date": "2025-09-15T00:00:00.000Z",
+    "totalActivities": 2,
+    "totalDuration": 324,
+    "avgScore": 5.234999999999999,
+    "activityTypeBreakdown": {
+      "interview": 1,
+      "assessment": 1,
+      "assessment_test": 1,
+      "avatar_interview": 1
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-15T11:03:11.870Z",
+    "updatedAt": "2025-09-15T11:47:43.605Z"
+  },
+  {
+    "id": "787487be-9fd6-4602-8ff9-00558419010a",
+    "userId": "8406f057-8f9a-4da6-8e20-1915089a3387",
+    "date": "2025-09-15T00:00:00.000Z",
+    "totalActivities": 1,
+    "totalDuration": 288,
+    "avgScore": 5.8,
+    "activityTypeBreakdown": {
+      "interview": 1,
+      "avatar_interview": 1
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-15T18:38:45.615Z",
+    "updatedAt": "2025-09-15T18:38:45.615Z"
+  },
+  {
+    "id": "9a2ca5b2-b5a0-42f2-abca-7ad5983fe1ea",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "date": "2025-09-16T00:00:00.000Z",
+    "totalActivities": 2,
+    "totalDuration": 0,
+    "avgScore": 8.33,
+    "activityTypeBreakdown": {
+      "assessment": 2,
+      "assessment_test": 2
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-16T12:52:47.087Z",
+    "updatedAt": "2025-09-16T13:13:32.048Z"
+  },
+  {
+    "id": "4c179e6e-7d57-4b01-b37b-ef136721bfd0",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "date": "2025-09-17T00:00:00.000Z",
+    "totalActivities": 5,
+    "totalDuration": 210,
+    "avgScore": 5.12,
+    "activityTypeBreakdown": {
+      "interview": 2,
+      "assessment": 3,
+      "assessment_test": 3,
+      "avatar_interview": 2
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-17T06:27:54.389Z",
+    "updatedAt": "2025-09-17T13:36:36.526Z"
+  },
+  {
+    "id": "a86a8f02-424f-4b78-a9fc-7c62e60f000c",
+    "userId": "1555e235-83d0-4e7c-990b-37e38ea1e8eb",
+    "date": "2025-09-18T00:00:00.000Z",
+    "totalActivities": 2,
+    "totalDuration": 0,
+    "avgScore": 9.57,
+    "activityTypeBreakdown": {
+      "assessment": 2,
+      "assessment_test": 2
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-18T02:56:52.266Z",
+    "updatedAt": "2025-09-18T02:57:04.103Z"
+  },
+  {
+    "id": "0a23249d-91e0-47e9-8e35-78a25db5ef23",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "date": "2025-09-18T00:00:00.000Z",
+    "totalActivities": 3,
+    "totalDuration": 33,
+    "avgScore": 4.666666666666667,
+    "activityTypeBreakdown": {
+      "quiz": 3,
+      "secure_quiz": 3
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-18T13:10:12.977Z",
+    "updatedAt": "2025-09-18T13:21:07.226Z"
+  },
+  {
+    "id": "1b9ea8b8-abf5-4b5c-b88d-73961b83b248",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "date": "2025-09-20T00:00:00.000Z",
+    "totalActivities": 1,
+    "totalDuration": 108,
+    "avgScore": 3.8,
+    "activityTypeBreakdown": {
+      "interview": 1,
+      "avatar_interview": 1
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-20T06:01:58.131Z",
+    "updatedAt": "2025-09-20T06:01:58.131Z"
+  },
+  {
+    "id": "1d42aec2-41c8-4985-85ae-a61944191682",
+    "userId": "63399701-d079-4917-b47e-905ef04c1e85",
+    "date": "2025-09-20T00:00:00.000Z",
+    "totalActivities": 1,
+    "totalDuration": 0,
+    "avgScore": 9,
+    "activityTypeBreakdown": {
+      "assessment": 1,
+      "assessment_test": 1
+    },
+    "skillAverages": {},
+    "createdAt": "2025-09-20T06:07:47.653Z",
+    "updatedAt": "2025-09-20T06:07:47.653Z"
+  }
+]

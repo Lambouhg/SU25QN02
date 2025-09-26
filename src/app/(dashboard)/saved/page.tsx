@@ -17,7 +17,6 @@ import {
   Target,
   TrendingUp,
   RotateCcw,
-  Clock,
   CreditCard,
   ChevronLeft,
   ChevronRight,
@@ -178,28 +177,6 @@ export default function QuizSaveQuestionPage() {
   const levels = Array.from(new Set(savedQuestions.flatMap(q => q.levels || [])));
   const topics = Array.from(new Set(savedQuestions.flatMap(q => q.topics || [])));
 
-  // Calculate best field and topic
-  const fieldCounts = savedQuestions.reduce((acc, q) => {
-    q.fields?.forEach(field => {
-      acc[field] = (acc[field] || 0) + 1;
-    });
-    return acc;
-  }, {} as Record<string, number>);
-
-  const topicCounts = savedQuestions.reduce((acc, q) => {
-    q.topics?.forEach(topic => {
-      acc[topic] = (acc[topic] || 0) + 1;
-    });
-    return acc;
-  }, {} as Record<string, number>);
-
-  const bestField = Object.keys(fieldCounts).length > 0 
-    ? Object.entries(fieldCounts).reduce((a, b) => fieldCounts[a[0]] > fieldCounts[b[0]] ? a : b)[0]
-    : "None";
-
-  const bestTopic = Object.keys(topicCounts).length > 0
-    ? Object.entries(topicCounts).reduce((a, b) => topicCounts[a[0]] > topicCounts[b[0]] ? a : b)[0]
-    : "None";
 
   const currentCard = flashCardQuestions[currentCardIndex];
 
@@ -236,88 +213,69 @@ export default function QuizSaveQuestionPage() {
           <div className="grid lg:grid-cols-4 gap-8">
             {/* Main Content */}
             <div className="lg:col-span-3">
-              {/* Stats Cards */}
-              <div className="grid md:grid-cols-3 gap-6 mb-8">
-                <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-                        <Bookmark className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-2xl font-bold text-gray-800">{savedQuestions.length}</div>
-                        <div className="text-sm text-gray-600">Total Saved</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
 
-                <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                        <Target className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-gray-800 truncate">{bestField}</div>
-                        <div className="text-sm text-gray-600">Best Field</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                        <BookOpen className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-gray-800 truncate">{bestTopic}</div>
-                        <div className="text-sm text-gray-600">Best Topic</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-
-              </div>
-
-            {/* Search and Filter */}
+            {/* Advanced Search & Filter */}
             <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl mb-8">
-                {/* Action Bar with Search and Filters */}
-                <CardContent className="p-4 space-y-3">
-                  {/* Search and Filter Bar */}
-                  <div className="flex w-full gap-4">
-                    <div className="relative flex-grow min-w-[220px]">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search questions, fields, topics..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg text-base"
-                      />
-                    </div>
-                    <div className="relative min-w-[160px] flex-shrink-0">
-                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                    <Search className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-800">Knowledge Discovery</h2>
+                    <p className="text-sm text-gray-600">Find and organize your saved questions</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Search by question content, category, or topic..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 focus:border-purple-500 focus:ring-4 focus:ring-purple-100 rounded-2xl bg-white/70 backdrop-blur-sm shadow-lg text-base placeholder-gray-500 transition-all duration-200"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm("")}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 w-6 h-6 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center transition-colors duration-200"
+                      >
+                        <X className="w-4 h-4 text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Filter Controls */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="relative">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <Filter className="w-4 h-4 inline mr-2" />
+                        Category
+                      </label>
                       <select
                         value={filterField}
                         onChange={(e) => setFilterField(e.target.value)}
-                        className="w-full pl-10 pr-8 py-2 border-2 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg appearance-none text-base"
+                        className="w-full px-4 py-3 border-2 border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-100 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg text-base transition-all duration-200"
                       >
-                        <option value="all">All Fields</option>
+                        <option value="all">All Category</option>
                         {fields.map((field) => (
                           <option key={field} value={field}>{field}</option>
                         ))}
                       </select>
                     </div>
-                    <div className="relative min-w-[160px] flex-shrink-0">
-                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+
+                    <div className="relative">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <BookOpen className="w-4 h-4 inline mr-2" />
+                        Topic Focus
+                      </label>
                       <select
                         value={filterTopic}
                         onChange={(e) => setFilterTopic(e.target.value)}
-                        className="w-full pl-10 pr-8 py-2 border-2 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg appearance-none text-base"
+                        className="w-full px-4 py-3 border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg text-base transition-all duration-200"
                       >
                         <option value="all">All Topics</option>
                         {topics.map((topic) => (
@@ -325,12 +283,16 @@ export default function QuizSaveQuestionPage() {
                         ))}
                       </select>
                     </div>
-                    <div className="relative min-w-[160px] flex-shrink-0">
-                      <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+
+                    <div className="relative">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <Target className="w-4 h-4 inline mr-2" />
+                        Difficulty Level
+                      </label>
                       <select
                         value={filterLevel}
                         onChange={(e) => setFilterLevel(e.target.value)}
-                        className="w-full pl-10 pr-8 py-2 border-2 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg appearance-none text-base"
+                        className="w-full px-4 py-3 border-2 border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 rounded-xl bg-white/70 backdrop-blur-sm shadow-lg text-base transition-all duration-200"
                       >
                         <option value="all">All Levels</option>
                         {levels.map((level) => (
@@ -339,7 +301,28 @@ export default function QuizSaveQuestionPage() {
                       </select>
                     </div>
                   </div>
-                </CardContent>
+
+                  {/* Results Summary */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div className="text-sm text-gray-600">
+                      Showing <span className="font-semibold text-gray-800">{filteredQuestions.length}</span> of <span className="font-semibold text-gray-800">{savedQuestions.length}</span> questions
+                    </div>
+                    {(searchTerm || filterField !== "all" || filterLevel !== "all" || filterTopic !== "all") && (
+                      <button
+                        onClick={() => {
+                          setSearchTerm("");
+                          setFilterField("all");
+                          setFilterLevel("all");
+                          setFilterTopic("all");
+                        }}
+                        className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                      >
+                        Clear All Filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
             </Card>
 
             {/* Questions List */}
@@ -369,45 +352,55 @@ export default function QuizSaveQuestionPage() {
                   <Card key={question.id || index} className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4">
-                        <div className="flex items-start gap-4 flex-1">
-                          <input
-                            type="checkbox"
-                            checked={selectedQuestions.has(question.id)}
-                            onChange={() => toggleQuestionSelection(question.id)}
-                            className="mt-1 w-5 h-5 text-orange-600 border-2 border-gray-300 rounded focus:ring-orange-500"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="flex gap-2">
-                                {question.fields && question.fields[0] && (
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-lg border border-blue-200">
-                                    {question.fields[0]}
-                                  </span>
-                                )}
-                                {question.topics && question.topics[0] && (
-                                  <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-lg border border-purple-200">
-                                    {question.topics[0]}
-                                  </span>
-                                )}
-                                {question.levels && question.levels[0] && (
-                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-lg border border-orange-200">
-                                    {question.levels[0]}
-                                  </span>
-                                )}
-                                {question.difficulty && (
-                                  <span
-                                    className={`px-2 py-1 text-xs font-medium rounded-lg border ${getDifficultyColor(question.difficulty)}`}
-                                  >
-                                    🔥 {question.difficulty}
-                                  </span>
-                )}
-              </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="flex gap-2">
+                              {question.fields && question.fields[0] && (
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-lg border border-blue-200">
+                                  {question.fields[0]}
+                                </span>
+                              )}
+                              {question.topics && question.topics[0] && (
+                                <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded-lg border border-purple-200">
+                                  {question.topics[0]}
+                                </span>
+                              )}
+                              {question.levels && question.levels[0] && (
+                                <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-medium rounded-lg border border-orange-200">
+                                  {question.levels[0]}
+                                </span>
+                              )}
+                              {question.difficulty && (
+                                <span
+                                  className={`px-2 py-1 text-xs font-medium rounded-lg border ${getDifficultyColor(question.difficulty)}`}
+                                >
+                                  🔥 {question.difficulty}
+                                </span>
+                              )}
                             </div>
-                            <h3 className="text-lg font-bold text-gray-800 mb-4">{question.question}</h3>
                           </div>
+                          <h3 className="text-lg font-bold text-gray-800 mb-4">{question.question}</h3>
                         </div>
 
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => toggleQuestionSelection(question.id)}
+                            className={`px-3 py-2 rounded-lg transition-all duration-200 flex items-center gap-2 ${
+                              selectedQuestions.has(question.id)
+                                ? 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                                : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                            }`}
+                            title={selectedQuestions.has(question.id) ? "Remove from Study" : "Add to Study"}
+                          >
+                            {selectedQuestions.has(question.id) ? (
+                              <BookOpen className="w-4 h-4" />
+                            ) : (
+                              <BookOpen className="w-4 h-4" />
+                            )}
+                            <span className="text-sm font-medium">
+                              {selectedQuestions.has(question.id) ? 'Added to Study' : 'Add to Study'}
+                            </span>
+                          </button>
                           <button
                             onClick={() => toggleAnswerVisibility(question.id)}
                             className={`p-2 rounded-lg transition-all duration-300 ${
@@ -478,23 +471,33 @@ export default function QuizSaveQuestionPage() {
                           </div>
                         </div>
                       )}
-
-                      {/* Saved Date */}
-                      {question.savedAt && (
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-4 pt-4 border-t border-gray-200">
-                          <Clock className="w-3 h-3" />
-                          Saved on {new Date(question.savedAt).toLocaleDateString()}
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
-            ))}
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Total Saved Stats */}
+            <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                    <Bookmark className="w-4 h-4 text-white" />
+                  </div>
+                  <h3 className="font-bold text-gray-800">Total Saved</h3>
+                </div>
+                <div className="p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-gray-800 mb-2">{savedQuestions.length}</div>
+                    <div className="text-sm text-gray-600">Questions Saved</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Quick Actions */}
             <Card className="bg-white/80 backdrop-blur-lg border-white/50 shadow-2xl">
               <CardContent className="p-6">
@@ -571,15 +574,15 @@ export default function QuizSaveQuestionPage() {
                   >
                     <CreditCard className="w-5 h-5 text-purple-600" />
                     <span className="font-medium text-gray-800">
-                      Flash card {selectedQuestions.size > 0 ? `(${selectedQuestions.size})` : "(All)"}
+                      Study {selectedQuestions.size > 0 ? `(${selectedQuestions.size})` : "(All)"}
                     </span>
                   </button>
                 </div>
 
-                {/* Note about checkbox configuration */}
+                {/* Note about study selection */}
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-xs text-blue-700">
-                    <span className="font-medium">Note:</span> Can configure by checkbox selection for custom flash card sets.
+                    <span className="font-medium">Note:</span> Select questions using &quot;Add to Study&quot; button for custom flash card sets.
                   </p>
                 </div>
               </CardContent>
@@ -817,7 +820,7 @@ export default function QuizSaveQuestionPage() {
           </div>
         </div>
       )}
-    </div>
+      </div>
     </DashboardLayout>
   );
 } 

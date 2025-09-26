@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAIResponse } from '../../../../services/azureAiservicesforJD';
+import { getAIResponse } from '../../../../services/jdService/azureAiservicesforJD';
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,8 +27,7 @@ Please provide feedback in the following JSON format:
   "detailedScores": {
     "content": number (1-10, độ phong phú, chính xác và chất lượng nội dung),
     "relevance": number (1-10, độ liên quan và phù hợp với câu hỏi),
-    "clarity": number (1-10, độ rõ ràng, logic và dễ hiểu),
-    "overall": number (1-10, điểm tổng thể)
+    "clarity": number (1-10, độ rõ ràng, logic và dễ hiểu)
   },
   "strengths": [
     "Specific strength 1",
@@ -47,6 +46,7 @@ Please provide feedback in the following JSON format:
   "readinessScore": number (0-100, % sẵn sàng cho level tiếp theo)
 }
 
+IMPORTANT: Only provide detailed scores (1-10). The overall score will be calculated automatically by the backend using a weighted formula.
 Ensure all scores are realistic and based on the actual quality of the answer. Be specific and constructive in feedback.
     `;
 
@@ -56,6 +56,12 @@ Ensure all scores are realistic and based on the actual quality of the answer. B
     let analysisResult;
     try {
       analysisResult = JSON.parse(response);
+      
+      // Remove any overall score from AI response - it will be calculated by backend
+      if (analysisResult.detailedScores && analysisResult.detailedScores.overall) {
+        delete analysisResult.detailedScores.overall;
+      }
+      
     } catch (error) {
       console.warn("Failed to parse AI response as JSON:", error);
       // Fallback if AI doesn't return valid JSON
@@ -64,8 +70,7 @@ Ensure all scores are realistic and based on the actual quality of the answer. B
         detailedScores: {
           content: 6,
           relevance: 6,
-          clarity: 6,
-          overall: 6
+          clarity: 6
         },
         strengths: ["Good effort in answering"],
         improvements: ["Could provide more detail"],

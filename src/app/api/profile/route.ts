@@ -49,6 +49,18 @@ export async function GET() {
           }
         });
       } else {
+        // Tìm default role (user)
+        const defaultRole = await prisma.role.findFirst({
+          where: { name: "user" }
+        });
+
+        if (!defaultRole) {
+          return NextResponse.json(
+            { error: "Default role not found. Please run seed script first." },
+            { status: 500 }
+          );
+        }
+
         user = await prisma.user.create({
           data: {
             clerkId: userId,
@@ -59,7 +71,7 @@ export async function GET() {
             department: "",
             bio: "",
             skills: [],
-            roleId: "user_role_id",
+            roleId: defaultRole.id,
             joinDate: new Date().toLocaleDateString('vi-VN'),
             lastLogin: new Date(),
             status: "Hoạt động"

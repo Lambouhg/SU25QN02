@@ -1,1 +1,242 @@
-[]
+[
+  {
+    "id": "f8b55d79-5945-4919-94ab-07513fcc5bca",
+    "name": "user.view",
+    "displayName": "Xem danh sách người dùng",
+    "description": "Xem danh sách tất cả người dùng trong hệ thống",
+    "category": "user_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.221Z",
+    "updatedAt": "2025-09-09T16:59:37.221Z"
+  },
+  {
+    "id": "a54c39f4-d450-47b9-a40d-f0893cc44c6f",
+    "name": "user.edit",
+    "displayName": "Chỉnh sửa người dùng",
+    "description": "Chỉnh sửa thông tin người dùng",
+    "category": "user_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.244Z",
+    "updatedAt": "2025-09-09T16:59:37.244Z"
+  },
+  {
+    "id": "8e541faa-6bdd-45a3-9935-9922efc61d1d",
+    "name": "question.view",
+    "displayName": "Xem câu hỏi",
+    "description": "Xem danh sách câu hỏi trong ngân hàng câu hỏi",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.245Z",
+    "updatedAt": "2025-09-09T16:59:37.245Z"
+  },
+  {
+    "id": "dac5374e-c1ff-4796-8c6b-505ae5ad9cc9",
+    "name": "user.delete",
+    "displayName": "Xóa người dùng",
+    "description": "Xóa tài khoản người dùng",
+    "category": "user_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.253Z",
+    "updatedAt": "2025-09-09T16:59:37.253Z"
+  },
+  {
+    "id": "ef714c0c-cf2a-4e37-8cdc-ee285f45eac1",
+    "name": "settings.edit",
+    "displayName": "Chỉnh sửa cài đặt hệ thống",
+    "description": "Chỉnh sửa cài đặt hệ thống",
+    "category": "system_settings",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.253Z",
+    "updatedAt": "2025-09-09T16:59:37.253Z"
+  },
+  {
+    "id": "46d0d8a2-537c-4c36-9f6c-c1bf233d4693",
+    "name": "questionset.delete",
+    "displayName": "Xóa bộ câu hỏi",
+    "description": "Xóa bộ câu hỏi",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.265Z",
+    "updatedAt": "2025-09-09T16:59:37.265Z"
+  },
+  {
+    "id": "8ff948d9-4b80-4426-81a4-36799a8c9d53",
+    "name": "analytics.view",
+    "displayName": "Xem báo cáo",
+    "description": "Xem báo cáo và thống kê hệ thống",
+    "category": "analytics",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.270Z",
+    "updatedAt": "2025-09-09T16:59:37.270Z"
+  },
+  {
+    "id": "8f496294-df5d-40fb-9a35-080b93d006b9",
+    "name": "settings.view",
+    "displayName": "Xem cài đặt hệ thống",
+    "description": "Xem cài đặt hệ thống",
+    "category": "system_settings",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.271Z",
+    "updatedAt": "2025-09-09T16:59:37.271Z"
+  },
+  {
+    "id": "ffee32da-2710-4fbe-9c33-b02fdefe478d",
+    "name": "question.create",
+    "displayName": "Tạo câu hỏi",
+    "description": "Tạo câu hỏi mới trong ngân hàng câu hỏi",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.273Z",
+    "updatedAt": "2025-09-09T16:59:37.273Z"
+  },
+  {
+    "id": "633a9ff6-90e8-44a9-8aa6-30a143231883",
+    "name": "questionset.view",
+    "displayName": "Xem bộ câu hỏi",
+    "description": "Xem danh sách bộ câu hỏi",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.275Z",
+    "updatedAt": "2025-09-09T16:59:37.275Z"
+  },
+  {
+    "id": "453bf813-43d8-41ed-83a5-b1ca568981b7",
+    "name": "role.edit",
+    "displayName": "Chỉnh sửa vai trò",
+    "description": "Chỉnh sửa vai trò hiện có",
+    "category": "role_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.272Z",
+    "updatedAt": "2025-09-09T16:59:37.272Z"
+  },
+  {
+    "id": "5508c87d-8445-4aec-b03f-a76a6462cd60",
+    "name": "questionset.edit",
+    "displayName": "Chỉnh sửa bộ câu hỏi",
+    "description": "Chỉnh sửa bộ câu hỏi hiện có",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.276Z",
+    "updatedAt": "2025-09-09T16:59:37.276Z"
+  },
+  {
+    "id": "78238624-a57f-4ed6-b240-d328b2e0fc13",
+    "name": "question.edit",
+    "displayName": "Chỉnh sửa câu hỏi",
+    "description": "Chỉnh sửa câu hỏi hiện có",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.277Z",
+    "updatedAt": "2025-09-09T16:59:37.277Z"
+  },
+  {
+    "id": "630b3352-0815-4ed0-873e-e88a490b62d4",
+    "name": "role.view",
+    "displayName": "Xem vai trò",
+    "description": "Xem danh sách vai trò và quyền hạn",
+    "category": "role_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.280Z",
+    "updatedAt": "2025-09-09T16:59:37.280Z"
+  },
+  {
+    "id": "bf4acfc3-988f-4e75-855e-f235908fc717",
+    "name": "user.create",
+    "displayName": "Tạo người dùng mới",
+    "description": "Tạo tài khoản người dùng mới",
+    "category": "user_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.278Z",
+    "updatedAt": "2025-09-09T16:59:37.278Z"
+  },
+  {
+    "id": "3c290712-2760-49a3-96ff-af62982d0d7d",
+    "name": "package.edit",
+    "displayName": "Chỉnh sửa gói dịch vụ",
+    "description": "Chỉnh sửa gói dịch vụ hiện có",
+    "category": "package_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.288Z",
+    "updatedAt": "2025-09-09T16:59:37.288Z"
+  },
+  {
+    "id": "2c295bce-17d7-420c-9a1b-72a369d716e6",
+    "name": "package.create",
+    "displayName": "Tạo gói dịch vụ",
+    "description": "Tạo gói dịch vụ mới",
+    "category": "package_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.289Z",
+    "updatedAt": "2025-09-09T16:59:37.289Z"
+  },
+  {
+    "id": "4349f389-51df-438e-9c4b-1250adfe1530",
+    "name": "analytics.export",
+    "displayName": "Xuất báo cáo",
+    "description": "Xuất báo cáo ra file Excel/PDF",
+    "category": "analytics",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.294Z",
+    "updatedAt": "2025-09-09T16:59:37.294Z"
+  },
+  {
+    "id": "fa1cdaa8-ebff-4079-b890-36a33386ebb6",
+    "name": "questionset.create",
+    "displayName": "Tạo bộ câu hỏi",
+    "description": "Tạo bộ câu hỏi mới",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.295Z",
+    "updatedAt": "2025-09-09T16:59:37.295Z"
+  },
+  {
+    "id": "9fe10a67-f381-49ea-be68-d2dc563df11f",
+    "name": "package.view",
+    "displayName": "Xem gói dịch vụ",
+    "description": "Xem danh sách gói dịch vụ",
+    "category": "package_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.295Z",
+    "updatedAt": "2025-09-09T16:59:37.295Z"
+  },
+  {
+    "id": "fa873e1c-a7e2-4d5e-8885-7e8e0498ba5d",
+    "name": "question.delete",
+    "displayName": "Xóa câu hỏi",
+    "description": "Xóa câu hỏi khỏi ngân hàng câu hỏi",
+    "category": "question_bank",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.310Z",
+    "updatedAt": "2025-09-09T16:59:37.310Z"
+  },
+  {
+    "id": "4179bd2c-138b-48e1-affb-d1217d594398",
+    "name": "package.delete",
+    "displayName": "Xóa gói dịch vụ",
+    "description": "Xóa gói dịch vụ",
+    "category": "package_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.353Z",
+    "updatedAt": "2025-09-09T16:59:37.353Z"
+  },
+  {
+    "id": "2450eeaf-75f0-43ab-b4ec-c0fc3b05d514",
+    "name": "role.create",
+    "displayName": "Tạo vai trò",
+    "description": "Tạo vai trò mới",
+    "category": "role_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.357Z",
+    "updatedAt": "2025-09-09T16:59:37.357Z"
+  },
+  {
+    "id": "c7d309b6-047b-4b87-91f7-180bf007b12d",
+    "name": "role.delete",
+    "displayName": "Xóa vai trò",
+    "description": "Xóa vai trò",
+    "category": "role_management",
+    "isActive": true,
+    "createdAt": "2025-09-09T16:59:37.365Z",
+    "updatedAt": "2025-09-09T16:59:37.365Z"
+  }
+]

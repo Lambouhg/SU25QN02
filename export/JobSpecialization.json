@@ -1,17 +1,57 @@
 [
   {
-    "id": "react_specialization_id",
-    "name": "React Development",
-    "categoryId": "frontend_category_id"
+    "id": "eec4ccb7-c8e9-4d7c-a8f0-0d7e5ab25ce9",
+    "name": "Frontend Development",
+    "categoryId": "0ce4aa88-96ec-4b76-9653-9fabcbd26072"
   },
   {
-    "id": "node_specialization_id",
-    "name": "Node.js Development",
-    "categoryId": "backend_category_id"
+    "id": "a12780fc-bca9-4580-9445-9778ad0b3194",
+    "name": "Backend Development",
+    "categoryId": "0ce4aa88-96ec-4b76-9653-9fabcbd26072"
   },
   {
-    "id": "python_specialization_id",
-    "name": "Python Development",
-    "categoryId": "backend_category_id"
+    "id": "06c1219f-b4c7-4ff3-822c-34fdb31e3bf2",
+    "name": "Full Stack Development",
+    "categoryId": "0ce4aa88-96ec-4b76-9653-9fabcbd26072"
+  },
+  {
+    "id": "5e9b7b30-5035-412d-8c51-d971c495ea61",
+    "name": "Mobile Development",
+    "categoryId": "0ce4aa88-96ec-4b76-9653-9fabcbd26072"
+  },
+  {
+    "id": "d80e2f17-75df-4b5e-9afd-ba8501309023",
+    "name": "Machine Learning",
+    "categoryId": "c9a43ebc-3c0d-4acd-945d-5f300f7160bd"
+  },
+  {
+    "id": "471aca73-9ce8-4289-abcc-bd49277d51fd",
+    "name": "Data Engineering",
+    "categoryId": "c9a43ebc-3c0d-4acd-945d-5f300f7160bd"
+  },
+  {
+    "id": "2c3d00af-2923-4659-86d2-dca6af4b7018",
+    "name": "Data Analysis",
+    "categoryId": "c9a43ebc-3c0d-4acd-945d-5f300f7160bd"
+  },
+  {
+    "id": "8a429edc-ac47-4632-91ee-7fcca8efef89",
+    "name": "Cloud Infrastructure",
+    "categoryId": "394882f3-6dae-4eef-974e-c81f96416869"
+  },
+  {
+    "id": "9f501ffd-c9a3-499e-9e69-336e98b98004",
+    "name": "System Administration",
+    "categoryId": "394882f3-6dae-4eef-974e-c81f96416869"
+  },
+  {
+    "id": "6f34f910-d91b-4c5f-a6de-7451a7adcde1",
+    "name": "UI/UX Design",
+    "categoryId": "9e7c080a-ebc4-4192-8bf9-a89b6f99d68e"
+  },
+  {
+    "id": "cb384150-3eea-422a-9f95-625981289218",
+    "name": "Graphic Design",
+    "categoryId": "9e7c080a-ebc4-4192-8bf9-a89b6f99d68e"
   }
 ]

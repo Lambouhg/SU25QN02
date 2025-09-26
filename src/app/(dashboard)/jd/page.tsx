@@ -5,8 +5,8 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { getAIResponse } from '../../../services/azureAiservicesforJD';
-import { questionSetService } from '@/services/questionSetService';
+import { getAIResponse } from '../../../services/jdService/azureAiservicesforJD';
+import { questionSetService } from '@/services/jdService/questionSetService';
 
 import UploadSection from '@/components/JobDescription/UploadSection';
 import QuestionsDisplay from '@/components/JobDescription/QuestionsDisplay';
@@ -14,7 +14,7 @@ import FeatureHighlights from '@/components/JobDescription/FeatureHighlights';
 import SavedQuestionSets from '@/components/JobDescription/SavedQuestionSets';
 import ValidationInfoDisplay from '@/components/JobDescription/ValidationInfoDisplay';
 import Toast from '@/components/ui/Toast';
-import type { QuestionSetData } from '@/services/questionSetService';
+import type { QuestionSetData } from '@/services/jdService/questionSetService';
 import { AlertTriangle, Eye, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -107,7 +107,7 @@ const UploadJDPageContent = () => {
         return false;
       }
       return true;
-    } catch (e) {
+    } catch {
       showToastMessage('Failed to verify usage. Please try again.', 'error');
       return false;
     }
@@ -889,7 +889,7 @@ const UploadJDPageContent = () => {
 
       {/* Duplicate Options Modal */}
       {showDuplicateOptions && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">Generate Different Questions</h3>

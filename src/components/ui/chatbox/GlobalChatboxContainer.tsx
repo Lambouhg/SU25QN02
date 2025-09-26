@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { MessageCircle } from 'lucide-react';
 
 const GlobalChatboxContainer: React.FC = () => {
-  const { isOpen, toggleChatbox, currentPage, currentContext } = useGlobalChatbox();
+  const { isOpen, toggleChatbox, currentContext } = useGlobalChatbox();
   const pathname = usePathname();
   const { isAdmin } = useRole();
 
@@ -18,10 +18,11 @@ const GlobalChatboxContainer: React.FC = () => {
     if (path.includes('/avatar-interview')) return 'avatar-interview';
     if (path.includes('/jd')) return 'jd-analysis';
     if (path.includes('/quiz')) return 'quiz';
+    if (path.includes('/test')) return 'assessment';
+    if (path.includes('/review')) return 'review';
     if (path.includes('/dashboard')) return 'dashboard';
-    if (path.includes('/payment')) return 'payment';
+    if (path.includes('/usage')) return 'payment';
     if (path.includes('/profile')) return 'profile';
-    if (path.includes('/test')) return 'test';
     if (path.includes('/admin')) return 'admin';
     if (path.includes('/onboarding')) return 'onboarding';
     return 'general';
@@ -54,7 +55,7 @@ const GlobalChatboxContainer: React.FC = () => {
           isOpen={isOpen}
           onToggle={toggleChatbox}
           currentPage={pageContext}
-          currentContext={currentContext}
+          currentContext={{ ...currentContext, role: isAdmin ? 'admin' : 'user' }}
         />
       </GlobalChatboxErrorBoundary>
     </>

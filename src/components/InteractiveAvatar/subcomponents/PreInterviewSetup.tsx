@@ -48,6 +48,10 @@ interface UserPreferences {
   preferredLanguage?: string
   autoStartWithPreferences?: boolean
   preferredJobRole?: JobRole
+  interviewPreferences?: {
+    selectedSkills?: string[]
+    customSkills?: string[]
+  }
 }
 
 const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
@@ -68,7 +72,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
   const [selectedJobRole, setSelectedJobRole] = useState<JobRole | null>(null)
 
   // User preferences state
-  const [, setUserPreferences] = useState<UserPreferences | null>(null)
+  const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null)
 
   // Error state management
   const [errors, setErrors] = useState<{
@@ -96,15 +100,23 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
     categoryStats?: Array<{ category: string; count: number }>
   } | null>(null)
 
+  // Skills-specific question count
+  const [skillsQuestionCount, setSkillsQuestionCount] = useState<number | null>(null)
+
   // Load user preferences and question bank stats on component mount
   useEffect(() => {
     const loadUserPreferences = async () => {
       if (!userId) return
 
       try {
-        const response = await fetch("/api/profile/interview-preferences")
+        // Add cache-busting parameter to force fresh data
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/profile/interview-preferences?t=${timestamp}`)
         if (response.ok) {
           const preferences = await response.json()
+          console.log('🎯 PreInterviewSetup loaded preferences:', preferences)
+          console.log('🎯 Selected skills:', preferences?.interviewPreferences?.selectedSkills)
+          console.log('🎯 Custom skills:', preferences?.interviewPreferences?.customSkills)
           setUserPreferences(preferences)
 
           // Auto-fill if user has preferences and autoStartWithPreferences is enabled
@@ -141,7 +153,74 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
 
     loadUserPreferences()
     loadQuestionBankStats()
+
+    // Listen for storage events to reload preferences when updated from other tabs/windows
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'preferences-updated') {
+        console.log('🔄 Preferences updated externally, reloading...')
+        loadUserPreferences()
+      }
+    }
+
+    // Listen for custom events from Profile component
+    const handlePreferencesUpdate = () => {
+      console.log('🔄 Preferences updated, reloading...')
+      loadUserPreferences()
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('preferences-updated', handlePreferencesUpdate)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('preferences-updated', handlePreferencesUpdate)
+    }
   }, [userId, jobRoles, onJobRoleIdChange, onPositionKeyChange, config, onConfigChange])
+
+  // Separate useEffect for loading skills-specific question count
+  useEffect(() => {
+    const loadSkillsQuestionCount = async (selectedSkills: string[]) => {
+      if (!selectedJobRole || !selectedSkills || selectedSkills.length === 0) {
+        setSkillsQuestionCount(null)
+        return
+      }
+
+      try {
+        console.log('🎯 Loading question count for skills:', selectedSkills)
+        const response = await fetch('/api/questions/interview-context', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            field: 'software development', // Use mapped field
+            level: selectedJobRole.level.toLowerCase(),
+            selectedSkills: selectedSkills,
+            questionCount: 50, // Get more to see total available
+            includeDifficulty: true
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json()
+
+          setSkillsQuestionCount(data.total || 0)
+        } else {
+          console.warn('Failed to fetch skills question count')
+          setSkillsQuestionCount(0)
+        }
+      } catch (error) {
+        console.error('Error loading skills question count:', error)
+        setSkillsQuestionCount(0)
+      }
+    }
+
+    // Load skills-specific question count when skills or job role change
+    const selectedSkills = userPreferences?.interviewPreferences?.selectedSkills
+    if (selectedSkills && selectedSkills.length > 0 && selectedJobRole) {
+      loadSkillsQuestionCount(selectedSkills)
+    }
+  }, [userPreferences?.interviewPreferences?.selectedSkills, selectedJobRole])
 
   // Map avatar name to image in public/avatar
   const getAvatarImage = useCallback((avatarName: string): string => {
@@ -226,7 +305,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
         experience: `${selectedJobRole.minExperience}-${selectedJobRole.maxExperience || "∞"} years`,
         category: selectedJobRole.category?.name,
         specialization: selectedJobRole.specialization?.name,
-        skills: selectedJobRole.category?.skills || [],
+        skills: userPreferences?.interviewPreferences?.selectedSkills || [],  // ✅ FIX: Use user's actual selected skills
         key: selectedJobRole.key,
       },
       language: config.language,
@@ -238,7 +317,7 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
       jobRoleTitle: selectedJobRole.title,
       jobRoleLevel: selectedJobRole.level,
     }
-  }, [selectedJobRole, config.language, config.avatarName])
+  }, [selectedJobRole, config.language, config.avatarName, userPreferences?.interviewPreferences?.selectedSkills])
 
   // Handle start interview
   const handleStartInterview = useCallback(async () => {
@@ -473,23 +552,53 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
 
                         {selectedJobRole.category?.skills && selectedJobRole.category.skills.length > 0 && (
                           <div className="bg-white/70 backdrop-blur-sm p-4 rounded-xl border border-white/50">
-                            <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide mb-3">
-                              Key Skills
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedJobRole.category.skills.slice(0, 8).map((skill, index) => (
-                                <span
-                                  key={index}
-                                  className="px-3 py-1.5 bg-blue-100 text-blue-800 text-sm font-medium rounded-full border border-blue-200 shadow-sm"
+                            <div className="flex items-center justify-between mb-3">
+                              <p className="text-xs text-blue-600 font-semibold uppercase tracking-wide">
+                                {/* Show user selected skills if available, otherwise show all category skills */}
+                                {userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0 
+                                  ? "Your Selected Skills" 
+                                  : "Key Skills"}
+                              </p>
+                              {(!userPreferences?.interviewPreferences?.selectedSkills || userPreferences.interviewPreferences.selectedSkills.length === 0) && (
+                                <a 
+                                  href="/dashboard/profile" 
+                                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                 >
-                                  {skill}
-                                </span>
-                              ))}
-                              {selectedJobRole.category.skills.length > 8 && (
-                                <span className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-full border border-slate-200">
-                                  +{selectedJobRole.category.skills.length - 8} more
-                                </span>
+                                  Customize Skills
+                                </a>
                               )}
+                            </div>
+                            <div className="flex flex-wrap gap-2">                    
+                              {(() => {
+                                // Use user selected skills if available, otherwise use all category skills
+                                const skillsToShow = userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0
+                                  ? [...userPreferences.interviewPreferences.selectedSkills, ...(userPreferences.interviewPreferences?.customSkills || [])]
+                                  : selectedJobRole.category.skills;
+                                
+                                return (
+                                  <>
+                                    {skillsToShow.slice(0, 8).map((skill, index) => (
+                                      <span
+                                        key={index}
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-full border shadow-sm ${
+                                          userPreferences?.interviewPreferences?.selectedSkills && userPreferences.interviewPreferences.selectedSkills.length > 0
+                                            ? "bg-green-100 text-green-800 border-green-200"  // User selected skills
+                                            : "bg-blue-100 text-blue-800 border-blue-200"    // Default category skills
+                                        }`}
+                                      >
+                                        {skill}
+                                      </span>
+                                    ))}
+                                    {skillsToShow.length > 8 && (
+                                      <span className="px-3 py-1.5 bg-slate-100 text-slate-700 text-sm font-medium rounded-full border border-slate-200">
+                                        +{skillsToShow.length - 8} more
+                                      </span>
+                                    )}
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
                         )}
@@ -562,7 +671,16 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                     <div>
                       <h3 className="text-xl font-bold text-slate-900">Question Bank</h3>
                       <p className="text-emerald-600 font-semibold">
-                        {questionBankStats.totalQuestions} curated questions
+                        {(() => {
+                          const hasSelectedSkills = userPreferences?.interviewPreferences?.selectedSkills && 
+                                                   userPreferences.interviewPreferences.selectedSkills.length > 0;
+                          
+                          if (hasSelectedSkills && skillsQuestionCount !== null) {
+                          }
+                          return questionBankStats ? 
+                            `${questionBankStats.totalQuestions} curated questions` : 
+                            'Loading questions...';
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -573,16 +691,92 @@ const PreInterviewSetup: React.FC<PreInterviewSetupProps> = ({
                         <span className="text-emerald-700 font-medium">Category Match</span>
                         <div className="flex items-center gap-2">
                           <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-lg text-sm font-semibold">
-                            {selectedJobRole.category?.name || "Unknown"}
+                            {(() => {
+                              // Map job role category to database categories
+                              const jobRoleCategory = selectedJobRole.category?.name;
+                              console.log('🏷️ Category Debug:', {
+                                jobRoleCategory,
+                                availableCategories: questionBankStats?.categoryStats?.map(c => c.category)
+                              });
+                              
+                              // Try to find a matching category in database
+                              if (questionBankStats?.categoryStats) {
+                                // First try exact match
+                                let matchingCategory = questionBankStats.categoryStats.find(
+                                  c => c.category === jobRoleCategory
+                                );
+                                
+                                // If no exact match, try partial matches
+                                if (!matchingCategory && jobRoleCategory) {
+                                  if (jobRoleCategory.toLowerCase().includes('frontend') || 
+                                      selectedJobRole.title.toLowerCase().includes('frontend')) {
+                                    matchingCategory = questionBankStats.categoryStats.find(
+                                      c => c.category === 'Frontend Development'
+                                    );
+                                  } else if (jobRoleCategory.toLowerCase().includes('backend') || 
+                                            selectedJobRole.title.toLowerCase().includes('backend')) {
+                                    matchingCategory = questionBankStats.categoryStats.find(
+                                      c => c.category === 'Backend Development'
+                                    );
+                                  } else if (jobRoleCategory.toLowerCase().includes('software') || 
+                                            jobRoleCategory.toLowerCase().includes('development')) {
+                                    // For general "Software Development", show Frontend Development
+                                    matchingCategory = questionBankStats.categoryStats.find(
+                                      c => c.category === 'Frontend Development'
+                                    );
+                                  }
+                                }
+                                
+                                return matchingCategory?.category || jobRoleCategory || "Unknown";
+                              }
+                              
+                              return jobRoleCategory || "Unknown";
+                            })()}
                           </span>
                           <span className="text-emerald-600 text-sm">
                             ({(() => {
-                              const catName = selectedJobRole.category?.name
-                              if (!catName) return 0
-                              const catStat = questionBankStats.categoryStats?.find(
-                                (c) => c.category === catName,
-                              )
-                              return catStat?.count || 0
+                              // Show skills-based question count if user has selected skills
+                              const hasSelectedSkills = userPreferences?.interviewPreferences?.selectedSkills && 
+                                                        userPreferences.interviewPreferences.selectedSkills.length > 0;
+                              
+                              if (hasSelectedSkills && skillsQuestionCount !== null) {
+                                return skillsQuestionCount;
+                              }
+                              
+                              // Fallback to category count with mapping
+                              if (questionBankStats?.categoryStats) {
+                                const jobRoleCategory = selectedJobRole.category?.name;
+                                
+                                // First try exact match
+                                let matchingCategory = questionBankStats.categoryStats.find(
+                                  c => c.category === jobRoleCategory
+                                );
+                                
+                                // If no exact match, try partial matches
+                                if (!matchingCategory && jobRoleCategory) {
+                                  if (jobRoleCategory.toLowerCase().includes('frontend') || 
+                                      selectedJobRole.title.toLowerCase().includes('frontend')) {
+                                    matchingCategory = questionBankStats.categoryStats.find(
+                                      c => c.category === 'Frontend Development'
+                                    );
+                                  } else if (jobRoleCategory.toLowerCase().includes('backend') || 
+                                            selectedJobRole.title.toLowerCase().includes('backend')) {
+                                    matchingCategory = questionBankStats.categoryStats.find(
+                                      c => c.category === 'Backend Development'  
+                                    );
+                                  } else if (jobRoleCategory.toLowerCase().includes('software') || 
+                                            jobRoleCategory.toLowerCase().includes('development')) {
+                                    // For general "Software Development", show Frontend Development count
+                                    matchingCategory = questionBankStats.categoryStats.find(
+                                      c => c.category === 'Frontend Development'
+                                    );
+                                  }
+                                }
+                                
+                                return matchingCategory?.count || 0;
+                              }
+                              
+                              return 0;
                             })()})
                           </span>
                         </div>

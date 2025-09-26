@@ -1,13 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChatMessage } from '@/services/openaiService';
-import { processInterviewResponse, startInterview, InterviewResponse } from '@/services/Avatar-AI';
+import { processInterviewResponse, startInterview, InterviewResponse, InterviewConfig } from '@/services/avatarInterviewService/Avatar-AI';
 
 interface InterviewState {
   coveredTopics: string[];
-  skillAssessment: {
-    technical: number;
-    communication: number;
-    problemSolving: number;
+  evaluation: {
+    technicalScore: number;
+    communicationScore: number;
+    problemSolvingScore: number;
+    deliveryScore?: number;
+    overallRating?: number;
+    recommendations?: string[];
   };
   progress: number;
 }
@@ -25,13 +28,7 @@ interface UseAIConversationProps {
   onEndSession?: () => void; // callback cleanup Heygen/avatar session khi auto-prompt kết thúc
   language: 'en-US' | 'vi-VN' | 'zh-CN' | 'ja-JP' | 'ko-KR';
   isInterviewComplete?: boolean; // Trạng thái phỏng vấn từ bên ngoài
-  config?: {
-    field: string;
-    level: string;
-    language: 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR';
-    jobRoleTitle?: string;
-    jobRoleLevel?: string;
-  }; // Thêm config để truyền vào processInterviewResponse
+  config?: InterviewConfig; // Use full InterviewConfig type để support selectedSkills và customSkills
 }
 
 // Constants for auto-prompt feature
@@ -41,10 +38,13 @@ const MAX_AUTO_PROMPTS = 3; // Maximum number of auto prompts before ending inte
 // Initial state for interview metrics
 const initialInterviewState: InterviewState = {
   coveredTopics: [],
-  skillAssessment: {
-    technical: 1,
-    communication: 1,
-    problemSolving: 1
+  evaluation: {
+    technicalScore: 0,
+    communicationScore: 0,
+    problemSolvingScore: 0,
+    deliveryScore: 0,
+    overallRating: 0,
+    recommendations: []
   },
   progress: 0
 };
@@ -182,7 +182,7 @@ export const useAIConversation = ({
         }
       }
     }, AUTO_PROMPT_DELAY);
-  }, [language, onAnswer, onInterviewComplete, clearAutoPromptTimer, conversationHistory, onEndSession, resetInterviewSession, autoPromptCountRef, interviewState.progress, isInterviewComplete]);
+  }, [language, onAnswer, onInterviewComplete, clearAutoPromptTimer, conversationHistory, onEndSession, resetInterviewSession, autoPromptCountRef, interviewState.progress, isInterviewComplete, config]);
 
   // Reset auto-prompt when user responds
   const resetAutoPrompt = useCallback(() => {
@@ -203,7 +203,7 @@ export const useAIConversation = ({
     if (response.completionDetails) {
       setInterviewState(prev => ({
         coveredTopics: response.completionDetails?.coveredTopics || prev.coveredTopics,
-        skillAssessment: response.completionDetails?.skillAssessment || prev.skillAssessment,
+        evaluation: response.completionDetails?.evaluation || prev.evaluation,
         progress: response.interviewProgress
       }));
 
@@ -263,7 +263,10 @@ export const useAIConversation = ({
         maxExperience,
         // Thêm job role mapping để AI có thể sử dụng question bank
         jobRoleTitle: config?.jobRoleTitle,
-        jobRoleLevel: config?.jobRoleLevel
+        jobRoleLevel: config?.jobRoleLevel,
+        // Pass user selected skills to AI for personalized questions
+        selectedSkills: config?.selectedSkills || [],
+        customSkills: config?.customSkills || []
       });
 
       if (!response || !response.answer) {
@@ -390,7 +393,8 @@ export const useAIConversation = ({
       onError,
       onFollowUpQuestion,
       updateInterviewState,
-      resetAutoPrompt
+      resetAutoPrompt,
+      config
     ]
   );
 

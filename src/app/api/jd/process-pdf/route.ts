@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import PDFParser from 'pdf2json';
-import { JDValidationService } from '@/services/jdValidationService';
+import { JDValidationService } from '@/services/jdService/jdValidationService';
 import { prisma } from '@/lib/prisma';
 
 // Route segment config for Next.js 13+ App Router

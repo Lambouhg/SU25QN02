@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let updateData: any = {};
+    let updateData: Record<string, unknown> = {};
 
     // Xử lý từng step
     switch (step) {
@@ -53,6 +53,16 @@ export async function POST(request: NextRequest) {
       
       case 'skills':
         updateData.skills = data.skills || [];
+        // Also save to interviewPreferences.selectedSkills for AI Interview compatibility
+        const existingPrefs = user.interviewPreferences || {};
+        const currentCustomSkills = typeof existingPrefs === 'object' && existingPrefs !== null 
+          ? (existingPrefs as { customSkills?: string[] }).customSkills || []
+          : [];
+        
+        updateData.interviewPreferences = {
+          selectedSkills: data.skills || [],
+          customSkills: currentCustomSkills
+        };
         break;
       
       case 'profile':
@@ -150,7 +160,7 @@ export async function PUT(request: NextRequest) {
       joinDate
     } = body;
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
 
     if (jobRoleId) updateData.preferredJobRoleId = jobRoleId;
     if (experienceLevel) updateData.experienceLevel = experienceLevel;
@@ -161,6 +171,9 @@ export async function PUT(request: NextRequest) {
     if (bio !== undefined) updateData.bio = bio;
     if (department !== undefined) updateData.department = department;
     if (joinDate !== undefined) updateData.joinDate = joinDate;
+
+    // Đánh dấu onboarding đã hoàn thành
+    updateData.onboardingStatus = true;
 
     const updatedUser = await prisma.user.update({
       where: { clerkId: userId },
@@ -177,6 +190,7 @@ export async function PUT(request: NextRequest) {
         bio: true,
         department: true,
         joinDate: true,
+        onboardingStatus: true,
         preferredJobRole: {
           select: {
             id: true,

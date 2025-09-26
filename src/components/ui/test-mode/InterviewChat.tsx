@@ -198,23 +198,23 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-1 text-sm">
                     <span className="text-gray-700">Fundamental</span>
-                    <span className="font-semibold text-blue-600">{Math.round(scores.fundamental)}%</span>
+                    <span className="font-semibold text-blue-600">{Math.max(0, Math.min(10, Math.round(scores.fundamental)))}/10</span>
                   </div>
-                  <ScoreBar value={scores.fundamental} color="bg-blue-500" />
+                  <ScoreBar value={scores.fundamental} color="bg-blue-500" max={10} />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1 text-sm">
                     <span className="text-gray-700">Logic</span>
-                    <span className="font-semibold text-red-500">{Math.round(scores.logic)}%</span>
+                    <span className="font-semibold text-red-500">{Math.max(0, Math.min(10, Math.round(scores.logic)))}/10</span>
                   </div>
-                  <ScoreBar value={scores.logic} color="bg-red-500" />
+                  <ScoreBar value={scores.logic} color="bg-red-500" max={10} />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-1 text-sm">
                     <span className="text-gray-700">Language</span>
-                    <span className="font-semibold text-green-600">{Math.round(scores.language)}%</span>
+                    <span className="font-semibold text-green-600">{Math.max(0, Math.min(10, Math.round(scores.language)))}/10</span>
                   </div>
-                  <ScoreBar value={scores.language} color="bg-green-500" />
+                  <ScoreBar value={scores.language} color="bg-green-500" max={10} />
                 </div>
               </div>
             </div>
@@ -377,17 +377,19 @@ export const InterviewChat: React.FC<InterviewChatProps> = ({
 };
 
 // Compact score bar with rounded background and colored fill
-const ScoreBar: React.FC<{ value: number; color?: string }> = ({ value, color = 'bg-blue-500' }) => {
-  const safe = Math.max(0, Math.min(100, Math.round(value || 0)));
+const ScoreBar: React.FC<{ value: number; color?: string; max?: number }> = ({ value, color = 'bg-blue-500', max = 100 }) => {
+  const safeMax = max > 0 ? max : 100;
+  const clamped = Math.max(0, Math.min(safeMax, Math.round(value || 0)));
+  const percent = Math.round((clamped / safeMax) * 100);
   return (
     <div className="w-full">
       <div className="h-2.5 w-full rounded-full bg-gray-200 overflow-hidden">
         <div
           className={`${color} h-full transition-all`}
-          style={{ width: `${safe}%` }}
+          style={{ width: `${percent}%` }}
         />
       </div>
-      <div className="mt-1 text-[11px] text-gray-500">Score: {safe}/100</div>
+      <div className="mt-1 text-[11px] text-gray-500">Score: {clamped}/{safeMax}</div>
     </div>
   );
 };

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { 
   Home, Brain, FileQuestion,  History, 
   Star, Settings, Menu, X, Search, LogOut, Shield,
-  ChevronRight, ChevronDown, BookOpen, BarChart3
+  ChevronRight, ChevronDown, BookOpen, BarChart3, TrendingUp
 } from 'lucide-react';
 import Link from 'next/link';
 import { UserButton, useUser, useClerk } from '@clerk/nextjs';
@@ -148,12 +148,12 @@ export default function DashboardLayout({
   },
     { 
       icon: Brain, 
-      label: 'Practice Modes', 
+      label: 'Practice', 
       key: 'practice',
       subItems: [
         { label: 'AI Bot', href: '/avatar-interview' },
-        { label: 'Quiz Mode', href: '/quiz' },
-        { label: 'Assessment Mode', href: '/test' },
+        { label: 'Quiz Practice', href: '/quiz' },
+        { label: 'Assessment', href: '/test' },
       ]
     },
    
@@ -166,8 +166,8 @@ export default function DashboardLayout({
     
     { 
       icon: History, 
-      label: 'History Quiz', 
-      href: '/history',
+      label: 'Quiz History', 
+      href: '/quiz/history',
       key: 'history'
     },
     {
@@ -175,6 +175,12 @@ export default function DashboardLayout({
       label: 'Usage',
       href: '/usage',
       key: 'usage'
+    },
+    {
+      icon: TrendingUp,
+      label: 'Analytics',
+      href: '/detailed-analytics',
+      key: 'analytics'
     },
     { 
       icon: Star, 
@@ -297,7 +303,7 @@ export default function DashboardLayout({
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden" 
+          className="fixed inset-0 z-30 bg-white/20 backdrop-blur-sm lg:hidden" 
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

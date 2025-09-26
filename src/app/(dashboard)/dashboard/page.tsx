@@ -3,39 +3,35 @@
 import { 
   Brain, FileText,
   TestTube, FileQuestion, TrendingUp,
-  Clock, Award, Users, Target, Home, BookOpen, Calendar, Settings
+  Clock, Award, Users, Home, BookOpen, Calendar, Settings
 } from 'lucide-react';
 import Link from 'next/link';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useUser } from '@clerk/nextjs';
-import { useEffect, useState } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { usePet } from '@/hooks/usePet';
 import { PetDisplay } from '@/components/pet/PetDisplay';
 import { getPetEvolutionStages } from '@/utils/petLogic';
-import { ChartRadarLinesOnly } from '@/components/ui/chart-radar-lines-only';
 import { ChartMultiAreaInteractive } from '@/components/ui/chart-multi-area-interactive';
+import { ChartSingleLine } from '@/components/ui/chart-single-line';
 import MagicDock from '@/components/ui/magicdock';
 import { useRouter } from 'next/navigation';
+import SkillsProgress from '@/components/dashboard/SkillsProgress';
 
-interface SkillProgress {
+
+interface DashboardSkillProgress {
   name: string;
   level: string;
   score: number;
+  trend?: number | null;
+  source: string;
+  lastUpdated: Date;
+  totalSessions: number;
   progress: Array<{
     date: Date;
     score: number;
+    source?: string;
   }>;
 }
 
@@ -46,7 +42,7 @@ interface ProgressData {
     studyStreak: number;
     totalStudyTime: number;
   };
-  skillProgress: SkillProgress[];
+  skillProgress: DashboardSkillProgress[];
   currentFocus: string[];
   nextMilestones: Array<{
     goal: string;
@@ -104,6 +100,20 @@ export default function DashboardPage() {
     },
     {
       id: 4,
+      icon: <TrendingUp className="w-6 h-6 text-white" />,
+      label: "Analytics",
+      description: "Progress insights",
+      onClick: () => router.push("/detailed-analytics")
+    },
+    {
+      id: 5,
+      icon: <TestTube className="w-6 h-6 text-white" />,
+      label: "API Test",
+      description: "Test analytics API",
+      onClick: () => router.push("/enhanced-analytics-test")
+    },
+    {
+      id: 6,
       icon: <Settings className="w-6 h-6 text-white" />,
       label: "Profile",
       description: "Account settings",
@@ -112,7 +122,7 @@ export default function DashboardPage() {
   ];
 
   // Multi-Line Chart State
-  const [viewMode, setViewMode] = useState<'day' | 'month' | 'year'>('day');
+  const [viewMode, setViewMode] = useState<'day' | 'month' | 'year' | 'session'>('day');
   const [lineMode, setLineMode] = useState<'score' | 'total'>('score');
   const [lineChartData, setLineChartData] = useState<Array<{
     period: string;
@@ -121,38 +131,26 @@ export default function DashboardPage() {
     interview: number;
   }>>([]);
 
-  // Spider chart data state
-  const [overallSpiderData, setOverallSpiderData] = useState<Array<{
-    subject: string;
-    A: number;
-    fullMark: number;
-    target: number;
-    unit: string;
+  // New states for enhanced tracking
+  const [showDetailedView, setShowDetailedView] = useState(false);
+  const [overallProgressData, setOverallProgressData] = useState<Array<{
+    period: string;
+    overall: number;
   }>>([]);
-  const [showTargetModal, setShowTargetModal] = useState(false);
-  type PersonalTargets = {
-    totalActivities: number;
-    averageScore: number;
-    studyTime: number;
-    completionRate: number;
-    learningFrequency: number;
-  };
-  const defaultTargets: PersonalTargets = {
-    totalActivities: 50,
-    averageScore: 80,
-    studyTime: 200,
-    completionRate: 90,
-    learningFrequency: 15,
-  };
-  const [personalTargets, setPersonalTargets] = useState<PersonalTargets>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('personalTargets');
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return defaultTargets;
-  });
+  const [improvementMetrics, setImprovementMetrics] = useState<{
+    quiz: {
+      percentage: number;
+      trend: 'improving' | 'declining' | 'stable';
+    };
+    test: {
+      percentage: number;
+      trend: 'improving' | 'declining' | 'stable';
+    };
+    interview: {
+      percentage: number;
+      trend: 'improving' | 'declining' | 'stable';
+    };
+  } | null>(null);
 
   // --- STREAK FEATURE STATE & LOGIC ---
   const [showStreakModal, setShowStreakModal] = useState(false);
@@ -215,6 +213,12 @@ export default function DashboardPage() {
         if (response.ok) {
           const data = await response.json();
         
+        // Debug log để kiểm tra skillProgress data
+        console.log('📊 Dashboard Debug - skillProgress data:', data.skillProgress);
+        console.log('📊 Dashboard Debug - skillTrends data:', data.skillTrends);
+        console.log('📊 Dashboard Debug - totalStudyTime:', data.stats?.totalStudyTime, 'seconds');
+        console.log('📊 Dashboard Debug - allActivities:', data.allActivities?.length || 0, 'activities');
+        
         // API trả về data trực tiếp, không có .progress
         setProgress(data);
         }
@@ -227,47 +231,86 @@ export default function DashboardPage() {
 
     fetchProgress();
     
-    // Refresh data every 30 seconds
-    const interval = setInterval(fetchProgress, 30000);
+    // Refresh data every 5 minutes instead of 30 seconds to reduce flickering
+    const interval = setInterval(fetchProgress, 300000);
     return () => clearInterval(interval);
   }, [isLoaded, user]);
 
 
-  useEffect(() => {
-    if (!progress) return;
+  // Memoize chart data để tránh việc tính toán lại không cần thiết
+  const memoizedChartData = useMemo(() => {
+    if (!progress) return [];
     
     // Sử dụng allActivities thay vì recentActivities để có đầy đủ dữ liệu
     const activities = progress.allActivities || progress.recentActivities || [];
     
-
-
     
-    const groupKey = (date: Date): string => {
+    
+    const groupKey = (date: Date, index?: number): string => {
       if (viewMode === 'day') return date.toISOString().slice(0, 10);
       if (viewMode === 'month') return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
       if (viewMode === 'year') return String(date.getFullYear());
+      if (viewMode === 'session') return `Session ${(index || 0) + 1}`;
       return '';
     };
     const grouped: Record<string, { quiz: number[]; test: number[]; interview: number[] }> = {};
-    activities.forEach(a => {
-      if (!a.timestamp) return;
-      const date = new Date(a.timestamp);
-      const key = groupKey(date);
-      if (!key) return;
-      if (!grouped[key]) grouped[key] = { quiz: [], test: [], interview: [] };
-      if (a.type === 'quiz') grouped[key].quiz.push(a.score || 0);
-      if (a.type === 'test' || a.type === 'eq') grouped[key].test.push(a.score || 0);
-      if (a.type === 'interview') grouped[key].interview.push(a.score || 0);
-    });
+    
+    if (viewMode === 'session') {
+      // Chế độ Session: mỗi activity là 1 session riêng biệt
+      activities.forEach((a, index) => {
+        if (!a.timestamp) {
+          console.log('⚠️ Activity missing timestamp:', a);
+          return;
+        }
+        const date = new Date(a.timestamp);
+        const key = groupKey(date, index);
+        if (!key) {
+          console.log('⚠️ Invalid group key for date:', date, 'activity:', a);
+          return;
+        }
+        if (!grouped[key]) grouped[key] = { quiz: [], test: [], interview: [] };
+        if (a.type === 'quiz') grouped[key].quiz.push(a.score || 0);
+        if (a.type === 'test' || a.type === 'eq' || a.type === 'assessment') grouped[key].test.push(a.score || 0);
+        if (a.type === 'interview') grouped[key].interview.push(a.score || 0);
+      });
+    } else {
+      // Chế độ Day/Month/Year: nhóm theo thời gian
+      activities.forEach(a => {
+        if (!a.timestamp) {
+          console.log('⚠️ Activity missing timestamp:', a);
+          return;
+        }
+        const date = new Date(a.timestamp);
+        const key = groupKey(date);
+        if (!key) {
+          console.log('⚠️ Invalid group key for date:', date, 'activity:', a);
+          return;
+        }
+        if (!grouped[key]) grouped[key] = { quiz: [], test: [], interview: [] };
+        if (a.type === 'quiz') grouped[key].quiz.push(a.score || 0);
+        if (a.type === 'test' || a.type === 'eq' || a.type === 'assessment') grouped[key].test.push(a.score || 0);
+        if (a.type === 'interview') grouped[key].interview.push(a.score || 0);
+      });
+    }
+    
+    console.log('📊 Dashboard Debug - Grouped data:', grouped);
     
     const chartData = Object.entries(grouped).map(([period, vals]) => {
+      console.log(`🔍 Processing period ${period}:`, {
+        quizScores: vals.quiz,
+        testScores: vals.test, 
+        interviewScores: vals.interview
+      });
+      
       if (lineMode === 'score') {
-        return {
+        const result = {
           period,
           quiz: vals.quiz.length ? (vals.quiz.reduce((a, b) => a + b, 0) / vals.quiz.length) : 0,
           test: vals.test.length ? (vals.test.reduce((a, b) => a + b, 0) / vals.test.length) : 0,
           interview: vals.interview.length ? (vals.interview.reduce((a, b) => a + b, 0) / vals.interview.length) : 0,
         };
+        console.log(`📊 Calculated averages for ${period}:`, result);
+        return result;
       } else {
         // Sử dụng số lượng thực tế từ allActivities
         return {
@@ -277,54 +320,182 @@ export default function DashboardPage() {
           interview: vals.interview.length,
         };
       }
-    }).sort((a, b) => a.period.localeCompare(b.period));
+    }).sort((a, b) => {
+      // ✅ FIX: Numeric sorting for sessions, alphabetical for dates
+      if (viewMode === 'session') {
+        // Extract session numbers for proper numeric sorting
+        const aNum = parseInt(a.period.replace('Session ', ''));
+        const bNum = parseInt(b.period.replace('Session ', ''));
+        return aNum - bNum;
+      } else {
+        // Use alphabetical sorting for date-based periods
+        return a.period.localeCompare(b.period);
+      }
+    });
 
-
-    setLineChartData(chartData);
+    console.log('📊 Dashboard Debug - Final chart data:', chartData);
+    console.log('🔍 View Mode Debug:', { viewMode, lineMode, chartDataLength: chartData.length });
+    
+    // Nếu có ít hơn 3 điểm dữ liệu và không phải chế độ Session, tạo dữ liệu ổn định để có đường cong
+    if (chartData.length < 3 && viewMode !== 'session') {
+      console.log('⚠️ Ít dữ liệu, tạo dữ liệu ổn định');
+      
+      // Tạo dữ liệu cho 7 ngày gần nhất
+      const today = new Date();
+      const extendedData = [];
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+        const dateKey = date.toISOString().slice(0, 10);
+        
+        // Tìm dữ liệu thực tế cho ngày này
+        const realData = chartData.find(d => d.period === dateKey);
+        
+        if (realData) {
+          extendedData.push(realData);
+        } else {
+          // Sử dụng dữ liệu ổn định thay vì random để tránh nhảy số liệu
+          const lastRealData = chartData[chartData.length - 1];
+          
+          extendedData.push({
+            period: dateKey,
+            quiz: lastRealData?.quiz || 0,
+            test: lastRealData?.test || 0,
+            interview: lastRealData?.interview || 0,
+          });
+        }
+      }
+      
+      console.log('📊 Dashboard Debug - Extended data:', extendedData);
+      return extendedData;
+    } else {
+      return chartData;
+    }
   }, [progress, viewMode, lineMode]);
 
-  // Tính toán dữ liệu spider chart mỗi khi progress thay đổi
   useEffect(() => {
-    if (!progress) return;
+    setLineChartData(memoizedChartData);
+  }, [memoizedChartData]);
+
+  // Tính toán Overall Progress Data và Improvement Metrics
+  useEffect(() => {
+    if (!memoizedChartData || memoizedChartData.length === 0) return;
     
-    // Sử dụng totalActivities để tính tổng số activities
-    const totalCount = totalActivities;
-    const avgScore = progress.stats?.averageScore || 0;
-    // Study time chuyển sang giờ, làm tròn 1 số thập phân
-    const totalStudyTimeRaw = progress.stats?.totalStudyTime || 0;
-    const totalStudyTime = +(totalStudyTimeRaw / 60).toFixed(1); // giờ
-    
-    // Tính completion rate và frequency từ recentActivities nếu có
-    let completionRate = 0;
-    let frequency = 0;
-    
-    if (progress.recentActivities && progress.recentActivities.length > 0) {
-      const activities = progress.recentActivities;
-      completionRate = activities.filter(a => a.score !== undefined).length / activities.length * 100;
+    // Tính overall progress (điểm trung bình tổng hợp)
+    const overallData = memoizedChartData.map(item => {
+      const scores = [];
+      if (item.quiz > 0) scores.push(item.quiz);
+      if (item.test > 0) scores.push(item.test); 
+      if (item.interview > 0) scores.push(item.interview);
       
-      // Tần suất học: số lần trong 30 ngày gần nhất
-      const now = new Date();
-      const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      frequency = activities.filter(a => new Date(a.timestamp || '') > oneMonthAgo).length;
+      const overallAverage = scores.length > 0 
+        ? scores.reduce((a, b) => a + b, 0) / scores.length 
+        : 0;
+      
+      return {
+        period: item.period,
+        overall: Math.round(overallAverage * 100) / 100
+      };
+    });
+    
+    setOverallProgressData(overallData);
+    
+    // Tính improvement metrics cho từng mode
+    if (memoizedChartData.length >= 2) {
+      let latest, previous;
+      
+      if (viewMode === 'session') {
+        // Trong Session mode: So sánh session đầu vs session cuối để thấy tiến bộ tổng thể
+        latest = memoizedChartData[memoizedChartData.length - 1];
+        
+        // Tìm session đầu tiên có data (không phải tất cả đều 0)
+        previous = memoizedChartData.find(session => 
+          session.quiz > 0 || session.test > 0 || session.interview > 0
+        ) || memoizedChartData[0];
+        
+        // Nếu session đầu và cuối giống nhau, so sánh với session trước đó
+        if (previous === latest && memoizedChartData.length > 1) {
+          previous = memoizedChartData[memoizedChartData.length - 2];
+        }
+      } else {
+        // Các mode khác: so sánh 2 periods gần nhất
+        latest = memoizedChartData[memoizedChartData.length - 1];
+        previous = memoizedChartData[memoizedChartData.length - 2];
+      }
+      
+      console.log('🔍 Improvement Metrics Debug:', {
+        viewMode,
+        lineMode,
+        latest,
+        previous,
+        chartDataLength: memoizedChartData.length,
+        comparisonLogic: viewMode === 'session' ? 'first-with-data vs latest' : 'previous vs latest',
+        fullChartData: memoizedChartData,
+        quizComparison: { latest: latest?.quiz, previous: previous?.quiz },
+        testComparison: { latest: latest?.test, previous: previous?.test },
+        interviewComparison: { latest: latest?.interview, previous: previous?.interview }
+      });
+      
+      const calculateModeMetrics = (latest: number, previous: number, mode: string, activityType: 'quiz' | 'test' | 'interview'): { percentage: number; trend: 'improving' | 'declining' | 'stable' } => {
+        // Trong session mode, tìm session đầu tiên có score cho activity type cụ thể
+        let actualPrevious = previous;
+        if (viewMode === 'session') {
+          const firstSessionWithScore = memoizedChartData.find(session => session[activityType] > 0);
+          if (firstSessionWithScore) {
+            actualPrevious = firstSessionWithScore[activityType];
+          }
+        }
+        
+        const change = latest - actualPrevious;
+        let percentage = 0;
+        let trend: 'improving' | 'declining' | 'stable' = 'stable';
+        
+        if (actualPrevious >= 0) {
+          // Normalized growth calculation (based on 10-point scale)
+          const maxScore = 10;
+          percentage = Math.round((change / maxScore) * 100);
+          trend = percentage > 2 ? 'improving' as const : percentage < -2 ? 'declining' as const : 'stable' as const;
+        } else if (actualPrevious === 0 && latest > 0) {
+          // Special case: starting from 0, show significant improvement
+          percentage = 100;
+          trend = 'improving';
+        } else if (actualPrevious > 0 && latest === 0) {
+          // Special case: dropping to 0, show 100% decline
+          percentage = 100;
+          trend = 'declining';
+        }
+        
+        console.log(`📈 ${mode} Metrics:`, {
+          latest, previous: actualPrevious, change, percentage: Math.abs(percentage), trend,
+          sessionComparison: viewMode === 'session' ? `First ${activityType} session vs latest` : 'Previous vs latest',
+          calculation: `(${latest} - ${actualPrevious}) / 10 * 100 = ${percentage}%`,
+          rawData: { 
+            latest, 
+            actualPrevious, 
+            maxScore: 10,
+            rawChange: change,
+            rawPercentage: (change / 10) * 100,
+            roundedPercentage: Math.round((change / 10) * 100)
+          }
+        });
+        
+        return { percentage: Math.abs(percentage), trend };
+      };
+      
+      setImprovementMetrics({
+        quiz: calculateModeMetrics(latest.quiz, previous.quiz, 'Quiz', 'quiz'),
+        test: calculateModeMetrics(latest.test, previous.test, 'Test', 'test'),
+        interview: calculateModeMetrics(latest.interview, previous.interview, 'Interview', 'interview')
+      });
+    } else {
+      console.log('⚠️ Not enough chart data for improvement calculation:', {
+        viewMode,
+        lineMode,
+        chartDataLength: memoizedChartData.length,
+        fullChartData: memoizedChartData
+      });
     }
-    setOverallSpiderData([
-      {
-        subject: 'Total Activities', A: Math.min(totalCount, 100), fullMark: 100, target: personalTargets.totalActivities, unit: 'times'
-      },
-      {
-        subject: 'Average Score', A: Math.round(avgScore), fullMark: 100, target: personalTargets.averageScore, unit: ''
-      },
-      {
-        subject: 'Study Time', A: Math.min(totalStudyTime, 10), fullMark: 10, target: personalTargets.studyTime, unit: 'h'
-      },
-      {
-        subject: 'Completion Rate', A: Math.round(completionRate), fullMark: 100, target: personalTargets.completionRate, unit: '%'
-      },
-      {
-        subject: 'Learning Frequency', A: Math.min(frequency, 20), fullMark: 20, target: personalTargets.learningFrequency, unit: 'times/month'
-      },
-    ]);
-  }, [progress, personalTargets, totalActivities]);
+  }, [memoizedChartData, viewMode, lineMode]);
 
   return (
     <DashboardLayout>
@@ -413,9 +584,9 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">              <div>
                 <p className="text-sm text-gray-600 mb-1">Study Time</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {loading ? '...' : progress?.stats?.totalStudyTime ? (progress.stats.totalStudyTime / 60).toFixed(1) + 'h' : '0h'}
+                  {loading ? '...' : progress?.stats?.totalStudyTime ? (progress.stats.totalStudyTime / 3600).toFixed(1) + 'h' : '0.0h'}
                 </p>
-                <p className="text-sm text-green-600">Total minutes</p>
+                <p className="text-sm text-green-600">Total hours</p>
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
                 <TrendingUp className="w-6 h-6 text-purple-600" />
@@ -424,74 +595,156 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Multi-Line Chart + Spider Chart */}
+
+        {/* Progress Trend Chart + Spider Chart */}
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Multi-Line Chart - Left */}
+          {/* Progress Trend Chart - Left */}
           <div>
             <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6 lg:mb-0">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">Progress by {viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} ({lineMode === 'score' ? 'Average Score' : 'Total Count'})</h2>
+                <h2 className="text-xl font-semibold">
+                  {showDetailedView ? 
+                    `Progress by ${viewMode.charAt(0).toUpperCase() + viewMode.slice(1)} (${lineMode === 'score' ? 'Average Score' : 'Total Count'})` :
+                    "Overall Progress Trend"
+                  }
+                </h2>
                 <div className="flex items-center gap-4">
-                  <span className="font-medium">View by:</span>
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={viewMode}
-                    onChange={e => setViewMode(e.target.value as 'day' | 'month' | 'year')}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDetailedView(!showDetailedView)}
                   >
-                    <option value="day">Day</option>
-                    <option value="month">Month</option>
-                    <option value="year">Year</option>
-                  </select>
-                  <span className="font-medium ml-6">Mode:</span>
-                  <select
-                    className="border rounded px-2 py-1"
-                    value={lineMode}
-                    onChange={e => setLineMode(e.target.value as 'score' | 'total')}
-                  >
-                    <option value="score">Score</option>
-                    <option value="total">Total</option>
-                  </select>
+                    {showDetailedView ? 'Show Overall Trend' : 'Show Mode Details'}
+                  </Button>
+                  {showDetailedView && (
+                    <>
+                      <span className="font-medium">View by:</span>
+                      <select
+                        className="border rounded px-2 py-1"
+                        value={viewMode}
+                        onChange={e => setViewMode(e.target.value as 'day' | 'month' | 'year' | 'session')}
+                      >
+                        <option value="day">Day</option>
+                        <option value="month">Month</option>
+                        <option value="year">Year</option>
+                        <option value="session">Session</option>
+                      </select>
+                      <span className="font-medium ml-6">Mode:</span>
+                      <select
+                        className="border rounded px-2 py-1"
+                        value={lineMode}
+                        onChange={e => setLineMode(e.target.value as 'score' | 'total')}
+                      >
+                        <option value="score">Score</option>
+                        <option value="total">Total</option>
+                      </select>
+                    </>
+                  )}
                 </div>
               </div>
-              <ChartMultiAreaInteractive
-                data={lineChartData.map(d => ({
-                  // map period -> date to keep X axis formatter compatible
-                  date: d.period,
-                  quiz: d.quiz,
-                  test: d.test,
-                  interview: d.interview,
-                }))}
-                height={288}
-                title=""
-                description=""
-                hideCard={true}
-              />
+
+              {!showDetailedView && improvementMetrics && (
+                <>
+                  {/* Improvement Metrics */}
+                  <div className="mb-4 grid grid-cols-3 gap-4">
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-green-700">Quiz Improvement</span>
+                        <span className="text-lg">{improvementMetrics.quiz.trend === 'improving' ? '🔺' : improvementMetrics.quiz.trend === 'declining' ? '🔻' : '➖'}</span>
+                      </div>
+                      <p className="text-xl font-bold text-green-800">{improvementMetrics.quiz.percentage}%</p>
+                    </div>
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-blue-700">Assessment Improvement</span>
+                        <span className="text-lg">{improvementMetrics.test.trend === 'improving' ? '🔺' : improvementMetrics.test.trend === 'declining' ? '🔻' : '➖'}</span>
+                      </div>
+                      <p className="text-xl font-bold text-blue-800">{improvementMetrics.test.percentage}%</p>
+                    </div>
+                    <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-purple-700">Interview Improvement</span>
+                        <span className="text-lg">{improvementMetrics.interview.trend === 'improving' ? '🔺' : improvementMetrics.interview.trend === 'declining' ? '🔻' : '➖'}</span>
+                      </div>
+                      <p className="text-xl font-bold text-purple-800">{improvementMetrics.interview.percentage}%</p>
+                    </div>
+                  </div>
+                  
+                  {/* Overall Progress Chart */}
+                  <ChartSingleLine
+                    data={overallProgressData.map(d => ({
+                      date: d.period,
+                      value: d.overall,
+                    }))}
+                    height={288}
+                    color="#8b5cf6"
+                    title=""
+                    description=""
+                  />
+                </>
+              )}
+
+              {showDetailedView && (
+                <>
+                  {/* Thông báo khi dữ liệu ít */}
+                  {lineChartData.length < 3 && viewMode !== 'session' && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <p className="text-sm text-yellow-700">
+                          Biểu đồ hiển thị dữ liệu giả lập để tạo đường cong. Hãy luyện tập thêm để có dữ liệu thực tế!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Thông báo cho chế độ Session */}
+                  {viewMode === 'session' && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <p className="text-sm text-blue-700">
+                          Chế độ Session: So sánh từng lần luyện tập riêng biệt
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <ChartMultiAreaInteractive
+                    data={lineChartData.map(d => ({
+                      // map period -> date to keep X axis formatter compatible
+                      date: d.period,
+                      quiz: d.quiz,
+                      test: d.test,
+                      interview: d.interview,
+                    }))}
+                    height={288}
+                    title=""
+                    description=""
+                    hideCard={true}
+                  />
+                </>
+              )}
             </div>
           </div>
-          {/* Spider Chart - Right */}
+          
+          {/* Skills Development - Right */}
           <div>
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold">Overall Progress</h2>
-                <Button 
-                  onClick={() => setShowTargetModal(true)}
-                  className="flex items-center gap-2"
-                >
-                  <Target className="w-4 h-4" />
-                  Set Targets
-                </Button>
+                <div>
+                  <h2 className="text-xl font-semibold">Skills Development</h2>
+                  <p className="text-sm text-gray-600 mt-1">Your average performance across all practice sessions</p>
+                </div>
+                <div className="text-sm text-gray-500">
+                  Click on skills to view detailed progress charts
+                </div>
               </div>
-              <div className="h-72">
-                <ChartRadarLinesOnly 
-                  data={overallSpiderData.map(item => ({
-                    month: item.subject,
-                    desktop: item.A,
-                    mobile: item.target
-                  }))}
-                  title=""
-                  description=""
-                  showTargets={true}
-                  hideCard={true}
+              <div className="max-h-[400px] overflow-y-auto">
+                <SkillsProgress 
+                  skillProgress={progress?.skillProgress || []} 
+                  loading={loading}
+                  collapsible={true}
                 />
               </div>
             </div>
@@ -554,204 +807,12 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Column - Progress */}
-          <div className="space-y-6">            {/* Skills Progress */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold mb-4">Skills Progress</h3>
-              <p className="text-sm text-gray-600 mb-6">Competency scores by skill area</p>
-              
-              {loading ? (
-              <div className="space-y-4">
-                  {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <div key={i}>
-                      <div className="flex justify-between mb-2">
-                        <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
-                        <div className="h-4 bg-gray-200 rounded w-8 animate-pulse"></div>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                        <div className="h-2 bg-gray-200 rounded-full animate-pulse" style={{width: "60%"}}></div>
-                      </div>
-                  </div>
-                  ))}
-                </div>
-              ) : progress?.skillProgress && progress.skillProgress.length > 0 ? (
-                <div className="space-y-6">
-                  {progress.skillProgress.map((skill) => (
-                    <div key={skill.name}>
-                      <div className="flex justify-between mb-2">
-                        <span className="font-medium text-gray-700">{skill.name}</span>
-                        <span className="text-sm text-gray-500">{skill.level}</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                        <div
-                          className="h-2 bg-blue-500 rounded-full transition-all duration-300"
-                          style={{ width: `${skill.score}%` }}
-                        />
-                      </div>
-                      {skill.progress && skill.progress.length > 0 && (
-                        <div className="mt-4 h-[100px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={skill.progress}>
-                              <CartesianGrid strokeDasharray="3 3" />
-                              <XAxis
-                                dataKey="date"
-                                tickFormatter={(date) =>
-                                  new Date(date).toLocaleDateString()
-                                }
-                              />
-                              <YAxis domain={[0, 100]} />
-                              <Tooltip
-                                labelFormatter={(date) =>
-                                  new Date(date).toLocaleDateString()
-                                }
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="score"
-                                stroke="#2563eb"
-                                strokeWidth={2}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
-                      )}
-                  </div>
-                  ))}
-                </div>
-              ) : progress?.stats ? (
-                // Fallback: Hiển thị stats cơ bản nếu không có skillProgress
-                <div className="space-y-4">
-                <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-gray-700">Overall Performance</span>
-                      <span className="text-sm text-gray-500">Current</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                      <div
-                        className="h-2 bg-blue-500 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, progress.stats.averageScore)}%` }}
-                      />
-                  </div>
-                    <p className="text-xs text-gray-500 mt-1">Average Score: {progress.stats.averageScore.toFixed(1)}%</p>
-                </div>
-                
-                <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-gray-700">Study Streak</span>
-                      <span className="text-sm text-gray-500">{progress.stats.studyStreak} days</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                      <div
-                        className="h-2 bg-green-500 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, progress.stats.studyStreak * 10)}%` }}
-                      />
-                  </div>
-                </div>
-                
-                <div>
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium text-gray-700">Total Study Time</span>
-                      <span className="text-sm text-gray-500">{progress.stats.totalStudyTime} min</span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full">
-                      <div
-                        className="h-2 bg-purple-500 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(100, progress.stats.totalStudyTime / 10)}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No skill progress data available</p>
-                  <p className="text-sm text-gray-400 mt-2">Complete some activities to see your progress</p>
-                </div>
-              )}
-            </div>
+          {/* Right Column - Other Content (if needed) */}
+          <div className="space-y-6">
+            {/* Future content can go here */}
           </div>
         </div>
      </div>
-      {/* Target Modal */}
-      {showTargetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold">Set Overall Progress Targets</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowTargetModal(false)}>
-                ✕
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="totalActivities">Total Activities</Label>
-                <Input
-                  id="totalActivities"
-                  type="number"
-                  min="0"
-                  value={personalTargets.totalActivities}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, totalActivities: Math.max(0, parseInt(e.target.value) || 0) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="averageScore">Average Score</Label>
-                <Input
-                  id="averageScore"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={personalTargets.averageScore}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, averageScore: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="studyTime">Study Time (hours)</Label>
-                <Input
-                  id="studyTime"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={personalTargets.studyTime}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, studyTime: Math.max(0, parseFloat(e.target.value) || 0) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="completionRate">Completion Rate (%)</Label>
-                <Input
-                  id="completionRate"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={personalTargets.completionRate}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, completionRate: Math.min(100, Math.max(0, parseInt(e.target.value) || 0)) }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="learningFrequency">Learning Frequency (times/month)</Label>
-                <Input
-                  id="learningFrequency"
-                  type="number"
-                  min="0"
-                  value={personalTargets.learningFrequency}
-                  onChange={(e) => setPersonalTargets((prev: PersonalTargets) => ({ ...prev, learningFrequency: Math.max(0, parseInt(e.target.value) || 0) }))}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowTargetModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  localStorage.setItem('personalTargets', JSON.stringify(personalTargets));
-                  setShowTargetModal(false);
-                }}
-              >
-                Save Targets
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Streak Detail Modal */}
       {showStreakModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">

@@ -1,0 +1,36 @@
+[
+  {
+    "id": "fc4c8f51-c066-4775-90b0-22ae3bf105e4",
+    "name": "React",
+    "description": null,
+    "companyId": null,
+    "level": "junior",
+    "topics": [],
+    "fields": [],
+    "skills": [
+      "React"
+    ],
+    "version": 1,
+    "status": "draft",
+    "createdById": null,
+    "createdAt": "2025-09-15T07:43:46.453Z",
+    "updatedAt": "2025-09-15T07:43:46.453Z"
+  },
+  {
+    "id": "ae732e01-1ccc-4253-9a9e-5f21c9830a6c",
+    "name": "Bộ câu hỏi",
+    "description": null,
+    "companyId": null,
+    "level": "junior",
+    "topics": [],
+    "fields": [],
+    "skills": [
+      "React"
+    ],
+    "version": 1,
+    "status": "published",
+    "createdById": null,
+    "createdAt": "2025-09-17T06:13:43.539Z",
+    "updatedAt": "2025-09-17T06:13:43.539Z"
+  }
+]

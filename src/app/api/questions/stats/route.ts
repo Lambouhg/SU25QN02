@@ -3,11 +3,11 @@ import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
-    const allQuestions = await prisma.question.findMany({
+    const allQuestions = await prisma.questionItem.findMany({
       select: {
         fields: true,
         topics: true,
-        levels: true
+        level: true // QuestionItem uses 'level' not 'levels'
       }
     });
 
@@ -28,9 +28,10 @@ export async function GET() {
       (q.topics || []).forEach(topic => {
         topicCounts.set(topic, (topicCounts.get(topic) || 0) + 1);
       });
-      (q.levels || []).forEach(level => {
-        levelCounts.set(level, (levelCounts.get(level) || 0) + 1);
-      });
+      // QuestionItem uses single level, not levels array
+      if (q.level) {
+        levelCounts.set(q.level, (levelCounts.get(q.level) || 0) + 1);
+      }
     });
 
     // Create field stats for job roles

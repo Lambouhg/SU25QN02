@@ -46,11 +46,11 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
     { key: 'language', label: 'Language Proficiency', icon: <Award className="h-8 w-8 mb-2 text-green-500" /> }
   ];
 
-  // Luôn lấy điểm từ finalScores (results.scores) cho chart
+  // Luôn lấy điểm từ finalScores (results.scores) cho chart (thang 0-10)
   const chartScores: Record<string, number> = {
-  fundamental: (results.scores.fundamentalKnowledge ?? 0) * 10,
-  logic: (results.scores.logicalReasoning ?? 0) * 10,
-  language: (results.scores.languageFluency ?? 0) * 10,
+  fundamental: (results.scores.fundamentalKnowledge ?? 0),
+  logic: (results.scores.logicalReasoning ?? 0),
+  language: (results.scores.languageFluency ?? 0),
 };
 
   // Sử dụng chartScores cho mọi phần hiển thị điểm
@@ -60,13 +60,13 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
     ? realTimeScores.suggestions
     : { fundamental: '', logic: '', language: '' };
 
-  // Tính overall từ finalScores (chartScores)
-  const overall = Math.round((chartScores.fundamental + chartScores.logic + chartScores.language) / 3);
+  // Tính overall 0-10 (làm tròn 1 chữ số)
+  const overall = Math.round(((chartScores.fundamental + chartScores.logic + chartScores.language) / 3) * 10) / 10;
 
   const radarChartData = [
-    { subject: 'Fundamental Knowledge', A: chartScores.fundamental, fullMark: 100 },
-    { subject: 'Logical Reasoning', A: chartScores.logic, fullMark: 100 },
-    { subject: 'Language Proficiency', A: chartScores.language, fullMark: 100 },
+    { subject: 'Fundamental Knowledge', A: chartScores.fundamental, fullMark: 10 },
+    { subject: 'Logical Reasoning', A: chartScores.logic, fullMark: 10 },
+    { subject: 'Language Proficiency', A: chartScores.language, fullMark: 10 },
   ];
 
   const barChartData = [
@@ -107,7 +107,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
           <div className="flex items-center gap-2">
             <span className="text-sm opacity-80">Overall</span>
             <Badge variant="outline" className="text-lg px-3 py-1 bg-white/10 text-white border-white/30">
-              {overall}%
+              {overall}/10
             </Badge>
           </div>
         </div>
@@ -120,7 +120,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
                 {cat.icon}
                 <h3 className="font-medium">{cat.label}</h3>
                 <div className="text-3xl font-bold mt-2">
-                  {Math.round(scores[cat.key])}%
+                  {Math.round(scores[cat.key] * 10) / 10}/10
                 </div>
               </CardContent>
             </Card>
@@ -153,7 +153,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
                   <RadarChart outerRadius={90} data={radarChartData}>
                     <PolarGrid />
                     <PolarAngleAxis dataKey="subject" />
-                    <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                    <PolarRadiusAxis angle={30} domain={[0, 10]} />
                     <Radar name="Performance" dataKey="A" stroke="#8884d8" fill="#8884d8" fillOpacity={0.6} />
                     <Legend />
                   </RadarChart>
@@ -171,7 +171,7 @@ export function ResultsSummary({ results, realTimeScores, onReset }: Omit<Result
                   <BarChart data={barChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
-                    <YAxis domain={[0, 100]} />
+                    <YAxis domain={[0, 10]} />
                     <Tooltip />
                     <Bar dataKey="score" fill="#8884d8" />
                   </BarChart>

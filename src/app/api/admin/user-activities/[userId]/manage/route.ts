@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { ActivityType } from "@prisma/client";
 
 export async function PATCH(
   request: NextRequest,
@@ -38,176 +39,228 @@ export async function PATCH(
     let result;
 
     switch (action) {
-      case 'updateGoal':
-        // Find the user activity and update the specific goal
-        const userActivity = await prisma.userActivity.findUnique({
-          where: { userId }
-        });
-        
-        if (userActivity && userActivity.goals) {
-          const goals = Array.isArray(userActivity.goals) ? userActivity.goals as Record<string, unknown>[] : [];
-          const goalIndex = goals.findIndex((g: Record<string, unknown>) => g._id === data.goalId);
-          
-          if (goalIndex !== -1) {
-            goals[goalIndex] = {
-              ...goals[goalIndex],
-              status: data.status,
-              targetDate: data.targetDate,
-              description: data.description,
-              ...(data.status === 'completed' && { completedDate: new Date().toISOString() })
-            };
-            
-            result = await prisma.userActivity.update({
-              where: { userId },
-              data: { goals: JSON.parse(JSON.stringify(goals)) }
-            });
-          }
-        }
-        break;
-
-      case 'addGoal':
-        const existingActivity = await prisma.userActivity.findUnique({
-          where: { userId }
-        });
-        
-        const currentGoals = Array.isArray(existingActivity?.goals) ? existingActivity.goals as Record<string, unknown>[] : [];
-        const newGoal = {
-          _id: Date.now().toString(), // Simple ID generation
-          ...data,
-          createdDate: new Date().toISOString(),
-          status: 'pending'
-        };
-        
-        result = await prisma.userActivity.update({
-          where: { userId },
-          data: { 
-            goals: [...currentGoals, newGoal]
-          }
-        });
-        break;
-
-      case 'removeGoal':
-        const activityForRemove = await prisma.userActivity.findUnique({
-          where: { userId }
-        });
-        
-        if (activityForRemove && activityForRemove.goals) {
-          const goals = Array.isArray(activityForRemove.goals) ? activityForRemove.goals as Record<string, unknown>[] : [];
-          const updatedGoals = goals.filter((g: Record<string, unknown>) => g._id !== data.goalId);
-          
-          result = await prisma.userActivity.update({
-            where: { userId },
-            data: { goals: JSON.parse(JSON.stringify(updatedGoals)) }
-          });
-        }
-        break;
-
       case 'updateSkill':
-        const activityForSkill = await prisma.userActivity.findUnique({
-          where: { userId }
+        // Update user skill using new UserSkillSnapshot model
+        result = await prisma.userSkillSnapshot.create({
+          data: {
+            userId,
+            skillName: data.skillName,
+            score: data.score,
+            source: ActivityType.practice, // Admin manual update
+            referenceId: `admin-update-${Date.now()}`
+          }
         });
-        
-        if (activityForSkill && activityForSkill.skills) {
-          const skills = Array.isArray(activityForSkill.skills) ? activityForSkill.skills as Record<string, unknown>[] : [];
-          const skillIndex = skills.findIndex((s: Record<string, unknown>) => s.name === data.skillName);
-          
-          if (skillIndex !== -1) {
-            skills[skillIndex] = {
-              ...skills[skillIndex],
-              score: data.score,
+
+        // Also create an activity event for tracking
+        await prisma.userActivityEvent.create({
+          data: {
+            userId,
+            activityType: ActivityType.practice,
+            feature: 'skill-management',
+            action: 'update_skill',
+            score: data.score,
+            metadata: {
+              skillName: data.skillName,
               level: data.level,
-              lastAssessed: new Date().toISOString()
-            };
-            
-            result = await prisma.userActivity.update({
-              where: { userId },
-              data: { skills: JSON.parse(JSON.stringify(skills)) }
-            });
-          }
-        }
-        break;
-
-      case 'addRecommendation':
-        const activityForAdd = await prisma.userActivity.findUnique({
-          where: { userId }
-        });
-        
-        const currentRecommendations = Array.isArray(activityForAdd?.recommendations) ? activityForAdd.recommendations : [];
-        
-        result = await prisma.userActivity.update({
-          where: { userId },
-          data: { 
-            recommendations: [...currentRecommendations, data.recommendation]
+              updatedBy: adminUser.id,
+              reason: 'admin-manual-update'
+            }
           }
         });
         break;
 
-      case 'removeRecommendation':
-        const activityForRemoveRec = await prisma.userActivity.findUnique({
-          where: { userId }
+      case 'addSkillEvent':
+        // Add a new skill-related activity event
+        result = await prisma.userActivityEvent.create({
+          data: {
+            userId,
+            activityType: data.activityType || ActivityType.practice,
+            feature: data.feature || 'skill-training',
+            action: data.action || 'skill_gained',
+            score: data.score,
+            duration: data.duration,
+            metadata: {
+              skillName: data.skillName,
+              source: 'admin-created',
+              createdBy: adminUser.id
+            },
+            skillDeltas: data.skillDeltas || {}
+          }
         });
-        
-        if (activityForRemoveRec && activityForRemoveRec.recommendations) {
-          const recommendations = Array.isArray(activityForRemoveRec.recommendations) ? activityForRemoveRec.recommendations : [];
-          const updatedRecommendations = recommendations.filter((r: unknown) => r !== data.recommendation);
-          
-          result = await prisma.userActivity.update({
-            where: { userId },
-            data: { recommendations: updatedRecommendations }
+
+        // Create corresponding skill snapshot
+        if (data.skillName && data.score) {
+          await prisma.userSkillSnapshot.create({
+            data: {
+              userId,
+              skillName: data.skillName,
+              score: data.score,
+              source: data.activityType || ActivityType.practice,
+              referenceId: result.id
+            }
           });
         }
         break;
 
-      case 'updateLearningStats':
-        const currentLearningStats = await prisma.userActivity.findUnique({
-          where: { userId },
-          select: { learningStats: true }
-        });
-        
-        const existingStats = currentLearningStats?.learningStats as Record<string, unknown> || {};
-        const updatedStats = {
-          ...existingStats,
-          streak: data.streak,
-          totalStudyTime: data.totalStudyTime
-        };
-        
-        result = await prisma.userActivity.update({
-          where: { userId },
-          data: { learningStats: updatedStats }
+      case 'updateDailyStats':
+        // Update or create daily stats for a specific date
+        const targetDate = new Date(data.date);
+        targetDate.setHours(0, 0, 0, 0);
+
+        result = await prisma.userDailyStats.upsert({
+          where: {
+            userId_date: {
+              userId,
+              date: targetDate
+            }
+          },
+          update: {
+            totalActivities: data.totalActivities,
+            totalDuration: data.totalDuration,
+            avgScore: data.avgScore,
+            activityTypeBreakdown: data.activityTypeBreakdown || {},
+            skillAverages: data.skillAverages || {}
+          },
+          create: {
+            userId,
+            date: targetDate,
+            totalActivities: data.totalActivities || 0,
+            totalDuration: data.totalDuration || 0,
+            avgScore: data.avgScore,
+            activityTypeBreakdown: data.activityTypeBreakdown || {},
+            skillAverages: data.skillAverages || {}
+          }
         });
         break;
 
-      case 'resetProgress':
-        result = await prisma.userActivity.update({
-          where: { userId },
-          data: {
-            activities: [],
-            skills: [],
-            learningStats: {
-              streak: 0,
-              totalStudyTime: 0,
-              weeklyStudyTime: 0,
-              monthlyStudyTime: 0
-            },
-            progressHistory: [],
-            strengths: [],
-            weaknesses: [],
-            recommendations: []
+      case 'removeActivityEvent':
+        // Remove a specific activity event
+        result = await prisma.userActivityEvent.delete({
+          where: { id: data.eventId }
+        });
+        break;
+
+      case 'bulkAddEvents':
+        // Bulk create multiple activity events
+        const bulkEvents = data.events.map((event: {
+          activityType: ActivityType;
+          feature: string;
+          action: string;
+          score?: number;
+          duration?: number;
+          timestamp?: string;
+          metadata?: Record<string, unknown>;
+          skillDeltas?: Record<string, unknown>;
+        }) => ({
+          userId,
+          activityType: event.activityType,
+          feature: event.feature,
+          action: event.action,
+          score: event.score,
+          duration: event.duration,
+          timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
+          metadata: {
+            ...event.metadata,
+            createdBy: adminUser.id,
+            source: 'admin-bulk-import'
+          },
+          skillDeltas: event.skillDeltas || {}
+        }));
+
+        result = await prisma.userActivityEvent.createMany({
+          data: bulkEvents
+        });
+        break;
+
+      case 'resetAllProgress':
+        // Delete all user progress data
+        await Promise.all([
+          prisma.userActivityEvent.deleteMany({ where: { userId } }),
+          prisma.userDailyStats.deleteMany({ where: { userId } }),
+          prisma.userSkillSnapshot.deleteMany({ where: { userId } })
+        ]);
+
+        result = { message: "All user progress data has been reset" };
+        break;
+
+      case 'recalculateStats':
+        // Recalculate daily stats from activity events
+        const startDate = new Date(data.startDate);
+        const endDate = new Date(data.endDate);
+        
+        // Get all events in date range
+        const activityEvents = await prisma.userActivityEvent.findMany({
+          where: {
+            userId,
+            timestamp: {
+              gte: startDate,
+              lte: endDate
+            }
           }
         });
+
+        // Group by date and calculate stats
+        const statsByDate = new Map<string, {
+          totalActivities: number;
+          totalDuration: number;
+          scores: number[];
+          activityTypes: Record<string, number>;
+          skills: Map<string, number[]>;
+        }>();
+        
+        activityEvents.forEach((event) => {
+          const dateKey = event.timestamp.toISOString().split('T')[0];
+          if (!statsByDate.has(dateKey)) {
+            statsByDate.set(dateKey, {
+              totalActivities: 0,
+              totalDuration: 0,
+              scores: [],
+              activityTypes: {},
+              skills: new Map()
+            });
+          }
+          
+          const dayStats = statsByDate.get(dateKey)!;
+          dayStats.totalActivities++;
+          dayStats.totalDuration += event.duration || 0;
+          if (event.score) dayStats.scores.push(event.score);
+          
+          dayStats.activityTypes[event.activityType] = (dayStats.activityTypes[event.activityType] || 0) + 1;
+        });
+
+        // Update daily stats
+        const updatePromises = Array.from(statsByDate.entries()).map(([dateStr, stats]) => {
+          const date = new Date(dateStr);
+          return prisma.userDailyStats.upsert({
+            where: { userId_date: { userId, date } },
+            update: {
+              totalActivities: stats.totalActivities,
+              totalDuration: stats.totalDuration,
+              avgScore: stats.scores.length > 0 ? stats.scores.reduce((a: number, b: number) => a + b, 0) / stats.scores.length : null,
+              activityTypeBreakdown: stats.activityTypes
+            },
+            create: {
+              userId,
+              date,
+              totalActivities: stats.totalActivities,
+              totalDuration: stats.totalDuration,
+              avgScore: stats.scores.length > 0 ? stats.scores.reduce((a: number, b: number) => a + b, 0) / stats.scores.length : null,
+              activityTypeBreakdown: stats.activityTypes
+            }
+          });
+        });
+
+        await Promise.all(updatePromises);
+        result = { message: `Stats recalculated for ${updatePromises.length} days` };
         break;
 
       default:
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
 
-    if (!result) {
-      return NextResponse.json({ error: "User activity not found" }, { status: 404 });
-    }
-
     return NextResponse.json({
       message: "User activity updated successfully",
-      userActivity: result
+      result
     });
 
   } catch (error) {
@@ -249,17 +302,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
-    // Delete user activity
-    const result = await prisma.userActivity.delete({
-      where: { userId }
-    });
-
-    if (!result) {
-      return NextResponse.json({ error: "User activity not found" }, { status: 404 });
-    }
+    // Delete all user activity data from new tables
+    await Promise.all([
+      prisma.userActivityEvent.deleteMany({ where: { userId } }),
+      prisma.userDailyStats.deleteMany({ where: { userId } }),
+      prisma.userSkillSnapshot.deleteMany({ where: { userId } })
+    ]);
 
     return NextResponse.json({
-      message: "User activity deleted successfully"
+      message: "All user activity data deleted successfully"
     });
 
   } catch (error) {

@@ -26,11 +26,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    type InterviewPreferences = {
+      selectedSkills?: string[];
+      [key: string]: unknown;
+    };
+    const interviewPrefs = user.interviewPreferences as InterviewPreferences || {};
+    const existingSelectedSkills = interviewPrefs.selectedSkills || [];
+    const userSkills = user.skills || [];
+    
+    // Merge skills: prioritize user skills if they're more recent/comprehensive
+    const mergedSkills = userSkills.length > 0 && existingSelectedSkills.length === 0
+      ? userSkills // Use user skills if selectedSkills is empty
+      : existingSelectedSkills.length > 0 
+        ? existingSelectedSkills // Use existing if available
+        : userSkills; // Fallback to user skills
+    
     const preferences = {
       preferredJobRoleId: user.preferredJobRoleId,
       preferredLanguage: user.preferredLanguage || 'vi',
       autoStartWithPreferences: user.autoStartWithPreferences ?? true,
-      interviewPreferences: user.interviewPreferences || {},
+      interviewPreferences: {
+        ...interviewPrefs,
+        selectedSkills: mergedSkills
+      },
+      skills: user.skills || [], // Include user's skills
       preferredJobRole: user.preferredJobRole,
     };
 
@@ -58,6 +77,7 @@ export async function PUT(request: NextRequest) {
       preferredLanguage,
       autoStartWithPreferences,
       interviewPreferences,
+      skills, // Add skills field
     } = body;
 
     // Validate job role if provided
@@ -80,6 +100,7 @@ export async function PUT(request: NextRequest) {
         preferredLanguage: preferredLanguage || 'vi',
         autoStartWithPreferences: autoStartWithPreferences ?? true,
         interviewPreferences: interviewPreferences || {},
+        skills: skills || [], // Update user skills
       },
       include: {
         preferredJobRole: {
@@ -96,6 +117,7 @@ export async function PUT(request: NextRequest) {
       preferredLanguage: updatedUser.preferredLanguage,
       autoStartWithPreferences: updatedUser.autoStartWithPreferences,
       interviewPreferences: updatedUser.interviewPreferences,
+      skills: updatedUser.skills || [], // Include skills in response
       preferredJobRole: updatedUser.preferredJobRole,
     };
 

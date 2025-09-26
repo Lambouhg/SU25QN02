@@ -1,15 +1,16 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { GlobalChatboxContext } from '@/services/globalChatboxService';
 
 interface GlobalChatboxContextType {
   isOpen: boolean;
   currentPage: string;
-  currentContext: any;
-  openChatbox: (page?: string, context?: any) => void;
+  currentContext: Partial<GlobalChatboxContext>;
+  openChatbox: (page?: string, context?: Partial<GlobalChatboxContext>) => void;
   closeChatbox: () => void;
   toggleChatbox: () => void;
-  updateContext: (context: any) => void;
+  updateContext: (context: Partial<GlobalChatboxContext>) => void;
 }
 
 const GlobalChatboxContext = createContext<GlobalChatboxContextType | undefined>(undefined);
@@ -31,7 +32,7 @@ export const GlobalChatboxProvider: React.FC<GlobalChatboxProviderProps> = ({ ch
   const [currentPage, setCurrentPage] = useState('general');
   const [currentContext, setCurrentContext] = useState({});
 
-  const openChatbox = (page: string = 'general', context: any = {}) => {
+  const openChatbox = (page: string = 'general', context: Partial<GlobalChatboxContext> = {}) => {
     setCurrentPage(page);
     setCurrentContext(context);
     setIsOpen(true);
@@ -45,7 +46,7 @@ export const GlobalChatboxProvider: React.FC<GlobalChatboxProviderProps> = ({ ch
     setIsOpen(!isOpen);
   };
 
-  const updateContext = (context: any) => {
+  const updateContext = (context: Partial<GlobalChatboxContext>) => {
     setCurrentContext(prev => ({ ...prev, ...context }));
   };
 

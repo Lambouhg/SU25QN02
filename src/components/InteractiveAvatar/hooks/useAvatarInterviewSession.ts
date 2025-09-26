@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import { useConversation } from './useConversation';
@@ -6,7 +6,7 @@ import { useAvatarControl } from './useAvatarControl';
 import { useAIConversation } from './useAIConversation';
 import { useInterviewApi } from './useInterviewApi';
 import { useInterviewSession } from './useInterviewSession';
-import { generateInterviewEvaluation } from '@/services/evaluationService';
+import { generateInterviewEvaluation } from '@/services/avatarInterviewService/evaluationService';
 import { AVATARS } from '../HeygenConfig';
 import { ChatMessage } from '@/services/openaiService';
 import { mapUILanguageToAI } from '@/utils/languageMapping';
@@ -106,6 +106,12 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
   const [pendingInterviewEnd, setPendingInterviewEnd] = useState<null | { progress: number; reason?: string }>(null);
   const [isSavingInterview, setIsSavingInterview] = useState(false);
   const [isInitializingInterview, setIsInitializingInterview] = useState(false);
+  const [userPreferences, setUserPreferences] = useState<{
+    interviewPreferences?: {
+      selectedSkills?: string[];
+      customSkills?: string[];
+    };
+  } | null>(null);
   const isPositionsFetching = useRef(false);
 
   const { fetchJobRoles, saveInterview } = useInterviewApi();
@@ -120,6 +126,25 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
     setElapsedTime,
     formatElapsedTime,
   } = useInterviewSession();
+
+  // Load user preferences for interview skills
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      if (!userId) return;
+
+      try {
+        const response = await fetch("/api/profile/interview-preferences");
+        if (response.ok) {
+          const preferences = await response.json();
+          setUserPreferences(preferences);
+        }
+      } catch (error) {
+        console.error("Error loading user preferences:", error);
+      }
+    };
+
+    loadUserPreferences();
+  }, [userId]);
 
   useEffect(() => {
       const fetchJobRolesOnce = async () => {
@@ -173,17 +198,22 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
 
 
 
-  // Tạo config cho question bank integration
-  const questionBankConfig = {
-    field: jobRoles.find(role => role.id === jobRoleId)?.category?.name || 'software development',
-    level: jobRoles.find(role => role.id === jobRoleId)?.level || 'mid',
-    language: mapUILanguageToAI(config.language || 'en'),
-    jobRoleTitle: jobRoles.find(role => role.id === jobRoleId)?.title,
-    jobRoleLevel: jobRoles.find(role => role.id === jobRoleId)?.level
-  };
-
-  // Log config để debug
-  console.log('🔗 Question Bank Config created:', questionBankConfig);
+  // Tạo config cho question bank integration - only recreate when dependencies change
+  const questionBankConfig = useMemo(() => {
+    const bankConfig = {
+      field: jobRoles.find(role => role.id === jobRoleId)?.category?.name || 'software development',
+      level: jobRoles.find(role => role.id === jobRoleId)?.level || 'mid',
+      language: mapUILanguageToAI(config.language || 'en'),
+      jobRoleTitle: jobRoles.find(role => role.id === jobRoleId)?.title,
+      jobRoleLevel: jobRoles.find(role => role.id === jobRoleId)?.level,
+      selectedSkills: userPreferences?.interviewPreferences?.selectedSkills || [],
+      customSkills: userPreferences?.interviewPreferences?.customSkills || []
+    };
+    
+    // Log config để debug - only when config actually changes
+    console.log('🔗 Question Bank Config created:', bankConfig);
+    return bankConfig;
+  }, [jobRoleId, jobRoles, config.language, userPreferences?.interviewPreferences?.selectedSkills, userPreferences?.interviewPreferences?.customSkills]);
 
   const {
     isThinking,
@@ -384,7 +414,7 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         evaluation,
         questionCount: questionCount,
         coveredTopics: interviewState.coveredTopics,
-        skillAssessment: interviewState.skillAssessment,
+        // skillAssessment: interviewState.skillAssessment, // Removed: using evaluation as single source of truth
         progress,
         status: 'completed'
       };
@@ -431,8 +461,14 @@ export function useAvatarInterviewSession({ onEndSession }: { onEndSession: (dat
         questionCount: questionCount ?? 0,
         coveredTopics: interviewState.coveredTopics ?? [],
         conversationHistory: apiConversation ?? [],
-        evaluation: evaluation,
-        skillAssessment: interviewState.skillAssessment
+        evaluation: {
+          overallRating: Math.round((evaluation.technicalScore + evaluation.communicationScore + evaluation.problemSolvingScore + evaluation.deliveryScore) / 4),
+          technicalScore: evaluation.technicalScore,
+          communicationScore: evaluation.communicationScore,
+          problemSolvingScore: evaluation.problemSolvingScore,
+          recommendations: evaluation.recommendations
+        },
+        // skillAssessment: interviewState.skillAssessment // Removed: using evaluation as single source of truth
       };
       
       // Gọi onEndSession với data để component cha có thể xử lý

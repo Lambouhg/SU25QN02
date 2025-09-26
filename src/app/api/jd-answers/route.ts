@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { JdAnswerService, JdAnswerData, AnalysisResult } from '@/services/jdAnswerService';
-import { UserActivityService } from '@/services/userActivityService';
-import { ActivityType } from '@prisma/client';
+import { JdAnswerService, JdAnswerData, AnalysisResult } from '@/services/jdService/jdAnswerService';
+import TrackingEventService from '@/services/trackingEventService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +35,42 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Calculate overall score if we have detailed scores but no overall score
+    let calculatedOverallScore = analysisResult?.overallScore;
+    if (analysisResult?.detailedScores && !calculatedOverallScore) {
+      console.log('🔄 Calculating overall score from detailed scores:', analysisResult.detailedScores);
+      try {
+        const scoreResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/jd/calculate-score`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            detailedScores: analysisResult.detailedScores
+          }),
+        });
+
+        if (scoreResponse.ok) {
+          const scoreData = await scoreResponse.json();
+          console.log('✅ Score API response:', scoreData);
+          if (scoreData.success) {
+            calculatedOverallScore = scoreData.overallScore;
+            console.log('✅ Calculated overall score:', calculatedOverallScore);
+          }
+        } else {
+          console.error('❌ Score API failed with status:', scoreResponse.status);
+        }
+      } catch (error) {
+        console.error('❌ Error calculating overall score:', error);
+        // Fallback: calculate simple average if API fails
+        const scores = Object.values(analysisResult.detailedScores);
+        calculatedOverallScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        console.log('🔄 Fallback calculated score:', calculatedOverallScore);
+      }
+    } else if (calculatedOverallScore) {
+      console.log('ℹ️ Using existing overall score:', calculatedOverallScore);
+    }
+
     // Prepare answer data
     const answerData: JdAnswerData = {
       userId,
@@ -47,7 +82,7 @@ export async function POST(request: NextRequest) {
       ...(analysisResult && {
         feedback: analysisResult.feedback,
         scores: analysisResult.detailedScores,
-        overallScore: analysisResult.overallScore,
+        overallScore: calculatedOverallScore,
         strengths: analysisResult.strengths,
         improvements: analysisResult.improvements,
         skillAssessment: analysisResult.skillAssessment,
@@ -59,16 +94,57 @@ export async function POST(request: NextRequest) {
 
     let result;
     if (existingAnswer) {
-      // Update existing answer
+      // Calculate overall score if we have detailed scores but no overall score
+      let calculatedOverallScore = analysisResult?.overallScore;
+      if (analysisResult?.detailedScores && !calculatedOverallScore) {
+        console.log('🔄 [UPDATE] Calculating overall score from detailed scores:', analysisResult.detailedScores);
+        try {
+          const scoreResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/jd/calculate-score`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              detailedScores: analysisResult.detailedScores
+            }),
+          });
+
+          if (scoreResponse.ok) {
+            const scoreData = await scoreResponse.json();
+            console.log('✅ [UPDATE] Score API response:', scoreData);
+            if (scoreData.success) {
+              calculatedOverallScore = scoreData.overallScore;
+              console.log('✅ [UPDATE] Calculated overall score:', calculatedOverallScore);
+            }
+          } else {
+            console.error('❌ [UPDATE] Score API failed with status:', scoreResponse.status);
+          }
+        } catch (error) {
+          console.error('❌ [UPDATE] Error calculating overall score:', error);
+          // Fallback: calculate simple average if API fails
+          const scores = Object.values(analysisResult.detailedScores);
+          calculatedOverallScore = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+          console.log('🔄 [UPDATE] Fallback calculated score:', calculatedOverallScore);
+        }
+      } else if (calculatedOverallScore) {
+        console.log('ℹ️ [UPDATE] Using existing overall score:', calculatedOverallScore);
+      }
+
+      // Update existing answer with calculated overall score
+      const updatedAnalysisResult = analysisResult ? {
+        ...analysisResult,
+        overallScore: calculatedOverallScore || 0
+      } : {
+        feedback: '',
+        detailedScores: {},
+        overallScore: 0,
+        strengths: [],
+        improvements: [],
+      };
+
       result = await JdAnswerService.updateAnswerWithAnalysis(
         existingAnswer.id,
-        analysisResult || {
-          feedback: '',
-          detailedScores: {},
-          overallScore: 0,
-          strengths: [],
-          improvements: [],
-        }
+        updatedAnalysisResult
       );
     } else {
       // Create new answer
@@ -77,16 +153,20 @@ export async function POST(request: NextRequest) {
 
     
     try {
-      await UserActivityService.addActivity(userId, {
-        type: ActivityType.jd,
-        referenceId: jdQuestionSetId,
-        score: undefined, // Don't track score for JD activities
-        duration: timeSpent || 0,
-        timestamp: new Date()
+      await TrackingEventService.trackJdAnswered({
+        userId,
+        jdQuestionSetId,
+        questionIndex,
+        timeSpentSeconds: timeSpent || 0,
+        overallScore: calculatedOverallScore,
+        strengths: analysisResult?.strengths,
+        improvements: analysisResult?.improvements,
+        detailedScores: analysisResult?.detailedScores as Record<string, number> | undefined,
+        feedback: analysisResult?.feedback,
+        skillDeltas: analysisResult?.skillAssessment as Record<string, number> | undefined,
       });
     } catch (activityError) {
-      console.error(' Error tracking JD activity:', activityError);
-      // Don't fail the main operation if activity tracking fails
+      console.error(' Error tracking JD activity (events):', activityError);
     }
 
     return NextResponse.json({

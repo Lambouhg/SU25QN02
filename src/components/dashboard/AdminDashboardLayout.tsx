@@ -101,10 +101,13 @@ export default function AdminDashboardLayout({
     },
     {
       icon: MessageSquare,
-      label: 'Question Management',
+      label: 'Question Bank',
       key: 'content',
       subItems: [
-        { label: 'Questions', href: '/admin/questions' },
+        { label: 'Questions', href: '/admin/question-bank/questions' },
+        { label: 'Question Sets', href: '/admin/question-bank/sets' },
+        { label: 'Bulk Import', href: '/admin/question-bank/import' },
+        { label: 'AI Generator', href: '/admin/question-bank/generate' },
       ]
     },
     {
@@ -197,7 +200,7 @@ export default function AdminDashboardLayout({
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 z-30 bg-black bg-opacity-50 lg:hidden" 
+          className="fixed inset-0 z-30 bg-white/20 backdrop-blur-sm lg:hidden" 
           onClick={() => setIsSidebarOpen(false)}
         />
       )}

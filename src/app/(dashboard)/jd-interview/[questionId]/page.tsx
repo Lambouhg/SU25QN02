@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { questionSetService, QuestionSetData } from '@/services/questionSetService';
+import { questionSetService, QuestionSetData } from '@/services/jdService/questionSetService';
 import { useAzureVoiceInteraction } from '@/hooks/useAzureVoiceInteraction';
 import { ArrowLeft, History, Home } from 'lucide-react';
 import Link from 'next/link';

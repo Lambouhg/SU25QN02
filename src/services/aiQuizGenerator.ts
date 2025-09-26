@@ -1,4 +1,4 @@
-import { getAIResponse } from './azureAiservicesforJD';
+import { getAIResponse } from './jdService/azureAiservicesforJD';
 
 export interface GeneratedQuizQuestion {
   question: string;
@@ -53,8 +53,8 @@ ${JSON.stringify(existingQuestions)}
 4. Each question must:
   - Have exactly 4 options (A, B, C, D).
   - Be clear, concise, and unambiguous.
-  - Have one or more correct answers (single or multiple choice).
-5. "correct" is an array of indices of correct options (e.g., [1] or [0,2]).
+  - Have EXACTLY ONE correct answer (single choice only - these are multiple choice questions with single answer).
+5. "correct" is an array with ONE index of the correct option (e.g., [1] means option B is correct).
 6. "explanation" must be a detailed, concept-based answer. It should fully answer the question and, where possible, include relevant concepts, definitions, or background knowledge to help the learner understand not just the answer, but also the reasoning and context behind it. Do not simply repeat the options. 
   Example: If the question is "What is ...?", explanation should be "It is ... because ... (with concept/definition/context)". Avoid generic phrases like "The correct answer is B because ...".
 7. Return the result as a valid JSON array, each item:

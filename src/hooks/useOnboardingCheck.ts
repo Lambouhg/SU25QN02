@@ -6,13 +6,6 @@ interface OnboardingStatus {
   needsOnboarding: boolean;
   isNewUser: boolean;
   onboardingCompleted: boolean;
-  user: {
-    id: string;
-    email?: string | null;
-    firstName?: string | null;
-    lastName?: string | null;
-    [key: string]: unknown;
-  } | null;
 }
 
 export const useOnboardingCheck = () => {

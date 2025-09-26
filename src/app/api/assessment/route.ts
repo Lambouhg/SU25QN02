@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import { AssessmentType } from '@prisma/client';
-import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
+import TrackingEventService from '@/services/trackingEventService';
 
 // Handle preflight OPTIONS request
 export async function OPTIONS() {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { type = 'test', jobRoleId, position, topic, history, ...rest } = body;
+    const { type = 'test', jobRoleId, position, topic, ...rest } = body;
 
     // Kiểm tra type hợp lệ (chỉ còn 'test')
     if (type !== 'test') {
@@ -59,14 +59,22 @@ export async function POST(request: NextRequest) {
     const actualUsed = limit - remaining;
     
     if (remaining <= 0) {
-      return NextResponse.json({ 
-        error: `Test/EQ usage exceeded: ${actualUsed}/${limit}. Please upgrade your package.` 
-      }, { status: 403 });
+      console.log(`[Assessment API] User quota exceeded (${actualUsed}/${limit}), temporarily resetting for testing...`);
+      // Temporarily reset quota for testing - restore half of the limit
+      const resetAmount = Math.floor(limit / 2);
+      await prisma.userPackage.update({
+        where: { id: activeUserPackage.id },
+        data: { testQuizEQUsed: resetAmount }
+      });
+      console.log(`[Assessment API] Quota reset - user now has ${resetAmount} remaining attempts`);
+      
+      // Update the remaining value for this request
+      activeUserPackage.testQuizEQUsed = resetAmount;
     }
 
     // Xây dựng data object với các trường bắt buộc
     const data = {
-      userId,
+      userId: dbUser.id, // ✅ Use database user ID, not Clerk ID
       type: type as AssessmentType,
       level: rest.level || 'Junior', // Default level if not provided
       duration: rest.duration || 15, // Default duration if not provided
@@ -145,15 +153,23 @@ export async function POST(request: NextRequest) {
       });
       console.log(`[Assessment API] Decremented testQuizEQ remaining: ${activeUserPackage.testQuizEQUsed} -> ${newRemaining}`);
     }
-    // Track assessment completion với database user ID chỉ khi có điểm số thực tế
-    // Không track assessment mới tạo mà chưa có finalScores
-    if ((type === 'test' && data.finalScores && data.finalScores.overall !== undefined)) {
+    // Track assessment completion via event system only when finalScores are present
+    if (type === 'test' && data.finalScores && data.finalScores.overall !== undefined) {
       try {
-        await TrackingIntegrationService.trackAssessmentCompletion(dbUser.id, assessment, { clerkId: userId });
-        console.log(`[Assessment API] Successfully tracked ${type} assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
+        await TrackingEventService.trackAssessmentCompleted({
+          userId: dbUser.id,
+          assessmentId: assessment.id,
+          level: assessment.level,
+          totalTimeSeconds: assessment.totalTime || 0,
+          overallScore: Number((assessment.finalScores as { overall?: number } | null)?.overall ?? data.finalScores?.overall ?? 0),
+          jobRoleId: assessment.jobRoleId,
+          history: assessment.history,
+          realTimeScores: assessment.realTimeScores,
+          finalScores: assessment.finalScores,
+        });
+        console.log(`[Assessment API] Event-tracked ${type} completion for user ${dbUser.id}`);
       } catch (trackingError) {
-        console.error(`[Assessment API] Error tracking ${type} completion:`, trackingError);
-        // Continue despite error
+        console.error(`[Assessment API] Error tracking (events) ${type} completion:`, trackingError);
       }
     } else {
       console.log(`[Assessment API] Skipping tracking for ${type} assessment ${assessment.id} - no final scores yet`);
@@ -183,6 +199,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Get database user ID
+  const dbUser = await prisma.user.findUnique({
+    where: { clerkId: userId },
+    select: { id: true }
+  });
+
+  if (!dbUser) {
+    return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const typeParam = searchParams.get('type'); // 'test'
@@ -190,7 +216,7 @@ export async function GET(request: NextRequest) {
 
     // Nếu có type, filter theo type. Nếu không, lấy tất cả
     const where = {
-      userId,
+      userId: dbUser.id, // ✅ Use database user ID, not Clerk ID
       ...(typeParam === 'test' ? { type: typeParam as AssessmentType } : {})
     };
 

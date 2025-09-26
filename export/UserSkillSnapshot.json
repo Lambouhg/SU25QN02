@@ -1,0 +1,299 @@
+[
+  {
+    "id": "876fdd45-55e4-4d16-9903-c4bc97f337ef",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Communication",
+    "score": 7,
+    "source": "assessment",
+    "referenceId": "c049b35c-8e04-44aa-8594-53458c9269de",
+    "createdAt": "2025-09-17T12:39:24.246Z"
+  },
+  {
+    "id": "962090e2-1812-436b-affe-0695e2fc2d6a",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Problem Solving",
+    "score": 1,
+    "source": "assessment",
+    "referenceId": "c049b35c-8e04-44aa-8594-53458c9269de",
+    "createdAt": "2025-09-17T12:39:24.246Z"
+  },
+  {
+    "id": "d1f5288e-752a-4357-a371-fd335d70704a",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Technical Knowledge",
+    "score": 0,
+    "source": "assessment",
+    "referenceId": "c049b35c-8e04-44aa-8594-53458c9269de",
+    "createdAt": "2025-09-17T12:39:24.246Z"
+  },
+  {
+    "id": "2d5f6723-8344-4ff2-8655-a83911d099c8",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Presentation",
+    "score": 4,
+    "source": "interview",
+    "referenceId": "29a6fc39-d205-4e46-bdc1-00370ea15a46",
+    "createdAt": "2025-09-15T10:18:37.772Z"
+  },
+  {
+    "id": "5376d4a4-1aab-49f2-90a5-3aa764ef4107",
+    "userId": "8406f057-8f9a-4da6-8e20-1915089a3387",
+    "skillName": "Communication",
+    "score": 6,
+    "source": "interview",
+    "referenceId": "c299e66c-055d-4f9c-9254-9edc2b7dae0b",
+    "createdAt": "2025-09-15T18:39:29.131Z"
+  },
+  {
+    "id": "ddf972c8-e0a0-48c5-8162-d1d2ba7280d2",
+    "userId": "8406f057-8f9a-4da6-8e20-1915089a3387",
+    "skillName": "Presentation",
+    "score": 6,
+    "source": "interview",
+    "referenceId": "c299e66c-055d-4f9c-9254-9edc2b7dae0b",
+    "createdAt": "2025-09-15T18:39:29.131Z"
+  },
+  {
+    "id": "83caec3a-b054-44ad-96c3-0c2bbe7ce51b",
+    "userId": "8406f057-8f9a-4da6-8e20-1915089a3387",
+    "skillName": "Problem Solving",
+    "score": 4,
+    "source": "interview",
+    "referenceId": "c299e66c-055d-4f9c-9254-9edc2b7dae0b",
+    "createdAt": "2025-09-15T18:39:29.131Z"
+  },
+  {
+    "id": "8d485697-c375-43c6-bef4-2cc1233104d0",
+    "userId": "8406f057-8f9a-4da6-8e20-1915089a3387",
+    "skillName": "Technical Knowledge",
+    "score": 5,
+    "source": "interview",
+    "referenceId": "c299e66c-055d-4f9c-9254-9edc2b7dae0b",
+    "createdAt": "2025-09-15T18:39:29.131Z"
+  },
+  {
+    "id": "89fac0fa-0726-4d37-8100-31e137d884ef",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "skillName": "Communication",
+    "score": 3,
+    "source": "interview",
+    "referenceId": "af5974bc-185d-43ae-b0ec-f77c7ec44142",
+    "createdAt": "2025-09-15T11:03:09.840Z"
+  },
+  {
+    "id": "bc6d33a1-bb57-405c-8b8e-6710c0f8e353",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "skillName": "Presentation",
+    "score": 3,
+    "source": "interview",
+    "referenceId": "af5974bc-185d-43ae-b0ec-f77c7ec44142",
+    "createdAt": "2025-09-15T11:03:09.840Z"
+  },
+  {
+    "id": "c79fc39c-61d9-4a00-9d65-80c00771923e",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "skillName": "Problem Solving",
+    "score": 2,
+    "source": "interview",
+    "referenceId": "af5974bc-185d-43ae-b0ec-f77c7ec44142",
+    "createdAt": "2025-09-15T11:03:09.840Z"
+  },
+  {
+    "id": "68c2dbb8-fd64-47a5-bf4d-d717ca5ce435",
+    "userId": "daccd9fb-8d01-4e9e-b1ce-317ddee7acee",
+    "skillName": "Technical Knowledge",
+    "score": 2,
+    "source": "interview",
+    "referenceId": "af5974bc-185d-43ae-b0ec-f77c7ec44142",
+    "createdAt": "2025-09-15T11:03:09.840Z"
+  },
+  {
+    "id": "32626e37-a9ff-4f59-b4a0-9cf1c18f6e15",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Technical Knowledge",
+    "score": 0,
+    "source": "interview",
+    "referenceId": "2a600860-dfbf-4142-97e5-5856662857e6",
+    "createdAt": "2025-09-17T13:17:52.104Z"
+  },
+  {
+    "id": "dd9228a7-a2b5-45c0-9cea-1510c35c7bad",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Communication",
+    "score": 0,
+    "source": "interview",
+    "referenceId": "2a600860-dfbf-4142-97e5-5856662857e6",
+    "createdAt": "2025-09-17T13:17:52.104Z"
+  },
+  {
+    "id": "d575c86f-01db-4fad-8a9a-7f74df9f3610",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Problem Solving",
+    "score": 0,
+    "source": "interview",
+    "referenceId": "2a600860-dfbf-4142-97e5-5856662857e6",
+    "createdAt": "2025-09-17T13:17:52.104Z"
+  },
+  {
+    "id": "f50f5c90-1705-4127-b586-f6a546ca5042",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Presentation",
+    "score": 4,
+    "source": "interview",
+    "referenceId": "2a600860-dfbf-4142-97e5-5856662857e6",
+    "createdAt": "2025-09-17T13:17:52.104Z"
+  },
+  {
+    "id": "8361491c-c770-406c-b172-ea5bb8c6ab76",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Technical Knowledge",
+    "score": 2,
+    "source": "interview",
+    "referenceId": "1a24e947-f2e3-4851-b044-a0f97089106e",
+    "createdAt": "2025-09-17T13:36:33.242Z"
+  },
+  {
+    "id": "ccd1f814-2b5d-4f7c-a20c-0b48debec0cc",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Communication",
+    "score": 3,
+    "source": "interview",
+    "referenceId": "1a24e947-f2e3-4851-b044-a0f97089106e",
+    "createdAt": "2025-09-17T13:36:33.242Z"
+  },
+  {
+    "id": "f02fed42-b499-460b-a08d-838c15752c51",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Problem Solving",
+    "score": 2,
+    "source": "interview",
+    "referenceId": "1a24e947-f2e3-4851-b044-a0f97089106e",
+    "createdAt": "2025-09-17T13:36:33.242Z"
+  },
+  {
+    "id": "e8627f33-e783-4616-bf5c-39890155a8d8",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Presentation",
+    "score": 2,
+    "source": "interview",
+    "referenceId": "1a24e947-f2e3-4851-b044-a0f97089106e",
+    "createdAt": "2025-09-17T13:36:33.242Z"
+  },
+  {
+    "id": "0f81a2a4-bd96-46e8-b706-e4fa4c6fcb83",
+    "userId": "1555e235-83d0-4e7c-990b-37e38ea1e8eb",
+    "skillName": "Technical Knowledge",
+    "score": 9.6,
+    "source": "assessment",
+    "referenceId": "d18fe6a6-8082-4c75-9a0f-6ba8417ad55e",
+    "createdAt": "2025-09-18T02:56:52.009Z"
+  },
+  {
+    "id": "21698dfc-7351-4b9d-8aa1-35f7931395ef",
+    "userId": "1555e235-83d0-4e7c-990b-37e38ea1e8eb",
+    "skillName": "Problem Solving",
+    "score": 9.6,
+    "source": "assessment",
+    "referenceId": "d18fe6a6-8082-4c75-9a0f-6ba8417ad55e",
+    "createdAt": "2025-09-18T02:56:52.009Z"
+  },
+  {
+    "id": "94f46d08-6cc3-4548-8a59-f30d726ef85d",
+    "userId": "1555e235-83d0-4e7c-990b-37e38ea1e8eb",
+    "skillName": "Communication",
+    "score": 9.5,
+    "source": "assessment",
+    "referenceId": "d18fe6a6-8082-4c75-9a0f-6ba8417ad55e",
+    "createdAt": "2025-09-18T02:56:52.009Z"
+  },
+  {
+    "id": "fc8e1281-9406-4301-853c-275d2f54c79f",
+    "userId": "1555e235-83d0-4e7c-990b-37e38ea1e8eb",
+    "skillName": "Technical Knowledge",
+    "score": 9.6,
+    "source": "assessment",
+    "referenceId": "d18fe6a6-8082-4c75-9a0f-6ba8417ad55e",
+    "createdAt": "2025-09-18T02:57:03.759Z"
+  },
+  {
+    "id": "34c11c96-c9fa-46ab-b1a9-dadee35f5fa6",
+    "userId": "1555e235-83d0-4e7c-990b-37e38ea1e8eb",
+    "skillName": "Problem Solving",
+    "score": 9.6,
+    "source": "assessment",
+    "referenceId": "d18fe6a6-8082-4c75-9a0f-6ba8417ad55e",
+    "createdAt": "2025-09-18T02:57:03.759Z"
+  },
+  {
+    "id": "ce1b1fa9-433a-405c-8828-52ea6f996264",
+    "userId": "1555e235-83d0-4e7c-990b-37e38ea1e8eb",
+    "skillName": "Communication",
+    "score": 9.5,
+    "source": "assessment",
+    "referenceId": "d18fe6a6-8082-4c75-9a0f-6ba8417ad55e",
+    "createdAt": "2025-09-18T02:57:03.759Z"
+  },
+  {
+    "id": "8bba82cb-0416-47e7-9c15-2f47b2e71fa4",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Technical Knowledge",
+    "score": 4,
+    "source": "interview",
+    "referenceId": "9618f845-bf63-4582-ba5f-67412344ad2b",
+    "createdAt": "2025-09-20T06:01:57.873Z"
+  },
+  {
+    "id": "1773941b-1ca6-49a2-8251-a8a7fd103f25",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Communication",
+    "score": 4,
+    "source": "interview",
+    "referenceId": "9618f845-bf63-4582-ba5f-67412344ad2b",
+    "createdAt": "2025-09-20T06:01:57.873Z"
+  },
+  {
+    "id": "8ae83e44-c1a2-43b6-a40d-23f5cb676d8b",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Problem Solving",
+    "score": 3,
+    "source": "interview",
+    "referenceId": "9618f845-bf63-4582-ba5f-67412344ad2b",
+    "createdAt": "2025-09-20T06:01:57.873Z"
+  },
+  {
+    "id": "6ea82b6f-86bf-49b4-baa3-01116bc71519",
+    "userId": "10a51b08-d5c7-4c76-9864-e434b0f11e96",
+    "skillName": "Presentation",
+    "score": 4,
+    "source": "interview",
+    "referenceId": "9618f845-bf63-4582-ba5f-67412344ad2b",
+    "createdAt": "2025-09-20T06:01:57.873Z"
+  },
+  {
+    "id": "984d528d-83a7-4816-83ac-9b7a857baf01",
+    "userId": "63399701-d079-4917-b47e-905ef04c1e85",
+    "skillName": "Technical Knowledge",
+    "score": 9,
+    "source": "assessment",
+    "referenceId": "385dff10-3d98-4221-9f76-86cde2284857",
+    "createdAt": "2025-09-20T06:07:48.032Z"
+  },
+  {
+    "id": "bb0e2a9e-3882-406e-ae6d-a2264b1cc894",
+    "userId": "63399701-d079-4917-b47e-905ef04c1e85",
+    "skillName": "Problem Solving",
+    "score": 9,
+    "source": "assessment",
+    "referenceId": "385dff10-3d98-4221-9f76-86cde2284857",
+    "createdAt": "2025-09-20T06:07:48.032Z"
+  },
+  {
+    "id": "4df81d9c-e42f-411b-be82-cd65b9b8060b",
+    "userId": "63399701-d079-4917-b47e-905ef04c1e85",
+    "skillName": "Communication",
+    "score": 9,
+    "source": "assessment",
+    "referenceId": "385dff10-3d98-4221-9f76-86cde2284857",
+    "createdAt": "2025-09-20T06:07:48.032Z"
+  }
+]

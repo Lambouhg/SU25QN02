@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import prisma from "../../../../lib/prisma";
 
 export const runtime = 'nodejs';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const { userId } = await auth();
     
@@ -19,37 +19,8 @@ export async function GET(request: NextRequest) {
       where: { clerkId: userId },
       select: {
         id: true,
-        clerkId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        preferredJobRoleId: true,
-        experienceLevel: true,
-        skills: true,
-        bio: true,
-        department: true,
-        joinDate: true,
-        createdAt: true,
-        updatedAt: true,
-        preferredJobRole: {
-          select: {
-            id: true,
-            title: true,
-            level: true,
-            category: {
-              select: {
-                id: true,
-                name: true
-              }
-            },
-            specialization: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        }
+        onboardingStatus: true,
+        createdAt: true
       }
     });
 
@@ -60,24 +31,67 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Kiểm tra xem user có cần onboarding không
-    // User cần onboarding nếu chưa có preferredJobRoleId hoặc experienceLevel
-    const needsOnboarding = !user.preferredJobRoleId || !user.experienceLevel;
+    // Sử dụng onboardingStatus field từ database
+    const onboardingCompleted = user.onboardingStatus || false;
+    const needsOnboarding = !onboardingCompleted;
     
     // Kiểm tra xem user có phải là user mới không (tạo trong vòng 24h)
     const isNewUser = new Date().getTime() - user.createdAt.getTime() < 24 * 60 * 60 * 1000;
 
-    // Chỉ yêu cầu onboarding khi thiếu dữ liệu cần thiết,
-    // KHÔNG ép buộc user mới đã hoàn tất quay lại onboarding.
     return NextResponse.json({
       needsOnboarding,
       isNewUser,
-      user,
-      onboardingCompleted: !needsOnboarding
+      onboardingCompleted
     });
 
   } catch (error) {
     console.error("Error checking onboarding status:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const { userId } = await auth();
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { onboardingStatus } = body;
+
+    if (typeof onboardingStatus !== 'boolean') {
+      return NextResponse.json(
+        { error: "onboardingStatus must be a boolean" },
+        { status: 400 }
+      );
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { clerkId: userId },
+      data: { onboardingStatus },
+      select: {
+        id: true,
+        onboardingStatus: true,
+        createdAt: true
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      onboardingStatus: updatedUser.onboardingStatus,
+      message: "Onboarding status updated successfully"
+    });
+
+  } catch (error) {
+    console.error("Error updating onboarding status:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

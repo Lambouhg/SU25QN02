@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
+import TrackingEventService from '@/services/trackingEventService';
 
 type PrismaError = Error & { code?: string };
 
@@ -25,12 +25,12 @@ interface CreateInterviewRequest {
     technicalScore: number;
     communicationScore: number;
     problemSolvingScore: number;
+    deliveryScore?: number;
     overallRating: number;
     recommendations: string[];
   };
   questionCount?: number;
   coveredTopics?: string[];
-  skillAssessment?: Record<string, number>;
   progress?: number;
   status?: 'in_progress' | 'completed' | 'interrupted';  // Add status field
 }
@@ -120,7 +120,6 @@ type Interview = {
   evaluation?: unknown;
   questionCount: number;
   coveredTopics: string[];
-  skillAssessment: unknown;
   progress: number;
   status: 'in_progress' | 'completed' | 'interrupted';
 };
@@ -193,7 +192,25 @@ export async function POST(req: NextRequest) {
     const remaining = selectedPackage.avatarInterviewUsed;
 
     // Tạo interview
-    const newInterview = await prisma.interview.create({
+    // Chuẩn hoá evaluation để đảm bảo đủ 4 tiêu chí
+    const evaluationToStore = data.evaluation ? JSON.parse(JSON.stringify(data.evaluation)) : {
+      technicalScore: 0,
+      communicationScore: 0,
+      problemSolvingScore: 0,
+      deliveryScore: 0,
+      overallRating: 0,
+      recommendations: []
+    };
+
+    // Auto-populate skillAssessment từ evaluation để backward compatibility
+    const skillAssessmentToStore = {
+      technical: evaluationToStore.technicalScore || 0,
+      communication: evaluationToStore.communicationScore || 0,
+      problemSolving: evaluationToStore.problemSolvingScore || 0,
+      delivery: evaluationToStore.deliveryScore || 0
+    };
+
+    let newInterview = await prisma.interview.create({
       data: {
         userId: dbUser.id,
         jobRoleId: data.jobRoleId,
@@ -203,27 +220,102 @@ export async function POST(req: NextRequest) {
         duration: data.duration || 0,
         conversationHistory: data.conversationHistory ? 
           JSON.parse(JSON.stringify(data.conversationHistory)) : [],
-        evaluation: data.evaluation ? 
-          JSON.parse(JSON.stringify(data.evaluation)) : {
-            technicalScore: 0,
-            communicationScore: 0,
-            problemSolvingScore: 0,
-            overallRating: 0,
-            recommendations: []
-          },
+        evaluation: evaluationToStore,
         questionCount: data.questionCount || 0,
         coveredTopics: data.coveredTopics ? 
           JSON.parse(JSON.stringify(data.coveredTopics)) : [],
-        skillAssessment: data.skillAssessment ? 
-          JSON.parse(JSON.stringify(data.skillAssessment)) : {},
+        skillAssessment: skillAssessmentToStore, // Auto-populated from evaluation
         progress: data.progress || 0,
         status: data.status || 'in_progress'
       }
     });
 
-    // Nếu là completed thì trừ lượt và tracking
+    // Nếu thiếu overallRating từ client, tính trung bình cộng sub-scores và cập nhật lại evaluation
+    try {
+      const ev = (newInterview.evaluation as Partial<{
+        overallRating: number;
+        technicalScore: number;
+        communicationScore: number;
+        problemSolvingScore: number;
+        deliveryScore?: number;
+      }>) || {};
+      if (typeof ev.overallRating !== 'number' || Number.isNaN(ev.overallRating)) {
+        const scores: number[] = [];
+        if (typeof ev.technicalScore === 'number') scores.push(ev.technicalScore);
+        if (typeof ev.problemSolvingScore === 'number') scores.push(ev.problemSolvingScore);
+        if (typeof ev.communicationScore === 'number') scores.push(ev.communicationScore);
+        if (typeof ev.deliveryScore === 'number') scores.push(ev.deliveryScore);
+        const avg = scores.length ? Math.max(0, Math.min(10, scores.reduce((a, b) => a + b, 0) / scores.length)) : 0;
+        const overall = Math.round(avg * 10) / 10;
+        const updated = await prisma.interview.update({
+          where: { id: newInterview.id },
+          data: {
+            evaluation: {
+              ...(newInterview.evaluation as object),
+              overallRating: overall
+            } as unknown as object
+          }
+        });
+        newInterview = updated as typeof newInterview;
+      }
+    } catch (e) {
+      console.warn('Could not compute/update overallRating:', e);
+    }
+
+    // Nếu là completed thì trừ lượt và tracking (event-based)
     if (data.status === 'completed') {
-      await TrackingIntegrationService.trackInterviewCompletion(dbUser.id, newInterview);
+      try {
+        const durationSec = typeof newInterview.duration === 'number' ? newInterview.duration : 0;
+        const evalObj = (newInterview.evaluation as Partial<{
+          overallRating: number;
+          technicalScore: number;
+          communicationScore: number;
+          problemSolvingScore: number;
+          deliveryScore?: number;
+        }>) || {};
+        const overallRating = evalObj.overallRating;
+        const evaluationBreakdown: Record<string, number> | undefined = {
+          ...(typeof evalObj.technicalScore === 'number' ? { technicalScore: evalObj.technicalScore } : {}),
+          ...(typeof evalObj.communicationScore === 'number' ? { communicationScore: evalObj.communicationScore } : {}),
+          ...(typeof evalObj.problemSolvingScore === 'number' ? { problemSolvingScore: evalObj.problemSolvingScore } : {}),
+          ...(typeof evalObj.deliveryScore === 'number' ? { deliveryScore: evalObj.deliveryScore } : {}),
+        };
+        
+        // Get skill scores from evaluation only (single source of truth)
+        const standardizedSkillDeltas: Record<string, number> = {};
+        
+        if (evaluationBreakdown) {
+          // Map evaluation scores to standardized skill names
+          if (typeof evaluationBreakdown.technicalScore === 'number') {
+            standardizedSkillDeltas['Technical Knowledge'] = evaluationBreakdown.technicalScore;
+          }
+          if (typeof evaluationBreakdown.communicationScore === 'number') {
+            standardizedSkillDeltas['Communication'] = evaluationBreakdown.communicationScore;
+          }
+          if (typeof evaluationBreakdown.problemSolvingScore === 'number') {
+            standardizedSkillDeltas['Problem Solving'] = evaluationBreakdown.problemSolvingScore;
+          }
+          if (typeof evaluationBreakdown.deliveryScore === 'number') {
+            standardizedSkillDeltas['Delivery'] = evaluationBreakdown.deliveryScore;
+          }
+        }
+        
+        await TrackingEventService.trackAvatarInterviewCompleted({
+          userId: dbUser.id,
+          interviewId: newInterview.id,
+          durationSeconds: durationSec,
+          overallRating: typeof overallRating === 'number' ? overallRating : undefined,
+          questionCount: newInterview.questionCount,
+          coveredTopics: newInterview.coveredTopics,
+          evaluationBreakdown,
+          language: newInterview.language,
+          jobRoleId: newInterview.jobRoleId,
+          skillDeltas: Object.keys(standardizedSkillDeltas).length > 0 ? standardizedSkillDeltas : undefined,
+          progress: typeof newInterview.progress === 'number' ? newInterview.progress : undefined,
+        });
+      } catch (e) {
+        console.error('Error tracking avatar interview completion (events):', e);
+      }
       await prisma.userPackage.update({
         where: { id: selectedPackage.id },
         data: {

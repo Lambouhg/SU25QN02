@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import {  } from '@/lib/utils';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
-import { TrackingIntegrationService } from '@/services/trackingIntegrationService';
+import TrackingEventService from '@/services/trackingEventService';
 
 // Handle preflight OPTIONS request
 export async function OPTIONS() {
   return new Response(null, { status: 200 });
 }
 
-// PATCH - Update assessment with new question/answer real-time
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
@@ -17,6 +16,17 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Get database user ID
+    const dbUser = await prisma.user.findUnique({
+      where: { clerkId: userId },
+      select: { id: true }
+    });
+
+    if (!dbUser) {
+      return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
+    }
+
     const body = await request.json();
     const {
       question,
@@ -31,7 +41,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
     // Tìm assessment
     const assessment = await prisma.assessment.findFirst({
-      where: { id, userId }
+      where: { id, userId: dbUser.id } // ✅ Use database user ID
     });
     if (!assessment) {
       return NextResponse.json({ error: 'Assessment not found' }, { status: 404 });
@@ -163,6 +173,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
     // Track khi assessment hoàn thành (có status: 'completed' và finalScores)
     if (status === 'completed' && (calculatedFinalScores || finalScores)) {
+      console.log(`[Assessment API] Starting tracking for completed assessment ${id}`);
+      console.log(`[Assessment API] Tracking conditions - status: ${status}, calculatedFinalScores:`, calculatedFinalScores, 'finalScores:', finalScores);
+      
       try {
         // Tìm database user ID từ Clerk user ID
         const dbUser = await prisma.user.findUnique({
@@ -170,14 +183,34 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
           select: { id: true }
         });
 
+        console.log(`[Assessment API] Found dbUser:`, dbUser);
+
         if (dbUser) {
-          await TrackingIntegrationService.trackAssessmentCompletion(dbUser.id, updatedAssessment, { clerkId: userId });
+          const trackingData = {
+            userId: dbUser.id,
+            assessmentId: updatedAssessment.id,
+            level: updatedAssessment.level,
+            totalTimeSeconds: updatedAssessment.totalTime || 0,
+            overallScore: Number(((updatedAssessment.finalScores as Record<string, number> | null | undefined)?.overall) ?? 0),
+            jobRoleId: updatedAssessment.jobRoleId,
+            history: updatedAssessment.history,
+            realTimeScores: updatedAssessment.realTimeScores,
+            finalScores: updatedAssessment.finalScores,
+          };
+          
+          console.log(`[Assessment API] Tracking data:`, trackingData);
+          
+          await TrackingEventService.trackAssessmentCompleted(trackingData);
           console.log(`[Assessment API] Successfully tracked assessment completion for user ${dbUser.id} (Clerk ID: ${userId})`);
+        } else {
+          console.log(`[Assessment API] No database user found for Clerk ID: ${userId}`);
         }
       } catch (trackingError) {
         console.error(`[Assessment API] Error tracking assessment completion:`, trackingError);
         // Continue despite error
       }
+    } else {
+      console.log(`[Assessment API] Skipping tracking - status: ${status}, calculatedFinalScores:`, calculatedFinalScores, 'finalScores:', finalScores);
     }
 
     return NextResponse.json({
@@ -234,7 +267,17 @@ export async function PUT(
 
     // Track khi assessment được cập nhật hoàn chỉnh (có điểm số)
     if (body.finalScores || body.realTimeScores) {
-      await TrackingIntegrationService.trackAssessmentCompletion(userId, updatedAssessment);
+      await TrackingEventService.trackAssessmentCompleted({
+        userId: userId,
+        assessmentId: updatedAssessment.id,
+        level: updatedAssessment.level,
+        totalTimeSeconds: updatedAssessment.totalTime || 0,
+        overallScore: Number(((updatedAssessment.finalScores as Record<string, number> | null | undefined)?.overall) ?? 0),
+        jobRoleId: updatedAssessment.jobRoleId,
+        history: updatedAssessment.history,
+        realTimeScores: updatedAssessment.realTimeScores,
+        finalScores: updatedAssessment.finalScores,
+      });
     }
 
     return (NextResponse.json(updatedAssessment));

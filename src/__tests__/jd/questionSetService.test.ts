@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { questionSetService, QuestionSetService, QuestionSetData, SaveQuestionSetRequest } from '@/services/questionSetService';
+import { questionSetService, QuestionSetService, QuestionSetData, SaveQuestionSetRequest } from '@/services/jdService/questionSetService';
 
 // Mock fetch globally
 global.fetch = vi.fn();
