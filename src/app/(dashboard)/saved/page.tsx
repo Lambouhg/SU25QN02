@@ -518,7 +518,7 @@ export default function QuizSaveQuestionPage() {
                   </button>
 
                   <button
-                    onClick={() => (window.location.href = "/history")}
+                    onClick={() => (window.location.href = "/quiz/history")}
                     className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 rounded-lg border border-green-200 transition-all duration-300"
                   >
                     <TrendingUp className="w-5 h-5 text-green-600" />
