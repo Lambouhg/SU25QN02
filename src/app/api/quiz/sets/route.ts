@@ -47,6 +47,11 @@ export async function GET(req: NextRequest) {
         skills: true,
         version: true,
         updatedAt: true,
+        _count: {
+          select: {
+            items: true
+          }
+        }
       },
     }),
     db.questionSet.count({ where }),
