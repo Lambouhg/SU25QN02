@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import prisma from '@/lib/prisma';
 import TrackingEventService from '@/services/trackingEventService';
+import { generateInterviewEvaluation } from '@/services/avatarInterviewService/evaluationService';
 
 type PrismaError = Error & { code?: string };
 
-
-
-
+// Chat message interface for evaluation service
+interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp?: string | Date;
+}
 
 // Request data interface
 interface CreateInterviewRequest {
@@ -201,6 +205,40 @@ export async function POST(req: NextRequest) {
       overallRating: 0,
       recommendations: []
     };
+
+    // Tự động tính questionAnalysis nếu có conversationHistory và chưa có questionAnalysis
+    if (data.conversationHistory && 
+        data.conversationHistory.length > 0 && 
+        data.status === 'completed' &&
+        !evaluationToStore.questionAnalysis) {
+      try {
+        // Lấy thông tin job role để xác định field và level
+        const jobRole = await prisma.jobRole.findUnique({
+          where: { id: data.jobRoleId },
+          include: { category: true }
+        });
+        
+        if (jobRole) {
+          const field = jobRole.category?.name || 'Full Stack';
+          const level = jobRole.level || 'junior';
+          const language = (data.language || 'vi-VN') as 'vi-VN' | 'en-US' | 'zh-CN' | 'ja-JP' | 'ko-KR';
+          
+          // Sử dụng generateInterviewEvaluation để tạo evaluation có questionAnalysis
+          const fullEvaluation = await generateInterviewEvaluation(
+            data.conversationHistory as ChatMessage[],
+            field,
+            level,
+            language
+          );
+          
+          // Merge questionAnalysis vào evaluation hiện tại
+          evaluationToStore.questionAnalysis = fullEvaluation.questionAnalysis || [];
+        }
+      } catch (error) {
+        console.warn('Could not generate question analysis:', error);
+        // Không làm fail toàn bộ request, chỉ log warning
+      }
+    }
 
     // Auto-populate skillAssessment từ evaluation để backward compatibility
     const skillAssessmentToStore = {

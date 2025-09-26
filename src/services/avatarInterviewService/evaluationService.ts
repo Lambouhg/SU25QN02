@@ -1,6 +1,134 @@
 import { ChatMessage, callOpenAI } from '../openaiService';
 import { InterviewEvaluation, QuestionAnalysis } from './Avatar-AI';
 
+// Universal scoring criteria for 4 main skills (independent of field/position)
+const UNIVERSAL_SCORING_CRITERIA = {
+  technicalScore: {
+    "8-10": [
+      "Demonstrates deep understanding of technical concepts and terminology",
+      "Explains complex technical problems clearly and accurately",
+      "Shows mastery of relevant tools, frameworks, and best practices",
+      "Discusses advanced concepts and their practical applications",
+      "Identifies and addresses technical trade-offs effectively",
+      "Shows awareness of industry standards and emerging technologies"
+    ],
+    "6-7": [
+      "Solid grasp of fundamental technical concepts",
+      "Can explain technical solutions with minor gaps in detail",
+      "Shows competency with standard tools and practices",
+      "Understands basic technical principles and their applications",
+      "Demonstrates practical experience with core technologies"
+    ],
+    "4-5": [
+      "Basic understanding of technical concepts with some confusion",
+      "Limited depth in technical explanations",
+      "Shows familiarity with common tools but lacks advanced knowledge",
+      "Struggles with more complex technical scenarios",
+      "Needs guidance to connect technical concepts"
+    ],
+    "1-3": [
+      "Minimal technical knowledge or significant misconceptions",
+      "Cannot explain basic technical concepts clearly",
+      "Very limited experience with relevant tools and technologies",
+      "Struggles with fundamental technical principles",
+      "Requires extensive support for technical discussions"
+    ]
+  },
+  communicationScore: {
+    "8-10": [
+      "Articulates ideas clearly and concisely to any audience",
+      "Uses appropriate technical terminology accurately",
+      "Structures responses logically with clear flow",
+      "Asks thoughtful clarifying questions when needed",
+      "Demonstrates active listening and builds on conversations",
+      "Adapts communication style effectively to the context"
+    ],
+    "6-7": [
+      "Generally clear in explanations with minor unclear moments",
+      "Uses terminology correctly most of the time",
+      "Organizes thoughts well but may lack some structure",
+      "Shows good listening skills and responds appropriately",
+      "Communicates effectively with occasional hesitation"
+    ],
+    "4-5": [
+      "Sometimes unclear or verbose in explanations",
+      "Inconsistent use of appropriate terminology",
+      "Responses may lack organization or go off-topic",
+      "Limited use of clarifying questions",
+      "Communication is adequate but not polished"
+    ],
+    "1-3": [
+      "Frequently unclear or difficult to understand",
+      "Inappropriate or incorrect use of terminology",
+      "Disorganized responses that are hard to follow",
+      "Poor listening skills, often misses key points",
+      "Struggles to express ideas effectively"
+    ]
+  },
+  problemSolvingScore: {
+    "8-10": [
+      "Breaks down complex problems systematically",
+      "Considers multiple solution approaches and evaluates trade-offs",
+      "Identifies potential issues and edge cases proactively",
+      "Demonstrates creative and innovative thinking",
+      "Shows logical reasoning and analytical skills",
+      "Optimizes solutions for efficiency and scalability"
+    ],
+    "6-7": [
+      "Uses structured approach to analyze problems",
+      "Can identify key components and relationships",
+      "Considers alternative solutions when prompted",
+      "Shows logical thinking with minor gaps",
+      "Demonstrates solid analytical skills"
+    ],
+    "4-5": [
+      "Basic problem-solving approach with some structure",
+      "May miss important aspects or relationships",
+      "Limited consideration of alternative approaches",
+      "Needs guidance to identify potential issues",
+      "Shows some analytical thinking but lacks depth"
+    ],
+    "1-3": [
+      "Struggles to break down problems systematically",
+      "Focuses on obvious solutions without exploration",
+      "Misses critical components or relationships",
+      "Limited analytical thinking or logical reasoning",
+      "Requires significant guidance throughout process"
+    ]
+  },
+  deliveryScore: {
+    "8-10": [
+      "Confident and professional demeanor throughout",
+      "Excellent time management and concise responses",
+      "Maintains composure under pressure or challenging questions",
+      "Shows enthusiasm and genuine engagement",
+      "Demonstrates leadership qualities and presence",
+      "Adapts presentation style appropriately"
+    ],
+    "6-7": [
+      "Generally confident with occasional uncertainty",
+      "Good time management with appropriate response length",
+      "Handles pressure reasonably well",
+      "Shows interest and professional attitude",
+      "Maintains good interpersonal connection"
+    ],
+    "4-5": [
+      "Shows some confidence but appears nervous at times",
+      "Inconsistent time management in responses",
+      "Visible stress when facing difficult questions",
+      "Limited enthusiasm or engagement",
+      "Professional but may lack warmth or connection"
+    ],
+    "1-3": [
+      "Appears nervous or lacks confidence consistently",
+      "Poor time management with inappropriate response lengths",
+      "Becomes flustered or stressed easily",
+      "Shows minimal enthusiasm or interest",
+      "Unprofessional behavior or inappropriate responses"
+    ]
+  }
+};
+
 // Detailed evaluation criteria by position and level
 interface EvaluationCriteria {
   position: string;
@@ -226,7 +354,6 @@ Respond in ${language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ? 'Chine
 
 REQUIRED JSON FORMAT:
 {
-  "score": number (1-10, overall quality),
   "technicalAccuracy": number (1-10, technical correctness),
   "completeness": number (1-10, how complete the answer is),
   "clarity": number (1-10, communication clarity),
@@ -237,7 +364,9 @@ REQUIRED JSON FORMAT:
   "skillTags": string[] (skills demonstrated in this answer),
   "category": string (question category: technical, behavioral, problem-solving, etc.),
   "feedback": string (detailed written feedback)
-}`;
+}
+
+IMPORTANT: Do not include an overall "score" field. The overall score will be calculated automatically as (technicalAccuracy + completeness + clarity) / 3.`;
 
   try {
     const messages: ChatMessage[] = [
@@ -262,13 +391,21 @@ REQUIRED JSON FORMAT:
 
     const analysis = JSON.parse(content);
     
+    // Validate individual scores
+    const technicalAccuracy = validateScore(analysis.technicalAccuracy);
+    const completeness = validateScore(analysis.completeness);
+    const clarity = validateScore(analysis.clarity);
+    
+    // Calculate overall score as average of 3 components
+    const overallScore = Math.round(((technicalAccuracy + completeness + clarity) / 3) * 10) / 10;
+    
     return {
       question,
       userAnswer: answer,
-      score: validateScore(analysis.score),
-      technicalAccuracy: validateScore(analysis.technicalAccuracy),
-      completeness: validateScore(analysis.completeness),
-      clarity: validateScore(analysis.clarity),
+      score: overallScore, // Calculated overall score
+      technicalAccuracy,
+      completeness,
+      clarity,
       strengths: Array.isArray(analysis.strengths) ? analysis.strengths : [],
       weaknesses: Array.isArray(analysis.weaknesses) ? analysis.weaknesses : [],
       suggestions: Array.isArray(analysis.suggestions) ? analysis.suggestions : [],
@@ -353,18 +490,66 @@ BENCHMARK SCORES FOR ${level.toUpperCase()} LEVEL:
 - Experience Level: ${benchmarks.experience}/10 (minimum expected)  
 - Leadership/Collaboration: ${benchmarks.leadership}/10 (minimum expected)
 
-EVALUATION INSTRUCTIONS:
-1. Analyze the conversation thoroughly for technical depth, accuracy, and breadth
-2. Assess communication clarity, problem-solving approach, and delivery/presentation quality
-3. Compare against ${level} level expectations for ${field}
-4. Consider real-world application and practical knowledge
-5. Evaluate learning potential and growth mindset
+DETAILED SCORING CRITERIA:
 
-SCORING GUIDELINES:
-- 8-10: Exceeds expectations for ${level} level
-- 6-7: Meets expectations for ${level} level  
-- 4-5: Below expectations, may need development
-- 1-3: Significantly below expectations
+TECHNICAL SCORE (1-10):
+Excellence (8-10 points):
+${UNIVERSAL_SCORING_CRITERIA.technicalScore['8-10'].map(c => `- ${c}`).join('\n')}
+
+Good (6-7 points):
+${UNIVERSAL_SCORING_CRITERIA.technicalScore['6-7'].map(c => `- ${c}`).join('\n')}
+
+Average (4-5 points):
+${UNIVERSAL_SCORING_CRITERIA.technicalScore['4-5'].map(c => `- ${c}`).join('\n')}
+
+Poor (1-3 points):
+${UNIVERSAL_SCORING_CRITERIA.technicalScore['1-3'].map(c => `- ${c}`).join('\n')}
+
+COMMUNICATION SCORE (1-10):
+Excellence (8-10 points):
+${UNIVERSAL_SCORING_CRITERIA.communicationScore['8-10'].map(c => `- ${c}`).join('\n')}
+
+Good (6-7 points):
+${UNIVERSAL_SCORING_CRITERIA.communicationScore['6-7'].map(c => `- ${c}`).join('\n')}
+
+Average (4-5 points):
+${UNIVERSAL_SCORING_CRITERIA.communicationScore['4-5'].map(c => `- ${c}`).join('\n')}
+
+Poor (1-3 points):
+${UNIVERSAL_SCORING_CRITERIA.communicationScore['1-3'].map(c => `- ${c}`).join('\n')}
+
+PROBLEM SOLVING SCORE (1-10):
+Excellence (8-10 points):
+${UNIVERSAL_SCORING_CRITERIA.problemSolvingScore['8-10'].map(c => `- ${c}`).join('\n')}
+
+Good (6-7 points):
+${UNIVERSAL_SCORING_CRITERIA.problemSolvingScore['6-7'].map(c => `- ${c}`).join('\n')}
+
+Average (4-5 points):
+${UNIVERSAL_SCORING_CRITERIA.problemSolvingScore['4-5'].map(c => `- ${c}`).join('\n')}
+
+Poor (1-3 points):
+${UNIVERSAL_SCORING_CRITERIA.problemSolvingScore['1-3'].map(c => `- ${c}`).join('\n')}
+
+DELIVERY SCORE (1-10):
+Excellence (8-10 points):
+${UNIVERSAL_SCORING_CRITERIA.deliveryScore['8-10'].map(c => `- ${c}`).join('\n')}
+
+Good (6-7 points):
+${UNIVERSAL_SCORING_CRITERIA.deliveryScore['6-7'].map(c => `- ${c}`).join('\n')}
+
+Average (4-5 points):
+${UNIVERSAL_SCORING_CRITERIA.deliveryScore['4-5'].map(c => `- ${c}`).join('\n')}
+
+Poor (1-3 points):
+${UNIVERSAL_SCORING_CRITERIA.deliveryScore['1-3'].map(c => `- ${c}`).join('\n')}
+
+EVALUATION INSTRUCTIONS:
+1. Use the specific criteria above to evaluate each of the 4 scores
+2. Match candidate performance against the detailed rubrics provided
+3. Provide specific evidence from the conversation to justify each score
+4. Consider the ${level} level expectations when scoring
+5. Compare against field-specific requirements listed above
 
 HIRING RECOMMENDATIONS:
 - strong_hire: Exceptional candidate, significantly exceeds expectations
@@ -376,19 +561,19 @@ Please respond in ${language === 'vi-VN' ? 'Vietnamese' : language === 'zh-CN' ?
 
 REQUIRED JSON FORMAT:
 {
-  "technicalScore": number (1-10, weighted heavily for technical roles),
-  "communicationScore": number (1-10),
-  "problemSolvingScore": number (1-10),
-  "deliveryScore": number (1-10),
-  "technicalStrengths": string[] (specific technical strengths observed),
-  "technicalWeaknesses": string[] (areas needing improvement),
-  "recommendations": string[] (actionable development suggestions),
+  "technicalScore": number (1-10, based on technical scoring criteria above),
+  "communicationScore": number (1-10, based on communication scoring criteria above),
+  "problemSolvingScore": number (1-10, based on problem solving scoring criteria above),
+  "deliveryScore": number (1-10, based on delivery scoring criteria above),
+  "technicalStrengths": string[] (specific technical strengths observed with evidence),
+  "technicalWeaknesses": string[] (areas needing improvement with specific examples),
+  "recommendations": string[] (actionable development suggestions based on scoring gaps),
   "hiringRecommendation": "strong_hire" | "hire" | "consider" | "reject",
   "detailedFeedback": {
-    "technical": string (detailed technical assessment),
-    "softSkills": string (communication, collaboration, problem-solving),
-    "experience": string (practical knowledge and real-world application),
-    "potential": string (growth potential and learning ability)
+    "technical": string (detailed assessment with specific examples from conversation),
+    "softSkills": string (communication and interpersonal evaluation with examples),
+    "experience": string (practical knowledge demonstration with specific instances),
+    "potential": string (growth potential assessment with supporting evidence)
   },
   "salary_range": {
     "min": ${salaryRange.min},
@@ -396,11 +581,17 @@ REQUIRED JSON FORMAT:
     "currency": "${salaryRange.currency}"
   },
   "levelAssessment": {
-    "currentLevel": string (assessed level based on performance),
-    "readinessForNextLevel": boolean,
-    "gapAnalysis": string[] (skills needed for advancement)
+    "currentLevel": string (assessed level based on performance against criteria),
+    "readinessForNextLevel": boolean (based on scoring against higher level benchmarks),
+    "gapAnalysis": string[] (specific skills/areas needed for advancement)
   }
-}`;
+}
+
+IMPORTANT: 
+- Use the detailed scoring criteria above to determine each score
+- Provide specific evidence from the conversation for each assessment
+- Justify scores by referencing which criteria tier (8-10, 6-7, 4-5, 1-3) the candidate matches
+- Overall rating will be calculated automatically as: (technicalScore + communicationScore + problemSolvingScore + deliveryScore) / 4`;
 
     const messages: ChatMessage[] = [
       { role: 'system', content: prompt },

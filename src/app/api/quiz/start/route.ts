@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 
+// Type for valid quiz levels
+type ValidQuizLevel = 'junior' | 'middle' | 'senior';
+
 // Start a quiz attempt. Supports two modes:
 // - Question Set-based: pass questionSetId (must be published)
 // - Practice-based: pass category/level/count to pick random questions
@@ -50,7 +53,32 @@ export async function POST(req: NextRequest) {
     where.type = { in: ['single_choice', 'multiple_choice'] };
     
     if (category) where.category = category;
-    if (level) where.level = level;
+    if (level) {
+      // Map level string to QuizLevel enum
+      // Handle both JobLevel format (Junior, Mid, Senior) and QuizLevel format (junior, middle, senior)
+      let mappedLevel: ValidQuizLevel | '';
+      const normalizedLevel = level.toLowerCase();
+      
+      switch (normalizedLevel) {
+        case 'junior':
+          mappedLevel = 'junior';
+          break;
+        case 'mid':
+        case 'middle':
+          mappedLevel = 'middle';
+          break;
+        case 'senior':
+          mappedLevel = 'senior';
+          break;
+        default:
+          // If level doesn't match any expected values, skip the filter
+          mappedLevel = '';
+      }
+      
+      if (mappedLevel) {
+        where.level = mappedLevel;
+      }
+    }
     
     const pool = await prisma.questionItem.findMany({ where, include: { options: true } });
     for (let i = pool.length - 1; i > 0; i--) {

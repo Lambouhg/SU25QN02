@@ -300,199 +300,212 @@ export default function QuizSetup({
         <CardContent className="space-y-6">
           {/* Company Mode */}
           {mode === 'company' && (
-            <div className="space-y-6">
-              <div className="max-w-2xl mx-auto">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-100">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">📚</span>
-                    </div>
-                    Select Question Set
-                  </h4>
-                  
-                  <select
-                    className="w-full p-4 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-lg bg-white"
-                    value={questionSetId}
-                    onChange={(e) => setQuestionSetId(e.target.value)}
-                  >
-                    <option value="">-- Choose a question set --</option>
-                    {sets.map((set) => (
-                      <option key={set.id} value={set.id}>
-                        {set.name}
-                      </option>
-                    ))}
-                  </select>
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white text-sm">📚</span>
+                  </div>
+                  <h4 className="text-lg font-semibold text-gray-700">Select Question Set</h4>
+                </div>
+                
+                {/* Question Sets Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
+                  {sets.map((set) => (
+                    <button
+                      key={set.id}
+                      onClick={() => setQuestionSetId(set.id)}
+                      className={`relative group p-6 rounded-xl cursor-pointer transition-all duration-300 border-2 text-left ${
+                        questionSetId === set.id
+                          ? 'bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/50 shadow-lg'
+                          : 'bg-white/50 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h5 className={`font-semibold text-base leading-tight ${
+                              questionSetId === set.id ? 'text-blue-800' : 'text-gray-800'
+                            }`}>
+                              {set.name}
+                            </h5>
+                            {set.description && (
+                              <p className={`text-sm mt-2 line-clamp-2 ${
+                                questionSetId === set.id ? 'text-blue-600' : 'text-gray-600'
+                              }`}>
+                                {set.description}
+                              </p>
+                            )}
+                          </div>
+                          {questionSetId === set.id && (
+                            <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+                              <div className="w-2.5 h-2.5 bg-white rounded-full"></div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Question count and level badges */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {set.questionCount !== undefined && (
+                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              questionSetId === set.id
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {set.questionCount} questions
+                            </div>
+                          )}
+                          {set.level && (
+                            <div className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
+                              questionSetId === set.id
+                                ? set.level === 'junior' ? 'bg-green-100 text-green-700' :
+                                  set.level === 'middle' ? 'bg-blue-100 text-blue-700' :
+                                  set.level === 'senior' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-gray-100 text-gray-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {set.level}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Question Set Details */}
+              {/* Selected Question Set Details */}
               {questionSetId && (() => {
                 const selectedSet = sets.find(set => set.id === questionSetId);
                 return selectedSet && (
-                  <div className="max-w-4xl mx-auto mt-8">
-                    <div className="bg-gradient-to-br from-white via-blue-50 to-indigo-100 p-8 rounded-2xl border-2 border-blue-200 shadow-lg">
-                      {/* Header */}
-                      <div className="text-center mb-6">
-                        <h5 className="text-xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-3">
-                          <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg">
-                            <span className="text-white text-lg">📋</span>
+                  <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 rounded-xl border-2 border-blue-200 shadow-sm">
+                    {/* Header with Set Name */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg shadow-sm">
+                          <span className="text-white text-lg">✨</span>
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-blue-900">{selectedSet.name}</h4>
+                          <p className="text-sm text-blue-600">Ready to start this question set</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="px-3 py-1 bg-blue-500 text-white rounded-full text-sm font-medium">
+                          Selected
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Key Stats in Balanced Layout */}
+                    <div className="flex flex-wrap justify-center gap-3 mb-4">
+                      {selectedSet.questionCount !== undefined && (
+                        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-blue-200 text-center hover:shadow-md transition-shadow min-w-[120px] flex-1 max-w-[160px]">
+                          <div className="text-2xl font-bold text-blue-700 mb-1">{selectedSet.questionCount}</div>
+                          <div className="text-sm text-blue-600 font-medium">Questions</div>
+                        </div>
+                      )}
+                      
+                      {selectedSet.level && (
+                        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-blue-200 text-center hover:shadow-md transition-shadow min-w-[120px] flex-1 max-w-[160px]">
+                          <div className={`text-2xl font-bold mb-1 capitalize ${
+                            selectedSet.level === 'junior' ? 'text-green-600' :
+                            selectedSet.level === 'middle' ? 'text-blue-600' :
+                            selectedSet.level === 'senior' ? 'text-purple-600' :
+                            'text-gray-600'
+                          }`}>
+                            {selectedSet.level}
                           </div>
-                          Question Set Details
-                        </h5>
-                        <div className="w-20 h-1 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full mx-auto"></div>
-                      </div>
+                          <div className="text-sm text-blue-600 font-medium">Level</div>
+                        </div>
+                      )}
 
-                      {/* Selected Set Name */}
-                      <div className="text-center mb-6">
-                        <h6 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700">
-                          {selectedSet.name}
-                        </h6>
-                      </div>
+                      {selectedSet.skills && selectedSet.skills.length > 0 && (
+                        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-blue-200 text-center hover:shadow-md transition-shadow min-w-[120px] flex-1 max-w-[160px]">
+                          <div className="text-2xl font-bold text-blue-700 mb-1">{selectedSet.skills.length}</div>
+                          <div className="text-sm text-blue-600 font-medium">Skills</div>
+                        </div>
+                      )}
 
-                      {/* Description */}
-                      {selectedSet.description && (
-                        <div className="mb-6">
-                          <div className="p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-blue-200 shadow-sm">
-                            <div className="flex items-start gap-3">
-                              <div className="p-2 bg-blue-100 rounded-lg">
-                                <span className="text-blue-600 text-sm">📝</span>
-                              </div>
-                              <div>
-                                <h6 className="font-semibold text-gray-800 mb-1">Description</h6>
-                                <p className="text-gray-700 leading-relaxed">{selectedSet.description}</p>
-                              </div>
-                            </div>
+                      {selectedSet.topics && selectedSet.topics.length > 0 && (
+                        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-blue-200 text-center hover:shadow-md transition-shadow min-w-[120px] flex-1 max-w-[160px]">
+                          <div className="text-2xl font-bold text-blue-700 mb-1">{selectedSet.topics.length}</div>
+                          <div className="text-sm text-blue-600 font-medium">Topics</div>
+                        </div>
+                      )}
+
+                      {selectedSet.fields && selectedSet.fields.length > 0 && (
+                        <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-blue-200 text-center hover:shadow-md transition-shadow min-w-[120px] flex-1 max-w-[160px]">
+                          <div className="text-2xl font-bold text-blue-700 mb-1">{selectedSet.fields.length}</div>
+                          <div className="text-sm text-blue-600 font-medium">Fields</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Description - Compact */}
+                    {selectedSet.description && (
+                      <div className="mb-4 p-3 bg-white/60 backdrop-blur-sm rounded-lg border border-blue-200">
+                        <p className="text-gray-700 text-sm leading-relaxed">{selectedSet.description}</p>
+                      </div>
+                    )}
+
+                    {/* Content Preview - Balanced Layout */}
+                    <div className="flex flex-wrap justify-center gap-4">
+                      {/* Skills Display - Show All */}
+                      {selectedSet.skills && selectedSet.skills.length > 0 && (
+                        <div className="bg-white/60 backdrop-blur-sm p-4 rounded-lg border border-blue-200 flex-1 min-w-[300px]">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-blue-600">💡</span>
+                            <h6 className="text-sm font-semibold text-blue-800">Skills ({selectedSet.skills.length})</h6>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {selectedSet.skills.map((skill, idx) => (
+                              <span key={idx} className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors">
+                                {skill}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       )}
 
-                      {/* Stats Cards */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        {selectedSet.questionCount !== undefined && (
-                          <div className="bg-gradient-to-r from-emerald-50 to-green-100 p-4 rounded-xl border border-emerald-200">
-                            <div className="flex items-center gap-3">
-                              <div className="p-3 bg-emerald-500 rounded-lg">
-                                <span className="text-white text-lg">📝</span>
-                              </div>
-                              <div>
-                                <h6 className="font-bold text-emerald-800 text-xl">{selectedSet.questionCount}</h6>
-                                <p className="text-emerald-600 font-medium">Questions</p>
-                              </div>
-                            </div>
+                      {/* Topics Display - Show All */}
+                      {selectedSet.topics && selectedSet.topics.length > 0 && (
+                        <div className="bg-white/60 backdrop-blur-sm p-4 rounded-lg border border-blue-200 flex-1 min-w-[300px]">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-indigo-600">📚</span>
+                            <h6 className="text-sm font-semibold text-blue-800">Topics ({selectedSet.topics.length})</h6>
                           </div>
-                        )}
-                        
-                        {selectedSet.level && (
-                          <div className={`p-4 rounded-xl border-2 ${
-                            selectedSet.level === 'junior' ? 'bg-gradient-to-r from-green-50 to-emerald-100 border-green-200' :
-                            selectedSet.level === 'middle' ? 'bg-gradient-to-r from-blue-50 to-cyan-100 border-blue-200' :
-                            selectedSet.level === 'senior' ? 'bg-gradient-to-r from-purple-50 to-violet-100 border-purple-200' :
-                            'bg-gradient-to-r from-gray-50 to-slate-100 border-gray-200'
-                          }`}>
-                            <div className="flex items-center gap-3">
-                              <div className={`p-3 rounded-lg ${
-                                selectedSet.level === 'junior' ? 'bg-green-500' :
-                                selectedSet.level === 'middle' ? 'bg-blue-500' :
-                                selectedSet.level === 'senior' ? 'bg-purple-500' :
-                                'bg-gray-500'
-                              }`}>
-                                <span className="text-white text-lg">🎯</span>
-                              </div>
-                              <div>
-                                <h6 className={`font-bold text-xl ${
-                                  selectedSet.level === 'junior' ? 'text-green-800' :
-                                  selectedSet.level === 'middle' ? 'text-blue-800' :
-                                  selectedSet.level === 'senior' ? 'text-purple-800' :
-                                  'text-gray-800'
-                                }`}>
-                                  {selectedSet.level.charAt(0).toUpperCase() + selectedSet.level.slice(1)}
-                                </h6>
-                                <p className={`font-medium ${
-                                  selectedSet.level === 'junior' ? 'text-green-600' :
-                                  selectedSet.level === 'middle' ? 'text-blue-600' :
-                                  selectedSet.level === 'senior' ? 'text-purple-600' :
-                                  'text-gray-600'
-                                }`}>
-                                  Experience Level
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    
-                      {/* Content Categories */}
-                      <div className="grid grid-cols-1 gap-6">
-                        {/* Skills */}
-                        {selectedSet.skills && selectedSet.skills.length > 0 && (
-                          <div className="bg-white/60 backdrop-blur-sm p-5 rounded-xl border border-blue-200">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg">
-                                <span className="text-white text-lg">💡</span>
-                              </div>
-                              <h6 className="font-bold text-gray-800 text-lg">Skills Covered</h6>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                                {selectedSet.skills.length} skills
+                          <div className="flex flex-wrap gap-2">
+                            {selectedSet.topics.map((topic, idx) => (
+                              <span key={idx} className="px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-colors">
+                                {topic}
                               </span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedSet.skills.map((skill, idx) => (
-                                <span key={idx} className="px-3 py-2 bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200 text-blue-800 rounded-lg text-sm font-medium hover:shadow-md transition-shadow">
-                                  {skill}
-                                </span>
-                              ))}
-                            </div>
+                            ))}
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                        {/* Topics */}
-                        {selectedSet.topics && selectedSet.topics.length > 0 && (
-                          <div className="bg-white/60 backdrop-blur-sm p-5 rounded-xl border border-indigo-200">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg">
-                                <span className="text-white text-lg">📚</span>
-                              </div>
-                              <h6 className="font-bold text-gray-800 text-lg">Topics</h6>
-                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium">
-                                {selectedSet.topics.length} topics
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedSet.topics.map((topic, idx) => (
-                                <span key={idx} className="px-3 py-2 bg-gradient-to-r from-indigo-100 to-purple-100 border border-indigo-200 text-indigo-800 rounded-lg text-sm font-medium hover:shadow-md transition-shadow">
-                                  {topic}
-                                </span>
-                              ))}
-                            </div>
+                      {/* Fields Display - Show All */}
+                      {selectedSet.fields && selectedSet.fields.length > 0 && (
+                        <div className="bg-white/60 backdrop-blur-sm p-4 rounded-lg border border-blue-200 flex-1 min-w-[300px]">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="text-purple-600">🏢</span>
+                            <h6 className="text-sm font-semibold text-blue-800">Fields ({selectedSet.fields.length})</h6>
                           </div>
-                        )}
-
-                        {/* Fields */}
-                        {selectedSet.fields && selectedSet.fields.length > 0 && (
-                          <div className="bg-white/60 backdrop-blur-sm p-5 rounded-xl border border-emerald-200">
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
-                                <span className="text-white text-lg">🏢</span>
-                              </div>
-                              <h6 className="font-bold text-gray-800 text-lg">Fields</h6>
-                              <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-medium">
-                                {selectedSet.fields.length} fields
+                          <div className="flex flex-wrap gap-2">
+                            {selectedSet.fields.map((field, idx) => (
+                              <span key={idx} className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200 transition-colors">
+                                {field}
                               </span>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {selectedSet.fields.map((field, idx) => (
-                                <span key={idx} className="px-3 py-2 bg-gradient-to-r from-emerald-100 to-teal-100 border border-emerald-200 text-emerald-800 rounded-lg text-sm font-medium hover:shadow-md transition-shadow">
-                                  {field}
-                                </span>
-                              ))}
-                            </div>
+                            ))}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
               })()}
+
             </div>
           )}
 
