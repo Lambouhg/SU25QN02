@@ -66,7 +66,6 @@ interface QuizSetupProps {
   facetCats: string[];
   facetTopics: string[];
   facetFields: string[];
-  facetSkills: string[];
   onStart: () => void;
   loading: boolean;
 }
@@ -93,17 +92,14 @@ export default function QuizSetup({
   facetCats,
   facetTopics, // eslint-disable-line @typescript-eslint/no-unused-vars
   facetFields, // eslint-disable-line @typescript-eslint/no-unused-vars
-  facetSkills,
   onStart,
   loading
 }: QuizSetupProps) {
   const { userId } = useAuth();
   
   // State for filtered options based on cascade filtering
-  const [filteredSkills, setFilteredSkills] = useState<string[]>(facetSkills);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [filteredTopics, setFilteredTopics] = useState<Array<{name: string; skills: string[]}>>([]);
-  const [isPreferencesAppliedQuick, setIsPreferencesAppliedQuick] = useState(false);
   
   // State for loading topics
   const [loadingTopicsSkills, setLoadingTopicsSkills] = useState(false);
@@ -112,17 +108,7 @@ export default function QuizSetup({
   const [userPreferences, setUserPreferences] = useState<UserPreferences | null>(null);
   const [isPreferencesApplied, setIsPreferencesApplied] = useState(false);
   
-  // State for progression system
-  const [userProgress, setUserProgress] = useState<Record<string, {
-    category: string;
-    topic: string;
-    levels: {
-      junior: { unlocked: boolean; bestScore: number; attempts: number };
-      middle: { unlocked: boolean; bestScore: number; attempts: number };
-      senior: { unlocked: boolean; bestScore: number; attempts: number };
-    };
-  }>>({});
-  const [loadingProgress, setLoadingProgress] = useState(false);
+
 
   // Reset selections when mode changes to ensure modes are independent
   useEffect(() => {
@@ -136,7 +122,6 @@ export default function QuizSetup({
     setSelectedSkills([]);
     setFilteredTopics([]);
     setIsPreferencesApplied(false);
-    setIsPreferencesAppliedQuick(false);
   }, [mode, setCategory, setTopic, setSkill, setLevel, setCount, setQuestionSetId]);
 
   // Load user preferences on component mount
@@ -161,7 +146,6 @@ export default function QuizSetup({
   // Client-side filtering logic dựa trên hierarchy: Category → Skills → Topics
   useEffect(() => {
     if (!category) {
-      setFilteredSkills(facetSkills);
       setSelectedSkills([]);
       setFilteredTopics([]);
       return;
@@ -170,8 +154,6 @@ export default function QuizSetup({
     // Filter skills based on selected category
     const selectedCategoryData = categoriesData.find(cat => cat.name === category);
     if (selectedCategoryData) {
-      setFilteredSkills(selectedCategoryData.skills);
-      
       // Only validate and update selectedSkills if needed (avoid infinite loop)
       setSelectedSkills(prev => {
         const validSelectedSkills = prev.filter(skill => selectedCategoryData.skills.includes(skill));
@@ -179,18 +161,10 @@ export default function QuizSetup({
         return validSelectedSkills.length !== prev.length ? validSelectedSkills : prev;
       });
     } else {
-      setFilteredSkills([]);
       setSelectedSkills([]);
       setFilteredTopics([]);
     }
-  }, [category, categoriesData, facetSkills]);
-
-  // Update filtered lists when base facets change
-  useEffect(() => {
-    if (!category && !skill) {
-      setFilteredSkills(facetSkills);
-    }
-  }, [facetSkills, category, skill]);
+  }, [category, categoriesData]);
 
   // Build topics filtering based on selected skills
   useEffect(() => {
@@ -227,34 +201,20 @@ export default function QuizSetup({
     }
   }, [mode, topic, filteredTopics, setTopic]);
 
-  // Fetch user progress for progression system
-  const fetchUserProgress = async (category: string, skill: string) => {
-    if (!category || !skill) return;
-    
-    setLoadingProgress(true);
-    try {
-      const response = await fetch(`/api/quiz/progress?category=${encodeURIComponent(category)}&skill=${encodeURIComponent(skill)}`);
-      if (response.ok) {
-        const data = await response.json();
-        const progressKey = `${category}-${skill}`;
-        setUserProgress(prev => ({
-          ...prev,
-          [progressKey]: data
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching user progress:', error);
-    } finally {
-      setLoadingProgress(false);
-    }
-  };
-
-  // Effect to fetch progress when selections change
+  // Validate and reset level when topic changes in quick mode
   useEffect(() => {
-    if (mode === 'topic' && category && skill) {
-      fetchUserProgress(category, skill);
+    if (mode !== 'quick' || !category || !topic) return;
+    
+    const selectedCategoryData = categoriesData.find(cat => cat.name === category);
+    const availableLevels = selectedCategoryData?.levels || [];
+    
+    // Reset level if current level is not available in the selected category/topic
+    if (level && !availableLevels.includes(level)) {
+      setLevel('');
     }
-  }, [mode, category, skill]);
+  }, [mode, category, topic, level, categoriesData, setLevel]);
+
+
 
   // Auto-apply preferences for Skill Mastery mode
   useEffect(() => {
@@ -262,16 +222,15 @@ export default function QuizSetup({
       const { preferredJobRole } = userPreferences;
       
       // Auto-apply preferences without user action
-      setCategory('');
-      setSkill('');
-      setLevel('');
+      setCategory(preferredJobRole.category?.name || '');
+      setLevel(preferredJobRole.level || 'junior'); // Auto-set level from preference
       setCount('10');
       
       setIsPreferencesApplied(true);
       
-      toast.success(`Auto-applied preferences for ${preferredJobRole.title} ⚡`);
+      toast.success(`Auto-applied preferences for ${preferredJobRole.title} (${preferredJobRole.level}) ⚡`);
     }
-  }, [mode, userPreferences, isPreferencesApplied, setCategory, setSkill, setLevel, setCount]);
+  }, [mode, userPreferences, isPreferencesApplied, setCategory, setLevel, setCount]);
 
   const modeCards: Array<{
     id: 'quick' | 'topic' | 'company';
@@ -297,7 +256,7 @@ export default function QuizSetup({
     {
       id: 'topic',
       title: 'Skill Mastery',
-      description: 'Progressive training with unlockable levels',
+      description: 'Personalized training based on your preferences',
       icon: <Target className="w-6 h-6" />,
       color: 'from-purple-500 to-purple-600'
     }
@@ -546,57 +505,13 @@ export default function QuizSetup({
                 {/* Left Column - Category & Skills Selection */}
                 <div className="space-y-6">
                   <div className="bg-gradient-to-br from-green-50 to-blue-50 p-6 rounded-2xl border border-green-100">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="mb-4">
                       <h5 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                         <div className="w-6 h-6 bg-gradient-to-r from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
                           <Tag className="w-3 h-3 text-white" />
                         </div>
                         Content Selection
                       </h5>
-                      
-                      {/* Apply/Unapply Preferences Button */}
-                      {userPreferences?.preferredJobRole && (
-                        <button
-                          onClick={() => {
-                            if (!isPreferencesAppliedQuick) {
-                              // Apply preferences
-                              if (userPreferences.preferredJobRole?.category?.name) {
-                                setCategory(userPreferences.preferredJobRole.category.name);
-                                // Auto-select user's preferred skills
-                                if (userPreferences.skills && userPreferences.skills.length > 0) {
-                                  setSelectedSkills([...userPreferences.skills]);
-                                }
-                                setIsPreferencesAppliedQuick(true);
-                                toast.success(`Applied preferences for ${userPreferences.preferredJobRole.title} ⚡`);
-                              }
-                            } else {
-                              // Unapply preferences
-                              setCategory('');
-                              setSelectedSkills([]);
-                              setTopic('');
-                              setIsPreferencesAppliedQuick(false);
-                              toast.success('Preferences cleared ✨');
-                            }
-                          }}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium shadow-sm hover:shadow-md ${
-                            isPreferencesAppliedQuick
-                              ? 'bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700'
-                              : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700'
-                          }`}
-                        >
-                          {isPreferencesAppliedQuick ? (
-                            <>
-                              <Star className="w-4 h-4 fill-current" />
-                              Unapply Preferences
-                            </>
-                          ) : (
-                            <>
-                              <Star className="w-4 h-4" />
-                              Apply Preferences
-                            </>
-                          )}
-                        </button>
-                      )}
                     </div>
                     
                     <div className="space-y-4">
@@ -619,65 +534,13 @@ export default function QuizSetup({
                         </select>
                       </div>
 
-                      {/* Skills Selection - Only show when category is selected */}
-                      {category && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            2. Select Skills to Practice ({selectedSkills.length} selected)
-                          </label>
-                        <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3">
-                          <div className="grid grid-cols-2 gap-2">
-                            {filteredSkills.map((skillOption) => (
-                              <label key={skillOption} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedSkills.includes(skillOption)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedSkills(prev => [...prev, skillOption]);
-                                    } else {
-                                      setSelectedSkills(prev => prev.filter(s => s !== skillOption));
-                                    }
-                                  }}
-                                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                />
-                                <span className="text-sm font-medium text-gray-700">
-                                  {skillOption}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        {/* Selected Skills Preview */}
-                        {selectedSkills.length > 0 && (
-                          <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                            <div className="text-xs text-green-600 font-medium mb-2">
-                              Selected Skills:
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {selectedSkills.map((skill, idx) => (
-                                <span key={idx} className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs flex items-center gap-1">
-                                  {skill}
-                                  <button
-                                    onClick={() => setSelectedSkills(prev => prev.filter(s => s !== skill))}
-                                    className="ml-1 text-green-600 hover:text-green-800"
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        </div>
-                      )}
 
-                      {/* Topic Selection - Only show when category and skills are selected */}
+
+                      {/* Topic Selection - Only show when category is selected */}
                       {category && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            3. Choose Topic {loadingTopicsSkills && <span className="text-xs text-gray-500 animate-pulse ml-1">(Loading...)</span>}
+                            2. Choose Topic {loadingTopicsSkills && <span className="text-xs text-gray-500 animate-pulse ml-1">(Loading...)</span>}
                           </label>
                           {loadingTopicsSkills ? (
                             <div className="flex items-center justify-center py-8">
@@ -686,27 +549,28 @@ export default function QuizSetup({
                           ) : (
                             <div>
                               <select
-                                className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${selectedSkills.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
-                                disabled={selectedSkills.length === 0}
                               >
                                 <option value="">Choose a topic...</option>
-                                {filteredTopics.map((topicData) => {
-                                  // Lấy skills chưa được selected
-                                  const additionalSkills = topicData.skills.filter(skill => !selectedSkills.includes(skill));
-                                  const skillsText = additionalSkills.length > 0 ? ` (+${additionalSkills.join(', ')})` : '';
+                                {(() => {
+                                  const selectedCategoryData = categoriesData.find(cat => cat.name === category);
+                                  if (!selectedCategoryData) return null;
                                   
-                                  return (
+                                  return selectedCategoryData.topics.map((topicData) => (
                                     <option key={topicData.name} value={topicData.name}>
-                                      {topicData.name}{skillsText}
+                                      {topicData.name}
                                     </option>
-                                  );
-                                })}
+                                  ));
+                                })()}
                               </select>
                               {/* Topic Preview */}
                               {(() => {
-                                const selectedTopicData = topic ? filteredTopics.find(t => t.name === topic) : null;
+                                if (!topic) return null;
+                                const selectedCategoryData = categoriesData.find(cat => cat.name === category);
+                                const selectedTopicData = selectedCategoryData?.topics.find(t => t.name === topic);
+                                
                                 return selectedTopicData && (
                                   <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                                     <div className="text-xs text-blue-600 font-medium mb-2">
@@ -719,14 +583,9 @@ export default function QuizSetup({
                                       {selectedTopicData.skills.map((skill, idx) => (
                                         <span 
                                           key={idx} 
-                                          className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                            selectedSkills.includes(skill) 
-                                              ? 'bg-green-100 text-green-800 border border-green-300' 
-                                              : 'bg-gray-100 text-gray-600'
-                                          }`}
+                                          className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium"
                                         >
                                           {skill}
-                                          {selectedSkills.includes(skill) && ' ✓'}
                                         </span>
                                       ))}
                                     </div>
@@ -745,7 +604,7 @@ export default function QuizSetup({
                 <div className="space-y-6">
                   
                   {/* Experience Level */}
-                  <div className={`bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-2xl border border-purple-100 ${!category || selectedSkills.length === 0 ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className={`bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-2xl border border-purple-100 ${!topic ? 'opacity-50 pointer-events-none' : ''}`}>
                     <h5 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
                         <TrendingUp className="w-3 h-3 text-white" />
@@ -753,32 +612,65 @@ export default function QuizSetup({
                       Experience Level
                     </h5>
                     
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { value: "junior", label: "Junior", description: "0-2 years", color: "from-green-500 to-emerald-500", emoji: "🌱" },
-                        { value: "middle", label: "Middle", description: "2-5 years", color: "from-blue-500 to-cyan-500", emoji: "🚀" },
-                        { value: "senior", label: "Senior", description: "5+ years", color: "from-purple-500 to-pink-500", emoji: "⭐" },
-                      ].map((lvl) => (
-                        <button
-                          key={lvl.value}
-                          type="button"
-                          onClick={() => setLevel(lvl.value)}
-                          className={`p-3 rounded-xl transition-all border-2 text-center ${
-                            level === lvl.value
-                              ? `bg-gradient-to-r ${lvl.color} text-white shadow-lg border-transparent`
-                              : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700"
-                          }`}
-                        >
-                          <div className="text-lg mb-1">{lvl.emoji}</div>
-                          <div className="font-semibold text-sm">{lvl.label}</div>
-                          <div className="text-xs opacity-90">{lvl.description}</div>
-                        </button>
-                      ))}
-                    </div>
+                    {(() => {
+                      if (!topic) {
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <p className="text-sm">Select a topic to view available levels.</p>
+                          </div>
+                        );
+                      }
+
+                      const selectedCategoryData = categoriesData.find(cat => cat.name === category);
+                      const availableLevels = selectedCategoryData?.levels || [];
+                      
+                      if (availableLevels.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <p className="text-sm">No levels available for this topic</p>
+                          </div>
+                        );
+                      }
+
+                      const levelConfig = {
+                        junior: { label: "Junior", description: "0-2 years", color: "from-green-500 to-emerald-500", emoji: "🌱" },
+                        middle: { label: "Middle", description: "2-5 years", color: "from-blue-500 to-cyan-500", emoji: "🚀" },
+                        senior: { label: "Senior", description: "5+ years", color: "from-purple-500 to-pink-500", emoji: "⭐" },
+                      };
+
+                      const gridCols = availableLevels.length === 1 ? 'grid-cols-1' : 
+                                     availableLevels.length === 2 ? 'grid-cols-2' : 'grid-cols-3';
+
+                      return (
+                        <div className={`grid ${gridCols} gap-2`}>
+                          {availableLevels.map((levelValue) => {
+                            const lvl = levelConfig[levelValue as keyof typeof levelConfig];
+                            if (!lvl) return null;
+                            
+                            return (
+                              <button
+                                key={levelValue}
+                                type="button"
+                                onClick={() => setLevel(levelValue)}
+                                className={`p-3 rounded-xl transition-all border-2 text-center ${
+                                  level === levelValue
+                                    ? `bg-gradient-to-r ${lvl.color} text-white shadow-lg border-transparent`
+                                    : "bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700"
+                                }`}
+                              >
+                                <div className="text-lg mb-1">{lvl.emoji}</div>
+                                <div className="font-semibold text-sm">{lvl.label}</div>
+                                <div className="text-xs opacity-90">{lvl.description}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Quiz Settings */}
-                  <div className={`bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-2xl border border-orange-100 ${!category || selectedSkills.length === 0 || !level ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <div className={`bg-gradient-to-br from-orange-50 to-red-50 p-6 rounded-2xl border border-orange-100 ${!topic || !level ? 'opacity-50 pointer-events-none' : ''}`}>
                     <h5 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                       <div className="w-6 h-6 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
                         <Target className="w-3 h-3 text-white" />
@@ -817,262 +709,86 @@ export default function QuizSetup({
                   </div>
                 </div>
               </div>
-
-              {/* Progress Summary */}
-              {(category || selectedSkills.length > 0 || topic || level || count) && (
-                <div className="bg-gradient-to-r from-gray-50 to-blue-50 p-4 rounded-xl border border-gray-200">
-                  <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">Category:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${category ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
-                        {category || 'Not selected'}
-                      </span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300"></div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">Skills:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${selectedSkills.length > 0 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
-                        {selectedSkills.length > 0 ? `${selectedSkills.length} selected` : 'None selected'}
-                      </span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300"></div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">Topic:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${topic ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-500'}`}>
-                        {topic || 'Not selected'}
-                      </span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300"></div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">Level:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${level ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-500'}`}>
-                        {level ? level.charAt(0).toUpperCase() + level.slice(1) : 'Not selected'}
-                      </span>
-                    </div>
-                    <div className="w-px h-4 bg-gray-300"></div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">Questions:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${count ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-500'}`}>
-                        {count || 'Not selected'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 
           {/* Topic Practice Mode - All in One Screen */}
           {mode === 'topic' && (
             <div className="space-y-8">
-              {/* Preferences Applied Indicator with Skills Selection */}
+              {/* Skills Selection from Preferences */}
               {isPreferencesApplied && userPreferences?.preferredJobRole && (
-                <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg">
-                        <Star className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-blue-800">
-                          Preferences Applied: {userPreferences.preferredJobRole.title}
-                        </h4>
-                        <p className="text-xs text-blue-600">
-                          {userPreferences.preferredJobRole.category?.name}
-                        </p>
-                      </div>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg">
+                      <Star className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-blue-800">
+                        {userPreferences.preferredJobRole.title} Skills
+                      </h4>
+                      <p className="text-sm text-blue-600">
+                        {userPreferences.preferredJobRole.category?.name} • Choose your focus area
+                      </p>
                     </div>
                   </div>
+
+                  {/* Experience Level Display */}
+                  {level && (
+                    <div className="mb-4 p-3 bg-white/60 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-2">
+                        <div>
+                          <span className="text-sm font-medium text-blue-800">Experience Level: </span>
+                          <span className="text-sm font-semibold text-blue-900">
+                            {level.charAt(0).toUpperCase() + level.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
-                  {/* User Skills Selection as Buttons */}
+                  {/* User Skills Selection as Cards */}
                   {userPreferences?.skills && userPreferences.skills.length > 0 && (
-                    <div className="space-y-3">
-                      <p className="text-sm font-medium text-blue-700">Choose a skill to practice:</p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {userPreferences.skills.map((skillOption, index) => (
-                          <button
-                            key={index}
-                            onClick={() => {
-                              setCategory(userPreferences.preferredJobRole?.category?.name || '');
-                              setSkill(skillOption);
-                            }}
-                            className="flex items-center gap-2 p-3 rounded-lg border border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 group text-left"
-                          >
-                            <div className="p-1 rounded bg-blue-500 group-hover:bg-blue-600 transition-colors">
-                              <Target className="w-3 h-3 text-white" />
-                            </div>
-                            <span className="text-sm font-medium text-blue-800 group-hover:text-blue-900">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {userPreferences.skills.map((skillOption, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setCategory(userPreferences.preferredJobRole?.category?.name || '');
+                            setSkill(skillOption);
+                          }}
+                          className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all duration-200 text-left ${
+                            skill === skillOption
+                              ? 'border-blue-500 bg-blue-500 text-white shadow-lg'
+                              : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50 bg-white'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-lg transition-colors ${
+                            skill === skillOption
+                              ? 'bg-white/20'
+                              : 'bg-blue-500 group-hover:bg-blue-600'
+                          }`}>
+                            <Target className={`w-4 h-4 ${
+                              skill === skillOption ? 'text-white' : 'text-white'
+                            }`} />
+                          </div>
+                          <div>
+                            <span className={`font-medium ${
+                              skill === skillOption ? 'text-white' : 'text-blue-800'
+                            }`}>
                               {skillOption}
                             </span>
-                          </button>
-                        ))}
-                      </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Quick Presets and Manual Selection - Only show when preferences not applied */}
-              {!isPreferencesApplied && (
-                <>
-                  {/* Quick Presets for Progressive Training */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                        <Zap className="w-4 h-4 text-white" />
-                      </div>
-                      <h4 className="text-lg font-semibold text-gray-700">Quick Presets</h4>
-                    </div>
-                    
-                    <div className="max-w-md">
-                      <select
-                        className="w-full p-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                        value=""
-                        onChange={(e) => {
-                          const preset = [
-                            { name: "Frontend Development", category: "Software Development", skill: "React" },
-                            { name: "Backend Development", category: "Software Development", skill: "Node.js" },
-                            { name: "Cloud", category: "DevOps", skill: "AWS" },
-                            { name: "DevOps", category: "DevOps", skill: "Docker" },
-                            { name: "Mobile", category: "Software Development", skill: "React Native" },
-                            { name: "Database", category: "Data Science", skill: "SQL" }
-                          ].find(p => p.name === e.target.value);
-                          
-                          if (preset) {
-                            setCategory(preset.category);
-                            setSkill(preset.skill);
-                          }
-                        }}
-                      >
-                        <option value="">Choose a quick preset...</option>
-                        <option value="Frontend Development">Frontend Development (React)</option>
-                        <option value="Backend Development">Backend Development (Node.js)</option>
-                        <option value="Cloud">Cloud (AWS)</option>
-                        <option value="DevOps">DevOps (Docker)</option>
-                        <option value="Mobile">Mobile (React Native)</option>
-                        <option value="Database">Database (SQL)</option>
-                      </select>
-                    </div>
-                  </div>
 
-                  {/* Manual Selection */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
-                        <Tag className="w-4 h-4 text-white" />
-                      </div>
-                      <h4 className="text-lg font-semibold text-gray-700">Manual Selection</h4>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Tag className="w-4 h-4 inline mr-1" />
-                          Category
-                        </label>
-                        <select
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          value={category}
-                          onChange={(e) => setCategory(e.target.value)}
-                        >
-                          <option value="">Select Category</option>
-                          {facetCats.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <Target className="w-4 h-4 inline mr-1" />
-                          Skill
-                        </label>
-                        <select
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          value={skill}
-                          onChange={(e) => setSkill(e.target.value)}
-                        >
-                          <option value="">Select Skill</option>
-                          {filteredSkills.map((skl) => (
-                            <option key={skl} value={skl}>
-                              {skl}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Level Selection - Always visible */}
-              <div className={`space-y-4 ${!category || !skill ? 'opacity-50 pointer-events-none' : ''}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                    <Target className="w-4 h-4 text-white" />
-                  </div>
-                  <h4 className="text-lg font-semibold text-gray-700">Experience Level</h4>
-                  {loadingProgress && <span className="ml-2 text-xs text-gray-500 animate-pulse">Checking unlocks...</span>}
-                </div>
-
-                {loadingProgress ? (
-                  <div className="text-center py-8">
-                    <div className="inline-block w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-gray-600 mt-2">Loading your progress...</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-row gap-4 justify-center w-full">
-                    {[
-                      { value: "junior", label: "Junior", description: "0-2 years experience" },
-                      { value: "middle", label: "Middle", description: "2-5 years experience" },
-                      { value: "senior", label: "Senior", description: "5+ years experience" },
-                    ].map((lvl) => {
-                      const progressKey = `${category}-${skill}`;
-                      const levelData = userProgress[progressKey]?.levels[lvl.value as keyof typeof userProgress[typeof progressKey]['levels']];
-                      const isUnlocked = lvl.value === 'junior' || (levelData?.unlocked ?? false);
-                      const bestScore = levelData?.bestScore ?? 0;
-                      let tooltip = "";
-
-                      if (lvl.value === "middle" && !isUnlocked) {
-                        tooltip = "Unlock by scoring ≥ 9 in Junior quizzes for this skill.";
-                      }
-                      if (lvl.value === "senior" && !isUnlocked) {
-                        tooltip = "Unlock by scoring ≥ 9 in Middle quizzes for this skill.";
-                      }
-
-                      return (
-                          <button
-                            key={lvl.value}
-                            type="button"
-                            onClick={() => { if (isUnlocked) { setLevel(lvl.value); } }}
-                            className={`flex-1 flex flex-col items-center justify-center gap-1 h-28 text-lg font-bold rounded-full transition border-2 mx-1 min-w-[120px] max-w-[200px] ${
-                              level === lvl.value
-                                ? "bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg border-purple-500"
-                                : isUnlocked
-                                ? "bg-gray-100 text-gray-700 opacity-60 hover:opacity-100 border-transparent hover:bg-purple-50"
-                                : "bg-gray-100 text-gray-400 opacity-40 border-transparent cursor-not-allowed"
-                            } focus:outline-none`}
-                            style={{ minWidth: 0 }}
-                            disabled={!isUnlocked}
-                            title={tooltip}
-                          >
-                           <span className="text-2xl">🎯</span>
-                           <span>{lvl.label}</span>
-                           <span className="text-xs font-normal">{lvl.description}</span>
-                           {isUnlocked && bestScore > 0}
-                           {!isUnlocked && tooltip && (
-                             <span className="text-xs text-red-500 mt-1 text-center px-2 leading-tight">{tooltip}</span>
-                           )}
-                          </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
 
               {/* Quiz Settings - Always visible */}
-              <div className={`space-y-4 ${!category || !skill || !level ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className={`space-y-4 ${!category || !skill ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
                     <Target className="w-4 h-4 text-white" />
@@ -1126,7 +842,7 @@ export default function QuizSetup({
             }
             onStart();
           }}
-          disabled={loading || (mode === 'company' && !questionSetId) || (mode === 'quick' && (!category || selectedSkills.length === 0 || !topic || !count)) || (mode === 'topic' && (!category || !skill || !level))}
+          disabled={loading || (mode === 'company' && !questionSetId) || (mode === 'quick' && (!category || !topic || !level || !count)) || (mode === 'topic' && (!category || !skill))}
           className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-12 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
         >
           {loading ? (

@@ -42,7 +42,6 @@ export default function QuizPage() {
   const [categoriesData, setCategoriesData] = useState<CategoryData[]>([]);
   const [facetTopics, setFacetTopics] = useState<string[]>([]);
   const [facetFields, setFacetFields] = useState<string[]>([]);
-  const [facetSkills, setFacetSkills] = useState<string[]>([]);
   const [questionSetId, setQuestionSetId] = useState("");
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [items, setItems] = useState<SnapshotItem[]>([]);
@@ -115,12 +114,10 @@ export default function QuizPage() {
           
           // Extract facets from categories data
           const cats = categories.map(cat => cat.name);
-          const allSkills = Array.from(new Set(categories.flatMap(cat => cat.skills || []))).filter((skill): skill is string => typeof skill === 'string');
           const allTopics = Array.from(new Set(categories.flatMap(cat => cat.topics?.map(t => t.name) || []))).filter((topic): topic is string => typeof topic === 'string');
           const allFields = Array.from(new Set(categories.flatMap(cat => cat.fields || []))).filter((field): field is string => typeof field === 'string');
           
           setFacetCats(cats);
-          setFacetSkills(allSkills);
           setFacetTopics(allTopics);
           setFacetFields(allFields);
         }
@@ -493,7 +490,6 @@ export default function QuizPage() {
             facetCats={facetCats}
             facetTopics={facetTopics}
             facetFields={facetFields}
-            facetSkills={facetSkills}
             onStart={start}
             loading={loading}
           />
