@@ -92,31 +92,6 @@ export default function ReviewQuestionPage() {
         if (response.ok) {
           const preferences = await response.json()
           setUserPreferences(preferences)
-          
-          // Auto-apply preferences if user has them and autoStartWithPreferences is enabled
-          // DISABLED: Let user manually choose filters
-          /*
-          if (preferences.autoStartWithPreferences && preferences.preferredJobRole) {
-            const { preferredJobRole } = preferences
-            
-              // Map JobCategory.name to field
-              if (preferredJobRole.category?.name) {
-                setFilterField(preferredJobRole.category.name)
-              }
-            
-            // Map ALL JobCategory.skills to selectedTopics
-              // Do NOT auto-select skills, only set filterTopic to "all"
-              if (preferredJobRole.category?.skills && preferredJobRole.category.skills.length > 0) {
-                setFilterTopic("all")
-              }
-            
-            setIsPreferencesApplied(true)
-            toast.success(`Applied preferences for ${preferredJobRole.title} with ${preferredJobRole.category?.skills?.length || 0} skills`, {
-              duration: 3000,
-              icon: '⚡'
-            })
-          }
-          */
         }
       } catch (error) {
         console.error('Error loading user preferences:', error)
@@ -126,131 +101,139 @@ export default function ReviewQuestionPage() {
     loadUserPreferences()
   }, [userId])
 
-  // Fetch questions từ question bank mới
+  // Fetch questions từ question bank với higher limit
   const fetchQuestions = useCallback(async () => {
     try {
       setIsLoading(true)
       const params = new URLSearchParams()
       
-      // Update API parameters to match new API
-      if (filterField !== "all") {
-        params.append("fields", filterField)
-      }
-      
-      // Use selectedTopics for multiple topic filtering
-      if (selectedTopics.length > 0) {
-        params.append("topics", selectedTopics.join(","))
-      } else if (filterTopic !== "all") {
-        params.append("topics", filterTopic)
-      }
-      
+      // Don't send field/topic filters to API - let client-side handle filtering for more flexibility
+      // This ensures we get all questions and can do more robust matching
       if (searchQuery) {
         params.append("search", searchQuery)
       }
       
-      // Set high page size for review mode
-      params.append("pageSize", "100")
+      // Set much higher page size for review mode to get all questions
+      params.append("pageSize", "1000") // Increased from 500 to 1000
       
-      // 🔍 DEBUG: Show API call details
-      const timestamp = Date.now()
-      const apiUrl = `/api/questions?${params.toString()}&_t=${timestamp}`
-      console.log('🔍 API Call Details:', {
-        url: apiUrl,
-        filterField,
-        filterTopic,
-        selectedTopics,
-        searchQuery,
-        paramsString: params.toString(),
-        timestamp
-      })
-      
-      // Use public API endpoint for review with cache-busting
-      const response = await fetch(apiUrl, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-        }
-      })
-      console.log('🔍 API Response Status:', {
-        ok: response.ok,
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url
-      })
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('🔍 API Error Response:', errorText)
-        throw new Error(`Failed to fetch questions: ${response.status} ${response.statusText}`)
-      }
-      
+      // Use public API endpoint for review
+      const response = await fetch(`/api/questions?${params.toString()}`)
+      if (!response.ok) throw new Error("Failed to fetch questions")
       const result = await response.json()
-      console.log('🔍 API Response Body:', {
-        hasData: !!result.data,
-        dataLength: result.data?.length || 0,
-        totalQuestions: result.total || 0,
-        error: result.error
-      })
+      console.log('🔍 Questions loaded from API:', result.data?.length || 0, 'Total in DB:', result.total || 0)
       
-      console.log('🔍 Questions loaded:', result.data?.length || 0)
-      if (result.data && result.data.length > 0) {
-        console.log('🔍 Sample question topics:', result.data.slice(0, 3).map((q: Question) => ({ 
-          stem: q.stem.substring(0, 50) + '...', 
-          topics: q.topics 
-        })))
+      // If we didn't get all questions, make additional calls
+      let allQuestions: Question[] = result.data || []
+      if (result.total && allQuestions.length < result.total) {
+        console.log('🔍 Need to fetch more questions. Making additional API calls...')
+        let currentPage = 2
+        const pageSize = 1000
+        
+        while (allQuestions.length < result.total && currentPage <= 10) { // Safety limit
+          const nextParams = new URLSearchParams()
+          nextParams.append("page", currentPage.toString())
+          nextParams.append("pageSize", pageSize.toString())
+          if (searchQuery) {
+            nextParams.append("search", searchQuery)
+          }
+          
+          const nextResponse = await fetch(`/api/questions?${nextParams.toString()}`)
+          if (nextResponse.ok) {
+            const nextResult = await nextResponse.json()
+            const nextQuestions: Question[] = nextResult.data || []
+            allQuestions = [...allQuestions, ...nextQuestions]
+            console.log(`🔍 Page ${currentPage}: Added ${nextQuestions.length} more questions (Total: ${allQuestions.length})`)
+            
+            if (nextQuestions.length === 0) break // No more questions
+          }
+          currentPage++
+        }
       }
-      setQuestions(result.data || [])
+      
+      if (allQuestions.length > 0) {
+        const sampleQuestions = allQuestions.slice(0, 3)
+        console.log('🔍 Sample questions structure:', sampleQuestions.map((q: Question) => ({ 
+          id: q.id,
+          stem: q.stem.substring(0, 30) + '...', 
+          topics: q.topics,
+          fields: q.fields,
+          skills: q.skills,
+          category: q.category,
+          hasExplanation: !!q.explanation
+        })))
+        
+        // Log unique categories found
+        const uniqueCategories = Array.from(new Set(allQuestions.map((q: Question) => q.category).filter(Boolean)))
+        console.log('🔍 Unique categories found:', uniqueCategories)
+      }
+      setQuestions(allQuestions)
     } catch (error) {
-      console.error('🔍 Fetch Questions Error:', error)
-      toast.error(`Failed to load questions: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('🔍 Error fetching questions:', error)
+      toast.error("Failed to load questions")
     } finally {
       setIsLoading(false)
     }
-  }, [filterField, filterTopic, selectedTopics, searchQuery])
+  }, [searchQuery]) // Remove field/topic dependencies since we're doing client-side filtering
 
   useEffect(() => {
     fetchQuestions()
   }, [fetchQuestions])
 
-  // Filter questions theo field/topic và search query
+  // Filter questions theo category/topic và search query
   let filteredQuestions = questions
- 
-  // 🔧 SIMPLIFIED: Since API already filters by category, only apply additional client-side filters if needed
   
   if (filterField !== "all") {
-    // Check both fields and category for broader matching
+    // Case insensitive category filtering
     const beforeFilter = filteredQuestions.length
     filteredQuestions = filteredQuestions.filter((q) => 
-      q.fields?.some(field => field.toLowerCase() === filterField.toLowerCase()) ||
       q.category?.toLowerCase() === filterField.toLowerCase()
     )
-    console.log('🔍 After field/category filter:', { filterField, before: beforeFilter, after: filteredQuestions.length })
+    console.log('🔍 After category filter:', { 
+      filterField, 
+      before: beforeFilter, 
+      after: filteredQuestions.length,
+      sampleCategoriesFound: filteredQuestions.slice(0, 3).map(q => q.category)
+    })
   }
   
-  // Filter by selected topics (multiple selection) - Case insensitive
+  // Filter by selected topics/skills (multiple selection) - Case insensitive
   if (selectedTopics.length > 0) {
-    console.log('🔍 Filtering by selected topics:', selectedTopics)
     const beforeTopicFilter = filteredQuestions.length
-    filteredQuestions = filteredQuestions.filter((q) => {
-      const hasMatchingTopic = q.topics?.some(topic => 
+    filteredQuestions = filteredQuestions.filter((q) => 
+      // Check both topics and skills for matches
+      (q.topics?.some(topic => 
         selectedTopics.some(selectedTopic => 
-          topic.toLowerCase() === selectedTopic.toLowerCase()
+          topic.toLowerCase().includes(selectedTopic.toLowerCase()) ||
+          selectedTopic.toLowerCase().includes(topic.toLowerCase())
         )
-      )
-      const hasMatchingSkill = q.skills?.some(skill => 
+      )) ||
+      (q.skills?.some(skill => 
         selectedTopics.some(selectedTopic => 
-          skill.toLowerCase() === selectedTopic.toLowerCase()
+          skill.toLowerCase().includes(selectedTopic.toLowerCase()) ||
+          selectedTopic.toLowerCase().includes(skill.toLowerCase())
         )
-      )
-      return hasMatchingTopic || hasMatchingSkill
+      ))
+    )
+    console.log('🔍 After topic/skill filter:', { 
+      selectedTopics, 
+      before: beforeTopicFilter, 
+      after: filteredQuestions.length,
+      sampleTopicsFound: filteredQuestions.slice(0, 3).map(q => ({ topics: q.topics, skills: q.skills }))
     })
-    console.log('🔍 After topic/skill filter:', { selectedTopics, before: beforeTopicFilter, after: filteredQuestions.length })
   } else if (filterTopic !== "all") {
     // Fallback to single topic filter if no selected topics - Case insensitive
+    const beforeSingleTopicFilter = filteredQuestions.length
     filteredQuestions = filteredQuestions.filter((q) => 
-      q.topics?.some(topic => topic.toLowerCase() === filterTopic.toLowerCase()) ||
-      q.skills?.some(skill => skill.toLowerCase() === filterTopic.toLowerCase())
+      q.topics?.some(topic => 
+        topic.toLowerCase().includes(filterTopic.toLowerCase()) ||
+        filterTopic.toLowerCase().includes(topic.toLowerCase())
+      )
     )
+    console.log('🔍 After single topic filter:', { 
+      filterTopic, 
+      before: beforeSingleTopicFilter, 
+      after: filteredQuestions.length 
+    })
   }
   
   if (searchQuery) {
@@ -264,11 +247,11 @@ export default function ReviewQuestionPage() {
     filteredQuestions = filteredQuestions.filter((q) => bookmarkedQuestions.has(q.id))
   }
 
-  // Lấy danh sách field và topic
-  const fields = Array.from(new Set(questions.flatMap((q) => q.fields || [])))
+  // Lấy danh sách category và topic  
+  const categories = Array.from(new Set(questions.map((q) => q.category).filter(Boolean))) as string[]
   const topics =
     filterField !== "all"
-      ? Array.from(new Set(questions.filter((q) => q.fields?.includes(filterField)).flatMap((q) => q.topics || [])))
+      ? Array.from(new Set(questions.filter((q) => q.category?.toLowerCase() === filterField.toLowerCase()).flatMap((q) => q.topics || [])))
       : []
 
   // Flash Card Functions
@@ -322,32 +305,54 @@ export default function ReviewQuestionPage() {
     if (userPreferences?.preferredJobRole) {
       const { preferredJobRole } = userPreferences
       
-      // 🔧 FIXED: Now use category filter since API has field mapping
+      // Apply category filter if it exists in the available categories
       if (preferredJobRole.category?.name) {
-        setFilterField(preferredJobRole.category.name) // Use actual category name
+        const categoryExists = categories.some(category => 
+          category && category.toLowerCase() === preferredJobRole.category?.name.toLowerCase()
+        )
+        if (categoryExists) {
+          setFilterField(preferredJobRole.category.name)
+        } else {
+          setFilterField("all")
+          console.log('🔍 Category not found in categories:', preferredJobRole.category.name, 'Available:', categories)
+        }
       } else {
-        setFilterField("all") // Fallback to all if no category
+        setFilterField("all")
       }
       
       // Auto-select user's skills to show relevant questions immediately
       setFilterTopic("all")
       if (userPreferences.skills && userPreferences.skills.length > 0) {
-        setSelectedTopics(userPreferences.skills) // Auto-select user's skills
-        console.log('🔍 Auto-selected user skills:', userPreferences.skills)
+        // Check which user skills actually exist in the database
+        const allAvailableTopics = Array.from(new Set(questions.flatMap(q => q.topics || [])))
+        const matchingSkills = userPreferences.skills.filter(userSkill =>
+          allAvailableTopics.some(topic => 
+            topic.toLowerCase() === userSkill.toLowerCase()
+          )
+        )
+        
+        setSelectedTopics(matchingSkills)
+        console.log('🔍 User skills:', userPreferences.skills)
+        console.log('🔍 Available topics in DB:', allAvailableTopics.slice(0, 10), '...')
+        console.log('🔍 Matching skills found:', matchingSkills)
       } else {
-        setSelectedTopics([]) // No skills to select
+        setSelectedTopics([])
       }
       
       setIsPreferencesApplied(true)
-      console.log('🔍 Applied preferences (FIXED - with category filter):', {
+      console.log('🔍 Applied preferences:', {
         originalCategory: preferredJobRole.category?.name,
-        filterField: preferredJobRole.category?.name || "all",
+        filterField: filterField,
         filterTopic: "all",
         selectedTopics: userPreferences.skills || [],
-        userSkillsCount: userPreferences.skills?.length || 0
+        userSkillsCount: userPreferences.skills?.length || 0,
+        questionsCount: questions.length,
+        categoriesAvailable: categories
       })
-      toast.success(`Applied category and skills filter (${preferredJobRole.category?.name || 'all'} + ${userPreferences.skills?.length || 0} skills).`, {
-        duration: 4000,
+      
+      const skillsCount = userPreferences.skills?.length || 0
+      toast.success(`Applied preferences: ${skillsCount} skills selected`, {
+        duration: 3000,
         icon: '⚡'
       })
     }
@@ -360,11 +365,13 @@ export default function ReviewQuestionPage() {
       if (isSelected) {
         // Remove skill (case insensitive)
         const newSelected = prev.filter(s => s.toLowerCase() !== skill.toLowerCase())
+        console.log('🔍 Removed skill filter:', skill, 'Remaining:', newSelected)
         toast.success(`Removed ${skill} filter`, { duration: 2000 })
         return newSelected
       } else {
         // Add skill
         const newSelected = [...prev, skill]
+        console.log('🔍 Added skill filter:', skill, 'All selected:', newSelected)
         toast.success(`Added ${skill} filter`, { duration: 2000 })
         return newSelected
       }
@@ -448,10 +455,7 @@ export default function ReviewQuestionPage() {
                         <p className="text-xs text-blue-700">
                           Skills-based filtering applied
                           {userPreferences.skills && userPreferences.skills.length > 0 && (
-                            <>
-                              <br />
-                              <span>Your Skills: {userPreferences.skills.length} available</span>
-                            </>
+                            <>: {userPreferences.skills.length} skill(s) selected</>
                           )}
                         </p>
                       </div>
@@ -471,25 +475,24 @@ export default function ReviewQuestionPage() {
                       {userPreferences?.skills && userPreferences.skills.length > 0 ? (
                         <>
                           <div className="text-xs font-medium text-blue-800 mb-2">
-                            Your Skills - Click to filter: ({selectedTopics.length} selected)
+                            Your Skills: 
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {userPreferences.skills.map((skill, index) => {
                               // Case insensitive selection check
                               const isSelected = selectedTopics.some(s => s.toLowerCase() === skill.toLowerCase())
                               return (
-                                <button
+                                <span
                                   key={index}
-                                  onClick={() => toggleSkillFilter(skill)}
-                                  className={`px-3 py-1 text-xs font-medium rounded-full border transition-all hover:shadow-md ${
+                                  className={`px-3 py-1 text-xs font-medium rounded-full border ${
                                     isSelected
                                       ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
-                                      : 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200'
+                                      : 'bg-blue-100 text-blue-800 border-blue-200'
                                   }`}
                                 >
                                   {skill}
                                   {isSelected && ' ✓'}
-                                </button>
+                                </span>
                               )
                             })}
                           </div>
@@ -546,7 +549,7 @@ export default function ReviewQuestionPage() {
                       className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-all"
                     >
                       <Star className="w-4 h-4" />
-                      Apply My Preferences
+                      Apply Preferences
                     </button>
                   )}
                   
@@ -578,7 +581,7 @@ export default function ReviewQuestionPage() {
               {showFilters && (
                 <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Specializations</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Categories</label>
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => {
@@ -587,18 +590,18 @@ export default function ReviewQuestionPage() {
                         }}
                         className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${filterField === "all" ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}
                       >
-                        All Specializations
+                        All Categories
                       </button>
-                      {fields.map((field) => (
+                      {categories.map((category) => (
                         <button
-                          key={field}
+                          key={category}
                           onClick={() => {
-                            setFilterField(field)
+                            setFilterField(category || "all")
                             setFilterTopic("all")
                           }}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${filterField === field ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${filterField === category ? "bg-blue-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}
                         >
-                          {field}
+                          {category}
                         </button>
                       ))}
                     </div>
@@ -627,6 +630,53 @@ export default function ReviewQuestionPage() {
                     </div>
                   )}
 
+                  {/* Skills Filter Section - Only show when category is selected */}
+                  {filterField !== "all" && (() => {
+                    // Get skills filtered by selected category
+                    const skillsToShow = Array.from(new Set(
+                      questions
+                        .filter((q) => q.category?.toLowerCase() === filterField.toLowerCase())
+                        .flatMap((q) => q.skills || [])
+                    ))
+                    
+                    const filteredSkills = skillsToShow
+                      .filter(skill => skill && skill.trim().length > 0)
+                      .sort()
+                    
+                    return filteredSkills.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Skills
+                        </label>
+                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                          <button
+                            onClick={() => setSelectedTopics([])}
+                            className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${selectedTopics.length === 0 ? "bg-green-600 text-white" : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"}`}
+                          >
+                            All Skills
+                          </button>
+                          {filteredSkills.map((skill) => {
+                            const isSelected = selectedTopics.some(s => s.toLowerCase() === skill.toLowerCase())
+                            return (
+                              <button
+                                key={skill}
+                                onClick={() => toggleSkillFilter(skill)}
+                                className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                                  isSelected
+                                    ? "bg-green-600 text-white border-green-700 shadow-md"
+                                    : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                                }`}
+                              >
+                                {skill}
+                                {isSelected && " ✓"}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   <div className="flex justify-end">
                     <button
                       onClick={clearAllFilters}
@@ -642,6 +692,7 @@ export default function ReviewQuestionPage() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-3 mb-6">
+
             <button
               onClick={() => {
                 if (filteredQuestions.length === 0) {
@@ -656,13 +707,13 @@ export default function ReviewQuestionPage() {
               }}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:scale-105 transition-all"
             >
-              <CreditCard className="w-5 h-5" />
-              {(() => {
-                const isAll = filterField === "all" && filterTopic === "all" && !searchQuery && !showBookmarkedOnly;
-                return isAll
-                  ? "Start Flashcards (All)"
-                  : `Start Flashcards (All Filtered ${filteredQuestions.length})`;
-              })()}
+                  <CreditCard className="w-5 h-5" />
+                  {(() => {
+                    const isAll = filterField === "all" && filterTopic === "all" && !searchQuery && !showBookmarkedOnly;
+                    return isAll
+                      ? "Start Flashcards (All)"
+                      : `Start Flashcards (All Filtered ${filteredQuestions.length})`;
+                  })()}
             </button>
 
             <button
@@ -721,14 +772,13 @@ export default function ReviewQuestionPage() {
                             {index + 1}
                           </div>
                           <div className="flex flex-wrap gap-1">
-                            {question.fields?.map((field) => (
+                            {question.category && (
                               <span
-                                key={field}
                                 className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full border border-blue-200"
                               >
-                                {field}
+                                {question.category}
                               </span>
-                            ))}
+                            )}
                             {question.topics?.map((topic) => (
                               <span
                                 key={topic}
@@ -851,14 +901,13 @@ export default function ReviewQuestionPage() {
                 {/* Card Content */}
                 <div className="p-8">
                   <div className="flex items-center gap-2 mb-6 flex-wrap">
-                    {currentCard.fields?.map((field) => (
+                    {currentCard.category && (
                       <span
-                        key={field}
                         className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full border border-blue-200"
                       >
-                        📂 {field}
+                        📂 {currentCard.category}
                       </span>
-                    ))}
+                    )}
                     {currentCard.topics?.map((topic) => (
                       <span
                         key={topic}
