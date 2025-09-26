@@ -722,6 +722,7 @@ export default function DashboardPage() {
                     title=""
                     description=""
                     hideCard={true}
+                    isIntegerMode={lineMode === 'total'} // Show integers when in "Total" mode
                   />
                 </>
               )}

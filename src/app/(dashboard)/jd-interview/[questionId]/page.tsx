@@ -384,12 +384,19 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
 
   // Function to save answer and analysis to database
   const saveAnswerToDatabase = async (analysisData: AnalysisResult) => {
+    console.log('🔧 [JD-INTERVIEW] saveAnswerToDatabase called with:', {
+      analysisData: !!analysisData,
+      currentQuestionIndex,
+      answer: answer?.length
+    });
+    
     try {
       
       
       // Get current question set ID from localStorage or URL
       const questionSetIdFromURL = searchParams.get('questionSetId');
       
+      console.log('🔧 [JD-INTERVIEW] questionSetIdFromURL:', questionSetIdFromURL);
       
       let jdQuestionSetId = questionSetIdFromURL;
       
@@ -406,8 +413,11 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
       
       // If still no question set ID, skip saving
       if (!jdQuestionSetId) {
+        console.log('❌ [JD-INTERVIEW] No jdQuestionSetId found, skipping save');
         return;
       }
+
+      console.log('🔧 [JD-INTERVIEW] About to save with jdQuestionSetId:', jdQuestionSetId);
 
 
       const timeSpent = answerStartTime ? 
@@ -450,7 +460,7 @@ export default function InterviewQuestionPage({ params }: { params: Promise<{ qu
           body: JSON.stringify(answerData),
         });
       } else {
-        
+        console.log('🔧 [JD-INTERVIEW] Creating new answer via POST /api/jd-answers');
         saveResponse = await fetch('/api/jd-answers', {
           method: 'POST',
           headers: {

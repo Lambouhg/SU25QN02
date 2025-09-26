@@ -2,24 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 
-type ProcessedUserActivity = {
-  activities: Record<string, unknown>[];
-  skills: Record<string, unknown>[];
-  goals: Record<string, unknown>[];
-  learningStats: Record<string, unknown>;
-  userId?: string;
-  user?: {
-    id: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    email?: string | null;
-    role?: {
-      name: string;
-      displayName?: string;
-    };
-    createdAt?: Date;
-  };
-};
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -151,13 +134,13 @@ export async function GET(request: NextRequest) {
     const activityStats = {
       totalInterviews: allActivities.filter((a: Record<string, unknown>) => a.type === 'interview' && !isJDActivity(a)).length,
       totalQuizzes: allActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
-      totalTests: allActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
+      totalTests: allActivities.filter((a: Record<string, unknown>) => a.type === 'assessment').length, // Update to use 'assessment'
       totalEQs: allActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
       totalJDs: allActivities.filter(isJDActivity).length,
       totalPractice: allActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,
       recentInterviews: recentActivities.filter((a: Record<string, unknown>) => a.type === 'interview' && !isJDActivity(a)).length,
       recentQuizzes: recentActivities.filter((a: Record<string, unknown>) => a.type === 'quiz').length,
-      recentTests: recentActivities.filter((a: Record<string, unknown>) => a.type === 'test').length,
+      recentTests: recentActivities.filter((a: Record<string, unknown>) => a.type === 'assessment').length, // Update to use 'assessment'
       recentEQs: recentActivities.filter((a: Record<string, unknown>) => a.type === 'eq').length,
       recentJDs: recentActivities.filter(isJDActivity).length,
       recentPractice: recentActivities.filter((a: Record<string, unknown>) => a.type === 'practice').length,

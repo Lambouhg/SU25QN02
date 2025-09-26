@@ -16,12 +16,14 @@ interface Props {
   description?: string
   height?: number
   hideCard?: boolean
+  isIntegerMode?: boolean // New prop to indicate when to show integers only
 }
 
 export function ChartMultiAreaInteractive({
   data = [],
   height = 300,
   hideCard = false,
+  isIntegerMode = false, // Default to false (allow decimals)
 }: Props) {
   const processedData = React.useMemo(() => {
     if (!data || data.length === 0) return []
@@ -84,7 +86,19 @@ export function ChartMultiAreaInteractive({
               return value as unknown as string
             }}
           />
-          <YAxis tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(v) => v.toLocaleString()} />
+          <YAxis 
+            tickLine={false} 
+            axisLine={false} 
+            tickMargin={8} 
+            tickFormatter={(v) => {
+              // If in integer mode (like Total count), show whole numbers only
+              if (isIntegerMode) {
+                return Math.round(v).toLocaleString()
+              }
+              // Otherwise show with decimal places (like scores)
+              return v.toLocaleString()
+            }} 
+          />
           <Tooltip
             cursor={false}
             content={({ active, payload, label }) => {
