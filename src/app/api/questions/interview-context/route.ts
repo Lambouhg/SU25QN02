@@ -230,6 +230,30 @@ export async function POST(request: NextRequest) {
       includeDifficulty
     });
 
+    // 🔍 DEBUG: Check what field is being received
+    console.log('🔍 DEBUG - Field analysis:', {
+      rawField: field,
+      fieldType: typeof field,
+      fieldLowerCase: field?.toLowerCase(),
+      isDevOps: field?.toLowerCase() === 'devops'
+    });
+
+    // 🔧 SMART FIELD DETECTION: If searching for DevOps skills but field is wrong, auto-correct
+    let actualField = field;
+    if (selectedSkills && selectedSkills.length > 0) {
+      const devopsSkills = ['aws', 'azure', 'docker', 'kubernetes', 'ci/cd', 'jenkins', 'terraform', 'monitoring', 'cloud', 'devops'];
+      const hasDevOpsSkills = selectedSkills.some((skill: string) => 
+        devopsSkills.some(devopsSkill => 
+          skill.toLowerCase().includes(devopsSkill) || devopsSkill.includes(skill.toLowerCase())
+        )
+      );
+      
+      if (hasDevOpsSkills && field.toLowerCase() !== 'devops') {
+        console.log('🔧 AUTO-CORRECTING: Detected DevOps skills but wrong field. Changing to DevOps.');
+        actualField = 'devops';
+      }
+    }
+
     // Map common field names to database field names and categories
     const fieldMapping: Record<string, string[]> = {
       'software development': ['Software Development', 'Frontend Development', 'Backend Development', 'Programming'],
@@ -259,22 +283,31 @@ export async function POST(request: NextRequest) {
     };
 
     // Get mapped fields and categories
-    const mappedFields = fieldMapping[field.toLowerCase()] || [field];
-    const mappedCategories = categoryMapping[field.toLowerCase()] || [field];
+    const mappedFields = fieldMapping[actualField.toLowerCase()] || [actualField];
+    const mappedCategories = categoryMapping[actualField.toLowerCase()] || [actualField];
     
-    console.log(`🔄 Mapping field "${field}" to:`, {
+    console.log(`🔄 Mapping field "${actualField}" to:`, {
       fields: mappedFields,
       categories: mappedCategories
     });
 
+    // 🔍 DEBUG: If no mapping found, warn about it
+    if (!fieldMapping[actualField.toLowerCase()]) {
+      console.warn(`⚠️ No field mapping found for "${actualField}" - using raw value`);
+    }
+    if (!categoryMapping[actualField.toLowerCase()]) {
+      console.warn(`⚠️ No category mapping found for "${actualField}" - using raw value`);
+    }
+
     // Add debug logging for field matching
     console.log('📊 Field matching debug:', {
       originalField: field,
-      lowerCaseField: field.toLowerCase(),
+      actualField: actualField,
+      lowerCaseField: actualField.toLowerCase(),
       mappedFields,
       mappedCategories,
-      hasFieldMapping: !!fieldMapping[field.toLowerCase()],
-      hasCategoryMapping: !!categoryMapping[field.toLowerCase()]
+      hasFieldMapping: !!fieldMapping[actualField.toLowerCase()],
+      hasCategoryMapping: !!categoryMapping[actualField.toLowerCase()]
     });
 
     // Build where clause for database query with both fields and category filtering
@@ -373,6 +406,13 @@ export async function POST(request: NextRequest) {
     console.log('📋 Total questions in fields:', mappedFields);
     console.log('📋 Total questions in categories:', mappedCategories);
     
+    // 🔍 DEBUG: Compare with admin panel filtering
+    console.log('🔍 ADMIN PANEL vs API COMPARISON:');
+    console.log('  - Admin Panel Filter: level=junior + skills=[Azure, AWS, ...]');
+    console.log('  - API Filter: fields/categories + skills + level not directly used');
+    console.log('  - API uses field mapping while Admin Panel uses direct field match');
+    console.log('  - This explains the difference: 48 vs 18 questions');
+    
     // Debug: show actual fields and categories in database for these questions
     const actualFieldsSet = new Set(dbQuestions.flatMap(q => q.fields));
     const actualFields = Array.from(actualFieldsSet);
@@ -381,6 +421,14 @@ export async function POST(request: NextRequest) {
     
     console.log('📋 Actual fields in found questions:', actualFields);
     console.log('📋 Actual categories in found questions:', actualCategories);
+    
+    // 🔍 DEBUG: Show difficulty distribution
+    const difficultyCount = dbQuestions.reduce((acc, q) => {
+      const diff = q.difficulty || 'unknown';
+      acc[diff] = (acc[diff] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    console.log('📊 Questions by difficulty level:', difficultyCount);
     
     console.log('📋 Sample questions found:', dbQuestions.slice(0, 5).map(q => ({
       id: q.id,

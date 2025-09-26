@@ -27,10 +27,10 @@ export default function AvatarInterviewPage() {
           <InteractiveAvatar onEndSession={handleEndSessionClick} />
         </div>
       ) : (
-        <div className="h-screen overflow-hidden">
+        <div className="min-h-screen overflow-y-auto">
           {/* Hero Section */}
           <div className="relative overflow-hidden from-primary/5 via-background to-accent/5">
-            <div className="relative max-w-7xl mx-auto px-6 py-8 lg:py-10">
+            <div className="relative max-w-7xl mx-auto px-6 py-8 lg:py-10 pb-20">
               {/* Header with History Button */}
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center space-x-3">

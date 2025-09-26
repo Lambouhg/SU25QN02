@@ -50,8 +50,87 @@ export async function GET(req: NextRequest) {
     if (q.type) where.type = q.type;
     if (q.level) where.level = q.level;
     if (q.search) where.stem = { contains: q.search, mode: "insensitive" };
-    if (q.topics) where.topics = { hasSome: q.topics.split(",").map((s) => s.trim()).filter(Boolean) };
-    if (q.fields) where.fields = { hasSome: q.fields.split(",").map((s) => s.trim()).filter(Boolean) };
+    // 🔧 SIMPLIFIED: Only filter by category based on user's skills/topics
+    if (q.topics) {
+      const topicList = q.topics.split(",").map((s) => s.trim()).filter(Boolean);
+      
+      // Map user topics/skills to categories for better matching
+      const topicToCategoryMapping: Record<string, string[]> = {
+        'aws': ['DevOps', 'Cloud'],
+        'docker': ['DevOps'],
+        'kubernetes': ['DevOps'],
+        'react': ['Software Development', 'Frontend Development'],
+        'javascript': ['Software Development', 'Frontend Development'],
+        'python': ['Software Development', 'Backend Development'],
+        'node.js': ['Software Development', 'Backend Development'],
+        'database': ['Database'],
+        'sql': ['Database'],
+        'mongodb': ['Database'],
+        'devops': ['DevOps'],
+        'cloud': ['DevOps', 'Cloud'],
+        'frontend': ['Frontend Development'],
+        'backend': ['Backend Development'],
+        'mobile': ['Mobile Development'],
+        'android': ['Mobile Development'],
+        'ios': ['Mobile Development']
+      };
+
+      let mappedCategories: string[] = [];
+
+      topicList.forEach(topic => {
+        const topicLower = topic.toLowerCase();
+        const categoriesForTopic = topicToCategoryMapping[topicLower] || [];
+        mappedCategories.push(...categoriesForTopic);
+      });
+
+      // Remove duplicates
+      mappedCategories = Array.from(new Set(mappedCategories));
+
+      console.log('🔧 Topic to category mapping applied:', {
+        originalTopics: topicList,
+        mappedCategories
+      });
+
+      // Filter by category only - much simpler!
+      if (mappedCategories.length > 0) {
+        where.category = { in: mappedCategories };
+      }
+    }
+    
+    // 🔧 SIMPLIFIED: Map field filter to category directly
+    if (q.fields) {
+      const fieldList = q.fields.split(",").map((s) => s.trim()).filter(Boolean);
+      
+      // Direct field to category mapping
+      const fieldToCategoryMapping: Record<string, string[]> = {
+        'software development': ['Software Development'],
+        'devops': ['DevOps'],
+        'frontend development': ['Frontend Development'],
+        'backend development': ['Backend Development'],
+        'database': ['Database'],
+        'mobile development': ['Mobile Development']
+      };
+
+      let mappedCategories: string[] = [];
+
+      fieldList.forEach(field => {
+        const fieldLower = field.toLowerCase();
+        const categoriesForField = fieldToCategoryMapping[fieldLower] || [field];
+        mappedCategories.push(...categoriesForField);
+      });
+
+      // Remove duplicates
+      mappedCategories = Array.from(new Set(mappedCategories));
+
+      console.log('🔧 Field to category mapping applied:', {
+        originalFields: fieldList,
+        mappedCategories
+      });
+
+      // Filter by category only
+      where.category = { in: mappedCategories };
+    }
+    
     if (q.skills) where.skills = { hasSome: q.skills.split(",").map((s) => s.trim()).filter(Boolean) };
     if (q.category) where.category = q.category;
     if (q.tags) where.tags = { hasSome: q.tags.split(",").map((s) => s.trim()).filter(Boolean) };

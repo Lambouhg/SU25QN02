@@ -136,6 +136,41 @@ interface SkillsProgressProps {
 const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading, collapsible = false }) => {
   const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
 
+  // Merge duplicate skills with same display name
+  const mergedSkillProgress = React.useMemo(() => {
+    if (!skillProgress || skillProgress.length === 0) return [];
+    
+    const skillMap = new Map<string, SkillProgress>();
+    
+    skillProgress.forEach(skill => {
+      const displayName = getDisplaySkillName(skill.name);
+      
+      if (skillMap.has(displayName)) {
+        const existing = skillMap.get(displayName)!;
+        // Merge skills: use higher score, combine sessions, latest date
+        const mergedSkill: SkillProgress = {
+          ...existing,
+          name: displayName, // Use display name consistently
+          score: Math.max(existing.score, skill.score), // Take higher score
+          totalSessions: existing.totalSessions + skill.totalSessions, // Combine sessions
+          lastUpdated: existing.lastUpdated > skill.lastUpdated ? existing.lastUpdated : skill.lastUpdated, // Latest date
+          progress: [...existing.progress, ...skill.progress].sort((a, b) => 
+            new Date(a.date).getTime() - new Date(b.date).getTime()
+          ), // Merge and sort progress arrays
+          trend: skill.trend || existing.trend // Keep any trend data
+        };
+        skillMap.set(displayName, mergedSkill);
+      } else {
+        skillMap.set(displayName, {
+          ...skill,
+          name: displayName // Normalize to display name
+        });
+      }
+    });
+    
+    return Array.from(skillMap.values()).sort((a, b) => b.score - a.score);
+  }, [skillProgress]);
+
   const toggleSkillExpanded = (skillName: string) => {
     setExpandedSkills(prev => {
       const newSet = new Set(prev);
@@ -165,10 +200,10 @@ const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading,
     );
   }
 
-  if (skillProgress && skillProgress.length > 0) {
+  if (mergedSkillProgress && mergedSkillProgress.length > 0) {
     return (
       <div className="space-y-4">
-        {skillProgress.map((skill) => {
+        {mergedSkillProgress.map((skill) => {
           const isExpanded = expandedSkills.has(skill.name);
           const hasProgressData = skill.progress && skill.progress.length > 0;
           
@@ -180,12 +215,7 @@ const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading,
               >
                 <div className="flex justify-between items-center">
                   <div className="flex flex-col">
-                    <span className="font-medium text-gray-900">{getDisplaySkillName(skill.name)}</span>
-                    {getDisplaySkillName(skill.name) !== skill.name && 
-                     skill.name !== 'Presentation' && 
-                     skill.name !== 'presentation' && (
-                      <span className="text-xs text-gray-500 mt-0.5">({skill.name})</span>
-                    )}
+                    <span className="font-medium text-gray-900">{skill.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${

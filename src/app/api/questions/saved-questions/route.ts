@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     });
 
     const existingQuestionIds = existingQuestions.map(q => q.id);
-    const nonExistentQuestions = questionsToSave.filter(id => !existingQuestionIds.includes(id));
+    const nonExistentQuestions = questionsToSave.filter((id: string) => !existingQuestionIds.includes(id));
 
     if (nonExistentQuestions.length > 0) {
       return NextResponse.json({ 
@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
     });
 
     const alreadySavedIds = alreadySaved?.savedQuestionItems.map(q => q.id) || [];
-    const newQuestionsToSave = questionsToSave.filter(id => !alreadySavedIds.includes(id));
+    const newQuestionsToSave = questionsToSave.filter((id: string) => !alreadySavedIds.includes(id));
 
     if (newQuestionsToSave.length === 0) {
       return NextResponse.json({ 
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       where: { id: user.id },
       data: {
         savedQuestionItems: {
-          connect: newQuestionsToSave.map(id => ({ id }))
+          connect: newQuestionsToSave.map((id: string) => ({ id }))
         }
       }
     });
