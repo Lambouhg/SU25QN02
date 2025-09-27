@@ -290,8 +290,7 @@ export class TrackingEventService {
           totalDuration: Math.max(0, Math.round(input.duration ?? 0)),
           avgScore: input.score ?? null,
           activityTypeBreakdown: {
-            [input.activityType]: 1,
-            [input.feature]: 1,
+            [input.activityType]: 1,  // Only count by activityType, not feature
           } as unknown as object,
           skillAverages: {},
         }
@@ -315,7 +314,7 @@ export class TrackingEventService {
     const prevBreakdown = (existing.activityTypeBreakdown as Record<string, number> | null) ?? {};
     const nextBreakdown = { ...prevBreakdown } as Record<string, number>;
     nextBreakdown[input.activityType] = (nextBreakdown[input.activityType] ?? 0) + 1;
-    nextBreakdown[input.feature] = (nextBreakdown[input.feature] ?? 0) + 1;
+    // Removed duplicate feature counting
 
     await prisma.userDailyStats.update({
       where: { userId_date: { userId: input.userId, date: day } },
@@ -701,7 +700,9 @@ export class TrackingEventService {
       const normalizedType = 
         (type === 'assessment' || type === 'assessment_test') ? 'assessment' :
         (type === 'interview' || type === 'avatar_interview') ? 'interview' :
-        (type === 'quiz' || type === 'secure_quiz') ? 'quiz' : type;
+        (type === 'quiz' || type === 'secure_quiz') ? 'quiz' :
+        (type === 'jd' || type === 'jd_qa') ? 'jd' : // Added JD normalization
+        type;
       
       normalized[normalizedType] = (normalized[normalizedType] || 0) + count;
     });
