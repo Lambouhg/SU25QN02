@@ -18,7 +18,7 @@ import {
   LineChart,
   Flame,
   Users,
-  BookOpen
+
 } from 'lucide-react';
 import {
   LineChart as RechartsLineChart,
@@ -282,7 +282,7 @@ const DetailedProgressDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-r from-orange-50 to-orange-100">
+        {/* <Card className="bg-gradient-to-r from-orange-50 to-orange-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -295,7 +295,7 @@ const DetailedProgressDashboard: React.FC = () => {
               <BookOpen className="h-10 w-10 text-orange-500" />
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Main Analytics Tabs */}
@@ -331,10 +331,10 @@ const DetailedProgressDashboard: React.FC = () => {
                   <div className="text-2xl font-bold text-blue-900">{safeToFixed(insights.summary.weeklyAvgScore)}%</div>
                   <div className="text-sm text-blue-600">Weekly Avg</div>
                 </div>
-                <div className="text-center">
+                {/* <div className="text-center">
                   <div className="text-2xl font-bold text-blue-900">{insights.summary.totalActivitiesThisMonth}</div>
                   <div className="text-sm text-blue-600">Activities</div>
-                </div>
+                </div> */}
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-900">
                     {trends.timeline.length > 0 ? Math.round(trends.timeline.reduce((sum, t) => sum + t.totalDuration, 0) / 60) : 0}m
