@@ -29,7 +29,9 @@ export async function GET(request: NextRequest) {
         const normalizedType = 
           (type === 'assessment' || type === 'assessment_test') ? 'assessment' :
           (type === 'interview' || type === 'avatar_interview') ? 'interview' :
-          (type === 'quiz' || type === 'secure_quiz') ? 'quiz' : type;
+          (type === 'quiz' || type === 'secure_quiz') ? 'quiz' :
+          (type === 'jd' || type === 'jd_qa') ? 'jd' : // Added JD normalization
+          type;
         
         normalized[normalizedType] = (normalized[normalizedType] || 0) + (count as number);
       });

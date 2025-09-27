@@ -256,7 +256,7 @@ const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading,
                         skill.level === 'intermediate' ? 'bg-green-500' :
                         'bg-gray-500'
                       }`}
-                      style={{ width: `${Math.min(100, skill.score)}%` }}
+                      style={{ width: `${Math.min(100, (skill.score / 10) * 100)}%` }}
                     />
                   </div>
                   <div className="flex justify-between items-center mt-2">
@@ -292,7 +292,7 @@ const SkillsProgress: React.FC<SkillsProgressProps> = ({ skillProgress, loading,
                           tick={{ fontSize: 10, fill: '#6b7280' }}
                         />
                         <YAxis 
-                          domain={[0, 100]} 
+                          domain={[0, 10]} 
                           tick={{ fontSize: 10, fill: '#6b7280' }}
                         />
                         <Tooltip

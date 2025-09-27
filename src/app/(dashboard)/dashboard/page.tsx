@@ -106,13 +106,6 @@ export default function DashboardPage() {
       onClick: () => router.push("/detailed-analytics")
     },
     {
-      id: 5,
-      icon: <TestTube className="w-6 h-6 text-white" />,
-      label: "API Test",
-      description: "Test analytics API",
-      onClick: () => router.push("/enhanced-analytics-test")
-    },
-    {
       id: 6,
       icon: <Settings className="w-6 h-6 text-white" />,
       label: "Profile",
@@ -685,26 +678,14 @@ export default function DashboardPage() {
               )}
 
               {showDetailedView && (
-                <>
-                  {/* Thông báo khi dữ liệu ít */}
-                  {lineChartData.length < 3 && viewMode !== 'session' && (
-                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                        <p className="text-sm text-yellow-700">
-                          Biểu đồ hiển thị dữ liệu giả lập để tạo đường cong. Hãy luyện tập thêm để có dữ liệu thực tế!
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
+                <>     
                   {/* Thông báo cho chế độ Session */}
                   {viewMode === 'session' && (
                     <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                         <p className="text-sm text-blue-700">
-                          Chế độ Session: So sánh từng lần luyện tập riêng biệt
+                          Session mode: Compare each separate practice session. Use Day/Month/Year for time-based trends.
                         </p>
                       </div>
                     </div>
